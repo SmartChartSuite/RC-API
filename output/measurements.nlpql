@@ -1,0 +1,293 @@
+
+// Phenotype library name
+phenotype " - measurements" version "1";
+
+// # Referenced libraries #
+include ClarityCore version "1.0" called Clarity;
+
+// Termsets
+
+termset mg_ht_value_terms: [
+    "height", "cm", "cm tall"
+];
+
+
+
+
+termset mg_ppwt_value_terms: [
+    "kg", "weight"
+];
+
+
+
+
+termset mg_dewt_value_terms: [
+    "weight at delivery"
+];
+
+
+
+// Data Entities
+
+define final mg_ppwt_value:
+    Clarity.ValueExtraction({
+                 termset: [mg_ppwt_value_terms]
+                 , minimum_value: "30"
+                 , maximum_value: "300"});
+                               
+
+
+
+define final mg_ht_value:
+    Clarity.ValueExtraction({
+                 termset: [mg_ht_value_terms]
+                 , minimum_value: "100"
+                 , maximum_value: "200"});
+                               
+
+
+
+define final mg_ht_loinc:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_ht_loinc_concepts": Concept {
+            Code '8302-2' from "LOINC", 
+            Code '8301-4' from "LOINC", 
+            Code '3137-7' from "LOINC", 
+            Code '83846-6' from "LOINC"
+        }
+
+
+
+
+       define "mg_ht_loinc": 
+            	 [Observation: Code in "mg_ht_loinc_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mg_ppwt_loinc:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_ppwt_loinc_concepts": Concept {
+            Code '8348-5' from "LOINC", 
+            Code '69460-4' from "LOINC", 
+            Code '56077-1' from "LOINC", 
+            Code '8338-6' from "LOINC"
+        }
+
+
+
+
+       define "mg_ppwt_loinc": 
+            	 [Observation: Code in "mg_ppwt_loinc_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mg_dewt:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_dewt_concepts": Concept {
+            Code '8345-1' from "LOINC"
+        }
+
+
+
+
+       define "mg_dewt": 
+            	 [Observation: Code in "mg_dewt_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mg_dewt_value:
+    Clarity.ValueExtraction({
+                 termset: [mg_dewt_value_terms]
+                 , minimum_value: "30"
+                 , maximum_value: "300"});
+                               
+
+
+
+define final mg_ht_sct:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_ht_sct_concepts": Concept {
+            Code '365714001' from "SNOMED", 
+            Code '248327000' from "SNOMED"
+        }
+
+
+
+
+       define "mg_ht_sct": 
+            	 [Observation: Code in "mg_ht_sct_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mg_ppwt_sct:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_ppwt_sct_concepts": Concept {
+            Code '27113001' from "SNOMED"
+        }
+
+
+
+
+       define "mg_ppwt_sct": 
+            	 [Observation: Code in "mg_ppwt_sct_concepts"]
+
+
+
+             """
+    });
+
+
+// Operations
+
+
+

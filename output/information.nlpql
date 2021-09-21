@@ -1,0 +1,290 @@
+
+// Phenotype library name
+phenotype " - information" version "1";
+
+// # Referenced libraries #
+include ClarityCore version "1.0" called Clarity;
+
+// Termsets
+
+termset ms_yn_terms_terms: [
+    "condyloma latum", "otosyphilis", "syphilitic", "syphills", "lues"
+];
+
+
+
+
+termset mv_yn_terms_terms: [
+    "covid", "covid-19"
+];
+
+
+
+
+termset mc_yn_terms_terms: [
+    "hepatitis c", "hep c"
+];
+
+
+
+// Data Entities
+
+define final mv_yn:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mv_yn_concepts": Concept {
+            Code '186747009' from "SNOMED", 
+            Code '398447004' from "SNOMED"
+        }
+
+
+
+
+       define "mv_yn": 
+            	 [Condition: Code in "mv_yn_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mc_yn_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_yn_terms_terms]
+    });
+                    
+
+
+
+define final mv_yn_terms:
+    Clarity.ProviderAssertion({
+      termset: [mv_yn_terms_terms]
+    });
+                    
+
+
+
+define final ms_yn:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "ms_yn_concepts": Concept {
+            Code '76272004' from "SNOMED", 
+            Code '312934004' from "SNOMED", 
+            Code '197966009' from "SNOMED", 
+            Code '21523006' from "SNOMED", 
+            Code '240569007' from "SNOMED", 
+            Code '240567009' from "SNOMED", 
+            Code '240563008' from "SNOMED", 
+            Code '233849007' from "SNOMED", 
+            Code '302813001' from "SNOMED", 
+            Code '235064008' from "SNOMED", 
+            Code '235032001' from "SNOMED", 
+            Code '234017002' from "SNOMED", 
+            Code '235065009' from "SNOMED", 
+            Code '371237000' from "SNOMED", 
+            Code '42770003' from "SNOMED", 
+            Code '49923008' from "SNOMED", 
+            Code '55768006' from "SNOMED", 
+            Code '61612001' from "SNOMED", 
+            Code '82355002' from "SNOMED", 
+            Code '58056005' from "SNOMED", 
+            Code '410470003' from "SNOMED", 
+            Code '4483005' from "SNOMED", 
+            Code '45058001' from "SNOMED", 
+            Code '62207008' from "SNOMED", 
+            Code '64102008' from "SNOMED", 
+            Code '37430004' from "SNOMED", 
+            Code '402940004' from "SNOMED", 
+            Code '402942007' from "SNOMED", 
+            Code '402941000' from "SNOMED", 
+            Code '402943002' from "SNOMED", 
+            Code '77782006' from "SNOMED", 
+            Code '402950003' from "SNOMED", 
+            Code '94851000119107' from "SNOMED", 
+            Code '10759921000119107' from "SNOMED", 
+            Code '331151000119109' from "SNOMED", 
+            Code '711617002' from "SNOMED", 
+            Code '50528008' from "SNOMED", 
+            Code '88943008' from "SNOMED", 
+            Code '59307008' from "SNOMED", 
+            Code '186899004' from "SNOMED", 
+            Code '86028001' from "SNOMED", 
+            Code '34964002' from "SNOMED", 
+            Code '186875004' from "SNOMED", 
+            Code '186877007' from "SNOMED", 
+            Code '186878002' from "SNOMED", 
+            Code '20735004' from "SNOMED", 
+            Code '278480000' from "SNOMED", 
+            Code '3589003' from "SNOMED", 
+            Code '12232008' from "SNOMED", 
+            Code '38523005' from "SNOMED", 
+            Code '36276008' from "SNOMED", 
+            Code '26135000' from "SNOMED", 
+            Code '22386003' from "SNOMED", 
+            Code '19206003' from "SNOMED", 
+            Code '67391006' from "SNOMED", 
+            Code '76272004' from "SNOMED", 
+            Code '34242002' from "SNOMED", 
+            Code '44568006' from "SNOMED", 
+            Code '77939001' from "SNOMED", 
+            Code '301086002' from "SNOMED", 
+            Code '59530001' from "SNOMED", 
+            Code '4082005' from "SNOMED", 
+            Code '11338007' from "SNOMED", 
+            Code '8555001' from "SNOMED", 
+            Code '202933002' from "SNOMED", 
+            Code '237446005' from "SNOMED", 
+            Code '230735006' from "SNOMED", 
+            Code '23550005' from "SNOMED", 
+            Code '16070004' from "SNOMED", 
+            Code '197305002' from "SNOMED"
+        }
+
+
+
+
+       define "ms_yn": 
+            	 [Condition: Code in "ms_yn_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mc_yn:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mc_yn_concepts": Concept {
+            Code '507101007' from "SNOMED", 
+            Code '708198006' from "SNOMED", 
+            Code '703866000' from "SNOMED", 
+            Code '347891000119103' from "SNOMED", 
+            Code '128971000119101' from "SNOMED", 
+            Code '120241000119100' from "SNOMED", 
+            Code '824901000000104' from "SNOMED", 
+            Code '824891000000100' from "SNOMED", 
+            Code '824881000000102' from "SNOMED", 
+            Code '824871000000104' from "SNOMED", 
+            Code '824851000000108' from "SNOMED", 
+            Code '824841000000105' from "SNOMED", 
+            Code '761381000000102' from "SNOMED", 
+            Code '831000119103' from "SNOMED", 
+            Code '200371000000104' from "SNOMED", 
+            Code '235872006' from "SNOMED", 
+            Code '988111000000106' from "SNOMED", 
+            Code '146371000119104' from "SNOMED", 
+            Code '125921000119106' from "SNOMED", 
+            Code '702969000' from "SNOMED", 
+            Code '199203001' from "SNOMED", 
+            Code '278929008' from "SNOMED", 
+            Code '170489004' from "SNOMED", 
+            Code '442374005' from "SNOMED", 
+            Code '186628001' from "SNOMED", 
+            Code '128302006' from "SNOMED", 
+            Code '50711007' from "SNOMED", 
+            Code '235866006' from "SNOMED"
+        }
+
+
+
+
+       define "mc_yn": 
+            	 [Condition: Code in "mc_yn_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final ms_yn_terms:
+    Clarity.ProviderAssertion({
+      termset: [ms_yn_terms_terms]
+    });
+                    
+
+
+// Operations
+
+
+

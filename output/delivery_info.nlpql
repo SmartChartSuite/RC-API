@@ -1,0 +1,195 @@
+
+// Phenotype library name
+phenotype " - delivery info" version "1";
+
+// # Referenced libraries #
+include ClarityCore version "1.0" called Clarity;
+
+// Termsets
+
+termset mg_decon_icuadm_dt_terms_terms: [
+    "icu", "intensive care"
+];
+
+
+
+
+termset mg_decon_icu_terms_terms: [
+    "icu", "intensive care"
+];
+
+
+
+
+termset mg_decon_trafu_terms_terms: [
+    "transfusion"
+];
+
+
+
+// Data Entities
+
+define final mg_decon_trafu:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_decon_trafu_concepts": Concept {
+            Code '5447007' from "SNOMED", 
+            Code '36430' from "SNOMED", 
+            Code '116859006' from "SNOMED"
+        }
+
+
+
+
+       define "mg_decon_trafu": 
+            	 [Procedure: Code in "mg_decon_trafu_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mg_decon_icuadm_dt_terms:
+    Clarity.ProviderAssertion({
+      termset: [mg_decon_icuadm_dt_terms_terms]
+    });
+                    
+
+
+
+define final mg_decon_icu:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_decon_icu_concepts": Concept {
+            Code '95367-9' from "LOINC"
+        }
+
+
+
+
+       define "mg_decon_icu": 
+            	 [Observation: Code in "mg_decon_icu_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mg_decon_icuadm_dt:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_decon_icuadm_dt_concepts": Concept {
+            Code '95367-9' from "LOINC"
+        }
+
+
+
+
+       define "mg_decon_icuadm_dt": 
+            	 [Observation: Code in "mg_decon_icuadm_dt_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mg_decon_trafu_terms:
+    Clarity.ProviderAssertion({
+      termset: [mg_decon_trafu_terms_terms]
+    });
+                    
+
+
+
+define final mg_decon_icu_terms:
+    Clarity.ProviderAssertion({
+      termset: [mg_decon_icu_terms_terms]
+    });
+                    
+
+
+// Operations
+
+
+

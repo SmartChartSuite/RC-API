@@ -1,0 +1,3685 @@
+{
+    "name": "SET-NET Update",
+    "owner": "gatech",
+    "description": "SET-NET Update",
+    "allocated_users": [
+        "admin"
+    ],
+    "groups": [
+        "Information",
+        "Maternal Demographics",
+        "Measurements",
+        "Pre-Pregnancy Conditions",
+        "Substance Use",
+        "Maternal Obstetric Information",
+        "Conditions during pregnancy",
+        "Delivery Information",
+        "Other notes",
+        "Pathogen-specific Modules",
+        "Occupational Exposure",
+        "Symptomology",
+        "COVID-19 Complications",
+        "COVID-19 Treatment",
+        "Hepatitis C Module",
+        "Delivery",
+        "Syphilis Module"
+    ],
+    "questions": [
+        {
+            "question_name": "CDC Pregnancy ID (e.g. AZS123456, LAC100000, PRT112233)",
+            "question_type": "TEXT",
+            "question_number": "1",
+            "group": "Information",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "CDC Maternal ID (e.g. KYS567890A)",
+            "question_type": "TEXT",
+            "question_number": "2",
+            "group": "Information",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "Other pregnancies of same woman (Pregnancy IDs)",
+            "question_type": "TEXT",
+            "question_number": "3",
+            "group": "Information",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "Pregnancy no longer being monitored (i.e. lost to follow-up)",
+            "question_type": "RADIO",
+            "question_number": "4",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "If yes, what is the primary reason for no longer monitoring?",
+            "question_type": "RADIO",
+            "question_number": "5",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Moved out of the area of surveillance",
+                    "value": "moved_out_of_the_area_of_surveillance"
+                },
+                {
+                    "text": "Laboratory results not found",
+                    "value": "laboratory_results_not_found"
+                },
+                {
+                    "text": "Not selected for MRA",
+                    "value": "not_selected_for_mra"
+                },
+                {
+                    "text": "Unable to acquire medical records",
+                    "value": "unable_to_acquire_medical_records"
+                },
+                {
+                    "text": "No consent/public health authbroity",
+                    "value": "no_consent/public_health_authbroity"
+                },
+                {
+                    "text": "other",
+                    "value": "other"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "6",
+            "group": "Information",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "SET-NET exposure of interest, COVID-19?",
+            "question_type": "RADIO",
+            "question_number": "7",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "information": [
+                    "mv_yn",
+                    "mv_yn_terms"
+                ]
+            },
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "SET-NET exposure of interest, Hepatitis C?",
+            "question_type": "RADIO",
+            "question_number": "8",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "information": [
+                    "mv_yn",
+                    "mv_yn_terms",
+                    "mc_yn",
+                    "mc_yn_terms"
+                ]
+            },
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "SET-NET exposure of interest, Syphilis?",
+            "question_type": "RADIO",
+            "question_number": "9",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "information": [
+                    "mv_yn",
+                    "mv_yn_terms",
+                    "ms_yn",
+                    "mc_yn_terms",
+                    "ms_yn_terms",
+                    "mc_yn"
+                ]
+            },
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "Mother's date of birth:",
+            "question_type": "TEXT",
+            "question_number": "10",
+            "group": "Maternal Demographics",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_dob"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Mother's Race",
+            "question_type": "DESCRIPTION",
+            "question_number": "11",
+            "group": "Maternal Demographics",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_dob"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "American Indian or Alaska Native",
+            "question_type": "RADIO",
+            "question_number": "12",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_aian",
+                    "mg_dob"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Asian",
+            "question_type": "RADIO",
+            "question_number": "13",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_aian",
+                    "mg_dob",
+                    "mg_race_asian"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Black or African American",
+            "question_type": "RADIO",
+            "question_number": "14",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_baa",
+                    "mg_race_aian",
+                    "mg_dob",
+                    "mg_race_asian"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Native Hawaiian or Other Pacific Islander",
+            "question_type": "RADIO",
+            "question_number": "15",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_baa",
+                    "mg_race_aian",
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_race_nhopi"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "White",
+            "question_type": "RADIO",
+            "question_number": "16",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_baa",
+                    "mg_race_aian",
+                    "mg_race_wh",
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_race_nhopi"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Other",
+            "question_type": "RADIO",
+            "question_number": "17",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_baa",
+                    "mg_race_aian",
+                    "mg_race_wh",
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_race_nhopi",
+                    "mg_race_oth"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Mother's ethnicity: Is the mother Hispanic or Latina?",
+            "question_type": "RADIO",
+            "question_number": "18",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_baa",
+                    "mg_race_aian",
+                    "mg_ethn",
+                    "mg_race_wh",
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_race_nhopi",
+                    "mg_race_oth"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Highest degree or level of school completed by the mother at the time of delivery.",
+            "question_type": "RADIO",
+            "question_number": "19",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "8th grade or less",
+                    "value": "8th_grade_or_less"
+                },
+                {
+                    "text": "9th - 12th grade",
+                    "value": "9th_-_12th_grade"
+                },
+                {
+                    "text": "no diploma",
+                    "value": "no_diploma"
+                },
+                {
+                    "text": "High school graduate or GED completed",
+                    "value": "high_school_graduate_or_ged_completed"
+                },
+                {
+                    "text": "Some college credit but no degree",
+                    "value": "some_college_credit_but_no_degree"
+                },
+                {
+                    "text": "Associate degree (e.g. AA AS)",
+                    "value": "associate_degree_eg_aa_as"
+                },
+                {
+                    "text": "Bachelor's degree (e.g. BA AB BS)",
+                    "value": "bachelor's_degree_eg_ba_ab_bs"
+                },
+                {
+                    "text": "Master's degree (e.g. MA MS MEng MEd MWR MBA)",
+                    "value": "master's_degree_eg_ma_ms_meng_med_mwr_mba"
+                },
+                {
+                    "text": "Doctorate (e.g. PhD EdD) or Professional degree (e.g. MD DDS DVM LLB JD)",
+                    "value": "doctorate_eg_phd_edd_or_professional_degree_eg_md_dds_dvm_llb_jd"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_baa",
+                    "mg_edu",
+                    "mg_race_aian",
+                    "mg_ethn",
+                    "mg_race_wh",
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_race_nhopi",
+                    "mg_race_oth"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Zip code of the mother's primary residence:",
+            "question_type": "TEXT",
+            "question_number": "20",
+            "group": "Maternal Demographics",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_baa",
+                    "mg_edu",
+                    "mg_race_aian",
+                    "mg_ethn",
+                    "mg_race_wh",
+                    "mg_race_asian",
+                    "mg_zip",
+                    "mg_dob",
+                    "mg_race_nhopi",
+                    "mg_race_oth"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "County of mother's primary residence:",
+            "question_type": "TEXT",
+            "question_number": "21",
+            "group": "Maternal Demographics",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_baa",
+                    "mg_edu",
+                    "mg_race_aian",
+                    "mg_ethn",
+                    "mg_race_wh",
+                    "mg_co",
+                    "mg_race_asian",
+                    "mg_zip",
+                    "mg_dob",
+                    "mg_race_nhopi",
+                    "mg_race_oth"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Mother's Height (cm):",
+            "question_type": "TEXT",
+            "question_number": "22",
+            "group": "Measurements",
+            "answers": [],
+            "evidence_bundle": {
+                "measurements": [
+                    "mg_ht_value",
+                    "mg_ht_loinc",
+                    "mg_ht_sct"
+                ]
+            },
+            "nlpql_grouping": "measurements"
+        },
+        {
+            "question_name": "Mother's pre-pregnancy weight (kg):",
+            "question_type": "TEXT",
+            "question_number": "23",
+            "group": "Measurements",
+            "answers": [],
+            "evidence_bundle": {
+                "measurements": [
+                    "mg_ht_loinc",
+                    "mg_ppwt_loinc",
+                    "mg_ppwt_sct",
+                    "mg_ht_sct",
+                    "mg_ht_value",
+                    "mg_ppwt_value"
+                ]
+            },
+            "nlpql_grouping": "measurements"
+        },
+        {
+            "question_name": "Mother's weight at delivery (kg):",
+            "question_type": "TEXT",
+            "question_number": "24",
+            "group": "Measurements",
+            "answers": [],
+            "evidence_bundle": {
+                "measurements": [
+                    "mg_dewt",
+                    "mg_ht_loinc",
+                    "mg_ppwt_loinc",
+                    "mg_ppwt_sct",
+                    "mg_ht_sct",
+                    "mg_ht_value",
+                    "mg_ppwt_value",
+                    "mg_dewt_value"
+                ]
+            },
+            "nlpql_grouping": "measurements"
+        },
+        {
+            "question_name": "Did the mother have any of the following conditions or infections diagnosed prior to this pregnancy?",
+            "question_type": "DESCRIPTION",
+            "question_number": "25",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Diabetes",
+            "question_type": "RADIO",
+            "question_number": "26",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mg_ppcon_diabetes_terms",
+                    "mg_ppcon_diabetes"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Hypertension",
+            "question_type": "RADIO",
+            "question_number": "27",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mg_cron_htn",
+                    "mg_cron_htn_terms",
+                    "mg_ppcon_diabetes_terms",
+                    "mg_ppcon_diabetes"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Did the mother use alcohol during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "28",
+            "group": "Substance Use",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "substance_use": [
+                    "mg_sub_alc_icd",
+                    "mg_sub_alc_terms",
+                    "mg_sub_alc_sct"
+                ]
+            },
+            "nlpql_grouping": "substance_use"
+        },
+        {
+            "question_name": "Did the mother use tobacco (e.g.,cigarettes, cigars, smokeless tobacco, e-cigarettes) during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "29",
+            "group": "Substance Use",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "substance_use": [
+                    "mg_sub_alc_icd",
+                    "mg_sub_alc_sct",
+                    "mg_sub_tobacco_sct",
+                    "mg_sub_tobacco_terms",
+                    "mg_sub_alc_terms",
+                    "mg_sub_tobacco_icd"
+                ]
+            },
+            "nlpql_grouping": "substance_use"
+        },
+        {
+            "question_name": "Gravidity:",
+            "question_type": "TEXT",
+            "question_number": "30",
+            "group": "Maternal Obstetric Information",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_obstetric": [
+                    "mg_gravidity"
+                ]
+            },
+            "nlpql_grouping": "maternal_obstetric"
+        },
+        {
+            "question_name": "Parity:",
+            "question_type": "TEXT",
+            "question_number": "31",
+            "group": "Maternal Obstetric Information",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_obstetric": [
+                    "mg_parity_sct",
+                    "mg_parity_loinc",
+                    "mg_gravidity"
+                ]
+            },
+            "nlpql_grouping": "maternal_obstetric"
+        },
+        {
+            "question_name": "Date of the mother's last menstrual period (LMP):",
+            "question_type": "TEXT",
+            "question_number": "32",
+            "group": "Maternal Obstetric Information",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_obstetric": [
+                    "mg_lmp_loinc",
+                    "mg_parity_sct",
+                    "mg_lmp_sct",
+                    "mg_lmp_terms",
+                    "mg_gravidity",
+                    "mg_parity_loinc"
+                ]
+            },
+            "nlpql_grouping": "maternal_obstetric"
+        },
+        {
+            "question_name": "Date of the mother's estimated due date (EDD):",
+            "question_type": "TEXT",
+            "question_number": "33",
+            "group": "Maternal Obstetric Information",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_obstetric": [
+                    "mg_lmp_loinc",
+                    "mg_edd_loinc",
+                    "mg_parity_sct",
+                    "mg_lmp_sct",
+                    "mg_lmp_terms",
+                    "mg_gravidity",
+                    "mg_edd_sct",
+                    "mg_parity_loinc"
+                ]
+            },
+            "nlpql_grouping": "maternal_obstetric"
+        },
+        {
+            "question_name": "Did the mother receive prenatal care?",
+            "question_type": "RADIO",
+            "question_number": "34",
+            "group": "Maternal Obstetric Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_obstetric": [
+                    "mg_lmp_loinc",
+                    "mg_edd_loinc",
+                    "mg_parity_sct",
+                    "mg_lmp_sct",
+                    "mg_pn_sct",
+                    "mg_lmp_terms",
+                    "mg_gravidity",
+                    "mg_pn_icd",
+                    "mg_edd_sct",
+                    "mg_parity_loinc"
+                ]
+            },
+            "nlpql_grouping": "maternal_obstetric"
+        },
+        {
+            "question_name": "Date of the mother's first prenatal visit:",
+            "question_type": "TEXT",
+            "question_number": "35",
+            "group": "Maternal Obstetric Information",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_obstetric": [
+                    "mg_lmp_loinc",
+                    "mg_edd_loinc",
+                    "mg_pn_dt_sct",
+                    "mg_parity_sct",
+                    "mg_pn_dt_icd",
+                    "mg_lmp_sct",
+                    "mg_pn_sct",
+                    "mg_lmp_terms",
+                    "mg_gravidity",
+                    "mg_pn_icd",
+                    "mg_edd_sct",
+                    "mg_parity_loinc"
+                ]
+            },
+            "nlpql_grouping": "maternal_obstetric"
+        },
+        {
+            "question_name": "Total number of prenatal visits that the mother had during this pregnancy:",
+            "question_type": "TEXT",
+            "question_number": "36",
+            "group": "Maternal Obstetric Information",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_obstetric": [
+                    "mg_lmp_loinc",
+                    "mg_edd_loinc",
+                    "mg_pn_dt_sct",
+                    "mg_parity_sct",
+                    "mg_pn_dt_icd",
+                    "mg_lmp_sct",
+                    "mg_pn_sct",
+                    "mg_lmp_terms",
+                    "mg_gravidity",
+                    "mg_pn_icd",
+                    "mg_edd_sct",
+                    "mg_parity_loinc"
+                ]
+            },
+            "nlpql_grouping": "maternal_obstetric"
+        },
+        {
+            "question_name": "Did the mother have any of the following conditions during this pregnancy?",
+            "question_type": "DESCRIPTION",
+            "question_number": "37",
+            "group": "Conditions during pregnancy",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "Gestational diabetes",
+            "question_type": "RADIO",
+            "question_number": "38",
+            "group": "Conditions during pregnancy",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "Pre-eclampsia or pregnancy induced hypertension",
+            "question_type": "RADIO",
+            "question_number": "39",
+            "group": "Conditions during pregnancy",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "Intrauterine growth restriction (IUGR)",
+            "question_type": "RADIO",
+            "question_number": "40",
+            "group": "Conditions during pregnancy",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "Was the mother hospitalized during pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "41",
+            "group": "Conditions during pregnancy",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_hosp_yn_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "If yes, date of admission:",
+            "question_type": "TEXT",
+            "question_number": "42",
+            "group": "Conditions during pregnancy",
+            "answers": [],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_hospadm_dt",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_hosp_yn_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "Maternal death?",
+            "question_type": "RADIO",
+            "question_number": "43",
+            "group": "Conditions during pregnancy",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_hospadm_dt",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_hosp_yn_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_iugr_terms",
+                    "mg_death",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "If yes, date of maternal death:",
+            "question_type": "TEXT",
+            "question_number": "44",
+            "group": "Conditions during pregnancy",
+            "answers": [],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_death_dt",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_hospadm_dt",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_hosp_yn_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_iugr_terms",
+                    "mg_death",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "If yes, cause(s) of maternal death:",
+            "question_type": "TEXT",
+            "question_number": "45",
+            "group": "Conditions during pregnancy",
+            "answers": [],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_death_dt",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_hospadm_dt",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_hosp_yn_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_iugr_terms",
+                    "mg_death",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms",
+                    "mg_death_dx"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "Mother's primary health insurance at the time of delivery",
+            "question_type": "RADIO",
+            "question_number": "46",
+            "group": "Delivery Information",
+            "answers": [
+                {
+                    "text": "Private insurance",
+                    "value": "private_insurance"
+                },
+                {
+                    "text": "Medicaid",
+                    "value": "medicaid"
+                },
+                {
+                    "text": "Other",
+                    "value": "other"
+                },
+                {
+                    "text": "None/Self-pay",
+                    "value": "none/self-pay"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "delivery_info": [
+                    "mg_insur"
+                ]
+            },
+            "nlpql_grouping": "delivery_info"
+        },
+        {
+            "question_name": "If other, specify.",
+            "question_type": "TEXT",
+            "question_number": "47",
+            "group": "Delivery Information",
+            "answers": [],
+            "evidence_bundle": {
+                "delivery_info": [
+                    "mg_insur"
+                ]
+            },
+            "nlpql_grouping": "delivery_info"
+        },
+        {
+            "question_name": "Plurality at delivery:",
+            "question_type": "TEXT",
+            "question_number": "48",
+            "group": "Delivery Information",
+            "answers": [],
+            "evidence_bundle": {
+                "delivery_info": [
+                    "mg_insur",
+                    "mg_plurality_de_obs",
+                    "mg_plurality_de_cond"
+                ]
+            },
+            "nlpql_grouping": "delivery_info"
+        },
+        {
+            "question_name": "Did the mother have any of the following delivery complications?",
+            "question_type": "DESCRIPTION",
+            "question_number": "49",
+            "group": "Delivery Information",
+            "answers": [],
+            "evidence_bundle": {
+                "delivery_info": [
+                    "mg_insur",
+                    "mg_plurality_de_obs",
+                    "mg_plurality_de_cond"
+                ]
+            },
+            "nlpql_grouping": "delivery_info"
+        },
+        {
+            "question_name": "ICU admission",
+            "question_type": "RADIO",
+            "question_number": "50",
+            "group": "Delivery Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "delivery_info": [
+                    "mg_decon_icu_terms",
+                    "mg_plurality_de_obs",
+                    "mg_plurality_de_cond",
+                    "mg_insur",
+                    "mg_decon_icu"
+                ]
+            },
+            "nlpql_grouping": "delivery_info"
+        },
+        {
+            "question_name": "If yes, date of ICU admission:",
+            "question_type": "TEXT",
+            "question_number": "51",
+            "group": "Delivery Information",
+            "answers": [],
+            "evidence_bundle": {
+                "delivery_info": [
+                    "mg_decon_icuadm_dt",
+                    "mg_decon_icu_terms",
+                    "mg_plurality_de_obs",
+                    "mg_decon_icuadm_dt_terms",
+                    "mg_plurality_de_cond",
+                    "mg_insur",
+                    "mg_decon_icu"
+                ]
+            },
+            "nlpql_grouping": "delivery_info"
+        },
+        {
+            "question_name": "Transfusion",
+            "question_type": "RADIO",
+            "question_number": "52",
+            "group": "Delivery Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "delivery_info": [
+                    "mg_decon_icuadm_dt",
+                    "mg_decon_icu_terms",
+                    "mg_plurality_de_obs",
+                    "mg_decon_trafu",
+                    "mg_decon_icuadm_dt_terms",
+                    "mg_plurality_de_cond",
+                    "mg_insur",
+                    "mg_decon_trafu_terms",
+                    "mg_decon_icu"
+                ]
+            },
+            "nlpql_grouping": "delivery_info"
+        },
+        {
+            "question_name": "Abstractor notes:",
+            "question_type": "TEXT",
+            "question_number": "53",
+            "group": "Other notes",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "notes"
+        },
+        {
+            "question_name": "Maternal Form: COVID-19 Module",
+            "question_type": "DESCRIPTION",
+            "question_number": "54",
+            "group": "Pathogen-specific Modules",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "pathogen_specific_info"
+        },
+        {
+            "question_name": "Maternal CDC 2019-nCoV ID",
+            "question_type": "TEXT",
+            "question_number": "55",
+            "group": "Pathogen-specific Modules",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "pathogen_specific_info"
+        },
+        {
+            "question_name": "Maternal State/local case ID",
+            "question_type": "TEXT",
+            "question_number": "56",
+            "group": "Pathogen-specific Modules",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "pathogen_specific_info"
+        },
+        {
+            "question_name": "Maternal Contact ID",
+            "question_type": "TEXT",
+            "question_number": "57",
+            "group": "Pathogen-specific Modules",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "pathogen_specific_info"
+        },
+        {
+            "question_name": "Maternal COVID-19 NNDSS loc. Rec. ID/ Case ID",
+            "question_type": "TEXT",
+            "question_number": "58",
+            "group": "Pathogen-specific Modules",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "pathogen_specific_info"
+        },
+        {
+            "question_name": "Trimester of COVID-19 infection onset",
+            "question_type": "RADIO",
+            "question_number": "59",
+            "group": "Pathogen-specific Modules",
+            "answers": [
+                {
+                    "text": "First (< 14 weeks)",
+                    "value": "first_<_14_weeks"
+                },
+                {
+                    "text": "Second (14-27 weeks)",
+                    "value": "second_14-27_weeks"
+                },
+                {
+                    "text": "Third (>= 28 weeks)",
+                    "value": "third_>=_28_weeks"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "pathogen_specific_info"
+        },
+        {
+            "question_name": "Does the mother have pre-existing medical conditions?",
+            "question_type": "RADIO",
+            "question_number": "60",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mg_cron_htn",
+                    "mg_cron_htn_terms",
+                    "mg_ppcon_diabetes_terms",
+                    "mg_ppcon_diabetes"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Chronic lung disease",
+            "question_type": "RADIO",
+            "question_number": "61",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mg_cron_htn",
+                    "mg_ppcon_diabetes",
+                    "mg_ppcon_diabetes_terms",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_copd_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Cardiovascular disease",
+            "question_type": "RADIO",
+            "question_number": "62",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mg_ppcon_diabetes",
+                    "mg_ppcon_diabetes_terms",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_copd_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Chronic renal disease",
+            "question_type": "RADIO",
+            "question_number": "63",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mg_ppcon_diabetes",
+                    "mg_ppcon_diabetes_terms",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_renal_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Chronic liver disease",
+            "question_type": "RADIO",
+            "question_number": "64",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mg_ppcon_diabetes",
+                    "mg_ppcon_diabetes_terms",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_renal_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Immunosuppressive condition",
+            "question_type": "RADIO",
+            "question_number": "65",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mg_ppcon_diabetes",
+                    "mg_ppcon_diabetes_terms",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_immunsup_terms",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_immunsup",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_renal_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Autoimmune condition",
+            "question_type": "RADIO",
+            "question_number": "66",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mg_ppcon_diabetes",
+                    "mg_ppcon_diabetes_terms",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_immunsup_terms",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_immunsup",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_renal_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Disability",
+            "question_type": "RADIO",
+            "question_number": "67",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_dis_terms",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_dis",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_immunsup_terms",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_immunsup",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_renal_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "If yes, specify:",
+            "question_type": "TEXT",
+            "question_number": "68",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_dis_terms",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_dis",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_immunsup_terms",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_immunsup",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_renal_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Psychological/psychiatric condition",
+            "question_type": "RADIO",
+            "question_number": "69",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_immunsup",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_dis",
+                    "mv_ppcon_psych",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_renal_terms",
+                    "mv_ppcon_psych_terms",
+                    "mv_ppcon_dis_terms",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_immunsup_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "If yes, specify:",
+            "question_type": "TEXT",
+            "question_number": "70",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_immunsup",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_dis",
+                    "mv_ppcon_psych",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_renal_terms",
+                    "mv_ppcon_psych_terms",
+                    "mv_ppcon_dis_terms",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_immunsup_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Other chronic disease(s)",
+            "question_type": "RADIO",
+            "question_number": "71",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_immunsup",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_oth_terms",
+                    "mv_ppcon_dis",
+                    "mv_ppcon_psych",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_renal_terms",
+                    "mv_ppcon_psych_terms",
+                    "mv_ppcon_dis_terms",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_oth",
+                    "mv_ppcon_immunsup_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "72",
+            "group": "Pre-Pregnancy Conditions",
+            "answers": [],
+            "evidence_bundle": {
+                "pre_pregnancy_conditions": [
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_immunsup",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_oth_terms",
+                    "mv_ppcon_dis",
+                    "mv_ppcon_psych",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_renal_terms",
+                    "mv_ppcon_psych_terms",
+                    "mv_ppcon_dis_terms",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_oth",
+                    "mv_ppcon_immunsup_terms"
+                ]
+            },
+            "nlpql_grouping": "pre_pregnancy_conditions"
+        },
+        {
+            "question_name": "Is the patient a health care worker in the United States?",
+            "question_type": "RADIO",
+            "question_number": "73",
+            "group": "Occupational Exposure",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "occupational_exposure": [
+                    "mv_occ_hc_terms",
+                    "mv_occ_hc"
+                ]
+            },
+            "nlpql_grouping": "occupational_exposure"
+        },
+        {
+            "question_name": "In the 14 days prior to illness onset, did the patient have exposure at their workplace?",
+            "question_type": "RADIO",
+            "question_number": "74",
+            "group": "Occupational Exposure",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "occupational_exposure": [
+                    "mv_occ_hc_terms",
+                    "mv_occ_hc"
+                ]
+            },
+            "nlpql_grouping": "occupational_exposure"
+        },
+        {
+            "question_name": "If yes, is the patient's workplace a critical infrastructure (i.e., healthcare setting, grocery store)?",
+            "question_type": "RADIO",
+            "question_number": "75",
+            "group": "Occupational Exposure",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "occupational_exposure": [
+                    "mv_occ_hc_terms",
+                    "mv_occ_hc"
+                ]
+            },
+            "nlpql_grouping": "occupational_exposure"
+        },
+        {
+            "question_name": "If yes, specify workplace setting:",
+            "question_type": "TEXT",
+            "question_number": "76",
+            "group": "Occupational Exposure",
+            "answers": [],
+            "evidence_bundle": {
+                "occupational_exposure": [
+                    "mv_occ_hc_terms",
+                    "mv_occ_hc"
+                ]
+            },
+            "nlpql_grouping": "occupational_exposure"
+        },
+        {
+            "question_name": "Symptoms present during course of illness:",
+            "question_type": "RADIO",
+            "question_number": "77",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Symptomatic",
+                    "value": "symptomatic"
+                },
+                {
+                    "text": "Asymptomatic",
+                    "value": "asymptomatic"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "If symptomatic, onset date:",
+            "question_type": "TEXT",
+            "question_number": "78",
+            "group": "Symptomology",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Fever >100.4F (38C)",
+            "question_type": "RADIO",
+            "question_number": "79",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Subjective fever (felt feverish)",
+            "question_type": "RADIO",
+            "question_number": "80",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Chills",
+            "question_type": "RADIO",
+            "question_number": "81",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Rigors",
+            "question_type": "RADIO",
+            "question_number": "82",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Muscle aches (myalgia)",
+            "question_type": "RADIO",
+            "question_number": "83",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Runny nose (rhinorrhea)",
+            "question_type": "RADIO",
+            "question_number": "84",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Sore throat",
+            "question_type": "RADIO",
+            "question_number": "85",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "New olfactory and taste disorder(s)",
+            "question_type": "RADIO",
+            "question_number": "86",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Fatigue",
+            "question_type": "RADIO",
+            "question_number": "87",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Cough (New onset or worsening of chronic cough)",
+            "question_type": "RADIO",
+            "question_number": "88",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Wheezing",
+            "question_type": "RADIO",
+            "question_number": "89",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Shortness of breath (dyspnea)",
+            "question_type": "RADIO",
+            "question_number": "90",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Difficulty breathing",
+            "question_type": "RADIO",
+            "question_number": "91",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Chest pain",
+            "question_type": "RADIO",
+            "question_number": "92",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Nausea or vomiting",
+            "question_type": "RADIO",
+            "question_number": "93",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Headache",
+            "question_type": "RADIO",
+            "question_number": "94",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Abdominal pain",
+            "question_type": "RADIO",
+            "question_number": "95",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Diarrhea (>= 3 loose/looser than normal stools/24hr period)",
+            "question_type": "RADIO",
+            "question_number": "96",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Other symptoms",
+            "question_type": "RADIO",
+            "question_number": "97",
+            "group": "Symptomology",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "98",
+            "group": "Symptomology",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "symptomology"
+        },
+        {
+            "question_name": "Did the mother have any of the following diagnoses or complications during COVID-19 infection?",
+            "question_type": "DESCRIPTION",
+            "question_number": "99",
+            "group": "COVID-19 Complications",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "Pneumonia?",
+            "question_type": "RADIO",
+            "question_number": "100",
+            "group": "COVID-19 Complications",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "Acute respiratory distress syndrome?",
+            "question_type": "RADIO",
+            "question_number": "101",
+            "group": "COVID-19 Complications",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "Mechanical ventilation (MV)/intubation?",
+            "question_type": "RADIO",
+            "question_number": "102",
+            "group": "COVID-19 Complications",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "Extracorporeal membrane oxygenation (ECMO)?",
+            "question_type": "RADIO",
+            "question_number": "103",
+            "group": "COVID-19 Complications",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "Coagulopathy or Disseminated Intravascular Coagulation (DIC)?",
+            "question_type": "RADIO",
+            "question_number": "104",
+            "group": "COVID-19 Complications",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "Other complications?",
+            "question_type": "RADIO",
+            "question_number": "105",
+            "group": "COVID-19 Complications",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "106",
+            "group": "COVID-19 Complications",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "Was the mother admitted to an intensive care unit (ICU) for COVID-19?",
+            "question_type": "RADIO",
+            "question_number": "107",
+            "group": "COVID-19 Complications",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "If yes, date of admission:",
+            "question_type": "TEXT",
+            "question_number": "108",
+            "group": "COVID-19 Complications",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "If yes, date of discharge:",
+            "question_type": "TEXT",
+            "question_number": "109",
+            "group": "COVID-19 Complications",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_complications"
+        },
+        {
+            "question_name": "Remdesivir",
+            "question_type": "RADIO",
+            "question_number": "110",
+            "group": "COVID-19 Treatment",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "If yes, date started:",
+            "question_type": "TEXT",
+            "question_number": "111",
+            "group": "COVID-19 Treatment",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "Other Medication 1",
+            "question_type": "RADIO",
+            "question_number": "112",
+            "group": "COVID-19 Treatment",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "If yes, specify medication 1:",
+            "question_type": "TEXT",
+            "question_number": "113",
+            "group": "COVID-19 Treatment",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "If yes, date started 1:",
+            "question_type": "TEXT",
+            "question_number": "114",
+            "group": "COVID-19 Treatment",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "Other Medication 2",
+            "question_type": "RADIO",
+            "question_number": "115",
+            "group": "COVID-19 Treatment",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "If yes, specify medication 2:",
+            "question_type": "TEXT",
+            "question_number": "116",
+            "group": "COVID-19 Treatment",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "If yes, date started 2:",
+            "question_type": "TEXT",
+            "question_number": "117",
+            "group": "COVID-19 Treatment",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "Other Medication 3",
+            "question_type": "RADIO",
+            "question_number": "118",
+            "group": "COVID-19 Treatment",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "If yes, specify medication 3:",
+            "question_type": "TEXT",
+            "question_number": "119",
+            "group": "COVID-19 Treatment",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "If yes, date started 3:",
+            "question_type": "TEXT",
+            "question_number": "120",
+            "group": "COVID-19 Treatment",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "covid19_treatment"
+        },
+        {
+            "question_name": "Maternal Form: Hepatitis C Module",
+            "question_type": "DESCRIPTION",
+            "question_number": "121",
+            "group": "Hepatitis C Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Maternal Hepatitis C NNDSS ID",
+            "question_type": "TEXT",
+            "question_number": "122",
+            "group": "Hepatitis C Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Has the mother ever injected drugs not prescribed by a doctor even if only once or a few times?",
+            "question_type": "RADIO",
+            "question_number": "123",
+            "group": "Hepatitis C Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Did the mother use marijuana (e.g., THC, hashish, cannabinoids, blunts) during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "124",
+            "group": "Hepatitis C Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Did the mother use prescription opioids during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "125",
+            "group": "Hepatitis C Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Did the mother use illicit opioids (including prescription opioids obtained illegally and heroin) during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "126",
+            "group": "Hepatitis C Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Did the mother use opioid Medication Assisted Treatment (e.g., methadone, buprenorphine, or naltrexone) during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "127",
+            "group": "Hepatitis C Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Did the mother use other illicit, non-prescription substances (e.g., cocaine, methamphetamines, hallucinogens such as LSD, PCP, ecstasy, inhalants)  during this pregnancy? Do not include illicit or illegally obtained opioids.",
+            "question_type": "RADIO",
+            "question_number": "128",
+            "group": "Hepatitis C Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "If yes, specify type:",
+            "question_type": "TEXT",
+            "question_number": "129",
+            "group": "Hepatitis C Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Was the mother ever incarcerated for more than 24 hours?",
+            "question_type": "RADIO",
+            "question_number": "130",
+            "group": "Hepatitis C Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Was the mother diagnosed with acute hepatitis C during pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "131",
+            "group": "Hepatitis C Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "If yes, date of diagnosis:",
+            "question_type": "TEXT",
+            "question_number": "132",
+            "group": "Hepatitis C Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Was the mother ever treated for hepatitis C?",
+            "question_type": "RADIO",
+            "question_number": "133",
+            "group": "Hepatitis C Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "If yes, start date of treatment:",
+            "question_type": "TEXT",
+            "question_number": "134",
+            "group": "Hepatitis C Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "If yes, medication(s) used:",
+            "question_type": "TEXT",
+            "question_number": "135",
+            "group": "Hepatitis C Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "hepc_module"
+        },
+        {
+            "question_name": "Cholestasis during pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "136",
+            "group": "Conditions during pregnancy",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_death_dt",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_hospadm_dt",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_hosp_yn_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_iugr_terms",
+                    "mg_death",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms",
+                    "mg_death_dx"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "If yes, date of diagnosis:",
+            "question_type": "TEXT",
+            "question_number": "137",
+            "group": "Conditions during pregnancy",
+            "answers": [],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_death_dt",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_hospadm_dt",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_hosp_yn_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_iugr_terms",
+                    "mg_death",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms",
+                    "mg_death_dx"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "Amniocentesis performed during pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "138",
+            "group": "Conditions during pregnancy",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "pregnancy_conditions": [
+                    "mg_death_dt",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_terms",
+                    "mg_hospadm_dt",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_hosp_yn_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_iugr_terms",
+                    "mg_death",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_diabetes_terms",
+                    "mg_death_dx"
+                ]
+            },
+            "nlpql_grouping": "pregnancy_conditions"
+        },
+        {
+            "question_name": "Internal fetal monitoring used during delivery?",
+            "question_type": "RADIO",
+            "question_number": "139",
+            "group": "Delivery",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "delivery"
+        },
+        {
+            "question_name": "Number of hours between rupture of membranes and delivery?",
+            "question_type": "TEXT",
+            "question_number": "140",
+            "group": "Delivery",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "delivery"
+        },
+        {
+            "question_name": "Prolonged rupture of membranes?",
+            "question_type": "RADIO",
+            "question_number": "141",
+            "group": "Delivery",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "delivery"
+        },
+        {
+            "question_name": "Perineal or vaginal lacerations during delivery (not including episiotomy)?",
+            "question_type": "RADIO",
+            "question_number": "142",
+            "group": "Delivery",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "delivery"
+        },
+        {
+            "question_name": "Maternal Form: Syphilis Module",
+            "question_type": "DESCRIPTION",
+            "question_number": "143",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Maternal Syphilis NNDSS ID",
+            "question_type": "TEXT",
+            "question_number": "144",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Did the mother use marijuana (e.g., THC, hashish, cannabinoids, blunts) during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "145",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Did the mother use prescription opioids during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "146",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Did the mother use illicit opioids (including prescription opioids obtained illegally and heroin) during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "147",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Did the mother use opioid Medication Assisted Treatment (e.g., methadone, buprenorphine, or naltrexone) during this pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "148",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Did the mother use other illicit, non-prescription substances (e.g., cocaine, methamphetamines, hallucinogens such as LSD, PCP, ecstasy, inhalants)  during this pregnancy? Do not include illicit or illegally obtained opioids.",
+            "question_type": "RADIO",
+            "question_number": "149",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "If yes, specify type:",
+            "question_type": "TEXT",
+            "question_number": "150",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Has the mother been incarcerated within the 12 months prior to syphilis case report or positive testing?",
+            "question_type": "RADIO",
+            "question_number": "151",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Has the mother experienced homelessnes during the 12 months prior to or at the time of syphilis case report or positive testing?",
+            "question_type": "RADIO",
+            "question_number": "152",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Mother's country of residence",
+            "question_type": "RADIO",
+            "question_number": "153",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "USA",
+                    "value": "usa"
+                },
+                {
+                    "text": "Other",
+                    "value": "other"
+                },
+                {
+                    "text": "Unknown",
+                    "value": "unknown"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "154",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "What clinical stage of syphilis did the mother have during pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "155",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Primary",
+                    "value": "primary"
+                },
+                {
+                    "text": "Secondary",
+                    "value": "secondary"
+                },
+                {
+                    "text": "Early latent",
+                    "value": "early_latent"
+                },
+                {
+                    "text": "Late or late latent",
+                    "value": "late_or_late_latent"
+                },
+                {
+                    "text": "Previously treated/serofast",
+                    "value": "previously_treated/serofast"
+                },
+                {
+                    "text": "Other",
+                    "value": "other"
+                },
+                {
+                    "text": "Unknown",
+                    "value": "unknown"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "What surveillance stage of syphilis did the mother have during pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "156",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Primary",
+                    "value": "primary"
+                },
+                {
+                    "text": "Secondary",
+                    "value": "secondary"
+                },
+                {
+                    "text": "Early latent",
+                    "value": "early_latent"
+                },
+                {
+                    "text": "Late or late latent",
+                    "value": "late_or_late_latent"
+                },
+                {
+                    "text": "Other",
+                    "value": "other"
+                },
+                {
+                    "text": "Unknown",
+                    "value": "unknown"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Date of syphilis treatment:",
+            "question_type": "TEXT",
+            "question_number": "157",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "What was the mother's treatment?",
+            "question_type": "RADIO",
+            "question_number": "158",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "2.4 M units benzathine penicillin",
+                    "value": "24_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "4.8 M units benzathine penicillin",
+                    "value": "48_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "7.2 M units benzathine penicillin",
+                    "value": "72_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "Other",
+                    "value": "other"
+                },
+                {
+                    "text": "Unknown",
+                    "value": "unknown"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "159",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Date of syphilis treatment (2nd):",
+            "question_type": "TEXT",
+            "question_number": "160",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "What was the mother's treatment (2nd)?",
+            "question_type": "RADIO",
+            "question_number": "161",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "2.4 M units benzathine penicillin",
+                    "value": "24_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "4.8 M units benzathine penicillin",
+                    "value": "48_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "7.2 M units benzathine penicillin",
+                    "value": "72_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "Other",
+                    "value": "other"
+                },
+                {
+                    "text": "Unknown",
+                    "value": "unknown"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "162",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Date of syphilis treatment (3rd):",
+            "question_type": "TEXT",
+            "question_number": "163",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "What was the mother's treatment (3rd)?",
+            "question_type": "RADIO",
+            "question_number": "164",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "2.4 M units benzathine penicillin",
+                    "value": "24_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "4.8 M units benzathine penicillin",
+                    "value": "48_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "7.2 M units benzathine penicillin",
+                    "value": "72_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "Other",
+                    "value": "other"
+                },
+                {
+                    "text": "Unknown",
+                    "value": "unknown"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "165",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Date of syphilis treatment (4th):",
+            "question_type": "TEXT",
+            "question_number": "166",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "What was the mother's treatment (4th)?",
+            "question_type": "RADIO",
+            "question_number": "167",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "2.4 M units benzathine penicillin",
+                    "value": "24_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "4.8 M units benzathine penicillin",
+                    "value": "48_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "7.2 M units benzathine penicillin",
+                    "value": "72_m_units_benzathine_penicillin"
+                },
+                {
+                    "text": "Other",
+                    "value": "other"
+                },
+                {
+                    "text": "Unknown",
+                    "value": "unknown"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "168",
+            "group": "Syphilis Module",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        },
+        {
+            "question_name": "Did the mother have an appropriate serologic response to treatment during pregnancy?",
+            "question_type": "RADIO",
+            "question_number": "169",
+            "group": "Syphilis Module",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "appropriate response",
+                    "value": "appropriate_response"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "inappropriate response: evidence of treatment failure or reinfection",
+                    "value": "inappropriate_response:_evidence_of_treatment_failure_or_reinfection"
+                },
+                {
+                    "text": "Response could not be determined from available non-treponemal titer information",
+                    "value": "response_could_not_be_determined_from_available_non-treponemal_titer_information"
+                },
+                {
+                    "text": "Not enough time for titer to change",
+                    "value": "not_enough_time_for_titer_to_change"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "syphilis_module"
+        }
+    ],
+    "evidence_bundles": [
+        "information",
+        "maternal_demographics",
+        "measurements",
+        "pre_pregnancy_conditions",
+        "substance_use",
+        "maternal_obstetric",
+        "pregnancy_conditions",
+        "delivery_info",
+        "notes",
+        "pathogen_specific_info",
+        "occupational_exposure",
+        "symptomology",
+        "covid19_complications",
+        "covid19_treatment",
+        "hepC_module",
+        "delivery",
+        "syphilis_module"
+    ],
+    "version": "0.0.1",
+    "questions_with_evidence_count": 0
+}

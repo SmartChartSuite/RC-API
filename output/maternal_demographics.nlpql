@@ -1,0 +1,363 @@
+
+// Phenotype library name
+phenotype " - maternal demographics" version "1";
+
+// # Referenced libraries #
+include ClarityCore version "1.0" called Clarity;
+
+// Termsets
+
+termset mg_edu_terms: [
+    "dropped out of high school", "student", "in university", "high school graduate", "ph.d student", "high school drop out", "finished high school", "finishing hs", "return to high school", "attends university", "teen parenting", "graduated high school", "high school class", "her high school class", "completed high school", "phd", "teen parent", "goes to high school", "graduate hs", "doctorate", "hs graduate", "college graduate", "masters", "college student", "graduate student", "college education", "college educated", "in college", "graduated from high school", "attending high school", "graduated from college", "high school dropout", "left high school", "did not finish high school", "finished hs", "her high school", "attends college", "finishes high school", "high school education", "attends high school", "high school student", "in high school"
+];
+
+
+
+
+termset mg_ethn_terms: [
+    "hispanic", "latina"
+];
+
+
+
+// Data Entities
+
+define final mg_edu:
+    Clarity.ProviderAssertion({
+      termset: [mg_edu_terms]
+    });
+                    
+
+
+
+define final mg_race_oth:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+
+
+       define "mg_race_oth": 
+            	 [Patient]
+
+
+
+             """
+    });
+
+
+
+define final mg_ethn:
+    Clarity.ProviderAssertion({
+      termset: [mg_ethn_terms]
+    });
+                    
+
+
+
+define final mg_zip:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+
+
+       define "mg_zip": 
+            [Patient]
+
+
+
+             """
+    });
+
+
+
+define final mg_race_nhopi:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+
+
+       define "mg_race_nhopi": 
+            	 [Patient]
+
+
+
+             """
+    });
+
+
+
+define final mg_co:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+
+
+       define "mg_co": 
+            [Patient]
+
+
+
+             """
+    });
+
+
+
+define final mg_race_aian:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+
+
+       define "mg_race_aian": 
+            	 [Patient]
+
+
+
+             """
+    });
+
+
+
+define final mg_race_wh:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+
+
+       define "mg_race_wh": 
+            	 [Patient]
+
+
+
+             """
+    });
+
+
+
+define final mg_race_baa:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+
+
+       define "mg_race_baa": 
+            	 [Patient]
+
+
+
+             """
+    });
+
+
+
+define final mg_race_asian:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+
+
+       define "mg_race_asian": 
+            	 [Patient]
+
+
+
+             """
+    });
+
+
+// Operations
+
+
+
