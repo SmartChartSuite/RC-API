@@ -57,7 +57,7 @@ async def get_list_of_forms():
 async def get_form(form_id: str, returnAsFHIR: bool = False):
     # return questions.json from database, if returnAsFHIR: convert questions.json to questionnaire and return that
     if returnAsFHIR:
-        result_form = "Not implemented yet"
+        result_form = convertToQuestionnaire(db.forms.find({'_id': ObjectId(form_id)})[0])
     else:
         result_form = db.forms.find({'_id': ObjectId(form_id)})[0]
     return result_form
@@ -71,6 +71,12 @@ async def create_form(questions: QuestionsJSON):
 async def update_form(form_id: str, new_questions: QuestionsJSON):
     result = db.forms.replace_one({"_id": ObjectId(form_id)}, new_questions.dict())
     return "You have updated a form with a form id of {}".format(form_id)
+
+
+def convertToQuestionnaire(questions):
+    returnResource = Questionnaire()
+
+    return returnResource
 
 
 # uvicorn formsAPImodule:app --reload
