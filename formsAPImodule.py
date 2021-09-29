@@ -192,6 +192,6 @@ async def start_jobs(post_body: StartJobPostBody, response_model=dict):
 # NOT DONE YET
 @app.post("/forms/nlpql")
 async def save_nlpql(post_body: NLPQLDict):
-    result = db.nlpql.insert_one(post_body.content)
+    result = db.nlpql.insert_one(post_body.dict())
     return f'Saved NLPQL file named {post_body.name} in database'
 # uvicorn formsAPImodule:app --reload
