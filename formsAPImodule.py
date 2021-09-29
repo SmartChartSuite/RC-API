@@ -189,7 +189,6 @@ async def start_jobs(post_body: StartJobPostBody, response_model=dict):
     time.sleep(5)
     return result
 
-# NOT DONE YET
 @app.post("/forms/nlpql")
 async def save_nlpql(post_body: NLPQLDict):
     result = db.nlpql.insert_one(post_body.dict())
