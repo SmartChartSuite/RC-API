@@ -7,6 +7,7 @@ from fhir.resources.questionnaire import Questionnaire
 from bson import ObjectId
 import pymongo
 from fastapi.middleware.cors import CORSMiddleware
+import time
 
 app = FastAPI()
 
@@ -50,6 +51,15 @@ class QuestionsJSON(BaseModel):
     evidence_bundles: list
     version: str
     questions_with_evidence_count: Optional[str] = None
+
+class StartJobPostBody(BaseModel):
+    formId: str
+    nlpqlGrouping: str
+    patientId: str
+
+class NLPQLDict(BaseModel):
+    name: str
+    content: str
 
 bundle_template = {
     "resourceType": "Bundle",
@@ -126,7 +136,7 @@ def bundle_forms(forms: list):
     return bundle
 
 
-client = pymongo.MongoClient("mongodb+srv://formsapiuser:454Ik0LIQuOuHSQz@forms.18m6i.mongodb.net/Forms?retryWrites=true&w=majority")
+client = pymongo.MongoClient("mongodb+srv://formsapiuser:i3lworks@forms.18m6i.mongodb.net/Forms?retryWrites=true&w=majority")
 db = client.SmartChartForms
 
 
@@ -173,6 +183,15 @@ async def update_form(form_id: str, new_questions: QuestionsJSON):
     return "You have updated a form with a form id of {}".format(form_id)
 
 @app.post("/forms/start")
-async def start_jobs(form_id: str, patient_id: str):
-    return f"Started jobs for {form_id} with patient {patient_id}"
+async def start_jobs(post_body: StartJobPostBody, response_model=dict):
+    result = db.fakeReturn.find({'form_id': post_body.formId})[0]
+    del result["_id"]
+    time.sleep(5)
+    return result
+
+# NOT DONE YET
+@app.post("/forms/nlpql")
+async def save_nlpql(post_body: NLPQLDict):
+    result = db.nlpql.insert_one(post_body.content)
+    return f'Saved NLPQL file named {post_body.name} in database'
 # uvicorn formsAPImodule:app --reload

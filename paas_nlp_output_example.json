@@ -1,0 +1,411 @@
+{
+    "form_id": "exampleNLP",
+    "patient_id": "23907",
+    "results": [
+        {
+            "_id": "615486696c6e0205747bc6fe",
+            "batch": 0,
+            "concept_code": "",
+            "concept_code_system": "",
+            "display_name": "gotTransfusion",
+            "end": 19,
+            "experiencer": "Patient",
+            "inserted_date": "2021-09-29 15:29:45.108000",
+            "job_id": 392427,
+            "negation": "Affirmed",
+            "nlpaas_report_list_id": "166",
+            "nlpql_feature": "gotTransfusion",
+            "original_report_id": "1272819",
+            "owner": "claritynlp",
+            "phenotype_final": false,
+            "pipeline_id": 5302074,
+            "pipeline_type": "ProviderAssertion",
+            "report_date": "2149-04-30T14:48:00Z",
+            "report_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_166",
+            "report_text": "MICU NSG PROG NOTE: DAYS\nVS remain stable w/ ongoing concerns re: infection. Ribovirin therapy continues, tol fair.\n\nROS:\n\nRESP: Post Ribo. tx this am felt \" good\" w/ persistent coughing. Congested. Clear upper , dim bases. Sats acceptable w/ 92% on RA, RR 28-30. Mid day noted to have increased sob w/ RR 40's, sats down to 90%. CXR had been done prior. Seen by team, felt to be atelectasis. Albuterol neb and incentive spirometry given.\n4Lnc w/ sats 99% and resolution of SOB.\n\nCARDIAC: hr wnl this am. After albuterol tx, pt up voiding. HR noted to abrubtly-> 146 st w/ occasional pvc. down to 104 after resting in bed. Team saw patient immediately after event. b/p 152/74 at time.\nFelt to be albuterol related.\n\nID: temp low grade, 100po. Continues on Ribovirin per protocol, contact precautions for RSV, pt mask for pt's own safety during transfer between rooms.\n\nRENAL: voiding\n\nGI: takes po well\n\nNEURO: intermittent anxiety, alert and oriented, cooperative.\n\nLINES: functional periperal R arm.\n\nHEME/ONC: He has close relationship w/ own hemeonc physician who will be here to see him this afternoon. Dr [**First Name (STitle) 289**] on service now covering for regular hemeonc.\n\nSOCIAL: wife called, informed.\n\nHEME: hct 25.8 (\"i usually run in the 30's) but no evidence of active bleeding. For plt transfusion today.\n\nAssess: low grade temp, increased resp distress.\n\nPLAN: monitor. Team is discussing increasing fluid. Plt transfusion.\nSputum cultures. Contact precautions\n\n",
+            "report_type": "Nursing notes",
+            "result_display": {
+                "date": "2149-04-30T14:48:00Z",
+                "end": [
+                    19
+                ],
+                "highlights": [
+                    "transfusion"
+                ],
+                "result_content": "For plt transfusion today.",
+                "sentence": "For plt transfusion today.",
+                "start": [
+                    8
+                ]
+            },
+            "section": "HEMATOLOGY_PLAN",
+            "sentence": "For plt transfusion today.",
+            "solr_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_166",
+            "source": "10bbcffc-213a-11ec-bb3c-0242ac140013",
+            "start": 8,
+            "subject": "23907",
+            "temporality": "Recent",
+            "term": "transfusion"
+        },
+        {
+            "_id": "615486696c6e0205747bc6ff",
+            "batch": 0,
+            "concept_code": "",
+            "concept_code_system": "",
+            "display_name": "gotTransfusion",
+            "end": 15,
+            "experiencer": "Patient",
+            "inserted_date": "2021-09-29 15:29:45.142000",
+            "job_id": 392427,
+            "negation": "Affirmed",
+            "nlpaas_report_list_id": "166",
+            "nlpql_feature": "gotTransfusion",
+            "original_report_id": "1272819",
+            "owner": "claritynlp",
+            "phenotype_final": false,
+            "pipeline_id": 5302074,
+            "pipeline_type": "ProviderAssertion",
+            "report_date": "2149-04-30T14:48:00Z",
+            "report_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_166",
+            "report_text": "MICU NSG PROG NOTE: DAYS\nVS remain stable w/ ongoing concerns re: infection. Ribovirin therapy continues, tol fair.\n\nROS:\n\nRESP: Post Ribo. tx this am felt \" good\" w/ persistent coughing. Congested. Clear upper , dim bases. Sats acceptable w/ 92% on RA, RR 28-30. Mid day noted to have increased sob w/ RR 40's, sats down to 90%. CXR had been done prior. Seen by team, felt to be atelectasis. Albuterol neb and incentive spirometry given.\n4Lnc w/ sats 99% and resolution of SOB.\n\nCARDIAC: hr wnl this am. After albuterol tx, pt up voiding. HR noted to abrubtly-> 146 st w/ occasional pvc. down to 104 after resting in bed. Team saw patient immediately after event. b/p 152/74 at time.\nFelt to be albuterol related.\n\nID: temp low grade, 100po. Continues on Ribovirin per protocol, contact precautions for RSV, pt mask for pt's own safety during transfer between rooms.\n\nRENAL: voiding\n\nGI: takes po well\n\nNEURO: intermittent anxiety, alert and oriented, cooperative.\n\nLINES: functional periperal R arm.\n\nHEME/ONC: He has close relationship w/ own hemeonc physician who will be here to see him this afternoon. Dr [**First Name (STitle) 289**] on service now covering for regular hemeonc.\n\nSOCIAL: wife called, informed.\n\nHEME: hct 25.8 (\"i usually run in the 30's) but no evidence of active bleeding. For plt transfusion today.\n\nAssess: low grade temp, increased resp distress.\n\nPLAN: monitor. Team is discussing increasing fluid. Plt transfusion.\nSputum cultures. Contact precautions\n\n",
+            "report_type": "Nursing notes",
+            "result_display": {
+                "date": "2149-04-30T14:48:00Z",
+                "end": [
+                    15
+                ],
+                "highlights": [
+                    "transfusion"
+                ],
+                "result_content": "Plt transfusion.",
+                "sentence": "Plt transfusion.",
+                "start": [
+                    4
+                ]
+            },
+            "section": "PLAN",
+            "sentence": "Plt transfusion.",
+            "solr_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_166",
+            "source": "10bbcffc-213a-11ec-bb3c-0242ac140013",
+            "start": 4,
+            "subject": "23907",
+            "temporality": "Recent",
+            "term": "transfusion"
+        },
+        {
+            "_id": "615486696c6e0205747bc700",
+            "batch": 0,
+            "concept_code": "",
+            "concept_code_system": "",
+            "display_name": "gotTransfusion",
+            "end": 69,
+            "experiencer": "Patient",
+            "inserted_date": "2021-09-29 15:29:45.408000",
+            "job_id": 392427,
+            "negation": "Affirmed",
+            "nlpaas_report_list_id": "24",
+            "nlpql_feature": "gotTransfusion",
+            "original_report_id": "701910",
+            "owner": "claritynlp",
+            "phenotype_final": false,
+            "pipeline_id": 5302074,
+            "pipeline_type": "ProviderAssertion",
+            "report_date": "2155-03-14T14:10:00Z",
+            "report_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_24",
+            "report_text": "Mr. [**Known patient lastname 11148**] is a 45 y.o. Male with h.o. CML s/p allogenic transplant,\n   chronic GVH, bronchiolitis obliterans s/p recent transfer from the ICU\n   for worsening dyspnea, AMS requiring intubation. Extubated and sent to\n   7^th floor [**12-19**]\n[**12-22**] ICU transfer for A. fib with RVR requiring dilt\n   gtt.  Worsening respiratory status [**12-25**] requiring intubation\n   Respiratory failure, chronic\n   Assessment:\n   Hypercarbic resp failure /aspiration pneumonia. Pt is s/ p trach\n   placement.  Completed course for vap.  Vent settings changed to 50%\n   cpap with 5 ppe and 10 ps with o2 sats > 95% and rr in the high teens\n   to low 20\ns. lungs clear on auscultation but diminished at the bases.\n   pt remains off sedated bus continues to make his needs know by mouthing\n   words or writing. Trach suctioned for mod amts of thick tan sputum.\n   Action:\n   Resp status monitored closely. Pulmonary toileting continues. Vap\n   protocol monitored. Vent settings being weaned  as pt tolerates.\n   Response:\n   Tolerating  vent weaning and pt in no apparent resp distress.\n   Plan:\n   Continue to wean vent as pt tolerates. Continue with resp toileting.\n   Pt to be screened for rehab\n   Atrial flutter (Aflutter)\n   Assessment:\n   Received pt on diltiazem gtt at 15 mg/hr.  hr ranging form 80\ns when\n   medicated for pain control and in the 100-120\ns when pt is awake\n   ,anxious and in pain. Bp stable with sbp ranging from 90-120\n   Action:\n   Hemodynamics monitored closely.  Receiving lopressor 12.5 mg via ngt.\n   Restarted on 90 mg po diltiazem q 6 hrs. diltiazem gtt d/c\nd.  pt\n   medicated x2 with fentanyl 50 mcg ivp x2. clonazepam dose increased to\n   1 mg po qd.  Fentanyl patch increased to 75  mcg topically q 72 hrs.\n   Response:\n   1645 rhythmn converted to st with sbp of 111.\n   Plan:\n   Continue to follow hemodynamics.  Continue to medicate with lopressor\n   and diltiazem as ordered.  Coninunte to medicate with fentanyl for pain\n   control and offer pt lorazepam or haldol for increased level of anxiety\n   though pt has been refusing to take these meds.\n   Alteration in Nutrition\n   Assessment:\n   Pt  with [**Initials (NamePattern4) **] [**Last Name (NamePattern4) **] [**Hospital1 **] sump fdg tube in place receiving isosource tube\n   fdgs . abd firm but nontender withpos bowel sounds on auscultation.\n   Unable to place peg and dobhoff fdg tube.\n   Action:\n   Tube fdgs increased to 30cc\ns/hr . dr [**Last Name (STitle) **] consulted for\n   assessment of wether pt would tolerate surgical placement of peg.\n   Response:\n   Pt tolerating tube fdgs.\n   Plan:\n    Awaiting dr [**Last Name (STitle) **]\ns exam and recommendations. Increase tube fdg as\n   tolerated to a goal rate of 45cc\ns/hr.\n   Renal failure, acute (Acute renal failure, ARF)\n   Assessment:\n   Bu ultrasound pt does not have hydronephrosis but does have muddy cats\n   evident on u&a. likely atn secondary to possible vancomycin toxicity\n   and episodes of hypotension. With component of prerenal  from diuresis.\n   Remains  oliguric and creat=2.2 hct this am down to 21.7. fluid balance\n   pos 15.9 liters for los. Vancomycin level this am- 38.1\n   Action:\n   Fluid balance monitored closely.  Pt type and screened for transfusion\n   of prbc\ns and will be transfused with prbc\ns. hd done at bedside.\n   Monitor lytes as ordered.\n   Response:\n   Plan:\n   Follow f luid balance and uo. Check Vanco trough level  2 hrs post\n   completion of hd and again in the am.  Renal  team will determine next\n   day of hd based  on Vanco level. Follow bun/creat.\n\n",
+            "report_type": "Nursing notes",
+            "result_display": {
+                "date": "2155-03-14T14:10:00Z",
+                "end": [
+                    69
+                ],
+                "highlights": [
+                    "transfused"
+                ],
+                "result_content": "Pt type and screened for transfusion of prbc s and will be transfused with prbc s. hd done at bedside.",
+                "sentence": "Pt type and screened for transfusion of prbc s and will be transfused with prbc s. hd done at bedside.",
+                "start": [
+                    59
+                ]
+            },
+            "section": "ASSESSMENT",
+            "sentence": "Pt type and screened for transfusion of prbc s and will be transfused with prbc s. hd done at bedside.",
+            "solr_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_24",
+            "source": "10bbcffc-213a-11ec-bb3c-0242ac140013",
+            "start": 59,
+            "subject": "23907",
+            "temporality": "Recent",
+            "term": "transfused"
+        },
+        {
+            "_id": "615486696c6e0205747bc701",
+            "batch": 0,
+            "concept_code": "",
+            "concept_code_system": "",
+            "display_name": "gotTransfusion",
+            "end": 36,
+            "experiencer": "Patient",
+            "inserted_date": "2021-09-29 15:29:45.410000",
+            "job_id": 392427,
+            "negation": "Affirmed",
+            "nlpaas_report_list_id": "24",
+            "nlpql_feature": "gotTransfusion",
+            "original_report_id": "701910",
+            "owner": "claritynlp",
+            "phenotype_final": false,
+            "pipeline_id": 5302074,
+            "pipeline_type": "ProviderAssertion",
+            "report_date": "2155-03-14T14:10:00Z",
+            "report_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_24",
+            "report_text": "Mr. [**Known patient lastname 11148**] is a 45 y.o. Male with h.o. CML s/p allogenic transplant,\n   chronic GVH, bronchiolitis obliterans s/p recent transfer from the ICU\n   for worsening dyspnea, AMS requiring intubation. Extubated and sent to\n   7^th floor [**12-19**]\n[**12-22**] ICU transfer for A. fib with RVR requiring dilt\n   gtt.  Worsening respiratory status [**12-25**] requiring intubation\n   Respiratory failure, chronic\n   Assessment:\n   Hypercarbic resp failure /aspiration pneumonia. Pt is s/ p trach\n   placement.  Completed course for vap.  Vent settings changed to 50%\n   cpap with 5 ppe and 10 ps with o2 sats > 95% and rr in the high teens\n   to low 20\ns. lungs clear on auscultation but diminished at the bases.\n   pt remains off sedated bus continues to make his needs know by mouthing\n   words or writing. Trach suctioned for mod amts of thick tan sputum.\n   Action:\n   Resp status monitored closely. Pulmonary toileting continues. Vap\n   protocol monitored. Vent settings being weaned  as pt tolerates.\n   Response:\n   Tolerating  vent weaning and pt in no apparent resp distress.\n   Plan:\n   Continue to wean vent as pt tolerates. Continue with resp toileting.\n   Pt to be screened for rehab\n   Atrial flutter (Aflutter)\n   Assessment:\n   Received pt on diltiazem gtt at 15 mg/hr.  hr ranging form 80\ns when\n   medicated for pain control and in the 100-120\ns when pt is awake\n   ,anxious and in pain. Bp stable with sbp ranging from 90-120\n   Action:\n   Hemodynamics monitored closely.  Receiving lopressor 12.5 mg via ngt.\n   Restarted on 90 mg po diltiazem q 6 hrs. diltiazem gtt d/c\nd.  pt\n   medicated x2 with fentanyl 50 mcg ivp x2. clonazepam dose increased to\n   1 mg po qd.  Fentanyl patch increased to 75  mcg topically q 72 hrs.\n   Response:\n   1645 rhythmn converted to st with sbp of 111.\n   Plan:\n   Continue to follow hemodynamics.  Continue to medicate with lopressor\n   and diltiazem as ordered.  Coninunte to medicate with fentanyl for pain\n   control and offer pt lorazepam or haldol for increased level of anxiety\n   though pt has been refusing to take these meds.\n   Alteration in Nutrition\n   Assessment:\n   Pt  with [**Initials (NamePattern4) **] [**Last Name (NamePattern4) **] [**Hospital1 **] sump fdg tube in place receiving isosource tube\n   fdgs . abd firm but nontender withpos bowel sounds on auscultation.\n   Unable to place peg and dobhoff fdg tube.\n   Action:\n   Tube fdgs increased to 30cc\ns/hr . dr [**Last Name (STitle) **] consulted for\n   assessment of wether pt would tolerate surgical placement of peg.\n   Response:\n   Pt tolerating tube fdgs.\n   Plan:\n    Awaiting dr [**Last Name (STitle) **]\ns exam and recommendations. Increase tube fdg as\n   tolerated to a goal rate of 45cc\ns/hr.\n   Renal failure, acute (Acute renal failure, ARF)\n   Assessment:\n   Bu ultrasound pt does not have hydronephrosis but does have muddy cats\n   evident on u&a. likely atn secondary to possible vancomycin toxicity\n   and episodes of hypotension. With component of prerenal  from diuresis.\n   Remains  oliguric and creat=2.2 hct this am down to 21.7. fluid balance\n   pos 15.9 liters for los. Vancomycin level this am- 38.1\n   Action:\n   Fluid balance monitored closely.  Pt type and screened for transfusion\n   of prbc\ns and will be transfused with prbc\ns. hd done at bedside.\n   Monitor lytes as ordered.\n   Response:\n   Plan:\n   Follow f luid balance and uo. Check Vanco trough level  2 hrs post\n   completion of hd and again in the am.  Renal  team will determine next\n   day of hd based  on Vanco level. Follow bun/creat.\n\n",
+            "report_type": "Nursing notes",
+            "result_display": {
+                "date": "2155-03-14T14:10:00Z",
+                "end": [
+                    36
+                ],
+                "highlights": [
+                    "transfusion"
+                ],
+                "result_content": "Pt type and screened for transfusion of prbc s and will be transfused with prbc s. hd done at bedside.",
+                "sentence": "Pt type and screened for transfusion of prbc s and will be transfused with prbc s. hd done at bedside.",
+                "start": [
+                    25
+                ]
+            },
+            "section": "ASSESSMENT",
+            "sentence": "Pt type and screened for transfusion of prbc s and will be transfused with prbc s. hd done at bedside.",
+            "solr_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_24",
+            "source": "10bbcffc-213a-11ec-bb3c-0242ac140013",
+            "start": 25,
+            "subject": "23907",
+            "temporality": "Recent",
+            "term": "transfusion"
+        },
+        {
+            "_id": "615486696c6e0205747bc702",
+            "batch": 0,
+            "concept_code": "",
+            "concept_code_system": "",
+            "display_name": "gotTransfusion",
+            "end": 98,
+            "experiencer": "Patient",
+            "inserted_date": "2021-09-29 15:29:45.590000",
+            "job_id": 392427,
+            "negation": "Affirmed",
+            "nlpaas_report_list_id": "1",
+            "nlpql_feature": "gotTransfusion",
+            "original_report_id": "466889",
+            "owner": "claritynlp",
+            "phenotype_final": false,
+            "pipeline_id": 5302074,
+            "pipeline_type": "ProviderAssertion",
+            "report_date": "2155-03-07T00:12:00Z",
+            "report_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_1",
+            "report_text": "Mr. [**Known patient lastname 11148**] is a 45 y.o. Male with h.o. CML s/p allogenic transplant,\n   chronic GVH, bronchiolitis obliterans s/p recent transfer from the ICU\n   for worsening dyspnea, AMS requiring intubation. Extubated and sent to\n   7^th floor [**12-19**]\n[**12-22**] ICU transfer for A. fib with RVR requiring dilt\n   gtt.  Worsening respiratory status [**12-25**] requiring intubation.\n   Atrial flutter (Aflutter)\n   Assessment:\n   Remains in aflutter  no observed ectopy rate 80-90\n   Bp  90 to 110 systolic with MAP above 60.\n   Action:\n   Diltiazem 60 mgs q6 as ordered. .\n   Response:\n   Hr appears to be well controlled with po dilt.\n   Plan:\n   Continue to monitor HR/bp\n   Adjust dilt dose as needed.\n   Respiratory failure, chronic\n   Assessment:\n   Pt. remains nasally intubated on vent: CPAP 40%/[**11-6**]. Pt. failed SBT\n   yesterday as he became tachypneic and agitated. Also noted to desat\n   during SBT. Pt. back on lasix gtt at 15mc/hr with goal fluid balance\n   -1-2L. Breath sounds CTA. Diminished in bases.  Pt. on fent/versed gtt\n   for comfort. Awake and alert on current doses, however, pain free.\n   Action:\n   Lasix gtt maintained at 15mg/hr with good UO. Pt. turned Q2h, mouth\n   care Q4h. Suctioned PRN. SBT/RSBI done this am.\n   Response:\n   Pt. remains stable at this time on current vent settings Fluid balance\n   -244 at 0500 on max dose of lasix gtt. Cr 2.0 RSBI 137.\n   Plan:\n   Monitor resp status closely. Family meeting needs to occur to establish\n   plan of care. ? trach vs. extubation. At this time pt. remains a full\n   code.\n   Anemia, other\n   Assessment:\n   Pt.\ns Hct 21 [**12-31**] evening. Pt. ordered for a unit of blood, however,\n   refused blood stating that he was\nfeeling fine\n. Oncology and MICU MDs\n   respected pt.\ns wishes and blood not administered at that time. No S/S\n   bleeding. No c/o dizziness and hemodynamically stable.\n   Action:\n   Hct rechecked with am labs 20. Type and cross sent to lab.\n   Response:\n   Pt. continues to refuse blood products at this time.\n   Plan:\n   MDs to speak with Mr. [**Known patient lastname 11148**] regarding importance of blood\n   transfusion. If pt. agrees he will receive 1U PRBCs.\n   ------ Protected Section ------\n   AM K+ and phos repleted. See 1 time dosing sheet. Lasix gtt off at 0600\n   ------ Protected Section Addendum Entered By:[**Name (NI) 498**] [**Last Name (NamePattern1) 729**], RN\n   on:[**3104-1-1**] 05:44 ------\n\n",
+            "report_type": "Nursing notes",
+            "result_display": {
+                "date": "2155-03-07T00:12:00Z",
+                "end": [
+                    98
+                ],
+                "highlights": [
+                    "transfusion"
+                ],
+                "result_content": "MDs to speak with Mr. [**Known patient lastname 11148**] regarding importance of blood transfusion.",
+                "sentence": "MDs to speak with Mr. [**Known patient lastname 11148**] regarding importance of blood transfusion.",
+                "start": [
+                    87
+                ]
+            },
+            "section": "PLAN",
+            "sentence": "MDs to speak with Mr. [**Known patient lastname 11148**] regarding importance of blood transfusion.",
+            "solr_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_1",
+            "source": "10bbcffc-213a-11ec-bb3c-0242ac140013",
+            "start": 87,
+            "subject": "23907",
+            "temporality": "Recent",
+            "term": "transfusion"
+        },
+        {
+            "_id": "615486696c6e0205747bc703",
+            "batch": 0,
+            "concept_code": "",
+            "concept_code_system": "",
+            "display_name": "gotTransfusion",
+            "end": 62,
+            "experiencer": "Patient",
+            "inserted_date": "2021-09-29 15:29:45.756000",
+            "job_id": 392427,
+            "negation": "Affirmed",
+            "nlpaas_report_list_id": "15",
+            "nlpql_feature": "gotTransfusion",
+            "original_report_id": "690845",
+            "owner": "claritynlp",
+            "phenotype_final": false,
+            "pipeline_id": 5302074,
+            "pipeline_type": "ProviderAssertion",
+            "report_date": "2155-03-07T22:27:00Z",
+            "report_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_15",
+            "report_text": "Mr. [**Known patient lastname 11148**] is a 45 y.o. Male with h.o. CML s/p allogenic transplant,\n   chronic GVH, bronchiolitis obliterans s/p recent transfer from the ICU\n   for worsening dyspnea, AMS requiring intubation. Extubated and sent to\n   7^th floor [**12-19**]\n[**12-22**] ICU transfer for A. fib with RVR requiring dilt\n   gtt.  Worsening respiratory status [**12-25**] requiring intubation.\n   Atrial flutter (Aflutter)\n   Assessment:\n   Pt remains in atrial flutter with rate between 90-110, goes up to 130\n   when stimulated for care.\n   Action:\n   Continues on diltiazem 60 mgs q6 as ordered. .\n   Response:\n   HR well controlled with po dilt.\n   Plan:\n   Continue to monitor HR/ BP\n   Adjust diltiazem  dose as needed.\n   Respiratory failure, chronic\n   Assessment:\n   Received pt nasally intubated  and vented with foll settings : CPAP\n   40%/[**4-6**]. Suctioned for copious amounts of thick, yellow secretions.\n   Oral secretions also remains very thick and yellow.  Afebrile, Spo2\n   above 95%.\n   U/O just around 20-30cc/hr this shift.   BUN /creat trending up 39/2.2\n   this a.m. Team aware.\n   A.M RSBI  was 119.\n   Action:\n   Remains intubated. Plan of care to be finalized. Continues  on sedation\n   with fentanyl 75mcg/hr and versed 1mg/hr.\n   1L NS bolus given for U/O without effect.\n   Response:\n   On going. U/O  20\n30cc/hr after fluid bolus. Team aware.\n   Plan:\n   Monitor resp status closely. Family meeting needs to occur to establish\n   plan of care. ? trach vs. extubation. At this time pt. remains a full\n   code.  Keep comfortable with fent/versed gtts.\n   Anemia, other\n   Assessment:\n   Pt.\ns Hct 20.5 yesterday a.m.   Pt. was  ordered for a unit of blood,\n   however, refused blood stating that he was\nfeeling fine\n. Oncology and\n   MICU MDs respected pt.\ns wishes and blood not administered.\n   No visible signs of bleed. Hemodynamically stable.\n   Unable to draw labs from double lumen midline since yesterday ,\n   altepase was placed for catheter clearance , with  effect.\n   Able to draw labs   from KVO port.  Good return flow .  HCT 22.0 this\n   a.m.\n   Action:\n   Labs drawn this a.m. HCT 22.0\n   Response:\n   Pt. continues to refuse blood products at this time.\n   Plan:\n   MDs to speak with  pt regarding importance of blood transfusion. If pt.\n   agrees he will receive 1U PRBCs. At this time he has not received any\n   blood products  since the HCT of 20.5.\n   Tube feeds at goal at 45cc/hr.  Abdomen soft with + BS.  No BM this\n   shift.\n\n",
+            "report_type": "Nursing notes",
+            "result_display": {
+                "date": "2155-03-07T22:27:00Z",
+                "end": [
+                    62
+                ],
+                "highlights": [
+                    "transfusion"
+                ],
+                "result_content": "MDs to speak with pt regarding importance of blood transfusion.",
+                "sentence": "MDs to speak with pt regarding importance of blood transfusion.",
+                "start": [
+                    51
+                ]
+            },
+            "section": "PLAN",
+            "sentence": "MDs to speak with pt regarding importance of blood transfusion.",
+            "solr_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_15",
+            "source": "10bbcffc-213a-11ec-bb3c-0242ac140013",
+            "start": 51,
+            "subject": "23907",
+            "temporality": "Recent",
+            "term": "transfusion"
+        },
+        {
+            "_id": "6154866a6c6e0205747bc704",
+            "batch": 0,
+            "concept_code": "",
+            "concept_code_system": "",
+            "display_name": "gotTransfusion",
+            "end": 42,
+            "experiencer": "Patient",
+            "inserted_date": "2021-09-29 15:29:46.412000",
+            "job_id": 392427,
+            "negation": "Affirmed",
+            "nlpaas_report_list_id": "18",
+            "nlpql_feature": "gotTransfusion",
+            "original_report_id": "694743",
+            "owner": "claritynlp",
+            "phenotype_final": false,
+            "pipeline_id": 5302074,
+            "pipeline_type": "ProviderAssertion",
+            "report_date": "2155-03-08T11:20:00Z",
+            "report_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_18",
+            "report_text": "Chief Complaint: Acute on chronic respiratory failure\n   I saw and examined the patient, and was physically present with the ICU\n   Resident for key portions of the services provided.  I agree with his /\n   her note above, including assessment and plan.\n   HPI:\n   24 Hour Events:\n   Continues intubated\n   Poor urine output overnight, IVF bolus given with improvement\n   More tachycardic overnight with associated desaturations to high 80's;\n   given diltiazem for rate control and lasix (not responsive to the\n   lasix).\n   Suctioned for large amount of thin yellow secretions per nasal tracheal\n   tube\n   History obtained from Patient\n   Allergies:\n   Amphotericin B\n   Unknown;\n   Ambisome (Intraven.) (Amphotericin B Liposome)\n   Unknown;\n   Campath (Intraven.) (Alemtuzumab)\n   Fever/Chills; R\n   Heparin Agents\n   Unknown;\n   Last dose of Antibiotics:\n   Azithromycin - [**3104-1-1**] 09:16 AM\n   Cefipime - [**3104-1-1**] 11:54 AM\n   Vancomycin - [**3104-1-1**] 08:00 PM\n   Metronidazole - [**3104-1-1**] 08:00 PM\n   Acyclovir - [**3104-1-1**] 08:00 PM\n   Infusions:\n   Midazolam (Versed) - 1 mg/hour\n   Fentanyl (Concentrate) - 75 mcg/hour\n   Other ICU medications:\n   Diltiazem - [**3104-1-2**] 06:50 AM\n   Furosemide (Lasix) - [**3104-1-2**] 07:15 AM\n   Other medications:\n   Changes to medical and family history:\n   PMH, SH, FH and ROS are unchanged from Admission except where noted\n   above and below\n   Review of systems is unchanged from admission except as noted below\n   Review of systems:\n   Constitutional: Fatigue\n   Genitourinary: Foley\n   Heme / Lymph: Anemia\n   Pain: No pain / appears comfortable\n   Flowsheet Data as of  [**3104-1-2**] 11:20 AM\n   Vital signs\n   Hemodynamic monitoring\n   Fluid balance\n                                                                  24 hours\n                                                               Since [**05**] AM\n   Tmax: 37\nC (98.6\n   Tcurrent: 36.3\nC (97.4\n   HR: 126 (78 - 142) bpm\n   BP: 106/57(68) {81/47(59) - 123/80(105)} mmHg\n   RR: 20 (13 - 25) insp/min\n   SpO2: 99%\n   Heart rhythm: A Flut (Atrial Flutter)\n   Wgt (current): 61.6 kg (admission): 61.6 kg\n   Height: 71 Inch\n             Total In:\n                                                                  2,450 mL\n                                                                  1,734 mL\n   PO:\n             TF:\n                                                                  1,085 mL\n                                                                    496 mL\n   IVF:\n                                                                  1,135 mL\n                                                                  1,138 mL\n   Blood products:\n   Total out:\n                                                                  2,075 mL\n                                                                    300 mL\n   Urine:\n                                                                  2,040 mL\n                                                                    275 mL\n   NG:\n                                                                     35 mL\n                                                                     25 mL\n   Stool:\n   Drains:\n   Balance:\n                                                                    375 mL\n                                                                  1,434 mL\n   Respiratory support\n   O2 Delivery Device: Endotracheal tube\n   Ventilator mode: CPAP/PSV\n   Vt (Spontaneous): 296 (240 - 307) mL\n   PS : 15 cmH2O\n   RR (Spontaneous): 29\n   PEEP: 8 cmH2O\n   FiO2: 60%\n   RSBI: 119\n   PIP: 25 cmH2O\n   SpO2: 99%\n   ABG: ///37/\n   Ve: 7.3 L/min\n   Physical Examination\n   General Appearance: No(t) Well nourished, Thin\n   Eyes / Conjunctiva: PERRL\n   Head, Ears, Nose, Throat: Normocephalic, NTT\n   Lymphatic: Cervical WNL, Supraclavicular WNL\n   Cardiovascular: (S1: Normal), (S2: Normal)\n   Peripheral Vascular: (Right radial pulse: Present), (Left radial pulse:\n   Present), (Right DP pulse: Present), (Left DP pulse: Present)\n   Respiratory / Chest: (Expansion: Symmetric), (Breath Sounds: Crackles :\n   bialterally anterolaterally)\n   Abdominal: Soft, Bowel sounds present\n   Extremities: Right lower extremity edema: Absent, Left lower extremity\n   edema: Absent\n   Musculoskeletal: Muscle wasting\n   Skin:  Warm\n   Neurologic: Attentive, Responds to: Not assessed, Movement: Not\n   assessed, Tone: Not assessed\n   Labs / Radiology\n   6.9 g/dL\n   200 K/uL\n   87 mg/dL\n   2.2 mg/dL\n   37 mEq/L\n   4.3 mEq/L\n   39 mg/dL\n   95 mEq/L\n   137 mEq/L\n   22.0 %\n   7.8 K/uL\n        [image002.jpg]\n                             [**3103-12-28**]  04:20 AM\n                             [**3103-12-28**]  06:31 PM\n                             [**3103-12-29**]  05:37 AM\n                             [**3103-12-29**]  07:54 PM\n                             [**3103-12-30**]  04:03 AM\n                             [**3103-12-30**]  03:45 PM\n                             [**3103-12-31**]  06:43 AM\n                             [**3103-12-31**]  08:45 PM\n                             [**3104-1-1**]  02:52 AM\n                             [**3104-1-2**]  03:18 AM\n   WBC\n   7.9\n   10.5\n   9.9\n   10.7\n   8.8\n   8.0\n   7.8\n   Hct\n   23.5\n   23.2\n   21.9\n   21.7\n   21.0\n   21.2\n   20.5\n   22.0\n   Plt\n   198\n   184\n   173\n   180\n   185\n   173\n   200\n   Cr\n   1.4\n   1.3\n   1.4\n   1.4\n   1.5\n   1.6\n   1.7\n   2.0\n   2.2\n   Glucose\n   106\n   161\n   92\n   108\n   104\n   116\n   107\n   113\n   87\n   Other labs: PT / PTT / INR:12.7/26.0/1.1, CK / CKMB /\n   Troponin-T:14/2/0.05, ALT / AST:[**10-23**], Alk Phos / T Bili:233/0.3,\n   Amylase / Lipase:/24, Differential-Neuts:77.0 %, Band:1.0 %, Lymph:18.0\n   %, Mono:2.0 %, Eos:0.0 %, D-dimer:2192 ng/mL, Lactic Acid:0.8 mmol/L,\n   LDH:140 IU/L, Ca++:8.3 mg/dL, Mg++:2.4 mg/dL, PO4:3.1 mg/dL\n   Imaging: CXR:  NTT adequately placed, no change in\n   infiltrates/effusions\n   Assessment and Plan\n RESPIRATORY FAILURE, ACUTE ON CHRONIC:  Secondary to aspiration\n   pneumonia superimposed on bronchiolitis obliterans secondary to chronic\n   GVH.  Continues to have moderate to large amount of secretions.\n   Continue antibiotics.\n ATRIAL FLUTTER (AFLUTTER) with RVR:  On oral diltiazem. Transient\n   tachyarrhythmia overnight, may have been over diuresed.\n ANEMIA, OTHER:  Patient refused transfusion for hct 20 yesterday, up\n   on its own today.\n ALTERED MENTAL STATUS (NOT DELIRIUM):\n ACUTE RENAL FAILURE:  Now exacerbated by overdiuresis, allowing him\n   to be even to positive again today.\n ALTERATION IN NUTRITION\n .H/O CANCER (MALIGNANT NEOPLASM), OTHER\n [**Last Name 113**] PROBLEM - ENTER DESCRIPTION IN COMMENTS\n   Heparin Allergy, Pneumonitis\n   ICU Care\n   Nutrition:\n   Peptamen 1.5 (Full) - [**3104-1-2**] 02:48 AM 45 mL/hour\n   Glycemic Control:\n   Lines:\n   Midline - [**3103-12-22**] 03:51 PM\n   Comments: Tube feeds at goal\n   Prophylaxis:\n   DVT: Boots\n   Stress ulcer: PPI\n   VAP: HOB elevation, Mouth care, Daily wake up, RSBI\n   Need for restraints reviewed\n   Comments:\n   Communication:  Comments:\n   Code status: Full code\n   Disposition :ICU\n   Total time spent: 45 minutes\n   Patient is critically ill\n\n",
+            "report_type": "Hospital Note",
+            "result_display": {
+                "date": "2155-03-08T11:20:00Z",
+                "end": [
+                    42
+                ],
+                "highlights": [
+                    "transfusion"
+                ],
+                "result_content": "ANEMIA, OTHER: Patient refused transfusion for hct 20 yesterday, up on its own today.",
+                "sentence": "ANEMIA, OTHER: Patient refused transfusion for hct 20 yesterday, up on its own today.",
+                "start": [
+                    31
+                ]
+            },
+            "section": "CHEST_XRAY",
+            "sentence": "ANEMIA, OTHER: Patient refused transfusion for hct 20 yesterday, up on its own today.",
+            "solr_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_18",
+            "source": "10bbcffc-213a-11ec-bb3c-0242ac140013",
+            "start": 31,
+            "subject": "23907",
+            "temporality": "Recent",
+            "term": "transfusion"
+        },
+        {
+            "_id": "6154866a6c6e0205747bc705",
+            "batch": 0,
+            "concept_code": "",
+            "concept_code_system": "",
+            "display_name": "gotTransfusion",
+            "end": 100,
+            "experiencer": "Patient",
+            "inserted_date": "2021-09-29 15:29:46.848000",
+            "job_id": 392427,
+            "negation": "Affirmed",
+            "nlpaas_report_list_id": "27",
+            "nlpql_feature": "gotTransfusion",
+            "original_report_id": "703210",
+            "owner": "claritynlp",
+            "phenotype_final": false,
+            "pipeline_id": 5302074,
+            "pipeline_type": "ProviderAssertion",
+            "report_date": "2155-03-17T07:50:00Z",
+            "report_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_27",
+            "report_text": "Chief Complaint: respiratory failure\n   24 Hour Events:\n   - Pt did not do well with taking away PSV\n   - Tube feeds held at MN in anticipation for PEG tube placement today\n   History obtained from Patient, Medical records\n   Allergies:\n   History obtained from Patient, Medical recordsAmphotericin B\n   Unknown;\n   Ambisome (Intraven.) (Amphotericin B Liposome)\n   Unknown;\n   Campath (Intraven.) (Alemtuzumab)\n   Fever/Chills; R\n   Heparin Agents\n   Unknown;\n   Last dose of Antibiotics:\n   Infusions:\n   Other ICU medications:\n   Fentanyl - [**3104-1-11**] 04:30 AM\n   Other medications:\n   Changes to medical and family history:\n   Review of systems is unchanged from admission except as noted below\n   Review of systems:\n   Ear, Nose, Throat: OG / NG tube\n   Nutritional Support: NPO\n   Flowsheet Data as of  [**3104-1-11**] 07:50 AM\n   Vital signs\n   Hemodynamic monitoring\n   Fluid balance\n                                                                  24 hours\n                                                               Since [**05**] AM\n   Tmax: 37.2\nC (98.9\n   Tcurrent: 37.2\nC (98.9\n   HR: 100 (88 - 112) bpm\n   BP: 100/58(67) {92/51(60) - 129/91(96)} mmHg\n   RR: 25 (0 - 37) insp/min\n   SpO2: 97%\n   Heart rhythm: ST (Sinus Tachycardia)\n   Wgt (current): 61.6 kg (admission): 61.6 kg\n   Height: 71 Inch\n             Total In:\n                                                                  1,731 mL\n                                                                     50 mL\n   PO:\n             TF:\n                                                                  1,081 mL\n   IVF:\n                                                                    240 mL\n                                                                     50 mL\n   Blood products:\n   Total out:\n                                                                     50 mL\n                                                                      0 mL\n   Urine:\n                                                                     50 mL\n   NG:\n   Stool:\n   Drains:\n   Balance:\n                                                                  1,681 mL\n                                                                     50 mL\n   Respiratory support\n   O2 Delivery Device: Tracheostomy tube\n   Ventilator mode: CPAP/PSV\n   Vt (Spontaneous): 233 (207 - 321) mL\n   PS : 10 cmH2O\n   RR (Spontaneous): 25\n   PEEP: 5 cmH2O\n   FiO2: 50%\n   RSBI: 178\n   PIP: 16 cmH2O\n   SpO2: 97%\n   ABG: ///36/\n   Ve: 5.9 L/min\n   Physical Examination\n   General Appearance: Thin\n   Head, Ears, Nose, Throat: NG tube\n   Peripheral Vascular: (Right radial pulse: Not assessed), (Left radial\n   pulse: Not assessed), (Right DP pulse: Not assessed), (Left DP pulse:\n   Not assessed)\n   Skin:  Not assessed\n   Neurologic: Responds to: Not assessed, Movement: Not assessed, Tone:\n   Not assessed\n   Labs / Radiology\n   183 K/uL\n   8.1 g/dL\n   79 mg/dL\n   3.4 mg/dL\n   36 mEq/L\n   4.3 mEq/L\n   23 mg/dL\n   102 mEq/L\n   143 mEq/L\n   24.9 %\n   12.0 K/uL\n                             [**3104-1-4**]  02:26 PM\n                             [**3104-1-5**]  05:23 AM\n                             [**3104-1-5**]  07:10 PM\n                             [**3104-1-6**]  03:15 AM\n                             [**3104-1-7**]  06:20 AM\n                             [**3104-1-8**]  06:06 AM\n                             [**3104-1-8**]  09:21 PM\n                             [**3104-1-9**]  08:56 AM\n                             [**3104-1-10**]  03:48 AM\n                             [**3104-1-11**]  04:14 AM\n   WBC\n   8.2\n   7.0\n   7.5\n   10.1\n   10.3\n   12.1\n   12.7\n   12.0\n   Hct\n   23.6\n   22.3\n   22.3\n   24.2\n   21.7\n   24.0\n   24.8\n   26.3\n   24.9\n   Plt\n   271\n   254\n   255\n   [**Telephone/Fax (2) 11372**]83\n   Cr\n   3.8\n   4.1\n   4.3\n   4.5\n   2.6\n   2.2\n   1.7\n   2.6\n   3.4\n   Glucose\n   101\n   90\n   89\n   80\n   70\n   91\n   108\n   104\n   79\n   Other labs: PT / PTT / INR:11.7/22.3/1.0, Ca++:8.2 mg/dL, Mg++:2.7\n   mg/dL, PO4:2.5 mg/dL\n   Fluid analysis / Other labs: VANC 22\n   Assessment and Plan\n   45 y.o. Male with h.o. CML s/p allogenic transplant, chronic GVH,\n   bronchiolitis obliterans chronic respiratory failure now with trach.\n RESPIRATORY FAILURE, CHRONIC: s/p Trach placement.  Underlying\n   disease bronchiolitis obliterans, end stage lung disease\n   -- Continue trials of decreased pressure support\n OLIGURIC RENAL FAILURE, ACUTE (ACUTE RENAL FAILURE, ARF): Secondary\n   to ATN (hypotension and supratherapeutic vanc levels). UO continues to\n   be low (0 overnight).\n   -- Continue HD per renal\n   -- Monitor daily vanc levels\n   -- Follow I\ns, Cr\n ATRIAL FLUTTER (AFLUTTER): with RVR. Currently in NSR..\n   -- Continue PO dilt\n   -- Continue clonazepam, continue zyprexa\n ANEMIA: stable s/p transfusion\n   -- Trend hct\n ALTERATION IN NUTRITION: PEG unable to be placed during trach.\n   Surgery has evaluated and recommended IR guided G-tube.\n   -- IR guided G-tube likely today\n   -- held tube feeds at midnight\n .H/O CANCER (MALIGNANT NEOPLASM), OTHER: Complicated by chronic GVHD\n   and bronchiolitis obliterans.\n   -- Cont home dose prednisone\n   -- Cont azithromycin\n   -- Cont holding bactrim and acyclovir IV (given ARF as above)\n [**Last Name 113**] PROBLEM - ENTER DESCRIPTION IN COMMENTS\n   Heparin Allergy, Pneumonitis\n   ICU Care\n   Nutrition:\n   Glycemic Control:\n   Lines:\n   Midline - [**3103-12-22**] 03:51 PM\n   Prophylaxis:\n   DVT: Boots\n   Stress ulcer:\n   VAP:\n   Comments:\n   Communication:  Comments:\n   Code status: Full code\n   Disposition:ICU\n   ------ Protected Section------\n   Header was removed somehow\n   ------ Protected Section Error Entered By:[**Name (NI) **] [**Last Name (NamePattern1) 11373**], MD\n   on:[**3104-1-11**] 08:03 ------\n\n",
+            "report_type": "Hospital Note",
+            "result_display": {
+                "date": "2155-03-17T07:50:00Z",
+                "end": [
+                    100
+                ],
+                "highlights": [
+                    "transfusion"
+                ],
+                "result_content": "in NSR.. -- Continue PO dilt -- Continue clonazepam, continue zyprexa ANEMIA: stable s/p transfusion -- Trend hct ALTERATION IN",
+                "sentence": "in NSR.. -- Continue PO dilt -- Continue clonazepam, continue zyprexa ANEMIA: stable s/p transfusion -- Trend hct ALTERATION IN",
+                "start": [
+                    89
+                ]
+            },
+            "section": "LABORATORY_DATA",
+            "sentence": "in NSR.. -- Continue PO dilt -- Continue clonazepam, continue zyprexa ANEMIA: stable s/p transfusion -- Trend hct ALTERATION IN",
+            "solr_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_27",
+            "source": "10bbcffc-213a-11ec-bb3c-0242ac140013",
+            "start": 89,
+            "subject": "23907",
+            "temporality": "Historical",
+            "term": "transfusion"
+        },
+        {
+            "_id": "6154866b6c6e0205747bc706",
+            "batch": 0,
+            "concept_code": "",
+            "concept_code_system": "",
+            "display_name": "gotTransfusion",
+            "end": 95,
+            "experiencer": "Patient",
+            "inserted_date": "2021-09-29 15:29:47.521000",
+            "job_id": 392427,
+            "negation": "Affirmed",
+            "nlpaas_report_list_id": "26",
+            "nlpql_feature": "gotTransfusion",
+            "original_report_id": "702187",
+            "owner": "claritynlp",
+            "phenotype_final": false,
+            "pipeline_id": 5302074,
+            "pipeline_type": "ProviderAssertion",
+            "report_date": "2155-03-19T07:57:00Z",
+            "report_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_26",
+            "report_text": "Chief Complaint: A. fib with RVR.\n   24 Hour Events:\n FLUOROSCOPY - At [**3104-1-12**] 03:25 PM\n   G-tube placement.\n BRONCHOSCOPY - At [**3104-1-12**] 06:25 PM\n   [**3104-1-12**]:\n   -PEG placed.\n   -Bleeding around trach.  IP came to evaluate: saw a clot in the\n   suprastomal area which was suctioned with no residual active bleeding\n   between 2nd/3rd ring during bronch.  Applied lidocain/epi.\n   -There was a concern for tracheal innominate fistula.  Had a long\n   discussion between IP, heme/onc, radiology, surgery regarding MRA vs\n   CTA (given his renal failure).  Ultimately, he needed stat CTA neck.\n   Discussed this with patient and his wife to great depths.  He was\n   premedicated with sodium bicarb, famotidine, benadryl, and zofran.\n   History obtained from Patient\n   Allergies:\n   History obtained from PatientAmphotericin B\n   Unknown;\n   Ambisome (Intraven.) (Amphotericin B Liposome)\n   Unknown;\n   Campath (Intraven.) (Alemtuzumab)\n   Fever/Chills; R\n   Heparin Agents\n   Unknown;\n   Last dose of Antibiotics:\n   Cefazolin - [**3104-1-12**] 08:15 PM\n   Infusions:\n   Other ICU medications:\n   Metoprolol - [**3104-1-13**] 04:00 AM\n   Dilantin - [**3104-1-13**] 06:00 AM\n   Fentanyl - [**3104-1-13**] 06:00 AM\n   Other medications:\n   Changes to medical and family history:\n   Review of systems is unchanged from admission except as noted below\n   Review of systems:\n   Cardiovascular: No(t) Chest pain\n   Respiratory: No(t) Dyspnea\n   Gastrointestinal: No(t) Abdominal pain, No(t) Nausea, No(t) Emesis\n   Flowsheet Data as of  [**3104-1-13**] 07:56 AM\n   Vital signs\n   Hemodynamic monitoring\n   Fluid balance\n                                                                  24 hours\n                                                               Since [**05**] AM\n   Tmax: 37.6\nC (99.6\n   Tcurrent: 36.2\nC (97.2\n   HR: 91 (84 - 100) bpm\n   BP: 117/73(82) {94/46(57) - 118/74(85)} mmHg\n   RR: 16 (0 - 30) insp/min\n   SpO2: 100%\n   Heart rhythm: SR (Sinus Rhythm)\n   Wgt (current): 61.6 kg (admission): 61.6 kg\n   Height: 71 Inch\n             Total In:\n                                                                    328 mL\n                                                                  1,079 mL\n   PO:\n             TF:\n   IVF:\n                                                                     88 mL\n                                                                  1,079 mL\n   Blood products:\n   Total out:\n                                                                     39 mL\n                                                                     15 mL\n   Urine:\n                                                                     39 mL\n                                                                     15 mL\n   NG:\n   Stool:\n   Drains:\n   Balance:\n                                                                    289 mL\n                                                                  1,064 mL\n   Respiratory support\n   O2 Delivery Device: Tracheostomy tube\n   Ventilator mode: CMV/ASSIST/AutoFlow\n   Vt (Set): 450 (450 - 450) mL\n   Vt (Spontaneous): 272 (272 - 290) mL\n   PS : 10 cmH2O\n   RR (Set): 16\n   RR (Spontaneous): 4\n   PEEP: 5 cmH2O\n   FiO2: 50%\n   RSBI: 616\n   PIP: 30 cmH2O\n   SpO2: 100%\n   ABG: ///30/\n   Ve: 8.1 L/min\n   Physical Examination\n   General Appearance: Thin\n   Head, Ears, Nose, Throat: NG tube\n   Cardiovascular: (S1: Normal), (S2: Normal)\n   Peripheral Vascular: (Right radial pulse: Not assessed), (Left radial\n   pulse: Not assessed), (Right DP pulse: Not assessed), (Left DP pulse:\n   Not assessed)\n   Respiratory / Chest: (Expansion: Symmetric), (Breath Sounds: Clear : )\n   Abdominal: Soft, Bowel sounds present, Tender: Mild epigastric TTP\n   Extremities: Right lower extremity edema: 1+, Left lower extremity\n   edema: 1+\n   Skin:  Not assessed, Rash:\n   Neurologic: Attentive, Follows simple commands, Responds to: Verbal\n   stimuli, Movement: Purposeful, Tone: Not assessed\n   Labs / Radiology\n   176 K/uL\n   7.1 g/dL\n   64 mg/dL\n   3.2 mg/dL\n   30 mEq/L\n   4.3 mEq/L\n   22 mg/dL\n   102 mEq/L\n   141 mEq/L\n   22.9 %\n   11.0 K/uL\n        [image002.jpg]\n                             [**3104-1-7**]  06:20 AM\n                             [**3104-1-8**]  06:06 AM\n                             [**3104-1-8**]  09:21 PM\n                             [**3104-1-9**]  08:56 AM\n                             [**3104-1-10**]  03:48 AM\n                             [**3104-1-11**]  04:14 AM\n                             [**3104-1-12**]  04:23 AM\n                             [**3104-1-12**]  07:15 PM\n                             [**3104-1-13**]  04:20 AM\n                             [**3104-1-13**]  06:20 AM\n   WBC\n   10.1\n   10.3\n   12.1\n   12.7\n   12.0\n   10.9\n   10.5\n   11.0\n   Hct\n   24.2\n   21.7\n   24.0\n   24.8\n   26.3\n   24.9\n   23.4\n   24.0\n   22.9\n   Plt\n   [**Telephone/Fax (3) 11362**]92\n   183\n   172\n   179\n   176\n   Cr\n   2.6\n   2.2\n   1.7\n   2.6\n   3.4\n   2.3\n   3.2\n   Glucose\n   70\n   91\n   108\n   104\n   79\n   76\n   64\n   Other labs: PT / PTT / INR:12.8/24.5/1.1, CK / CKMB /\n   Troponin-T:14/2/0.05, ALT / AST:[**7-20**], Alk Phos / T Bili:325/0.4,\n   Amylase / Lipase:/24, Differential-Neuts:81.9 %, Band:0.0 %, Lymph:10.5\n   %, Mono:6.0 %, Eos:1.4 %, D-dimer:2192 ng/mL, Lactic Acid:0.8 mmol/L,\n   Albumin:2.3 g/dL, LDH:165 IU/L, Ca++:8.4 mg/dL, Mg++:2.2 mg/dL, PO4:2.8\n   mg/dL\n   Imaging: CXR AP [**3104-1-12**]:\n   The tracheostomy tip is approximately 3.5 cm above the carina. The NG\n   tube\n   tip passes below the diaphragm with its tip not clearly seen. The right\n   central venous line tip is at the cavoatrial junction.\n   Cardiomediastinal\n   silhouette is stable. Bilateral pleural effusions are unchanged as well\n   as\n   moderate-to-severe pulmonary edema. The above-described findings might\n   obscure infection and if clinically warranted further evaluation with\n   chest CT might be considered.\n   Microbiology: [**3104-1-12**]\n   Gram stain no organisms seen\n   Assessment and Plan\n PAIN CONTROL (ACUTE PAIN, CHRONIC PAIN)\n RESPIRATORY FAILURE, CHRONIC\n RENAL FAILURE, ACUTE (ACUTE RENAL FAILURE, ARF)\n ATRIAL FLUTTER (AFLUTTER)\n   with RVR\n ANEMIA, OTHER\n ALKALOSIS, METABOLIC\n ALTERED MENTAL STATUS (NOT DELIRIUM)\n ALTERATION IN NUTRITION\n .H/O CANCER (MALIGNANT NEOPLASM), OTHER\n [**Last Name 113**] PROBLEM - ENTER DESCRIPTION IN COMMENTS\n   Heparin Allergy, Pneumonitis\n   45 y.o. Male with h.o. CML s/p allogenic transplant, chronic GVH,\n   bronchiolitis obliterans chronic respiratory failure now with trach.\n RESPIRATORY FAILURE, CHRONIC: s/p Trach placement.  Underlying\n   disease bronchiolitis obliterans, end stage lung disease\n   -- Continue trials of decreased pressure support\n   -- Continue HD and UF\n   -- IP consult to tap pleural effusions which will hopefully make pt\n   less ventilator dependent\n ANXIETY: Likely superficial bleeding given quick control with local\n   epi. CT neck on my read negative. Low concern for arterial erosion into\n   airway.\n   -Monitor wound site closely for signs of bleeding.\n   -F/u CTA Neck final read\n OLIGURIC RENAL FAILURE, ACUTE (ACUTE RENAL FAILURE, ARF): Secondary\n   to ATN (hypotension and supratherapeutic vanc levels) with low urine\n   output. Vanc levels trending down. Pt likely will have needed HD\n   permanently, therefore CTA unlikely to be harmful.\n   -- Continue HD and attempt U/F\n   -- Monitor daily vanc levels\n   -- Follow I\ns, Cr\n ATRIAL FLUTTER (AFLUTTER): with RVR. Currently in NSR..\n   -- Continue PO dilt and metoprolol\n Anxiety\n   -- Continue clonazepam, continue zyprexa\n   -- Continue Fentanyl patch\n ANEMIA: stable s/p transfusion for now although slightly trending\n   down.\n   -- Trend hct\n   -- PM HCT\n ALTERATION IN NUTRITION: s/p PEG\n   -- Start tube feeds via PEG tube\n   -- Elevate HOB to 30 degrees\n   -- Aspiration precautions\n .H/O CANCER (MALIGNANT NEOPLASM), OTHER: Complicated by chronic GVHD\n   and bronchiolitis obliterans.\n   -- Cont home dose prednisone\n   -- Cont azithromycin\n   -- Hold bactrim and acyclovir IV and restart as outpatient per BMT team\n [**Last Name 113**] PROBLEM - ENTER DESCRIPTION IN COMMENTS\n   Heparin Allergy, Pneumonitis\n   ICU Care\n   Nutrition: PEG tube:\n   Tubefeeding: Isosource 1.5 Cal Full strength;\n   Starting rate: 10 ml/hr; Advance rate by 20 ml q6h Goal rate: 45 ml/hr\n   Residual Check: q4h Hold feeding for residual >= : 200 ml\n   Flush w/ 50 ml water q6h\n   Glycemic Control:\n   Lines:\n   Midline - [**3103-12-22**] 03:51 PM\n   Prophylaxis:\n   DVT: boots\n   Stress ulcer: ppi\n   VAP:\n   Comments:\n   Communication:  Comments:\n   Code status: Full code\n   Disposition: Likely to LTAC tomorrow\n   ------ Protected Section ------\n   MICU ATTENDING ADDENDUM\n   I saw and examined the patient, and was physically present with the ICU\n   team for the key portions of the services provided. I agree with the\n   note above, including the assessment and plan. I would emphasize and\n   add the following points: 45M CML s/p BMT c/b BO / GVHD p/w resp\n   failure. IR PEG placed, CT s e/o tracheo-inominate fistula.\n   Exam notable for Tm 99.8 BP 110/59 HR 90/AFL RR 18 with sat 100 on VAC\n   450x16 5 0.5. Frail man, lucid, follows commands. No new bleeding at\n   trach site. Coarse BS. Hyperdynamic s1s2. Soft +BS. Diffuse skin\n   changes c/w GVHD. Labs notable for WBC 11K, HCT 22, K 4.3, Cr 3.2.\n   Agree with plan to manage multifactorial respiratory failure with vent\n   support and PSV wean; continue azithro and pred for BO, HD for volume\n   removal and IP consult for R thoracentesis to assist in weaning. Will\n   consider TM trials after procedures. Trach bleed stable, will confirm\n   no TIF on final CT read. ARF continues with minimal UOP, tolerating HD,\n   would favor aggressive volume removal to assist in weaning. Atrial\n   flutter\n dilt / metoprolol per NGT. Keppra for TL mass / possible\n   seizures - give after HD. Will d/w BMT re acyclovir and bactrim\n   prophylaxis, continue fluconazole. Resume TFs today, monitor FSG. PT /\n   OT eval, rehab screening. Fentanyl patch / klonopin for anxiety\n   working well. Remainder of plan as outlined above.\n   Total time: 35 min\n   ------ Protected Section Addendum Entered By:[**Name (NI) 33**] [**Last Name (NamePattern1) 32**], MD\n   on:[**3104-1-13**] 06:55 PM ------\n\n",
+            "report_type": "Hospital Note",
+            "result_display": {
+                "date": "2155-03-19T07:57:00Z",
+                "end": [
+                    95
+                ],
+                "highlights": [
+                    "transfusion"
+                ],
+                "result_content": "Continue clonazepam, continue zyprexa -- Continue Fentanyl patch ANEMIA: stable s/p transfusion for now although slightly trending down.-- Trend hct -- PM HCT ALTERATION IN",
+                "sentence": "Continue clonazepam, continue zyprexa -- Continue Fentanyl patch ANEMIA: stable s/p transfusion for now although slightly trending down.-- Trend hct -- PM HCT ALTERATION IN",
+                "start": [
+                    84
+                ]
+            },
+            "section": "MICROBIOLOGY",
+            "sentence": "Continue clonazepam, continue zyprexa -- Continue Fentanyl patch ANEMIA: stable s/p transfusion for now although slightly trending down.-- Trend hct -- PM HCT ALTERATION IN",
+            "solr_id": "10bbcffc-213a-11ec-bb3c-0242ac140013_26",
+            "source": "10bbcffc-213a-11ec-bb3c-0242ac140013",
+            "start": 84,
+            "subject": "23907",
+            "temporality": "Historical",
+            "term": "transfusion"
+        }
+    ]
+}
