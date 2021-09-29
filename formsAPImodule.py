@@ -6,6 +6,23 @@ from typing import Dict, Optional, List, Union
 from fhir.resources.questionnaire import Questionnaire
 from bson import ObjectId
 import pymongo
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+origins = [
+    "http://localhost",
+    "http://localhost:4200"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
 
 class Answer(BaseModel):
     text: str
@@ -101,6 +118,7 @@ def convertToQuestionnaire(questions: QuestionsJSON):
 
 def bundle_forms(forms: list):
     bundle = bundle_template
+    bundle['entry'] = []
     for form in forms:
         bundle["entry"].append({"fullUrl": "Questionnaire/" + form["id"], "resource": form})
     timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
@@ -111,7 +129,6 @@ def bundle_forms(forms: list):
 client = pymongo.MongoClient("mongodb+srv://formsapiuser:454Ik0LIQuOuHSQz@forms.18m6i.mongodb.net/Forms?retryWrites=true&w=majority")
 db = client.SmartChartForms
 
-app = FastAPI()
 
 @app.get("/")
 async def root():
