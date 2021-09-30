@@ -134,16 +134,17 @@ def convertToQuestionnaire(questions: QuestionsJSON):
         print(nlpql_name)
         print(question['evidence_bundle'])
         try:
-            for name in question['evidence_bundle'][nlpql_name]:
-                new_name = '.'.join([nlpql_name, name])
-                evidence_bundles_reformat.append(new_name)
+            if question['evidence_bundle'][nlpql_name] is not None:
+                for name in question['evidence_bundle'][nlpql_name]:
+                    new_name = '.'.join([nlpql_name, name])
+                    evidence_bundles_reformat.append(new_name)
 
-            evidence_bundle_ext = [{
-                    "url": "evidenceBundles",
-                    "extension": list(map(lambda x: {"url": "evidence-bundle", "valueString": x}, evidence_bundles_reformat))
-            }]
+                evidence_bundle_ext = [{
+                        "url": "evidenceBundles",
+                        "extension": list(map(lambda x: {"url": "evidence-bundle", "valueString": x}, evidence_bundles_reformat))
+                }]
 
-            question_data['extension'] = evidence_bundle_ext
+                question_data['extension'] = evidence_bundle_ext
         except KeyError:
             pass
 
