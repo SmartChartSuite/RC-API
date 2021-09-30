@@ -57,6 +57,7 @@ class StartJobPostBody(BaseModel):
     nlpqlGrouping: str
     patientId: str
 
+
 class NLPQLDict(BaseModel):
     name: str
     content: str
@@ -71,6 +72,7 @@ bundle_template = {
 }
 
 def convertToQuestionnaire(questions: QuestionsJSON):
+    
     data = {
         "meta": {
             "profile": ["http://sample.com/StructureDefinition/smartchart-form"]
@@ -85,12 +87,21 @@ def convertToQuestionnaire(questions: QuestionsJSON):
         "subjectType": ['Patient'],
         "publisher": questions['owner'],
         "experimental": "true",
+        "extension": [
+            {
+                "url": "form-evidence-bundle-list",
+                "extension": list(map(lambda x: {"url":"evidence_bundle", "valueString": x}, questions['evidence_bundles']))
+            }
+        ]
     }
+
     quest = Questionnaire(**data)
+
     quest.item = []
     for i, group in enumerate(questions['groups']):
         item_data = {'linkId': group, 'type': 'group'}
         quest.item.append(item_data)
+
     for question in questions['questions']:
 
         groupNumber = questions['groups'].index(question['group'])
@@ -117,6 +128,24 @@ def convertToQuestionnaire(questions: QuestionsJSON):
                 'text': question['question_name'],
                 'type': question_type,
             }
+
+        evidence_bundles_reformat = []
+        nlpql_name = question['nlpql_grouping']
+        print(nlpql_name)
+        print(question['evidence_bundle'])
+        try:
+            for name in question['evidence_bundle'][nlpql_name]:
+                new_name = '.'.join([nlpql_name, name])
+                evidence_bundles_reformat.append(new_name)
+
+            evidence_bundle_ext = [{
+                    "url": "evidenceBundles",
+                    "extension": list(map(lambda x: {"url": "evidence-bundle", "valueString": x}, evidence_bundles_reformat))
+            }]
+
+            question_data['extension'] = evidence_bundle_ext
+        except KeyError:
+            pass
 
         try:
             quest.item[groupNumber]['item'].append(question_data)
@@ -163,13 +192,16 @@ async def get_list_of_forms(returnBundle: bool = False):
             forms_fhir.append(convertToQuestionnaire(form))
         return bundle_forms(forms_fhir)
 
-@app.get("/forms/{form_id}", response_model=Union[QuestionsJSON, dict])
+@app.get("/forms/{form_id}", response_model=Union[QuestionsJSON, dict, str])
 async def get_form(form_id: str, returnAsFHIR: bool = False, returnAsFhir: bool = False):
     # return questions.json from database, if returnAsFHIR: convert questions.json to questionnaire and return that
     if returnAsFHIR or returnAsFhir:
         result_form = convertToQuestionnaire(db.forms.find({'_id': ObjectId(form_id)})[0])
     else:
-        result_form = db.forms.find({'_id': ObjectId(form_id)})[0]
+        try:
+            result_form = db.forms.find({'_id': ObjectId(form_id)})[0]
+        except IndexError:
+            return "No form with that id found"
     return result_form
 
 @app.post("/forms")
