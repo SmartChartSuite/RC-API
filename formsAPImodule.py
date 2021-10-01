@@ -215,9 +215,12 @@ async def update_form(form_id: str, new_questions: QuestionsJSON):
 
 @app.post("/forms/start")
 async def start_jobs(post_body: StartJobPostBody, response_model=dict):
-    result = db.fakeReturn.find({'form_id': post_body.formId, 'nlpql_grouping': post_body.nlpqlGrouping})[0]
-    del result["_id"]
     time.sleep(5)
+    try:
+        result = db.fakeReturn.find({'form_id': post_body.formId, 'nlpql_grouping': post_body.nlpqlGrouping})[0]
+        del result["_id"]
+    except IndexError:
+        return f"No job with the name {post_body.nlpqlGrouping} for the form {post_body.formId} was found"
     return result
 
 @app.post("/forms/nlpql")
