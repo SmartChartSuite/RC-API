@@ -178,12 +178,12 @@
             ],
             "evidence_bundle": {
                 "information": [
+                    "mc_yn_terms",
+                    "ms_yn",
+                    "mc_yn",
                     "mv_yn",
                     "mv_yn_terms",
-                    "ms_yn",
-                    "mc_yn_terms",
-                    "ms_yn_terms",
-                    "mc_yn"
+                    "ms_yn_terms"
                 ]
             },
             "nlpql_grouping": "information"
@@ -235,8 +235,8 @@
             ],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_aian",
-                    "mg_dob"
+                    "mg_dob",
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -262,9 +262,9 @@
             ],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_aian",
                     "mg_dob",
-                    "mg_race_asian"
+                    "mg_race_asian",
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -290,10 +290,10 @@
             ],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_baa",
-                    "mg_race_aian",
                     "mg_dob",
-                    "mg_race_asian"
+                    "mg_race_asian",
+                    "mg_race_baa",
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -319,11 +319,11 @@
             ],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_baa",
-                    "mg_race_aian",
                     "mg_race_asian",
+                    "mg_race_baa",
+                    "mg_race_nhopi",
                     "mg_dob",
-                    "mg_race_nhopi"
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -349,12 +349,12 @@
             ],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_baa",
-                    "mg_race_aian",
-                    "mg_race_wh",
                     "mg_race_asian",
+                    "mg_race_baa",
+                    "mg_race_nhopi",
                     "mg_dob",
-                    "mg_race_nhopi"
+                    "mg_race_wh",
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -380,13 +380,13 @@
             ],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_baa",
-                    "mg_race_aian",
-                    "mg_race_wh",
                     "mg_race_asian",
-                    "mg_dob",
+                    "mg_race_oth",
+                    "mg_race_baa",
                     "mg_race_nhopi",
-                    "mg_race_oth"
+                    "mg_dob",
+                    "mg_race_wh",
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -412,14 +412,14 @@
             ],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_baa",
-                    "mg_race_aian",
-                    "mg_ethn",
-                    "mg_race_wh",
                     "mg_race_asian",
-                    "mg_dob",
+                    "mg_ethn",
+                    "mg_race_oth",
+                    "mg_race_baa",
                     "mg_race_nhopi",
-                    "mg_race_oth"
+                    "mg_dob",
+                    "mg_race_wh",
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -473,15 +473,15 @@
             ],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_baa",
                     "mg_edu",
-                    "mg_race_aian",
-                    "mg_ethn",
-                    "mg_race_wh",
                     "mg_race_asian",
-                    "mg_dob",
+                    "mg_ethn",
+                    "mg_race_oth",
+                    "mg_race_baa",
                     "mg_race_nhopi",
-                    "mg_race_oth"
+                    "mg_dob",
+                    "mg_race_wh",
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -494,16 +494,16 @@
             "answers": [],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_baa",
                     "mg_edu",
-                    "mg_race_aian",
-                    "mg_ethn",
-                    "mg_race_wh",
                     "mg_race_asian",
                     "mg_zip",
-                    "mg_dob",
+                    "mg_ethn",
+                    "mg_race_oth",
+                    "mg_race_baa",
                     "mg_race_nhopi",
-                    "mg_race_oth"
+                    "mg_dob",
+                    "mg_race_wh",
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -516,17 +516,17 @@
             "answers": [],
             "evidence_bundle": {
                 "maternal_demographics": [
-                    "mg_race_baa",
                     "mg_edu",
-                    "mg_race_aian",
-                    "mg_ethn",
-                    "mg_race_wh",
                     "mg_co",
                     "mg_race_asian",
                     "mg_zip",
-                    "mg_dob",
+                    "mg_ethn",
+                    "mg_race_oth",
+                    "mg_race_baa",
                     "mg_race_nhopi",
-                    "mg_race_oth"
+                    "mg_dob",
+                    "mg_race_wh",
+                    "mg_race_aian"
                 ]
             },
             "nlpql_grouping": "maternal_demographics"
@@ -540,8 +540,8 @@
             "evidence_bundle": {
                 "measurements": [
                     "mg_ht_value",
-                    "mg_ht_loinc",
-                    "mg_ht_sct"
+                    "mg_ht_sct",
+                    "mg_ht_loinc"
                 ]
             },
             "nlpql_grouping": "measurements"
@@ -554,12 +554,12 @@
             "answers": [],
             "evidence_bundle": {
                 "measurements": [
-                    "mg_ht_loinc",
-                    "mg_ppwt_loinc",
-                    "mg_ppwt_sct",
+                    "mg_ppwt_value",
                     "mg_ht_sct",
+                    "mg_ht_loinc",
+                    "mg_ppwt_sct",
                     "mg_ht_value",
-                    "mg_ppwt_value"
+                    "mg_ppwt_loinc"
                 ]
             },
             "nlpql_grouping": "measurements"
@@ -572,14 +572,14 @@
             "answers": [],
             "evidence_bundle": {
                 "measurements": [
-                    "mg_dewt",
-                    "mg_ht_loinc",
-                    "mg_ppwt_loinc",
-                    "mg_ppwt_sct",
-                    "mg_ht_sct",
-                    "mg_ht_value",
                     "mg_ppwt_value",
-                    "mg_dewt_value"
+                    "mg_dewt",
+                    "mg_ht_sct",
+                    "mg_ht_loinc",
+                    "mg_ppwt_sct",
+                    "mg_ht_value",
+                    "mg_dewt_value",
+                    "mg_ppwt_loinc"
                 ]
             },
             "nlpql_grouping": "measurements"
@@ -641,9 +641,9 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
+                    "mg_ppcon_diabetes_terms",
                     "mg_cron_htn",
                     "mg_cron_htn_terms",
-                    "mg_ppcon_diabetes_terms",
                     "mg_ppcon_diabetes"
                 ]
             },
@@ -670,9 +670,9 @@
             ],
             "evidence_bundle": {
                 "substance_use": [
-                    "mg_sub_alc_icd",
                     "mg_sub_alc_terms",
-                    "mg_sub_alc_sct"
+                    "mg_sub_alc_sct",
+                    "mg_sub_alc_icd"
                 ]
             },
             "nlpql_grouping": "substance_use"
@@ -698,12 +698,12 @@
             ],
             "evidence_bundle": {
                 "substance_use": [
-                    "mg_sub_alc_icd",
-                    "mg_sub_alc_sct",
-                    "mg_sub_tobacco_sct",
                     "mg_sub_tobacco_terms",
+                    "mg_sub_tobacco_icd",
+                    "mg_sub_alc_sct",
                     "mg_sub_alc_terms",
-                    "mg_sub_tobacco_icd"
+                    "mg_sub_alc_icd",
+                    "mg_sub_tobacco_sct"
                 ]
             },
             "nlpql_grouping": "substance_use"
@@ -729,9 +729,9 @@
             "answers": [],
             "evidence_bundle": {
                 "maternal_obstetric": [
-                    "mg_parity_sct",
+                    "mg_gravidity",
                     "mg_parity_loinc",
-                    "mg_gravidity"
+                    "mg_parity_sct"
                 ]
             },
             "nlpql_grouping": "maternal_obstetric"
@@ -744,12 +744,12 @@
             "answers": [],
             "evidence_bundle": {
                 "maternal_obstetric": [
-                    "mg_lmp_loinc",
-                    "mg_parity_sct",
-                    "mg_lmp_sct",
-                    "mg_lmp_terms",
                     "mg_gravidity",
-                    "mg_parity_loinc"
+                    "mg_lmp_loinc",
+                    "mg_lmp_terms",
+                    "mg_parity_loinc",
+                    "mg_lmp_sct",
+                    "mg_parity_sct"
                 ]
             },
             "nlpql_grouping": "maternal_obstetric"
@@ -762,14 +762,14 @@
             "answers": [],
             "evidence_bundle": {
                 "maternal_obstetric": [
-                    "mg_lmp_loinc",
-                    "mg_edd_loinc",
-                    "mg_parity_sct",
-                    "mg_lmp_sct",
-                    "mg_lmp_terms",
                     "mg_gravidity",
+                    "mg_lmp_loinc",
+                    "mg_lmp_terms",
+                    "mg_parity_loinc",
+                    "mg_edd_loinc",
                     "mg_edd_sct",
-                    "mg_parity_loinc"
+                    "mg_lmp_sct",
+                    "mg_parity_sct"
                 ]
             },
             "nlpql_grouping": "maternal_obstetric"
@@ -795,16 +795,16 @@
             ],
             "evidence_bundle": {
                 "maternal_obstetric": [
+                    "mg_gravidity",
                     "mg_lmp_loinc",
-                    "mg_edd_loinc",
-                    "mg_parity_sct",
-                    "mg_lmp_sct",
                     "mg_pn_sct",
                     "mg_lmp_terms",
-                    "mg_gravidity",
                     "mg_pn_icd",
+                    "mg_parity_loinc",
+                    "mg_edd_loinc",
                     "mg_edd_sct",
-                    "mg_parity_loinc"
+                    "mg_lmp_sct",
+                    "mg_parity_sct"
                 ]
             },
             "nlpql_grouping": "maternal_obstetric"
@@ -817,18 +817,18 @@
             "answers": [],
             "evidence_bundle": {
                 "maternal_obstetric": [
+                    "mg_gravidity",
                     "mg_lmp_loinc",
-                    "mg_edd_loinc",
-                    "mg_pn_dt_sct",
-                    "mg_parity_sct",
-                    "mg_pn_dt_icd",
-                    "mg_lmp_sct",
                     "mg_pn_sct",
                     "mg_lmp_terms",
-                    "mg_gravidity",
                     "mg_pn_icd",
+                    "mg_pn_dt_icd",
+                    "mg_parity_loinc",
+                    "mg_edd_loinc",
                     "mg_edd_sct",
-                    "mg_parity_loinc"
+                    "mg_lmp_sct",
+                    "mg_pn_dt_sct",
+                    "mg_parity_sct"
                 ]
             },
             "nlpql_grouping": "maternal_obstetric"
@@ -841,18 +841,18 @@
             "answers": [],
             "evidence_bundle": {
                 "maternal_obstetric": [
+                    "mg_gravidity",
                     "mg_lmp_loinc",
-                    "mg_edd_loinc",
-                    "mg_pn_dt_sct",
-                    "mg_parity_sct",
-                    "mg_pn_dt_icd",
-                    "mg_lmp_sct",
                     "mg_pn_sct",
                     "mg_lmp_terms",
-                    "mg_gravidity",
                     "mg_pn_icd",
+                    "mg_pn_dt_icd",
+                    "mg_parity_loinc",
+                    "mg_edd_loinc",
                     "mg_edd_sct",
-                    "mg_parity_loinc"
+                    "mg_lmp_sct",
+                    "mg_pn_dt_sct",
+                    "mg_parity_sct"
                 ]
             },
             "nlpql_grouping": "maternal_obstetric"
@@ -887,8 +887,8 @@
             ],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_pregcon_diabetes",
-                    "mg_pregcon_diabetes_terms"
+                    "mg_pregcon_diabetes_terms",
+                    "mg_pregcon_diabetes"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -914,11 +914,11 @@
             ],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_pregcon_eclamphtn_terms",
+                    "mg_pregcon_diabetes_terms",
                     "mg_pregcon_eclamphtn_icd",
-                    "mg_pregcon_eclamphtn_sct",
                     "mg_pregcon_diabetes",
-                    "mg_pregcon_diabetes_terms"
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -944,14 +944,14 @@
             ],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_pregcon_eclamphtn_terms",
-                    "mg_pregcon_eclamphtn_icd",
-                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_diabetes_terms",
                     "mg_pregcon_iugr_icd",
-                    "mg_pregcon_eclamphtn_sct",
-                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_eclamphtn_icd",
                     "mg_pregcon_diabetes",
-                    "mg_pregcon_diabetes_terms"
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -977,16 +977,16 @@
             ],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_hosp_yn",
-                    "mg_pregcon_eclamphtn_terms",
-                    "mg_pregcon_eclamphtn_icd",
-                    "mg_hosp_yn_terms",
-                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_diabetes_terms",
                     "mg_pregcon_iugr_icd",
-                    "mg_pregcon_eclamphtn_sct",
-                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_hosp_yn_terms",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_icd",
                     "mg_pregcon_diabetes",
-                    "mg_pregcon_diabetes_terms"
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -999,17 +999,17 @@
             "answers": [],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_hosp_yn",
-                    "mg_pregcon_eclamphtn_terms",
                     "mg_hospadm_dt",
-                    "mg_pregcon_eclamphtn_icd",
-                    "mg_hosp_yn_terms",
-                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_diabetes_terms",
                     "mg_pregcon_iugr_icd",
-                    "mg_pregcon_eclamphtn_sct",
-                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_iugr_sct",
+                    "mg_hosp_yn_terms",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_icd",
                     "mg_pregcon_diabetes",
-                    "mg_pregcon_diabetes_terms"
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -1035,18 +1035,18 @@
             ],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_hosp_yn",
-                    "mg_pregcon_eclamphtn_terms",
                     "mg_hospadm_dt",
-                    "mg_pregcon_eclamphtn_icd",
-                    "mg_hosp_yn_terms",
-                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_diabetes_terms",
                     "mg_pregcon_iugr_icd",
-                    "mg_pregcon_eclamphtn_sct",
-                    "mg_pregcon_iugr_terms",
-                    "mg_death",
+                    "mg_pregcon_iugr_sct",
+                    "mg_hosp_yn_terms",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_icd",
                     "mg_pregcon_diabetes",
-                    "mg_pregcon_diabetes_terms"
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_death",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -1059,19 +1059,19 @@
             "answers": [],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_death_dt",
-                    "mg_hosp_yn",
-                    "mg_pregcon_eclamphtn_terms",
                     "mg_hospadm_dt",
-                    "mg_pregcon_eclamphtn_icd",
-                    "mg_hosp_yn_terms",
-                    "mg_pregcon_iugr_sct",
+                    "mg_pregcon_diabetes_terms",
                     "mg_pregcon_iugr_icd",
-                    "mg_pregcon_eclamphtn_sct",
-                    "mg_pregcon_iugr_terms",
-                    "mg_death",
+                    "mg_pregcon_iugr_sct",
+                    "mg_hosp_yn_terms",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_icd",
                     "mg_pregcon_diabetes",
-                    "mg_pregcon_diabetes_terms"
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_death_dt",
+                    "mg_death",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -1084,20 +1084,20 @@
             "answers": [],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_death_dt",
-                    "mg_hosp_yn",
-                    "mg_pregcon_eclamphtn_terms",
                     "mg_hospadm_dt",
-                    "mg_pregcon_eclamphtn_icd",
-                    "mg_hosp_yn_terms",
-                    "mg_pregcon_iugr_sct",
-                    "mg_pregcon_iugr_icd",
-                    "mg_pregcon_eclamphtn_sct",
-                    "mg_pregcon_iugr_terms",
-                    "mg_death",
-                    "mg_pregcon_diabetes",
                     "mg_pregcon_diabetes_terms",
-                    "mg_death_dx"
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_iugr_sct",
+                    "mg_hosp_yn_terms",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_death_dt",
+                    "mg_death_dx",
+                    "mg_death",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -1157,9 +1157,9 @@
             "answers": [],
             "evidence_bundle": {
                 "delivery_info": [
+                    "mg_plurality_de_cond",
                     "mg_insur",
-                    "mg_plurality_de_obs",
-                    "mg_plurality_de_cond"
+                    "mg_plurality_de_obs"
                 ]
             },
             "nlpql_grouping": "delivery_info"
@@ -1172,9 +1172,9 @@
             "answers": [],
             "evidence_bundle": {
                 "delivery_info": [
+                    "mg_plurality_de_cond",
                     "mg_insur",
-                    "mg_plurality_de_obs",
-                    "mg_plurality_de_cond"
+                    "mg_plurality_de_obs"
                 ]
             },
             "nlpql_grouping": "delivery_info"
@@ -1200,11 +1200,11 @@
             ],
             "evidence_bundle": {
                 "delivery_info": [
-                    "mg_decon_icu_terms",
                     "mg_plurality_de_obs",
+                    "mg_decon_icu",
                     "mg_plurality_de_cond",
-                    "mg_insur",
-                    "mg_decon_icu"
+                    "mg_decon_icu_terms",
+                    "mg_insur"
                 ]
             },
             "nlpql_grouping": "delivery_info"
@@ -1217,13 +1217,13 @@
             "answers": [],
             "evidence_bundle": {
                 "delivery_info": [
-                    "mg_decon_icuadm_dt",
-                    "mg_decon_icu_terms",
                     "mg_plurality_de_obs",
-                    "mg_decon_icuadm_dt_terms",
+                    "mg_decon_icu",
+                    "mg_decon_icuadm_dt",
                     "mg_plurality_de_cond",
-                    "mg_insur",
-                    "mg_decon_icu"
+                    "mg_decon_icu_terms",
+                    "mg_decon_icuadm_dt_terms",
+                    "mg_insur"
                 ]
             },
             "nlpql_grouping": "delivery_info"
@@ -1249,15 +1249,15 @@
             ],
             "evidence_bundle": {
                 "delivery_info": [
-                    "mg_decon_icuadm_dt",
-                    "mg_decon_icu_terms",
                     "mg_plurality_de_obs",
-                    "mg_decon_trafu",
-                    "mg_decon_icuadm_dt_terms",
+                    "mg_decon_icu",
+                    "mg_decon_icuadm_dt",
                     "mg_plurality_de_cond",
-                    "mg_insur",
+                    "mg_decon_icu_terms",
+                    "mg_decon_trafu",
                     "mg_decon_trafu_terms",
-                    "mg_decon_icu"
+                    "mg_decon_icuadm_dt_terms",
+                    "mg_insur"
                 ]
             },
             "nlpql_grouping": "delivery_info"
@@ -1363,9 +1363,9 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
+                    "mg_ppcon_diabetes_terms",
                     "mg_cron_htn",
                     "mg_cron_htn_terms",
-                    "mg_ppcon_diabetes_terms",
                     "mg_ppcon_diabetes"
                 ]
             },
@@ -1392,13 +1392,13 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mg_cron_htn",
-                    "mg_ppcon_diabetes",
-                    "mg_ppcon_diabetes_terms",
                     "mg_cron_htn_terms",
-                    "mv_ppcon_copd_sct",
                     "mv_ppcon_copd_icd",
-                    "mv_ppcon_copd_terms"
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_copd_sct",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_copd_terms",
+                    "mg_cron_htn"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1424,15 +1424,15 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mv_ppcon_cardio_terms",
-                    "mg_cron_htn",
-                    "mg_ppcon_diabetes",
-                    "mg_ppcon_diabetes_terms",
                     "mg_cron_htn_terms",
-                    "mv_ppcon_cardio",
-                    "mv_ppcon_copd_sct",
                     "mv_ppcon_copd_icd",
-                    "mv_ppcon_copd_terms"
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_cardio",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_copd_terms",
+                    "mg_cron_htn"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1458,17 +1458,17 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mv_ppcon_cardio_terms",
-                    "mg_cron_htn",
-                    "mg_ppcon_diabetes",
-                    "mg_ppcon_diabetes_terms",
                     "mg_cron_htn_terms",
-                    "mv_ppcon_cardio",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_renal",
                     "mv_ppcon_copd_icd",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal_terms",
+                    "mg_ppcon_diabetes",
                     "mv_ppcon_copd_terms",
-                    "mv_ppcon_renal_terms"
+                    "mg_cron_htn",
+                    "mv_ppcon_renal"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1494,18 +1494,18 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mv_ppcon_cardio_terms",
-                    "mg_cron_htn",
-                    "mg_ppcon_diabetes",
-                    "mg_ppcon_diabetes_terms",
                     "mg_cron_htn_terms",
-                    "mv_ppcon_cardio",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_renal",
-                    "mv_ppcon_liver",
                     "mv_ppcon_copd_icd",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal_terms",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_liver",
                     "mv_ppcon_copd_terms",
-                    "mv_ppcon_renal_terms"
+                    "mg_cron_htn",
+                    "mv_ppcon_renal"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1531,20 +1531,20 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mv_ppcon_cardio_terms",
-                    "mg_cron_htn",
-                    "mg_ppcon_diabetes",
-                    "mg_ppcon_diabetes_terms",
-                    "mg_cron_htn_terms",
-                    "mv_ppcon_cardio",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_renal",
-                    "mv_ppcon_liver",
-                    "mv_ppcon_immunsup_terms",
-                    "mv_ppcon_copd_icd",
                     "mv_ppcon_immunsup",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_copd_icd",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal_terms",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_liver",
                     "mv_ppcon_copd_terms",
-                    "mv_ppcon_renal_terms"
+                    "mv_ppcon_immunsup_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_renal"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1570,22 +1570,22 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mv_ppcon_autoimm_terms",
-                    "mv_ppcon_cardio_terms",
-                    "mg_cron_htn",
-                    "mg_ppcon_diabetes",
-                    "mg_ppcon_diabetes_terms",
-                    "mg_cron_htn_terms",
-                    "mv_ppcon_autoimm",
-                    "mv_ppcon_cardio",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_renal",
-                    "mv_ppcon_liver",
-                    "mv_ppcon_immunsup_terms",
-                    "mv_ppcon_copd_icd",
                     "mv_ppcon_immunsup",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_copd_icd",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal_terms",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_liver",
                     "mv_ppcon_copd_terms",
-                    "mv_ppcon_renal_terms"
+                    "mv_ppcon_immunsup_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_renal"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1611,24 +1611,24 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mv_ppcon_autoimm_terms",
-                    "mv_ppcon_cardio_terms",
-                    "mg_cron_htn",
-                    "mg_ppcon_diabetes",
-                    "mv_ppcon_dis_terms",
-                    "mg_ppcon_diabetes_terms",
-                    "mv_ppcon_dis",
-                    "mg_cron_htn_terms",
-                    "mv_ppcon_autoimm",
-                    "mv_ppcon_cardio",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_renal",
-                    "mv_ppcon_liver",
-                    "mv_ppcon_immunsup_terms",
-                    "mv_ppcon_copd_icd",
                     "mv_ppcon_immunsup",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_copd_icd",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal_terms",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_liver",
                     "mv_ppcon_copd_terms",
-                    "mv_ppcon_renal_terms"
+                    "mv_ppcon_dis",
+                    "mv_ppcon_dis_terms",
+                    "mv_ppcon_immunsup_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_renal"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1641,24 +1641,24 @@
             "answers": [],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mv_ppcon_autoimm_terms",
-                    "mv_ppcon_cardio_terms",
-                    "mg_cron_htn",
-                    "mg_ppcon_diabetes",
-                    "mv_ppcon_dis_terms",
-                    "mg_ppcon_diabetes_terms",
-                    "mv_ppcon_dis",
-                    "mg_cron_htn_terms",
-                    "mv_ppcon_autoimm",
-                    "mv_ppcon_cardio",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_renal",
-                    "mv_ppcon_liver",
-                    "mv_ppcon_immunsup_terms",
-                    "mv_ppcon_copd_icd",
                     "mv_ppcon_immunsup",
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_copd_icd",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_cardio_terms",
+                    "mv_ppcon_autoimm",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_cardio",
+                    "mv_ppcon_renal_terms",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_liver",
                     "mv_ppcon_copd_terms",
-                    "mv_ppcon_renal_terms"
+                    "mv_ppcon_dis",
+                    "mv_ppcon_dis_terms",
+                    "mv_ppcon_immunsup_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_renal"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1684,26 +1684,26 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
+                    "mv_ppcon_autoimm",
                     "mv_ppcon_cardio",
-                    "mv_ppcon_renal",
-                    "mv_ppcon_liver",
-                    "mv_ppcon_copd_icd",
-                    "mv_ppcon_autoimm_terms",
-                    "mv_ppcon_immunsup",
-                    "mg_ppcon_diabetes",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_copd_terms",
-                    "mv_ppcon_cardio_terms",
+                    "mv_ppcon_renal_terms",
                     "mg_cron_htn",
-                    "mv_ppcon_dis",
+                    "mv_ppcon_renal",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_psych_terms",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_immunsup_terms",
+                    "mv_ppcon_immunsup",
+                    "mv_ppcon_cardio_terms",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_dis_terms",
                     "mv_ppcon_psych",
                     "mg_cron_htn_terms",
-                    "mv_ppcon_autoimm",
-                    "mv_ppcon_renal_terms",
-                    "mv_ppcon_psych_terms",
-                    "mv_ppcon_dis_terms",
-                    "mg_ppcon_diabetes_terms",
-                    "mv_ppcon_immunsup_terms"
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_dis"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1716,26 +1716,26 @@
             "answers": [],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
+                    "mv_ppcon_autoimm",
                     "mv_ppcon_cardio",
-                    "mv_ppcon_renal",
-                    "mv_ppcon_liver",
-                    "mv_ppcon_copd_icd",
-                    "mv_ppcon_autoimm_terms",
-                    "mv_ppcon_immunsup",
-                    "mg_ppcon_diabetes",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_copd_terms",
-                    "mv_ppcon_cardio_terms",
+                    "mv_ppcon_renal_terms",
                     "mg_cron_htn",
-                    "mv_ppcon_dis",
+                    "mv_ppcon_renal",
+                    "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_psych_terms",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_immunsup_terms",
+                    "mv_ppcon_immunsup",
+                    "mv_ppcon_cardio_terms",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_dis_terms",
                     "mv_ppcon_psych",
                     "mg_cron_htn_terms",
-                    "mv_ppcon_autoimm",
-                    "mv_ppcon_renal_terms",
-                    "mv_ppcon_psych_terms",
-                    "mv_ppcon_dis_terms",
-                    "mg_ppcon_diabetes_terms",
-                    "mv_ppcon_immunsup_terms"
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_dis"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1761,28 +1761,28 @@
             ],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mv_ppcon_cardio",
-                    "mv_ppcon_renal",
-                    "mv_ppcon_liver",
-                    "mv_ppcon_copd_icd",
-                    "mv_ppcon_autoimm_terms",
-                    "mv_ppcon_immunsup",
-                    "mg_ppcon_diabetes",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_copd_terms",
-                    "mv_ppcon_cardio_terms",
-                    "mg_cron_htn",
-                    "mv_ppcon_oth_terms",
-                    "mv_ppcon_dis",
-                    "mv_ppcon_psych",
-                    "mg_cron_htn_terms",
                     "mv_ppcon_autoimm",
+                    "mv_ppcon_cardio",
                     "mv_ppcon_renal_terms",
-                    "mv_ppcon_psych_terms",
-                    "mv_ppcon_dis_terms",
+                    "mv_ppcon_oth_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_renal",
                     "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_psych_terms",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_immunsup_terms",
+                    "mv_ppcon_immunsup",
+                    "mv_ppcon_cardio_terms",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_dis_terms",
+                    "mv_ppcon_psych",
                     "mv_ppcon_oth",
-                    "mv_ppcon_immunsup_terms"
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_dis"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -1795,28 +1795,28 @@
             "answers": [],
             "evidence_bundle": {
                 "pre_pregnancy_conditions": [
-                    "mv_ppcon_cardio",
-                    "mv_ppcon_renal",
-                    "mv_ppcon_liver",
-                    "mv_ppcon_copd_icd",
-                    "mv_ppcon_autoimm_terms",
-                    "mv_ppcon_immunsup",
-                    "mg_ppcon_diabetes",
-                    "mv_ppcon_copd_sct",
-                    "mv_ppcon_copd_terms",
-                    "mv_ppcon_cardio_terms",
-                    "mg_cron_htn",
-                    "mv_ppcon_oth_terms",
-                    "mv_ppcon_dis",
-                    "mv_ppcon_psych",
-                    "mg_cron_htn_terms",
                     "mv_ppcon_autoimm",
+                    "mv_ppcon_cardio",
                     "mv_ppcon_renal_terms",
-                    "mv_ppcon_psych_terms",
-                    "mv_ppcon_dis_terms",
+                    "mv_ppcon_oth_terms",
+                    "mg_cron_htn",
+                    "mv_ppcon_renal",
                     "mg_ppcon_diabetes_terms",
+                    "mv_ppcon_psych_terms",
+                    "mv_ppcon_copd_terms",
+                    "mv_ppcon_immunsup_terms",
+                    "mv_ppcon_immunsup",
+                    "mv_ppcon_cardio_terms",
+                    "mg_ppcon_diabetes",
+                    "mv_ppcon_autoimm_terms",
+                    "mv_ppcon_dis_terms",
+                    "mv_ppcon_psych",
                     "mv_ppcon_oth",
-                    "mv_ppcon_immunsup_terms"
+                    "mg_cron_htn_terms",
+                    "mv_ppcon_copd_icd",
+                    "mv_ppcon_copd_sct",
+                    "mv_ppcon_liver",
+                    "mv_ppcon_dis"
                 ]
             },
             "nlpql_grouping": "pre_pregnancy_conditions"
@@ -2988,20 +2988,20 @@
             ],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_death_dt",
-                    "mg_hosp_yn",
-                    "mg_pregcon_eclamphtn_terms",
                     "mg_hospadm_dt",
-                    "mg_pregcon_eclamphtn_icd",
-                    "mg_hosp_yn_terms",
-                    "mg_pregcon_iugr_sct",
-                    "mg_pregcon_iugr_icd",
-                    "mg_pregcon_eclamphtn_sct",
-                    "mg_pregcon_iugr_terms",
-                    "mg_death",
-                    "mg_pregcon_diabetes",
                     "mg_pregcon_diabetes_terms",
-                    "mg_death_dx"
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_iugr_sct",
+                    "mg_hosp_yn_terms",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_death_dt",
+                    "mg_death_dx",
+                    "mg_death",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -3014,20 +3014,20 @@
             "answers": [],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_death_dt",
-                    "mg_hosp_yn",
-                    "mg_pregcon_eclamphtn_terms",
                     "mg_hospadm_dt",
-                    "mg_pregcon_eclamphtn_icd",
-                    "mg_hosp_yn_terms",
-                    "mg_pregcon_iugr_sct",
-                    "mg_pregcon_iugr_icd",
-                    "mg_pregcon_eclamphtn_sct",
-                    "mg_pregcon_iugr_terms",
-                    "mg_death",
-                    "mg_pregcon_diabetes",
                     "mg_pregcon_diabetes_terms",
-                    "mg_death_dx"
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_iugr_sct",
+                    "mg_hosp_yn_terms",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_death_dt",
+                    "mg_death_dx",
+                    "mg_death",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -3053,20 +3053,20 @@
             ],
             "evidence_bundle": {
                 "pregnancy_conditions": [
-                    "mg_death_dt",
-                    "mg_hosp_yn",
-                    "mg_pregcon_eclamphtn_terms",
                     "mg_hospadm_dt",
-                    "mg_pregcon_eclamphtn_icd",
-                    "mg_hosp_yn_terms",
-                    "mg_pregcon_iugr_sct",
-                    "mg_pregcon_iugr_icd",
-                    "mg_pregcon_eclamphtn_sct",
-                    "mg_pregcon_iugr_terms",
-                    "mg_death",
-                    "mg_pregcon_diabetes",
                     "mg_pregcon_diabetes_terms",
-                    "mg_death_dx"
+                    "mg_pregcon_iugr_icd",
+                    "mg_pregcon_iugr_sct",
+                    "mg_hosp_yn_terms",
+                    "mg_hosp_yn",
+                    "mg_pregcon_eclamphtn_icd",
+                    "mg_pregcon_diabetes",
+                    "mg_pregcon_iugr_terms",
+                    "mg_pregcon_eclamphtn_sct",
+                    "mg_death_dt",
+                    "mg_death_dx",
+                    "mg_death",
+                    "mg_pregcon_eclamphtn_terms"
                 ]
             },
             "nlpql_grouping": "pregnancy_conditions"
@@ -3680,6 +3680,6 @@
         "delivery",
         "syphilis_module"
     ],
-    "version": "0.0.1",
+    "version": "0.0.2",
     "questions_with_evidence_count": 0
 }

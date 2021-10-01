@@ -7,20 +7,65 @@ include ClarityCore version "1.0" called Clarity;
 
 // Termsets
 
-termset mg_sub_alc_terms_terms: [
-    "abusing alcohol", "etoh", "alcohol consumption", "wine", "tequila", "alcohol use", "whisky", "alcohol abuse", "gin", "vodka", "beer", "rum", "whiskey"
+termset mg_sub_tobacco_terms_terms: [
+    "vape", "tobacco", "vaping", "e-cigarettes", "cigarettes", "vapes", "cigarette", "cigars", "packs per day"
 ];
 
 
 
 
-termset mg_sub_tobacco_terms_terms: [
-    "cigarette", "vaping", "tobacco", "vape", "cigarettes", "e-cigarettes", "cigars", "packs per day", "vapes"
+termset mg_sub_alc_terms_terms: [
+    "etoh", "whisky", "alcohol abuse", "alcohol use", "rum", "beer", "whiskey", "alcohol consumption", "abusing alcohol", "vodka", "wine", "tequila", "gin"
 ];
 
 
 
 // Data Entities
+
+define final mg_sub_tobacco_sct:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_sub_tobacco_sct_concepts": Concept {
+            Code '100801000119107' from "SNOMED"
+        }
+
+
+
+
+       define "mg_sub_tobacco_sct": 
+            	 [Observation: Code in "mg_sub_tobacco_sct_concepts"]
+
+
+
+             """
+    });
+
+
 
 define final mg_sub_tobacco_icd:
     Clarity.CQLExecutionTask({
@@ -59,6 +104,59 @@ define final mg_sub_tobacco_icd:
 
        define "mg_sub_tobacco_icd": 
             	 [Observation: Code in "mg_sub_tobacco_icd_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mg_sub_tobacco_terms:
+    Clarity.ProviderAssertion({
+      termset: [mg_sub_tobacco_terms_terms]
+    });
+                    
+
+
+
+define final mg_sub_alc_icd:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mg_sub_alc_icd_concepts": Concept {
+            Code 'O99.310' from "ICD10CM"
+        }
+
+
+
+
+       define "mg_sub_alc_icd": 
+            	 [Observation: Code in "mg_sub_alc_icd_concepts"]
 
 
 
@@ -112,109 +210,11 @@ define final mg_sub_alc_sct:
 
 
 
-define final mg_sub_tobacco_terms:
-    Clarity.ProviderAssertion({
-      termset: [mg_sub_tobacco_terms_terms]
-    });
-                    
-
-
-
-define final mg_sub_tobacco_sct:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mg_sub_tobacco_sct_concepts": Concept {
-            Code '100801000119107' from "SNOMED"
-        }
-
-
-
-
-       define "mg_sub_tobacco_sct": 
-            	 [Observation: Code in "mg_sub_tobacco_sct_concepts"]
-
-
-
-             """
-    });
-
-
-
 define final mg_sub_alc_terms:
     Clarity.ProviderAssertion({
       termset: [mg_sub_alc_terms_terms]
     });
                     
-
-
-
-define final mg_sub_alc_icd:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mg_sub_alc_icd_concepts": Concept {
-            Code 'O99.310' from "ICD10CM"
-        }
-
-
-
-
-       define "mg_sub_alc_icd": 
-            	 [Observation: Code in "mg_sub_alc_icd_concepts"]
-
-
-
-             """
-    });
 
 
 // Operations

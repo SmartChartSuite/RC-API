@@ -1,0 +1,104 @@
+[
+    {
+        "_id": "615724dd60e44863e9ab48ea",
+        "batch": 0,
+        "concept_code": "",
+        "concept_code_system": "",
+        "cql_feature": "Patient",
+        "display_name": "mv_yn",
+        "inserted_date": "2021-10-01 15:10:21.631000",
+        "job_id": 392445,
+        "location": "[21:9]",
+        "name": "Patient",
+        "nlpql_feature": "mv_yn",
+        "owner": "claritynlp",
+        "phenotype_final": true,
+        "pipeline_id": 5302098,
+        "pipeline_type": "CQLExecutionTask",
+        "report_date": "",
+        "report_id": "",
+        "report_text": "",
+        "report_type": "Unknown",
+        "result": "{\n  \"resourceType\": \"Patient\",\n  \"id\": \"23907\",\n  \"meta\": {\n    \"profile\": [\n      \"http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient\"\n    ]\n  },\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><div class=\\\"hapiHeaderText\\\">BRANT <b>WEIHER </b></div><table class=\\\"hapiPropertyTable\\\"><tbody><tr><td>Identifier</td><td>25332</td></tr><tr><td>Date of birth</td><td><span>16 January 2110</span></td></tr></tbody></table></div>\"\n  },\n  \"identifier\": [\n    {\n      \"value\": \"25332\"\n    }\n  ],\n  \"active\": true,\n  \"name\": [\n    {\n      \"family\": \"WEIHER\",\n      \"given\": [\n        \"BRANT\"\n      ]\n    }\n  ],\n  \"gender\": \"male\",\n  \"birthDate\": \"2110-01-16\"\n}",
+        "resultType": "Patient",
+        "result_display": {
+            "date": "",
+            "highlights": [
+                "{\n  \"resourceType\": \"Patient\",\n  \"id\": \"23907\",\n  \"meta\": {\n    \"profile\": [\n      \"http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient\"\n    ]\n  },\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><div class=\\\"hapiHeaderText\\\">BRANT <b>WEIHER </b></div><table class=\\\"hapiPropertyTable\\\"><tbody><tr><td>Identifier</td><td>25332</td></tr><tr><td>Date of birth</td><td><span>16 January 2110</span></td></tr></tbody></table></div>\"\n  },\n  \"identifier\": [\n    {\n      \"value\": \"25332\"\n    }\n  ],\n  \"active\": true,\n  \"name\": [\n    {\n      \"family\": \"WEIHER\",\n      \"given\": [\n        \"BRANT\"\n      ]\n    }\n  ],\n  \"gender\": \"male\",\n  \"birthDate\": \"2110-01-16\"\n}"
+            ],
+            "result_content": "{\n  \"resourceType\": \"Patient\",\n  \"id\": \"23907\",\n  \"meta\": {\n    \"profile\": [\n      \"http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient\"\n    ]\n  },\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><div class=\\\"hapiHeaderText\\\">BRANT <b>WEIHER </b></div><table class=\\\"hapiPropertyTable\\\"><tbody><tr><td>Identifier</td><td>25332</td></tr><tr><td>Date of birth</td><td><span>16 January 2110</span></td></tr></tbody></table></div>\"\n  },\n  \"identifier\": [\n    {\n      \"value\": \"25332\"\n    }\n  ],\n  \"active\": true,\n  \"name\": [\n    {\n      \"family\": \"WEIHER\",\n      \"given\": [\n        \"BRANT\"\n      ]\n    }\n  ],\n  \"gender\": \"male\",\n  \"birthDate\": \"2110-01-16\"\n}",
+            "sentence": ""
+        },
+        "solr_id": "",
+        "source": "",
+        "subject": ""
+    },
+    {
+        "_id": "615724dd3be0c70fafab48ea",
+        "batch": 0,
+        "concept_code": "",
+        "concept_code_system": "",
+        "cql_feature": "Patient",
+        "display_name": "mc_yn",
+        "inserted_date": "2021-10-01 15:10:21.687000",
+        "job_id": 392445,
+        "location": "[21:9]",
+        "name": "Patient",
+        "nlpql_feature": "mc_yn",
+        "owner": "claritynlp",
+        "phenotype_final": true,
+        "pipeline_id": 5302099,
+        "pipeline_type": "CQLExecutionTask",
+        "report_date": "",
+        "report_id": "",
+        "report_text": "",
+        "report_type": "Unknown",
+        "result": "{\n  \"resourceType\": \"Patient\",\n  \"id\": \"23907\",\n  \"meta\": {\n    \"profile\": [\n      \"http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient\"\n    ]\n  },\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><div class=\\\"hapiHeaderText\\\">BRANT <b>WEIHER </b></div><table class=\\\"hapiPropertyTable\\\"><tbody><tr><td>Identifier</td><td>25332</td></tr><tr><td>Date of birth</td><td><span>16 January 2110</span></td></tr></tbody></table></div>\"\n  },\n  \"identifier\": [\n    {\n      \"value\": \"25332\"\n    }\n  ],\n  \"active\": true,\n  \"name\": [\n    {\n      \"family\": \"WEIHER\",\n      \"given\": [\n        \"BRANT\"\n      ]\n    }\n  ],\n  \"gender\": \"male\",\n  \"birthDate\": \"2110-01-16\"\n}",
+        "resultType": "Patient",
+        "result_display": {
+            "date": "",
+            "highlights": [
+                "{\n  \"resourceType\": \"Patient\",\n  \"id\": \"23907\",\n  \"meta\": {\n    \"profile\": [\n      \"http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient\"\n    ]\n  },\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><div class=\\\"hapiHeaderText\\\">BRANT <b>WEIHER </b></div><table class=\\\"hapiPropertyTable\\\"><tbody><tr><td>Identifier</td><td>25332</td></tr><tr><td>Date of birth</td><td><span>16 January 2110</span></td></tr></tbody></table></div>\"\n  },\n  \"identifier\": [\n    {\n      \"value\": \"25332\"\n    }\n  ],\n  \"active\": true,\n  \"name\": [\n    {\n      \"family\": \"WEIHER\",\n      \"given\": [\n        \"BRANT\"\n      ]\n    }\n  ],\n  \"gender\": \"male\",\n  \"birthDate\": \"2110-01-16\"\n}"
+            ],
+            "result_content": "{\n  \"resourceType\": \"Patient\",\n  \"id\": \"23907\",\n  \"meta\": {\n    \"profile\": [\n      \"http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient\"\n    ]\n  },\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><div class=\\\"hapiHeaderText\\\">BRANT <b>WEIHER </b></div><table class=\\\"hapiPropertyTable\\\"><tbody><tr><td>Identifier</td><td>25332</td></tr><tr><td>Date of birth</td><td><span>16 January 2110</span></td></tr></tbody></table></div>\"\n  },\n  \"identifier\": [\n    {\n      \"value\": \"25332\"\n    }\n  ],\n  \"active\": true,\n  \"name\": [\n    {\n      \"family\": \"WEIHER\",\n      \"given\": [\n        \"BRANT\"\n      ]\n    }\n  ],\n  \"gender\": \"male\",\n  \"birthDate\": \"2110-01-16\"\n}",
+            "sentence": ""
+        },
+        "solr_id": "",
+        "source": "",
+        "subject": ""
+    },
+    {
+        "_id": "615724dd02862be134ab48ea",
+        "batch": 0,
+        "concept_code": "",
+        "concept_code_system": "",
+        "cql_feature": "Patient",
+        "display_name": "ms_yn",
+        "inserted_date": "2021-10-01 15:10:21.808000",
+        "job_id": 392445,
+        "location": "[21:9]",
+        "name": "Patient",
+        "nlpql_feature": "ms_yn",
+        "owner": "claritynlp",
+        "phenotype_final": true,
+        "pipeline_id": 5302097,
+        "pipeline_type": "CQLExecutionTask",
+        "report_date": "",
+        "report_id": "",
+        "report_text": "",
+        "report_type": "Unknown",
+        "result": "{\n  \"resourceType\": \"Patient\",\n  \"id\": \"23907\",\n  \"meta\": {\n    \"profile\": [\n      \"http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient\"\n    ]\n  },\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><div class=\\\"hapiHeaderText\\\">BRANT <b>WEIHER </b></div><table class=\\\"hapiPropertyTable\\\"><tbody><tr><td>Identifier</td><td>25332</td></tr><tr><td>Date of birth</td><td><span>16 January 2110</span></td></tr></tbody></table></div>\"\n  },\n  \"identifier\": [\n    {\n      \"value\": \"25332\"\n    }\n  ],\n  \"active\": true,\n  \"name\": [\n    {\n      \"family\": \"WEIHER\",\n      \"given\": [\n        \"BRANT\"\n      ]\n    }\n  ],\n  \"gender\": \"male\",\n  \"birthDate\": \"2110-01-16\"\n}",
+        "resultType": "Patient",
+        "result_display": {
+            "date": "",
+            "highlights": [
+                "{\n  \"resourceType\": \"Patient\",\n  \"id\": \"23907\",\n  \"meta\": {\n    \"profile\": [\n      \"http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient\"\n    ]\n  },\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><div class=\\\"hapiHeaderText\\\">BRANT <b>WEIHER </b></div><table class=\\\"hapiPropertyTable\\\"><tbody><tr><td>Identifier</td><td>25332</td></tr><tr><td>Date of birth</td><td><span>16 January 2110</span></td></tr></tbody></table></div>\"\n  },\n  \"identifier\": [\n    {\n      \"value\": \"25332\"\n    }\n  ],\n  \"active\": true,\n  \"name\": [\n    {\n      \"family\": \"WEIHER\",\n      \"given\": [\n        \"BRANT\"\n      ]\n    }\n  ],\n  \"gender\": \"male\",\n  \"birthDate\": \"2110-01-16\"\n}"
+            ],
+            "result_content": "{\n  \"resourceType\": \"Patient\",\n  \"id\": \"23907\",\n  \"meta\": {\n    \"profile\": [\n      \"http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient\"\n    ]\n  },\n  \"text\": {\n    \"status\": \"generated\",\n    \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><div class=\\\"hapiHeaderText\\\">BRANT <b>WEIHER </b></div><table class=\\\"hapiPropertyTable\\\"><tbody><tr><td>Identifier</td><td>25332</td></tr><tr><td>Date of birth</td><td><span>16 January 2110</span></td></tr></tbody></table></div>\"\n  },\n  \"identifier\": [\n    {\n      \"value\": \"25332\"\n    }\n  ],\n  \"active\": true,\n  \"name\": [\n    {\n      \"family\": \"WEIHER\",\n      \"given\": [\n        \"BRANT\"\n      ]\n    }\n  ],\n  \"gender\": \"male\",\n  \"birthDate\": \"2110-01-16\"\n}",
+            "sentence": ""
+        },
+        "solr_id": "",
+        "source": "",
+        "subject": ""
+    }
+]

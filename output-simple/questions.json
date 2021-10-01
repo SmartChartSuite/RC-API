@@ -1,0 +1,526 @@
+{
+    "name": "SimpleSetNet",
+    "owner": "gatech",
+    "description": "Simple SetNet Form for Testing",
+    "allocated_users": [
+        "admin"
+    ],
+    "groups": [
+        "Information",
+        "Maternal Demographics"
+    ],
+    "questions": [
+        {
+            "question_name": "CDC Pregnancy ID (e.g. AZS123456, LAC100000, PRT112233)",
+            "question_type": "TEXT",
+            "question_number": "1",
+            "group": "Information",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "CDC Maternal ID (e.g. KYS567890A)",
+            "question_type": "TEXT",
+            "question_number": "2",
+            "group": "Information",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "Other pregnancies of same woman (Pregnancy IDs)",
+            "question_type": "TEXT",
+            "question_number": "3",
+            "group": "Information",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "Pregnancy no longer being monitored (i.e. lost to follow-up)",
+            "question_type": "RADIO",
+            "question_number": "4",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "If yes, what is the primary reason for no longer monitoring?",
+            "question_type": "RADIO",
+            "question_number": "5",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Moved out of the area of surveillance",
+                    "value": "moved_out_of_the_area_of_surveillance"
+                },
+                {
+                    "text": "Laboratory results not found",
+                    "value": "laboratory_results_not_found"
+                },
+                {
+                    "text": "Not selected for MRA",
+                    "value": "not_selected_for_mra"
+                },
+                {
+                    "text": "Unable to acquire medical records",
+                    "value": "unable_to_acquire_medical_records"
+                },
+                {
+                    "text": "No consent/public health authbroity",
+                    "value": "no_consent/public_health_authbroity"
+                },
+                {
+                    "text": "other",
+                    "value": "other"
+                }
+            ],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "If other, specify:",
+            "question_type": "TEXT",
+            "question_number": "6",
+            "group": "Information",
+            "answers": [],
+            "evidence_bundle": {},
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "SET-NET exposure of interest, COVID-19?",
+            "question_type": "RADIO",
+            "question_number": "7",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "information": [
+                    "mv_yn",
+                    "mv_yn_terms"
+                ]
+            },
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "SET-NET exposure of interest, Hepatitis C?",
+            "question_type": "RADIO",
+            "question_number": "8",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "information": [
+                    "mv_yn",
+                    "mc_yn",
+                    "mv_yn_terms",
+                    "mc_yn_terms"
+                ]
+            },
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "SET-NET exposure of interest, Syphilis?",
+            "question_type": "RADIO",
+            "question_number": "9",
+            "group": "Information",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "information": [
+                    "mv_yn_terms",
+                    "mc_yn_terms",
+                    "ms_yn",
+                    "mv_yn",
+                    "mc_yn",
+                    "ms_yn_terms"
+                ]
+            },
+            "nlpql_grouping": "information"
+        },
+        {
+            "question_name": "Mother's date of birth:",
+            "question_type": "TEXT",
+            "question_number": "10",
+            "group": "Maternal Demographics",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_dob"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Mother's Race",
+            "question_type": "DESCRIPTION",
+            "question_number": "11",
+            "group": "Maternal Demographics",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_dob"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "American Indian or Alaska Native",
+            "question_type": "RADIO",
+            "question_number": "12",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_aian",
+                    "mg_dob"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Asian",
+            "question_type": "RADIO",
+            "question_number": "13",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_aian",
+                    "mg_dob",
+                    "mg_race_asian"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Black or African American",
+            "question_type": "RADIO",
+            "question_number": "14",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_baa",
+                    "mg_race_aian",
+                    "mg_dob",
+                    "mg_race_asian"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Native Hawaiian or Other Pacific Islander",
+            "question_type": "RADIO",
+            "question_number": "15",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_race_nhopi",
+                    "mg_race_aian",
+                    "mg_race_baa"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "White",
+            "question_type": "RADIO",
+            "question_number": "16",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_race_nhopi",
+                    "mg_race_aian",
+                    "mg_race_baa",
+                    "mg_race_wh"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Other",
+            "question_type": "RADIO",
+            "question_number": "17",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_race_nhopi",
+                    "mg_race_aian",
+                    "mg_race_baa",
+                    "mg_race_wh",
+                    "mg_race_oth"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Mother's ethnicity: Is the mother Hispanic or Latina?",
+            "question_type": "RADIO",
+            "question_number": "18",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_ethn",
+                    "mg_race_nhopi",
+                    "mg_race_aian",
+                    "mg_race_baa",
+                    "mg_race_wh",
+                    "mg_race_oth"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Highest degree or level of school completed by the mother at the time of delivery.",
+            "question_type": "RADIO",
+            "question_number": "19",
+            "group": "Maternal Demographics",
+            "answers": [
+                {
+                    "text": "8th grade or less",
+                    "value": "8th_grade_or_less"
+                },
+                {
+                    "text": "9th - 12th grade",
+                    "value": "9th_-_12th_grade"
+                },
+                {
+                    "text": "no diploma",
+                    "value": "no_diploma"
+                },
+                {
+                    "text": "High school graduate or GED completed",
+                    "value": "high_school_graduate_or_ged_completed"
+                },
+                {
+                    "text": "Some college credit but no degree",
+                    "value": "some_college_credit_but_no_degree"
+                },
+                {
+                    "text": "Associate degree (e.g. AA AS)",
+                    "value": "associate_degree_eg_aa_as"
+                },
+                {
+                    "text": "Bachelor's degree (e.g. BA AB BS)",
+                    "value": "bachelor's_degree_eg_ba_ab_bs"
+                },
+                {
+                    "text": "Master's degree (e.g. MA MS MEng MEd MWR MBA)",
+                    "value": "master's_degree_eg_ma_ms_meng_med_mwr_mba"
+                },
+                {
+                    "text": "Doctorate (e.g. PhD EdD) or Professional degree (e.g. MD DDS DVM LLB JD)",
+                    "value": "doctorate_eg_phd_edd_or_professional_degree_eg_md_dds_dvm_llb_jd"
+                },
+                {
+                    "text": "Not reported",
+                    "value": "not_reported"
+                }
+            ],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_ethn",
+                    "mg_race_nhopi",
+                    "mg_race_aian",
+                    "mg_edu",
+                    "mg_race_baa",
+                    "mg_race_wh",
+                    "mg_race_oth"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "Zip code of the mother's primary residence:",
+            "question_type": "TEXT",
+            "question_number": "20",
+            "group": "Maternal Demographics",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_ethn",
+                    "mg_race_nhopi",
+                    "mg_race_aian",
+                    "mg_edu",
+                    "mg_race_baa",
+                    "mg_race_wh",
+                    "mg_race_oth",
+                    "mg_zip"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        },
+        {
+            "question_name": "County of mother's primary residence:",
+            "question_type": "TEXT",
+            "question_number": "21",
+            "group": "Maternal Demographics",
+            "answers": [],
+            "evidence_bundle": {
+                "maternal_demographics": [
+                    "mg_race_asian",
+                    "mg_dob",
+                    "mg_ethn",
+                    "mg_race_nhopi",
+                    "mg_race_aian",
+                    "mg_edu",
+                    "mg_co",
+                    "mg_race_baa",
+                    "mg_race_wh",
+                    "mg_race_oth",
+                    "mg_zip"
+                ]
+            },
+            "nlpql_grouping": "maternal_demographics"
+        }
+    ],
+    "evidence_bundles": [
+        "information",
+        "maternal_demographics"
+    ],
+    "version": "0.0.1",
+    "questions_with_evidence_count": 0
+}

@@ -7,8 +7,36 @@ include ClarityCore version "1.0" called Clarity;
 
 // Termsets
 
+termset mv_ppcon_cardio_terms_terms: [
+    "cvd", "cardiovascular disease", "heart disease"
+];
+
+
+
+
+termset mv_ppcon_psych_terms_terms: [
+    "psychological", "mental health", "psychiatric"
+];
+
+
+
+
+termset mv_ppcon_autoimm_terms_terms: [
+    "autoimmune", "immune system"
+];
+
+
+
+
+termset mv_ppcon_copd_terms_terms: [
+    "pulmonary disease", "lung disease", "chronic lung disease", "copd"
+];
+
+
+
+
 termset mv_ppcon_renal_terms_terms: [
-    "chronic renal disease", "kidney disease", "crd", "renal disease"
+    "kidney disease", "crd", "chronic renal disease", "renal disease"
 ];
 
 
@@ -21,41 +49,6 @@ termset mv_ppcon_dis_terms_terms: [
 
 
 
-termset mv_ppcon_cardio_terms_terms: [
-    "cvd", "cardiovascular disease", "heart disease"
-];
-
-
-
-
-termset mv_ppcon_liver_terms: [
-    "hepatic", "liver disease", "cld", "chronic liver"
-];
-
-
-
-
-termset mv_ppcon_immunsup_terms_terms: [
-    "immune system", "immunodeficiency", "immunosuppressive"
-];
-
-
-
-
-termset mv_ppcon_autoimm_terms_terms: [
-    "immune system", "autoimmune"
-];
-
-
-
-
-termset mv_ppcon_psych_terms_terms: [
-    "psychological", "psychiatric", "mental health"
-];
-
-
-
-
 termset mv_ppcon_oth_terms_terms: [
     "chronic"
 ];
@@ -63,19 +56,275 @@ termset mv_ppcon_oth_terms_terms: [
 
 
 
-termset mv_ppcon_copd_terms_terms: [
-    "lung disease", "pulmonary disease", "chronic lung disease", "copd"
+termset mv_ppcon_liver_terms: [
+    "chronic liver", "cld", "hepatic", "liver disease"
+];
+
+
+
+
+termset mv_ppcon_immunsup_terms_terms: [
+    "immunosuppressive", "immunodeficiency", "immune system"
 ];
 
 
 
 // Data Entities
 
-define final mv_ppcon_renal_terms:
+define final mv_ppcon_copd_icd:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mv_ppcon_copd_icd_concepts": Concept {
+            Code 'J44' from "ICD10"
+        }
+
+
+
+
+       define "mv_ppcon_copd_icd": 
+            	 [Condition: Code in "mv_ppcon_copd_icd_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mv_ppcon_oth_terms:
     Clarity.ProviderAssertion({
-      termset: [mv_ppcon_renal_terms_terms]
+      termset: [mv_ppcon_oth_terms_terms]
     });
                     
+
+
+
+define final mv_ppcon_copd_sct:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mv_ppcon_copd_sct_concepts": Concept {
+            Code '413839001' from "SNOMED"
+        }
+
+
+
+
+       define "mv_ppcon_copd_sct": 
+            	 [Condition: Code in "mv_ppcon_copd_sct_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mv_ppcon_dis:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mv_ppcon_dis_concepts": Concept {
+            Code '21134002' from "SNOMED", 
+            Code '123391000119106' from "SNOMED", 
+            Code '413298002' from "SNOMED", 
+            Code '197521000000108' from "SNOMED", 
+            Code '228156007' from "SNOMED", 
+            Code '47437004' from "SNOMED", 
+            Code '228159000' from "SNOMED", 
+            Code '161048004' from "SNOMED", 
+            Code '161046000' from "SNOMED", 
+            Code '228151002' from "SNOMED", 
+            Code '161043008' from "SNOMED", 
+            Code '161044002' from "SNOMED", 
+            Code '443656000' from "SNOMED", 
+            Code '161045001' from "SNOMED", 
+            Code '228152009' from "SNOMED", 
+            Code '722309000' from "SNOMED", 
+            Code '228160005' from "SNOMED", 
+            Code '228153004' from "SNOMED", 
+            Code '228155006' from "SNOMED", 
+            Code '66557003' from "SNOMED", 
+            Code '110351007' from "SNOMED", 
+            Code '428616007' from "SNOMED", 
+            Code '161047009' from "SNOMED", 
+            Code '429536005' from "SNOMED", 
+            Code '280965007' from "SNOMED", 
+            Code '406134008' from "SNOMED", 
+            Code '228154005' from "SNOMED", 
+            Code '228157003' from "SNOMED", 
+            Code '116149007' from "SNOMED", 
+            Code '844381000000107' from "SNOMED", 
+            Code '239591000000109' from "SNOMED", 
+            Code '239631000000109' from "SNOMED", 
+            Code '239621000000107' from "SNOMED"
+        }
+
+
+
+
+       define "mv_ppcon_dis": 
+            	 [Condition: Code in "mv_ppcon_dis_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mv_ppcon_copd_terms:
+    Clarity.ProviderAssertion({
+      termset: [mv_ppcon_copd_terms_terms]
+    });
+                    
+
+
+
+define final mv_ppcon_immunsup_terms:
+    Clarity.ProviderAssertion({
+      termset: [mv_ppcon_immunsup_terms_terms]
+    });
+                    
+
+
+
+define final mv_ppcon_liver:
+    Clarity.ProviderAssertion({
+      termset: [mv_ppcon_liver_terms]
+    });
+                    
+
+
+
+define final mv_ppcon_liver:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mv_ppcon_liver_concepts": Concept {
+            Code '328383001' from "SNOMED", 
+            Code '79720007' from "SNOMED", 
+            Code '19943007' from "SNOMED", 
+            Code '76783007' from "SNOMED", 
+            Code '34736002' from "SNOMED", 
+            Code '713181003' from "SNOMED", 
+            Code '197286002' from "SNOMED", 
+            Code '432908002' from "SNOMED", 
+            Code '31155007' from "SNOMED", 
+            Code '73475009' from "SNOMED", 
+            Code '58282009' from "SNOMED", 
+            Code '314963000' from "SNOMED", 
+            Code '863957008' from "SNOMED", 
+            Code '735451005' from "SNOMED"
+        }
+
+
+
+
+       define "mv_ppcon_liver": 
+            	 [Condition: Code in "mv_ppcon_liver_concepts"]
+
+
+
+             """
+    });
 
 
 
@@ -180,597 +429,6 @@ define final mv_ppcon_oth:
 
        define "mv_ppcon_oth": 
             	 [Condition: Code in "mv_ppcon_oth_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mv_ppcon_renal:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mv_ppcon_renal_concepts": Concept {
-            Code '709044004' from "SNOMED", 
-            Code '433144002' from "SNOMED", 
-            Code '104931000119100' from "SNOMED", 
-            Code '431857002' from "SNOMED", 
-            Code '771000119108' from "SNOMED", 
-            Code '431856006' from "SNOMED", 
-            Code '433146000' from "SNOMED", 
-            Code '431855005' from "SNOMED", 
-            Code '90688005' from "SNOMED", 
-            Code '723190009' from "SNOMED", 
-            Code '713313000' from "SNOMED", 
-            Code '96441000119101' from "SNOMED", 
-            Code '722150000' from "SNOMED", 
-            Code '722467000' from "SNOMED", 
-            Code '449631000124102' from "SNOMED", 
-            Code '722098007' from "SNOMED", 
-            Code '722149000' from "SNOMED"
-        }
-
-
-
-
-       define "mv_ppcon_renal": 
-            	 [Condition: Code in "mv_ppcon_renal_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mv_ppcon_psych_terms:
-    Clarity.ProviderAssertion({
-      termset: [mv_ppcon_psych_terms_terms]
-    });
-                    
-
-
-
-define final mv_ppcon_liver:
-    Clarity.ProviderAssertion({
-      termset: [mv_ppcon_liver_terms]
-    });
-                    
-
-
-
-define final mv_ppcon_immunsup_terms:
-    Clarity.ProviderAssertion({
-      termset: [mv_ppcon_immunsup_terms_terms]
-    });
-                    
-
-
-
-define final mv_ppcon_immunsup:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mv_ppcon_immunsup_concepts": Concept {
-            Code '234532001' from "SNOMED", 
-            Code '402792003' from "SNOMED", 
-            Code '33286000' from "SNOMED", 
-            Code '88714009' from "SNOMED", 
-            Code '36138009' from "SNOMED", 
-            Code '191018006' from "SNOMED", 
-            Code '58606001' from "SNOMED", 
-            Code '402791005' from "SNOMED", 
-            Code '24181002' from "SNOMED", 
-            Code '9893005' from "SNOMED", 
-            Code '735536003' from "SNOMED", 
-            Code '707152007' from "SNOMED", 
-            Code '737307003' from "SNOMED", 
-            Code '48119005' from "SNOMED", 
-            Code '442459007' from "SNOMED", 
-            Code '702444009' from "SNOMED", 
-            Code '417167007' from "SNOMED", 
-            Code '234556002' from "SNOMED", 
-            Code '703538003' from "SNOMED", 
-            Code '234631003' from "SNOMED", 
-            Code '703540008' from "SNOMED", 
-            Code '234632005' from "SNOMED", 
-            Code '24419001' from "SNOMED", 
-            Code '234543009' from "SNOMED", 
-            Code '711480000' from "SNOMED", 
-            Code '234564008' from "SNOMED", 
-            Code '783245001' from "SNOMED", 
-            Code '721903007' from "SNOMED", 
-            Code '234584007' from "SNOMED", 
-            Code '234553005' from "SNOMED", 
-            Code '768560008' from "SNOMED", 
-            Code '773702002' from "SNOMED", 
-            Code '773646003' from "SNOMED", 
-            Code '784339002' from "SNOMED", 
-            Code '773664005' from "SNOMED", 
-            Code '773662009' from "SNOMED", 
-            Code '234539005' from "SNOMED", 
-            Code '234573000' from "SNOMED", 
-            Code '818950005' from "SNOMED", 
-            Code '770687001' from "SNOMED", 
-            Code '449853003' from "SNOMED", 
-            Code '770785002' from "SNOMED", 
-            Code '778028008' from "SNOMED", 
-            Code '778045003' from "SNOMED", 
-            Code '771333006' from "SNOMED", 
-            Code '778023004' from "SNOMED"
-        }
-
-
-
-
-       define "mv_ppcon_immunsup": 
-            	 [Condition: Code in "mv_ppcon_immunsup_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mv_ppcon_autoimm_terms:
-    Clarity.ProviderAssertion({
-      termset: [mv_ppcon_autoimm_terms_terms]
-    });
-                    
-
-
-
-define final mv_ppcon_cardio:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mv_ppcon_cardio_concepts": Concept {
-            Code '49601007' from "SNOMED", 
-            Code '400047006' from "SNOMED", 
-            Code '38341003' from "SNOMED", 
-            Code '45007003' from "SNOMED", 
-            Code '56265001' from "SNOMED", 
-            Code '62914000' from "SNOMED", 
-            Code '55855009' from "SNOMED", 
-            Code '128487001' from "SNOMED", 
-            Code '432119003' from "SNOMED", 
-            Code '10596002' from "SNOMED", 
-            Code '427461000' from "SNOMED", 
-            Code '282728007' from "SNOMED", 
-            Code '276510003' from "SNOMED", 
-            Code '27550009' from "SNOMED", 
-            Code '473459007' from "SNOMED", 
-            Code '724497009' from "SNOMED", 
-            Code '439127006' from "SNOMED", 
-            Code '4249000' from "SNOMED", 
-            Code '213217008' from "SNOMED", 
-            Code '361131008' from "SNOMED", 
-            Code '443089001' from "SNOMED", 
-            Code '128998007' from "SNOMED", 
-            Code '363005004' from "SNOMED", 
-            Code '363696006' from "SNOMED", 
-            Code '432995009' from "SNOMED", 
-            Code '400171002' from "SNOMED", 
-            Code '128292002' from "SNOMED", 
-            Code '762228008' from "SNOMED", 
-            Code '126531000119109' from "SNOMED", 
-            Code '105980002' from "SNOMED", 
-            Code '459157005' from "SNOMED", 
-            Code '459156001' from "SNOMED", 
-            Code '461338005' from "SNOMED"
-        }
-
-
-
-
-       define "mv_ppcon_cardio": 
-            	 [Condition: Code in "mv_ppcon_cardio_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mv_ppcon_dis:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mv_ppcon_dis_concepts": Concept {
-            Code '21134002' from "SNOMED", 
-            Code '123391000119106' from "SNOMED", 
-            Code '413298002' from "SNOMED", 
-            Code '197521000000108' from "SNOMED", 
-            Code '228156007' from "SNOMED", 
-            Code '47437004' from "SNOMED", 
-            Code '228159000' from "SNOMED", 
-            Code '161048004' from "SNOMED", 
-            Code '161046000' from "SNOMED", 
-            Code '228151002' from "SNOMED", 
-            Code '161043008' from "SNOMED", 
-            Code '161044002' from "SNOMED", 
-            Code '443656000' from "SNOMED", 
-            Code '161045001' from "SNOMED", 
-            Code '228152009' from "SNOMED", 
-            Code '722309000' from "SNOMED", 
-            Code '228160005' from "SNOMED", 
-            Code '228153004' from "SNOMED", 
-            Code '228155006' from "SNOMED", 
-            Code '66557003' from "SNOMED", 
-            Code '110351007' from "SNOMED", 
-            Code '428616007' from "SNOMED", 
-            Code '161047009' from "SNOMED", 
-            Code '429536005' from "SNOMED", 
-            Code '280965007' from "SNOMED", 
-            Code '406134008' from "SNOMED", 
-            Code '228154005' from "SNOMED", 
-            Code '228157003' from "SNOMED", 
-            Code '116149007' from "SNOMED", 
-            Code '844381000000107' from "SNOMED", 
-            Code '239591000000109' from "SNOMED", 
-            Code '239631000000109' from "SNOMED", 
-            Code '239621000000107' from "SNOMED"
-        }
-
-
-
-
-       define "mv_ppcon_dis": 
-            	 [Condition: Code in "mv_ppcon_dis_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mv_ppcon_liver:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mv_ppcon_liver_concepts": Concept {
-            Code '328383001' from "SNOMED", 
-            Code '79720007' from "SNOMED", 
-            Code '19943007' from "SNOMED", 
-            Code '76783007' from "SNOMED", 
-            Code '34736002' from "SNOMED", 
-            Code '713181003' from "SNOMED", 
-            Code '197286002' from "SNOMED", 
-            Code '432908002' from "SNOMED", 
-            Code '31155007' from "SNOMED", 
-            Code '73475009' from "SNOMED", 
-            Code '58282009' from "SNOMED", 
-            Code '314963000' from "SNOMED", 
-            Code '863957008' from "SNOMED", 
-            Code '735451005' from "SNOMED"
-        }
-
-
-
-
-       define "mv_ppcon_liver": 
-            	 [Condition: Code in "mv_ppcon_liver_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mv_ppcon_copd_sct:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mv_ppcon_copd_sct_concepts": Concept {
-            Code '413839001' from "SNOMED"
-        }
-
-
-
-
-       define "mv_ppcon_copd_sct": 
-            	 [Condition: Code in "mv_ppcon_copd_sct_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mv_ppcon_dis_terms:
-    Clarity.ProviderAssertion({
-      termset: [mv_ppcon_dis_terms_terms]
-    });
-                    
-
-
-
-define final mv_ppcon_oth_terms:
-    Clarity.ProviderAssertion({
-      termset: [mv_ppcon_oth_terms_terms]
-    });
-                    
-
-
-
-define final mv_ppcon_psych:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mv_ppcon_psych_concepts": Concept {
-            Code '116367006' from "SNOMED", 
-            Code '445651000124107' from "SNOMED", 
-            Code '22058002' from "SNOMED", 
-            Code '191737008' from "SNOMED", 
-            Code '106022001' from "SNOMED", 
-            Code '12200008' from "SNOMED", 
-            Code '64270008' from "SNOMED", 
-            Code '704488001' from "SNOMED", 
-            Code '106023006' from "SNOMED", 
-            Code '2421000119107' from "SNOMED", 
-            Code '15625571000119100' from "SNOMED", 
-            Code '6811007' from "SNOMED", 
-            Code '723926008' from "SNOMED", 
-            Code '106122003' from "SNOMED", 
-            Code '397706001' from "SNOMED", 
-            Code '71529007' from "SNOMED", 
-            Code '53686002' from "SNOMED", 
-            Code '733819000' from "SNOMED", 
-            Code '110351007' from "SNOMED", 
-            Code '871840004' from "SNOMED", 
-            Code '37448008' from "SNOMED", 
-            Code '81659004' from "SNOMED", 
-            Code '736320009' from "SNOMED", 
-            Code '5921000175108' from "SNOMED", 
-            Code '5988002' from "SNOMED", 
-            Code '724666003' from "SNOMED", 
-            Code '724667007' from "SNOMED", 
-            Code '724665004' from "SNOMED", 
-            Code '724755002' from "SNOMED", 
-            Code '724753009' from "SNOMED", 
-            Code '724726005' from "SNOMED", 
-            Code '5461000175107' from "SNOMED", 
-            Code '5451000175105' from "SNOMED", 
-            Code '519261000000101' from "SNOMED", 
-            Code '118191004' from "SNOMED", 
-            Code '365922003' from "SNOMED", 
-            Code '762620006' from "SNOMED", 
-            Code '762622003' from "SNOMED"
-        }
-
-
-
-
-       define "mv_ppcon_psych": 
-            	 [Condition: Code in "mv_ppcon_psych_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mv_ppcon_cardio_terms:
-    Clarity.ProviderAssertion({
-      termset: [mv_ppcon_cardio_terms_terms]
-    });
-                    
-
-
-
-define final mv_ppcon_copd_icd:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mv_ppcon_copd_icd_concepts": Concept {
-            Code 'J44' from "ICD10"
-        }
-
-
-
-
-       define "mv_ppcon_copd_icd": 
-            	 [Condition: Code in "mv_ppcon_copd_icd_concepts"]
 
 
 
@@ -926,11 +584,353 @@ define final mv_ppcon_autoimm:
 
 
 
-define final mv_ppcon_copd_terms:
+define final mv_ppcon_autoimm_terms:
     Clarity.ProviderAssertion({
-      termset: [mv_ppcon_copd_terms_terms]
+      termset: [mv_ppcon_autoimm_terms_terms]
     });
                     
+
+
+
+define final mv_ppcon_cardio:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mv_ppcon_cardio_concepts": Concept {
+            Code '49601007' from "SNOMED", 
+            Code '400047006' from "SNOMED", 
+            Code '38341003' from "SNOMED", 
+            Code '45007003' from "SNOMED", 
+            Code '56265001' from "SNOMED", 
+            Code '62914000' from "SNOMED", 
+            Code '55855009' from "SNOMED", 
+            Code '128487001' from "SNOMED", 
+            Code '432119003' from "SNOMED", 
+            Code '10596002' from "SNOMED", 
+            Code '427461000' from "SNOMED", 
+            Code '282728007' from "SNOMED", 
+            Code '276510003' from "SNOMED", 
+            Code '27550009' from "SNOMED", 
+            Code '473459007' from "SNOMED", 
+            Code '724497009' from "SNOMED", 
+            Code '439127006' from "SNOMED", 
+            Code '4249000' from "SNOMED", 
+            Code '213217008' from "SNOMED", 
+            Code '361131008' from "SNOMED", 
+            Code '443089001' from "SNOMED", 
+            Code '128998007' from "SNOMED", 
+            Code '363005004' from "SNOMED", 
+            Code '363696006' from "SNOMED", 
+            Code '432995009' from "SNOMED", 
+            Code '400171002' from "SNOMED", 
+            Code '128292002' from "SNOMED", 
+            Code '762228008' from "SNOMED", 
+            Code '126531000119109' from "SNOMED", 
+            Code '105980002' from "SNOMED", 
+            Code '459157005' from "SNOMED", 
+            Code '459156001' from "SNOMED", 
+            Code '461338005' from "SNOMED"
+        }
+
+
+
+
+       define "mv_ppcon_cardio": 
+            	 [Condition: Code in "mv_ppcon_cardio_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mv_ppcon_cardio_terms:
+    Clarity.ProviderAssertion({
+      termset: [mv_ppcon_cardio_terms_terms]
+    });
+                    
+
+
+
+define final mv_ppcon_dis_terms:
+    Clarity.ProviderAssertion({
+      termset: [mv_ppcon_dis_terms_terms]
+    });
+                    
+
+
+
+define final mv_ppcon_psych:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mv_ppcon_psych_concepts": Concept {
+            Code '116367006' from "SNOMED", 
+            Code '445651000124107' from "SNOMED", 
+            Code '22058002' from "SNOMED", 
+            Code '191737008' from "SNOMED", 
+            Code '106022001' from "SNOMED", 
+            Code '12200008' from "SNOMED", 
+            Code '64270008' from "SNOMED", 
+            Code '704488001' from "SNOMED", 
+            Code '106023006' from "SNOMED", 
+            Code '2421000119107' from "SNOMED", 
+            Code '15625571000119100' from "SNOMED", 
+            Code '6811007' from "SNOMED", 
+            Code '723926008' from "SNOMED", 
+            Code '106122003' from "SNOMED", 
+            Code '397706001' from "SNOMED", 
+            Code '71529007' from "SNOMED", 
+            Code '53686002' from "SNOMED", 
+            Code '733819000' from "SNOMED", 
+            Code '110351007' from "SNOMED", 
+            Code '871840004' from "SNOMED", 
+            Code '37448008' from "SNOMED", 
+            Code '81659004' from "SNOMED", 
+            Code '736320009' from "SNOMED", 
+            Code '5921000175108' from "SNOMED", 
+            Code '5988002' from "SNOMED", 
+            Code '724666003' from "SNOMED", 
+            Code '724667007' from "SNOMED", 
+            Code '724665004' from "SNOMED", 
+            Code '724755002' from "SNOMED", 
+            Code '724753009' from "SNOMED", 
+            Code '724726005' from "SNOMED", 
+            Code '5461000175107' from "SNOMED", 
+            Code '5451000175105' from "SNOMED", 
+            Code '519261000000101' from "SNOMED", 
+            Code '118191004' from "SNOMED", 
+            Code '365922003' from "SNOMED", 
+            Code '762620006' from "SNOMED", 
+            Code '762622003' from "SNOMED"
+        }
+
+
+
+
+       define "mv_ppcon_psych": 
+            	 [Condition: Code in "mv_ppcon_psych_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mv_ppcon_psych_terms:
+    Clarity.ProviderAssertion({
+      termset: [mv_ppcon_psych_terms_terms]
+    });
+                    
+
+
+
+define final mv_ppcon_renal_terms:
+    Clarity.ProviderAssertion({
+      termset: [mv_ppcon_renal_terms_terms]
+    });
+                    
+
+
+
+define final mv_ppcon_renal:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mv_ppcon_renal_concepts": Concept {
+            Code '709044004' from "SNOMED", 
+            Code '433144002' from "SNOMED", 
+            Code '104931000119100' from "SNOMED", 
+            Code '431857002' from "SNOMED", 
+            Code '771000119108' from "SNOMED", 
+            Code '431856006' from "SNOMED", 
+            Code '433146000' from "SNOMED", 
+            Code '431855005' from "SNOMED", 
+            Code '90688005' from "SNOMED", 
+            Code '723190009' from "SNOMED", 
+            Code '713313000' from "SNOMED", 
+            Code '96441000119101' from "SNOMED", 
+            Code '722150000' from "SNOMED", 
+            Code '722467000' from "SNOMED", 
+            Code '449631000124102' from "SNOMED", 
+            Code '722098007' from "SNOMED", 
+            Code '722149000' from "SNOMED"
+        }
+
+
+
+
+       define "mv_ppcon_renal": 
+            	 [Condition: Code in "mv_ppcon_renal_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mv_ppcon_immunsup:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mv_ppcon_immunsup_concepts": Concept {
+            Code '234532001' from "SNOMED", 
+            Code '402792003' from "SNOMED", 
+            Code '33286000' from "SNOMED", 
+            Code '88714009' from "SNOMED", 
+            Code '36138009' from "SNOMED", 
+            Code '191018006' from "SNOMED", 
+            Code '58606001' from "SNOMED", 
+            Code '402791005' from "SNOMED", 
+            Code '24181002' from "SNOMED", 
+            Code '9893005' from "SNOMED", 
+            Code '735536003' from "SNOMED", 
+            Code '707152007' from "SNOMED", 
+            Code '737307003' from "SNOMED", 
+            Code '48119005' from "SNOMED", 
+            Code '442459007' from "SNOMED", 
+            Code '702444009' from "SNOMED", 
+            Code '417167007' from "SNOMED", 
+            Code '234556002' from "SNOMED", 
+            Code '703538003' from "SNOMED", 
+            Code '234631003' from "SNOMED", 
+            Code '703540008' from "SNOMED", 
+            Code '234632005' from "SNOMED", 
+            Code '24419001' from "SNOMED", 
+            Code '234543009' from "SNOMED", 
+            Code '711480000' from "SNOMED", 
+            Code '234564008' from "SNOMED", 
+            Code '783245001' from "SNOMED", 
+            Code '721903007' from "SNOMED", 
+            Code '234584007' from "SNOMED", 
+            Code '234553005' from "SNOMED", 
+            Code '768560008' from "SNOMED", 
+            Code '773702002' from "SNOMED", 
+            Code '773646003' from "SNOMED", 
+            Code '784339002' from "SNOMED", 
+            Code '773664005' from "SNOMED", 
+            Code '773662009' from "SNOMED", 
+            Code '234539005' from "SNOMED", 
+            Code '234573000' from "SNOMED", 
+            Code '818950005' from "SNOMED", 
+            Code '770687001' from "SNOMED", 
+            Code '449853003' from "SNOMED", 
+            Code '770785002' from "SNOMED", 
+            Code '778028008' from "SNOMED", 
+            Code '778045003' from "SNOMED", 
+            Code '771333006' from "SNOMED", 
+            Code '778023004' from "SNOMED"
+        }
+
+
+
+
+       define "mv_ppcon_immunsup": 
+            	 [Condition: Code in "mv_ppcon_immunsup_concepts"]
+
+
+
+             """
+    });
 
 
 // Operations

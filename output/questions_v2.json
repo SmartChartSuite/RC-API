@@ -3337,14 +3337,54 @@
     "evidences": {
         "information": {
             "allIds": [
+                "mc_yn_terms",
+                "ms_yn",
+                "mc_yn",
                 "mv_yn",
                 "mv_yn_terms",
-                "ms_yn",
-                "mc_yn_terms",
-                "ms_yn_terms",
-                "mc_yn"
+                "ms_yn_terms"
             ],
             "byId": {
+                "mc_yn_terms": {
+                    "displayType": "cards",
+                    "title": "Exposure to Hepatitis C"
+                },
+                "ms_yn": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Exposure to Syphilis"
+                },
+                "mc_yn": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Exposure to Hepatitis C"
+                },
                 "mv_yn": {
                     "displayType": "table",
                     "cols": [
@@ -3367,86 +3407,30 @@
                     "displayType": "cards",
                     "title": "Exposure to COVID-19"
                 },
-                "ms_yn": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Exposure to Syphilis"
-                },
-                "mc_yn_terms": {
-                    "displayType": "cards",
-                    "title": "Exposure to Hepatitis C"
-                },
                 "ms_yn_terms": {
                     "displayType": "cards",
                     "title": "Exposure to Syphilis"
-                },
-                "mc_yn": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Exposure to Hepatitis C"
                 }
             }
         },
         "maternal_demographics": {
             "allIds": [
-                "mg_race_baa",
                 "mg_edu",
-                "mg_race_aian",
-                "mg_ethn",
-                "mg_race_wh",
                 "mg_co",
                 "mg_race_asian",
                 "mg_zip",
-                "mg_dob",
+                "mg_ethn",
+                "mg_race_oth",
+                "mg_race_baa",
                 "mg_race_nhopi",
-                "mg_race_oth"
+                "mg_dob",
+                "mg_race_wh",
+                "mg_race_aian"
             ],
             "byId": {
-                "mg_race_baa": {
-                    "displayType": "cards",
-                    "title": "Mother Race BAA"
-                },
                 "mg_edu": {
                     "displayType": "cards",
                     "title": "Mother highest level of education"
-                },
-                "mg_race_aian": {
-                    "displayType": "cards",
-                    "title": "Mother Race AIAN"
-                },
-                "mg_ethn": {
-                    "displayType": "cards",
-                    "title": "Mother Ethnicity"
-                },
-                "mg_race_wh": {
-                    "displayType": "cards",
-                    "title": "Mother Race White"
                 },
                 "mg_co": {
                     "displayType": "cards",
@@ -3460,32 +3444,66 @@
                     "displayType": "cards",
                     "title": "Mother primary residence zip code"
                 },
-                "mg_dob": {
+                "mg_ethn": {
                     "displayType": "cards",
-                    "title": "Mother DOB"
+                    "title": "Mother Ethnicity"
+                },
+                "mg_race_oth": {
+                    "displayType": "cards",
+                    "title": "Mother Race Other"
+                },
+                "mg_race_baa": {
+                    "displayType": "cards",
+                    "title": "Mother Race BAA"
                 },
                 "mg_race_nhopi": {
                     "displayType": "cards",
                     "title": "Mother Race NHOPI"
                 },
-                "mg_race_oth": {
+                "mg_dob": {
                     "displayType": "cards",
-                    "title": "Mother Race Other"
+                    "title": "Mother DOB"
+                },
+                "mg_race_wh": {
+                    "displayType": "cards",
+                    "title": "Mother Race White"
+                },
+                "mg_race_aian": {
+                    "displayType": "cards",
+                    "title": "Mother Race AIAN"
                 }
             }
         },
         "measurements": {
             "allIds": [
-                "mg_dewt",
-                "mg_ht_loinc",
-                "mg_ppwt_loinc",
-                "mg_ppwt_sct",
-                "mg_ht_sct",
-                "mg_ht_value",
                 "mg_ppwt_value",
-                "mg_dewt_value"
+                "mg_dewt",
+                "mg_ht_sct",
+                "mg_ht_loinc",
+                "mg_ppwt_sct",
+                "mg_ht_value",
+                "mg_dewt_value",
+                "mg_ppwt_loinc"
             ],
             "byId": {
+                "mg_ppwt_value": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.text"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.value}`"
+                        }
+                    ],
+                    "title": "Mother pre-pregnancy weight"
+                },
                 "mg_dewt": {
                     "displayType": "table",
                     "cols": [
@@ -3503,60 +3521,6 @@
                         }
                     ],
                     "title": "Mother weight at delivery"
-                },
-                "mg_ht_loinc": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Mother height"
-                },
-                "mg_ppwt_loinc": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Mother pre-pregnancy weight"
-                },
-                "mg_ppwt_sct": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Mother pre-pregnancy weight"
                 },
                 "mg_ht_sct": {
                     "displayType": "table",
@@ -3576,6 +3540,42 @@
                     ],
                     "title": "Mother height"
                 },
+                "mg_ht_loinc": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Mother height"
+                },
+                "mg_ppwt_sct": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Mother pre-pregnancy weight"
+                },
                 "mg_ht_value": {
                     "displayType": "table",
                     "cols": [
@@ -3594,24 +3594,6 @@
                     ],
                     "title": "Mother height"
                 },
-                "mg_ppwt_value": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.text"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.value}`"
-                        }
-                    ],
-                    "title": "Mother pre-pregnancy weight"
-                },
                 "mg_dewt_value": {
                     "displayType": "table",
                     "cols": [
@@ -3629,35 +3611,71 @@
                         }
                     ],
                     "title": "Mother weight at delivery"
+                },
+                "mg_ppwt_loinc": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Mother pre-pregnancy weight"
                 }
             }
         },
         "pre_pregnancy_conditions": {
             "allIds": [
-                "mv_ppcon_cardio",
-                "mv_ppcon_renal",
-                "mv_ppcon_liver",
-                "mv_ppcon_copd_icd",
-                "mv_ppcon_autoimm_terms",
-                "mv_ppcon_immunsup",
-                "mg_ppcon_diabetes",
-                "mv_ppcon_copd_sct",
-                "mv_ppcon_copd_terms",
-                "mv_ppcon_cardio_terms",
-                "mg_cron_htn",
-                "mv_ppcon_oth_terms",
-                "mv_ppcon_dis",
-                "mv_ppcon_psych",
-                "mg_cron_htn_terms",
                 "mv_ppcon_autoimm",
+                "mv_ppcon_cardio",
                 "mv_ppcon_renal_terms",
-                "mv_ppcon_psych_terms",
-                "mv_ppcon_dis_terms",
+                "mv_ppcon_oth_terms",
+                "mg_cron_htn",
+                "mv_ppcon_renal",
                 "mg_ppcon_diabetes_terms",
+                "mv_ppcon_psych_terms",
+                "mv_ppcon_copd_terms",
+                "mv_ppcon_immunsup_terms",
+                "mv_ppcon_immunsup",
+                "mv_ppcon_cardio_terms",
+                "mg_ppcon_diabetes",
+                "mv_ppcon_autoimm_terms",
+                "mv_ppcon_dis_terms",
+                "mv_ppcon_psych",
                 "mv_ppcon_oth",
-                "mv_ppcon_immunsup_terms"
+                "mg_cron_htn_terms",
+                "mv_ppcon_copd_icd",
+                "mv_ppcon_copd_sct",
+                "mv_ppcon_liver",
+                "mv_ppcon_dis"
             ],
             "byId": {
+                "mv_ppcon_autoimm": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Autoimmune condition"
+                },
                 "mv_ppcon_cardio": {
                     "displayType": "table",
                     "cols": [
@@ -3676,111 +3694,13 @@
                     ],
                     "title": "Cardiovascular disease"
                 },
-                "mv_ppcon_renal": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
+                "mv_ppcon_renal_terms": {
+                    "displayType": "cards",
                     "title": "Chronic renal disease"
                 },
-                "mv_ppcon_liver": {
+                "mv_ppcon_oth_terms": {
                     "displayType": "cards",
-                    "title": "Chronic liver disease"
-                },
-                "mv_ppcon_copd_icd": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Chronic Lung Disease"
-                },
-                "mv_ppcon_autoimm_terms": {
-                    "displayType": "cards",
-                    "title": "Autoimmune condition"
-                },
-                "mv_ppcon_immunsup": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Immunosuppressive condition"
-                },
-                "mg_ppcon_diabetes": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Mother diabetes"
-                },
-                "mv_ppcon_copd_sct": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Chronic Lung Disease"
-                },
-                "mv_ppcon_copd_terms": {
-                    "displayType": "cards",
-                    "title": "Chronic Lung Disease"
-                },
-                "mv_ppcon_cardio_terms": {
-                    "displayType": "cards",
-                    "title": "Cardiovascular disease"
+                    "title": "Other chronic diseases"
                 },
                 "mg_cron_htn": {
                     "displayType": "table",
@@ -3800,11 +3720,7 @@
                     ],
                     "title": "Mother hypertension"
                 },
-                "mv_ppcon_oth_terms": {
-                    "displayType": "cards",
-                    "title": "Other chronic diseases"
-                },
-                "mv_ppcon_dis": {
+                "mv_ppcon_renal": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -3820,6 +3736,70 @@
                             "value": "r.code_coding_0_code"
                         }
                     ],
+                    "title": "Chronic renal disease"
+                },
+                "mg_ppcon_diabetes_terms": {
+                    "displayType": "cards",
+                    "title": "Mother diabetes"
+                },
+                "mv_ppcon_psych_terms": {
+                    "displayType": "cards",
+                    "title": "Psych condition"
+                },
+                "mv_ppcon_copd_terms": {
+                    "displayType": "cards",
+                    "title": "Chronic Lung Disease"
+                },
+                "mv_ppcon_immunsup_terms": {
+                    "displayType": "cards",
+                    "title": "Immunosuppressive condition"
+                },
+                "mv_ppcon_immunsup": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Immunosuppressive condition"
+                },
+                "mv_ppcon_cardio_terms": {
+                    "displayType": "cards",
+                    "title": "Cardiovascular disease"
+                },
+                "mg_ppcon_diabetes": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Mother diabetes"
+                },
+                "mv_ppcon_autoimm_terms": {
+                    "displayType": "cards",
+                    "title": "Autoimmune condition"
+                },
+                "mv_ppcon_dis_terms": {
+                    "displayType": "cards",
                     "title": "Disability"
                 },
                 "mv_ppcon_psych": {
@@ -3840,44 +3820,6 @@
                     ],
                     "title": "Psych condition"
                 },
-                "mg_cron_htn_terms": {
-                    "displayType": "cards",
-                    "title": "Mother hypertension"
-                },
-                "mv_ppcon_autoimm": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Autoimmune condition"
-                },
-                "mv_ppcon_renal_terms": {
-                    "displayType": "cards",
-                    "title": "Chronic renal disease"
-                },
-                "mv_ppcon_psych_terms": {
-                    "displayType": "cards",
-                    "title": "Psych condition"
-                },
-                "mv_ppcon_dis_terms": {
-                    "displayType": "cards",
-                    "title": "Disability"
-                },
-                "mg_ppcon_diabetes_terms": {
-                    "displayType": "cards",
-                    "title": "Mother diabetes"
-                },
                 "mv_ppcon_oth": {
                     "displayType": "table",
                     "cols": [
@@ -3896,23 +3838,103 @@
                     ],
                     "title": "Other chronic diseases"
                 },
-                "mv_ppcon_immunsup_terms": {
+                "mg_cron_htn_terms": {
                     "displayType": "cards",
-                    "title": "Immunosuppressive condition"
+                    "title": "Mother hypertension"
+                },
+                "mv_ppcon_copd_icd": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Chronic Lung Disease"
+                },
+                "mv_ppcon_copd_sct": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Chronic Lung Disease"
+                },
+                "mv_ppcon_liver": {
+                    "displayType": "cards",
+                    "title": "Chronic liver disease"
+                },
+                "mv_ppcon_dis": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Disability"
                 }
             }
         },
         "substance_use": {
             "allIds": [
-                "mg_sub_alc_icd",
-                "mg_sub_alc_sct",
-                "mg_sub_tobacco_sct",
                 "mg_sub_tobacco_terms",
+                "mg_sub_tobacco_icd",
+                "mg_sub_alc_sct",
                 "mg_sub_alc_terms",
-                "mg_sub_tobacco_icd"
+                "mg_sub_alc_icd",
+                "mg_sub_tobacco_sct"
             ],
             "byId": {
-                "mg_sub_alc_icd": {
+                "mg_sub_tobacco_terms": {
+                    "displayType": "cards",
+                    "title": "Mother tobacco"
+                },
+                "mg_sub_tobacco_icd": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Mother tobacco"
+                },
+                "mg_sub_alc_sct": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -3930,7 +3952,11 @@
                     ],
                     "title": "Mother alcohol"
                 },
-                "mg_sub_alc_sct": {
+                "mg_sub_alc_terms": {
+                    "displayType": "cards",
+                    "title": "Mother alcohol"
+                },
+                "mg_sub_alc_icd": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -3965,114 +3991,44 @@
                         }
                     ],
                     "title": "Mother tobacco"
-                },
-                "mg_sub_tobacco_terms": {
-                    "displayType": "cards",
-                    "title": "Mother tobacco"
-                },
-                "mg_sub_alc_terms": {
-                    "displayType": "cards",
-                    "title": "Mother alcohol"
-                },
-                "mg_sub_tobacco_icd": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Mother tobacco"
                 }
             }
         },
         "maternal_obstetric": {
             "allIds": [
+                "mg_gravidity",
                 "mg_lmp_loinc",
-                "mg_edd_loinc",
-                "mg_pn_dt_sct",
-                "mg_parity_sct",
-                "mg_pn_dt_icd",
-                "mg_lmp_sct",
                 "mg_pn_sct",
                 "mg_lmp_terms",
-                "mg_gravidity",
                 "mg_pn_icd",
+                "mg_pn_dt_icd",
+                "mg_parity_loinc",
+                "mg_edd_loinc",
                 "mg_edd_sct",
-                "mg_parity_loinc"
+                "mg_lmp_sct",
+                "mg_pn_dt_sct",
+                "mg_parity_sct"
             ],
             "byId": {
+                "mg_gravidity": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Gravidity"
+                },
                 "mg_lmp_loinc": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Last Menstrual Period"
-                },
-                "mg_edd_loinc": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Estimated Due Date"
-                },
-                "mg_pn_dt_sct": {
-                    "displayType": "cards",
-                    "title": "Mother first prenatal visit"
-                },
-                "mg_parity_sct": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Parity"
-                },
-                "mg_pn_dt_icd": {
-                    "displayType": "cards",
-                    "title": "Mother first prenatal visit"
-                },
-                "mg_lmp_sct": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -4098,7 +4054,15 @@
                     "displayType": "cards",
                     "title": "Last Menstrual Period"
                 },
-                "mg_gravidity": {
+                "mg_pn_icd": {
+                    "displayType": "cards",
+                    "title": "Mother prenatal care"
+                },
+                "mg_pn_dt_icd": {
+                    "displayType": "cards",
+                    "title": "Mother first prenatal visit"
+                },
+                "mg_parity_loinc": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -4114,11 +4078,25 @@
                             "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
                         }
                     ],
-                    "title": "Gravidity"
+                    "title": "Parity"
                 },
-                "mg_pn_icd": {
-                    "displayType": "cards",
-                    "title": "Mother prenatal care"
+                "mg_edd_loinc": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Estimated Due Date"
                 },
                 "mg_edd_sct": {
                     "displayType": "table",
@@ -4138,7 +4116,29 @@
                     ],
                     "title": "Estimated Due Date"
                 },
-                "mg_parity_loinc": {
+                "mg_lmp_sct": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Last Menstrual Period"
+                },
+                "mg_pn_dt_sct": {
+                    "displayType": "cards",
+                    "title": "Mother first prenatal visit"
+                },
+                "mg_parity_sct": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -4160,53 +4160,31 @@
         },
         "pregnancy_conditions": {
             "allIds": [
-                "mg_death_dt",
-                "mg_hosp_yn",
-                "mg_pregcon_eclamphtn_terms",
                 "mg_hospadm_dt",
-                "mg_pregcon_eclamphtn_icd",
-                "mg_hosp_yn_terms",
-                "mg_pregcon_iugr_sct",
-                "mg_pregcon_iugr_icd",
-                "mg_pregcon_eclamphtn_sct",
-                "mg_pregcon_iugr_terms",
-                "mg_death",
-                "mg_pregcon_diabetes",
                 "mg_pregcon_diabetes_terms",
-                "mg_death_dx"
+                "mg_pregcon_iugr_icd",
+                "mg_pregcon_iugr_sct",
+                "mg_hosp_yn_terms",
+                "mg_hosp_yn",
+                "mg_pregcon_eclamphtn_icd",
+                "mg_pregcon_diabetes",
+                "mg_pregcon_iugr_terms",
+                "mg_pregcon_eclamphtn_sct",
+                "mg_death_dt",
+                "mg_death_dx",
+                "mg_death",
+                "mg_pregcon_eclamphtn_terms"
             ],
             "byId": {
-                "mg_death_dt": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Date of mother death"
-                },
-                "mg_hosp_yn": {
-                    "displayType": "cards",
-                    "title": "Mother hospitalization"
-                },
-                "mg_pregcon_eclamphtn_terms": {
-                    "displayType": "cards",
-                    "title": "Mother Pregnancy Eclampsia"
-                },
                 "mg_hospadm_dt": {
                     "displayType": "cards",
                     "title": "Date of admission"
                 },
-                "mg_pregcon_eclamphtn_icd": {
+                "mg_pregcon_diabetes_terms": {
+                    "displayType": "cards",
+                    "title": "Mother Pregancy Diabetes"
+                },
+                "mg_pregcon_iugr_icd": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -4222,11 +4200,7 @@
                             "value": "r.code_coding_0_code"
                         }
                     ],
-                    "title": "Mother Pregnancy Eclampsia"
-                },
-                "mg_hosp_yn_terms": {
-                    "displayType": "cards",
-                    "title": "Mother hospitalization"
+                    "title": "Mother Pregnancy IUGR"
                 },
                 "mg_pregcon_iugr_sct": {
                     "displayType": "table",
@@ -4246,7 +4220,15 @@
                     ],
                     "title": "Mother Pregnancy IUGR"
                 },
-                "mg_pregcon_iugr_icd": {
+                "mg_hosp_yn_terms": {
+                    "displayType": "cards",
+                    "title": "Mother hospitalization"
+                },
+                "mg_hosp_yn": {
+                    "displayType": "cards",
+                    "title": "Mother hospitalization"
+                },
+                "mg_pregcon_eclamphtn_icd": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -4262,6 +4244,28 @@
                             "value": "r.code_coding_0_code"
                         }
                     ],
+                    "title": "Mother Pregnancy Eclampsia"
+                },
+                "mg_pregcon_diabetes": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Mother Pregancy Diabetes"
+                },
+                "mg_pregcon_iugr_terms": {
+                    "displayType": "cards",
                     "title": "Mother Pregnancy IUGR"
                 },
                 "mg_pregcon_eclamphtn_sct": {
@@ -4282,9 +4286,41 @@
                     ],
                     "title": "Mother Pregnancy Eclampsia"
                 },
-                "mg_pregcon_iugr_terms": {
-                    "displayType": "cards",
-                    "title": "Mother Pregnancy IUGR"
+                "mg_death_dt": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Date of mother death"
+                },
+                "mg_death_dx": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Cause of mother death"
                 },
                 "mg_death": {
                     "displayType": "table",
@@ -4304,83 +4340,25 @@
                     ],
                     "title": "Mother death"
                 },
-                "mg_pregcon_diabetes": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Mother Pregancy Diabetes"
-                },
-                "mg_pregcon_diabetes_terms": {
+                "mg_pregcon_eclamphtn_terms": {
                     "displayType": "cards",
-                    "title": "Mother Pregancy Diabetes"
-                },
-                "mg_death_dx": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Cause of mother death"
+                    "title": "Mother Pregnancy Eclampsia"
                 }
             }
         },
         "delivery_info": {
             "allIds": [
-                "mg_decon_icuadm_dt",
-                "mg_decon_icu_terms",
                 "mg_plurality_de_obs",
-                "mg_decon_trafu",
-                "mg_decon_icuadm_dt_terms",
+                "mg_decon_icu",
+                "mg_decon_icuadm_dt",
                 "mg_plurality_de_cond",
-                "mg_insur",
+                "mg_decon_icu_terms",
+                "mg_decon_trafu",
                 "mg_decon_trafu_terms",
-                "mg_decon_icu"
+                "mg_decon_icuadm_dt_terms",
+                "mg_insur"
             ],
             "byId": {
-                "mg_decon_icuadm_dt": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "ICU admission date"
-                },
-                "mg_decon_icu_terms": {
-                    "displayType": "cards",
-                    "title": "Delivery ICU admission"
-                },
                 "mg_plurality_de_obs": {
                     "displayType": "table",
                     "cols": [
@@ -4399,12 +4377,40 @@
                     ],
                     "title": "Plurality delivery"
                 },
-                "mg_decon_trafu": {
-                    "displayType": "cards",
-                    "title": "Delivery transfusion"
+                "mg_decon_icu": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "Delivery ICU admission"
                 },
-                "mg_decon_icuadm_dt_terms": {
-                    "displayType": "cards",
+                "mg_decon_icuadm_dt": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
                     "title": "ICU admission date"
                 },
                 "mg_plurality_de_cond": {
@@ -4425,31 +4431,25 @@
                     ],
                     "title": "Plurality delivery"
                 },
-                "mg_insur": {
+                "mg_decon_icu_terms": {
                     "displayType": "cards",
-                    "title": "Health Insurance"
+                    "title": "Delivery ICU admission"
+                },
+                "mg_decon_trafu": {
+                    "displayType": "cards",
+                    "title": "Delivery transfusion"
                 },
                 "mg_decon_trafu_terms": {
                     "displayType": "cards",
                     "title": "Delivery transfusion"
                 },
-                "mg_decon_icu": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-                        }
-                    ],
-                    "title": "Delivery ICU admission"
+                "mg_decon_icuadm_dt_terms": {
+                    "displayType": "cards",
+                    "title": "ICU admission date"
+                },
+                "mg_insur": {
+                    "displayType": "cards",
+                    "title": "Health Insurance"
                 }
             }
         },

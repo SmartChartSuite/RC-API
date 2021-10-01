@@ -131,8 +131,6 @@ def convertToQuestionnaire(questions: QuestionsJSON):
 
         evidence_bundles_reformat = []
         nlpql_name = question['nlpql_grouping']
-        print(nlpql_name)
-        print(question['evidence_bundle'])
         try:
             if question['evidence_bundle'][nlpql_name] is not None:
                 for name in question['evidence_bundle'][nlpql_name]:
@@ -217,7 +215,7 @@ async def update_form(form_id: str, new_questions: QuestionsJSON):
 
 @app.post("/forms/start")
 async def start_jobs(post_body: StartJobPostBody, response_model=dict):
-    result = db.fakeReturn.find({'form_id': post_body.formId})[0]
+    result = db.fakeReturn.find({'form_id': post_body.formId, 'nlpql_grouping': post_body.nlpqlGrouping})[0]
     del result["_id"]
     time.sleep(5)
     return result

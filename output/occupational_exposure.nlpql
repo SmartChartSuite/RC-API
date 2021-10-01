@@ -8,7 +8,7 @@ include ClarityCore version "1.0" called Clarity;
 // Termsets
 
 termset mv_occ_hc_terms_terms: [
-    "health worker", "healthcare worker", "health care worker"
+    "healthcare worker", "health care worker", "health worker"
 ];
 
 

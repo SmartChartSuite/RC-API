@@ -8,40 +8,171 @@ include ClarityCore version "1.0" called Clarity;
 // Termsets
 
 termset mc_sub_mj_terms_terms: [
-    "marijuana", "blunts", "hasish", "thc", "cannabinoids", "weed"
+    "hasish", "thc", "weed", "marijuana", "blunts", "cannabinoids"
 ];
 
 
 
 
 termset mc_sub_op_mat_terms_terms: [
-    "methadone", "naltrexone", "buprenorphine"
-];
-
-
-
-
-termset mc_sub_op_oth_terms_terms: [
-    "pcp", "lsd", "cocaine", "ecstasy", "methamphetamines", "inhalants", "ketamine", "ghb", "drug use", "hallucinogens"
-];
-
-
-
-
-termset mc_sub_op_il_terms_terms: [
-    "heroin", "opium"
+    "naltrexone", "methadone", "buprenorphine"
 ];
 
 
 
 
 termset mc_sub_op_rx_terms_terms: [
-    "opana", "fentanyl", "percocet", "morphine", "oxycodone", "avinza", "oxymorphone", "kadian", "codeine", "oxycontin", "hydrocodone", "vicodin"
+    "oxymorphone", "vicodin", "oxycodone", "codeine", "avinza", "percocet", "opana", "morphine", "oxycontin", "fentanyl", "hydrocodone", "kadian"
+];
+
+
+
+
+termset mc_sub_op_il_terms_terms: [
+    "opium", "heroin"
+];
+
+
+
+
+termset mc_sub_op_oth_terms_terms: [
+    "pcp", "ecstasy", "methamphetamines", "ghb", "cocaine", "inhalants", "drug use", "ketamine", "hallucinogens", "lsd"
 ];
 
 
 
 // Data Entities
+
+define final mc_sub_op_oth:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mc_sub_op_oth_concepts": Concept {
+            Code '3397-7' from "LOINC", 
+            Code '3377-9' from "LOINC"
+        }
+
+
+
+
+       define "mc_sub_op_oth": 
+            	 [Observation: Code in "mc_sub_op_oth_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mc_sub_op_oth_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_op_oth_terms_terms]
+    });
+                    
+
+
+
+define final mc_sub_op_il_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_op_il_terms_terms]
+    });
+                    
+
+
+
+define final mc_sub_op_rx_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_op_rx_terms_terms]
+    });
+                    
+
+
+
+define final mc_sub_op_mat_loinc:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library Retrieve2 version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+        
+        
+
+        context Patient
+
+  
+
+
+        define "mc_sub_op_mat_loinc_concepts": Concept {
+            Code '3773-9' from "LOINC"
+        }
+
+
+
+
+       define "mc_sub_op_mat_loinc": 
+            	 [Observation: Code in "mc_sub_op_mat_loinc_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mc_sub_op_mat_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_op_mat_terms_terms]
+    });
+                    
+
+
+
+define final mc_sub_mj_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_mj_terms_terms]
+    });
+                    
+
+
 
 define final mc_sub_op_mat_rxnorm:
     Clarity.CQLExecutionTask({
@@ -792,137 +923,6 @@ define final mc_sub_op_mat_rxnorm:
 
              """
     });
-
-
-
-define final mc_sub_op_oth:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mc_sub_op_oth_concepts": Concept {
-            Code '3397-7' from "LOINC", 
-            Code '3377-9' from "LOINC"
-        }
-
-
-
-
-       define "mc_sub_op_oth": 
-            	 [Observation: Code in "mc_sub_op_oth_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mc_sub_op_oth_terms:
-    Clarity.ProviderAssertion({
-      termset: [mc_sub_op_oth_terms_terms]
-    });
-                    
-
-
-
-define final mc_sub_mj_terms:
-    Clarity.ProviderAssertion({
-      termset: [mc_sub_mj_terms_terms]
-    });
-                    
-
-
-
-define final mc_sub_op_rx_terms:
-    Clarity.ProviderAssertion({
-      termset: [mc_sub_op_rx_terms_terms]
-    });
-                    
-
-
-
-define final mc_sub_op_mat_loinc:
-    Clarity.CQLExecutionTask({
-        "task_index": 0,
-        cql: """
-                
-        library Retrieve2 version '1.0'
-
-        using FHIR version '3.0.0'
-
-        include FHIRHelpers version '3.0.0' called FHIRHelpers
-
-        codesystem "LOINC": 'http://loinc.org'
-        codesystem "SNOMED": '2.16.840.1.113883.6.96'
-        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
-        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
-        codesystem "ICD9": '2.16.840.1.113883.6.42'
-        codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
-        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
-
-        
-        
-
-        context Patient
-
-  
-
-
-        define "mc_sub_op_mat_loinc_concepts": Concept {
-            Code '3773-9' from "LOINC"
-        }
-
-
-
-
-       define "mc_sub_op_mat_loinc": 
-            	 [Observation: Code in "mc_sub_op_mat_loinc_concepts"]
-
-
-
-             """
-    });
-
-
-
-define final mc_sub_op_il_terms:
-    Clarity.ProviderAssertion({
-      termset: [mc_sub_op_il_terms_terms]
-    });
-                    
-
-
-
-define final mc_sub_op_mat_terms:
-    Clarity.ProviderAssertion({
-      termset: [mc_sub_op_mat_terms_terms]
-    });
-                    
 
 
 // Operations
