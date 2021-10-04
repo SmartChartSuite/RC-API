@@ -219,8 +219,8 @@ async def start_jobs(post_body: StartJobPostBody):
     try:
         result = db.fakeReturn.find_one({'form_id': post_body.formId, 'evidence_bundle': post_body.evidenceBundle})
         del result["_id"]
-    except IndexError:
-        return f"No job with the name {post_body.nlpqlGrouping} for the form {post_body.formId} was found"
+    except:
+        return f"No form with the id {post_body.formId} was found"
     
     #for testing purposes only, need to remove when actually being used and format correctly
     result = []
