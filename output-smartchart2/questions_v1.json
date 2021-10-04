@@ -1,0 +1,738 @@
+{
+    "name": "SmartChart2",
+    "owner": "gatech",
+    "description": "SmartChart2 Demo Form",
+    "allocated_users": [
+        "admin"
+    ],
+    "groups": [
+        "Demo1",
+        "Demo2",
+        "Demo3"
+    ],
+    "questions": [
+        {
+            "question_name": "Has Sickle Cell Trait",
+            "question_type": "RADIO",
+            "question_number": "1",
+            "group": "Demo1",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "has_sickle_cell_trait_structured"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "Body weight",
+            "question_type": "TEXT",
+            "question_number": "2",
+            "group": "Demo1",
+            "answers": [],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "body_weight_snomed",
+                    "has_sickle_cell_trait_structured",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "Family History of Sickle Cell Trait",
+            "question_type": "RADIO",
+            "question_number": "3",
+            "group": "Demo1",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "fh_sickle_cell_trait",
+                    "body_weight_snomed",
+                    "has_sickle_cell_trait_structured",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "Family History of Sickle Cell Anemia",
+            "question_type": "RADIO",
+            "question_number": "4",
+            "group": "Demo1",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "fh_sickle_cell_trait",
+                    "body_weight_snomed",
+                    "has_sickle_cell_trait_structured",
+                    "fh_sickle_cell_anemia",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "Headache",
+            "question_type": "RADIO",
+            "question_number": "5",
+            "group": "Demo1",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "fh_sickle_cell_trait",
+                    "headache_structured",
+                    "body_weight_snomed",
+                    "has_sickle_cell_trait_structured",
+                    "fh_sickle_cell_anemia",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "General Weakness",
+            "question_type": "RADIO",
+            "question_number": "6",
+            "group": "Demo1",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "asthenia_structured",
+                    "fh_sickle_cell_trait",
+                    "headache_structured",
+                    "body_weight_snomed",
+                    "has_sickle_cell_trait_structured",
+                    "fh_sickle_cell_anemia",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "Aphasia",
+            "question_type": "RADIO",
+            "question_number": "7",
+            "group": "Demo1",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "asthenia_structured",
+                    "fh_sickle_cell_trait",
+                    "headache_structured",
+                    "body_weight_snomed",
+                    "aphasia_structured",
+                    "has_sickle_cell_trait_structured",
+                    "fh_sickle_cell_anemia",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "Seizure",
+            "question_type": "RADIO",
+            "question_number": "8",
+            "group": "Demo1",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "asthenia_structured",
+                    "fh_sickle_cell_trait",
+                    "headache_structured",
+                    "body_weight_snomed",
+                    "seizure_structured",
+                    "aphasia_structured",
+                    "has_sickle_cell_trait_structured",
+                    "fh_sickle_cell_anemia",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "Coma",
+            "question_type": "RADIO",
+            "question_number": "9",
+            "group": "Demo1",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "asthenia_structured",
+                    "fh_sickle_cell_trait",
+                    "headache_structured",
+                    "coma_structured",
+                    "body_weight_snomed",
+                    "seizure_structured",
+                    "aphasia_structured",
+                    "has_sickle_cell_trait_structured",
+                    "fh_sickle_cell_anemia",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "Loss of Consciousness",
+            "question_type": "RADIO",
+            "question_number": "10",
+            "group": "Demo1",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "asthenia_structured",
+                    "fh_sickle_cell_trait",
+                    "headache_structured",
+                    "coma_structured",
+                    "unconscious_structured",
+                    "body_weight_snomed",
+                    "seizure_structured",
+                    "aphasia_structured",
+                    "has_sickle_cell_trait_structured",
+                    "fh_sickle_cell_anemia",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "White Blood Cell Count",
+            "question_type": "TEXT",
+            "question_number": "11",
+            "group": "Demo2",
+            "answers": [],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "wbc_structured",
+                    "asthenia_structured",
+                    "fh_sickle_cell_trait",
+                    "headache_structured",
+                    "coma_structured",
+                    "unconscious_structured",
+                    "body_weight_snomed",
+                    "seizure_structured",
+                    "aphasia_structured",
+                    "has_sickle_cell_trait_structured",
+                    "fh_sickle_cell_anemia",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "Red Blood Cell Count",
+            "question_type": "TEXT",
+            "question_number": "12",
+            "group": "Demo2",
+            "answers": [],
+            "evidence_bundle": {
+                "smartchart2_demo_eb1": [
+                    "wbc_structured",
+                    "asthenia_structured",
+                    "fh_sickle_cell_trait",
+                    "headache_structured",
+                    "coma_structured",
+                    "unconscious_structured",
+                    "body_weight_snomed",
+                    "rbc_structured",
+                    "seizure_structured",
+                    "aphasia_structured",
+                    "has_sickle_cell_trait_structured",
+                    "fh_sickle_cell_anemia",
+                    "body_weight_loinc"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb1"
+        },
+        {
+            "question_name": "History of blood transfusion reaction",
+            "question_type": "RADIO",
+            "question_number": "13",
+            "group": "Demo2",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "has_transfusion_reaction_history"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Date of most recent transfusion of blood component",
+            "question_type": "DATE",
+            "question_number": "14",
+            "group": "Demo2",
+            "answers": [],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "date_transfusion_blood_product",
+                    "has_transfusion_reaction_history",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Is the patient taking Hydroxyurea?",
+            "question_type": "RADIO",
+            "question_number": "15",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "date_transfusion_blood_product",
+                    "has_transfusion_reaction_history",
+                    "hydroxyurea",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Is the patient taking Glutamine?",
+            "question_type": "RADIO",
+            "question_number": "16",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "has_transfusion_reaction_history",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Is the patient taking Morphine?",
+            "question_type": "RADIO",
+            "question_number": "17",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Is the patient taking Meperidine?",
+            "question_type": "RADIO",
+            "question_number": "18",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Is the patient taking Levorphanol?",
+            "question_type": "RADIO",
+            "question_number": "19",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "levorphanol",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Sickle Cell Arthropathy",
+            "question_type": "RADIO",
+            "question_number": "20",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "levorphanol",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "arthropathy",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Avascular Necrosis",
+            "question_type": "RADIO",
+            "question_number": "21",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "avascular_necrosis",
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "levorphanol",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "arthropathy",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Osteonecrosis",
+            "question_type": "RADIO",
+            "question_number": "22",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "avascular_necrosis",
+                    "meperidine",
+                    "osteonecrosis",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "levorphanol",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "arthropathy",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Leg Ulcer",
+            "question_type": "RADIO",
+            "question_number": "23",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "avascular_necrosis",
+                    "meperidine",
+                    "osteonecrosis",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "levorphanol",
+                    "leg_ulcer",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "arthropathy",
+                    "date_transfusion_blood_component"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Ankle Ulcer",
+            "question_type": "RADIO",
+            "question_number": "24",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "avascular_necrosis",
+                    "meperidine",
+                    "osteonecrosis",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "levorphanol",
+                    "leg_ulcer",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "arthropathy",
+                    "date_transfusion_blood_component",
+                    "ankle_ulcer"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Shin Ulcer",
+            "question_type": "RADIO",
+            "question_number": "25",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "avascular_necrosis",
+                    "meperidine",
+                    "osteonecrosis",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "levorphanol",
+                    "shin_ulcer",
+                    "leg_ulcer",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "arthropathy",
+                    "date_transfusion_blood_component",
+                    "ankle_ulcer"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        },
+        {
+            "question_name": "Thigh Ulcer",
+            "question_type": "RADIO",
+            "question_number": "26",
+            "group": "Demo3",
+            "answers": [
+                {
+                    "text": "Yes",
+                    "value": "yes"
+                },
+                {
+                    "text": "No",
+                    "value": "no"
+                }
+            ],
+            "evidence_bundle": {
+                "smartchart2_demo_eb2": [
+                    "hydroxyurea",
+                    "avascular_necrosis",
+                    "meperidine",
+                    "osteonecrosis",
+                    "has_transfusion_reaction_history",
+                    "morphine",
+                    "levorphanol",
+                    "shin_ulcer",
+                    "thigh_ulcer",
+                    "leg_ulcer",
+                    "date_transfusion_blood_product",
+                    "glutamine",
+                    "arthropathy",
+                    "date_transfusion_blood_component",
+                    "ankle_ulcer"
+                ]
+            },
+            "nlpql_grouping": "smartchart2_demo_eb2"
+        }
+    ],
+    "evidence_bundles": [
+        "smartchart2_demo_eb1",
+        "smartchart2_demo_eb2"
+    ],
+    "version": "0.0.4",
+    "questions_with_evidence_count": 0
+}

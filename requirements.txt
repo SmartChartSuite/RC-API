@@ -3,6 +3,4 @@ datetime
 fastapi
 pydantic
 typing
-bson
 pymongo
-time

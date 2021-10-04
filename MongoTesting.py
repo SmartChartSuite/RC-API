@@ -1,7 +1,6 @@
 import pymongo
 
-client = pymongo.MongoClient(host='bare.claritynlp.cloud/nlp-mongo', port=27017, username='admin',
-                                    password='password', socketTimeoutMS=15000, maxPoolSize=500,
-                                    maxIdleTimeMS=30000)
+client = pymongo.MongoClient("mongodb+srv://formsapiuser:i3lworks@forms.18m6i.mongodb.net/Forms?retryWrites=true&w=majority")
+db = client.SmartChartForms
 
-client.list_database_names()
+print(client.list_database_names())

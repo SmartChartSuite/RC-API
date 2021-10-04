@@ -1206,10 +1206,10 @@ def parse_questions_from_feature_csv(folder_prefix='4100r4',
 
 if __name__ == "__main__":
 	parse_questions_from_feature_csv(folder_prefix='',
-	                                 form_name="SimpleSetNet",
-	                                 file_name='https://docs.google.com/spreadsheets/d/1DX0wiOr7VJ0HknLmR0svmYJx-nI0F0AJPf7kzYRlYbM/export?format=csv&gid=0',
-	                                 output_dir='output-simple',
-	                                 description='Simple SetNet Form for Testing')
+	                                 form_name="SmartChart2",
+	                                 file_name='https://docs.google.com/spreadsheets/d/1Ge_ccWOTBMs8gabS28Rvgj1DoTR65AOEKZj8rM4QnUI/export?format=csv&gid=0',
+	                                 output_dir='output-smartchart2',
+	                                 description='SmartChart2 Demo Form')
 	# parse_questions_from_feature_csv(folder_prefix='death',
 	#                                  form_name="US Death Certificate",
 	#                                  file_name='https://docs.google.com/spreadsheet/ccc?key=1J_JqRjjryjaJE-fB9nNcBb9mQNL3cl7dx_vhbG95XHE&output=csv',

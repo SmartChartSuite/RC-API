@@ -54,7 +54,7 @@ class QuestionsJSON(BaseModel):
 
 class StartJobPostBody(BaseModel):
     formId: str
-    nlpqlGrouping: str
+    evidenceBundle: str
     patientId: str
 
 
@@ -195,10 +195,10 @@ async def get_list_of_forms(returnBundle: bool = False):
 async def get_form(form_id: str, returnAsFHIR: bool = False, returnAsFhir: bool = False):
     # return questions.json from database, if returnAsFHIR: convert questions.json to questionnaire and return that
     if returnAsFHIR or returnAsFhir:
-        result_form = convertToQuestionnaire(db.forms.find({'_id': ObjectId(form_id)})[0])
+        result_form = convertToQuestionnaire(db.forms.find_one({'_id': ObjectId(form_id)}))
     else:
         try:
-            result_form = db.forms.find({'_id': ObjectId(form_id)})[0]
+            result_form = db.forms.find_one({'_id': ObjectId(form_id)})
         except IndexError:
             return "No form with that id found"
     return result_form
@@ -213,14 +213,19 @@ async def update_form(form_id: str, new_questions: QuestionsJSON):
     result = db.forms.replace_one({"_id": ObjectId(form_id)}, new_questions.dict())
     return "You have updated a form with a form id of {}".format(form_id)
 
-@app.post("/forms/start")
-async def start_jobs(post_body: StartJobPostBody, response_model=dict):
-    time.sleep(5)
+@app.post("/forms/start", response_model=Union[list, str])
+async def start_jobs(post_body: StartJobPostBody):
+    #time.sleep(5)
     try:
-        result = db.fakeReturn.find({'form_id': post_body.formId, 'nlpql_grouping': post_body.nlpqlGrouping})[0]
+        result = db.fakeReturn.find_one({'form_id': post_body.formId, 'evidence_bundle': post_body.evidenceBundle})
         del result["_id"]
     except IndexError:
         return f"No job with the name {post_body.nlpqlGrouping} for the form {post_body.formId} was found"
+    
+    #for testing purposes only, need to remove when actually being used and format correctly
+    result = []
+    for i in range(1,21):
+        result.append({'linkId': i, 'evidence_bundles': [f'eb{i*2}', f'eb{(i*2)+1}']})
     return result
 
 @app.post("/forms/nlpql")
