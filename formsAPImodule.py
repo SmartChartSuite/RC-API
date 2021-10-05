@@ -215,7 +215,7 @@ async def update_form(form_id: str, new_questions: QuestionsJSON):
 
 @app.post("/forms/start", response_model=Union[list, str])
 async def start_jobs(post_body: StartJobPostBody):
-    #time.sleep(5)
+    # time.sleep(5)
     try:
         result = db.fakeReturn.find_one({'form_id': post_body.formId, 'evidence_bundle': post_body.evidenceBundle})
         del result["_id"]
@@ -224,8 +224,12 @@ async def start_jobs(post_body: StartJobPostBody):
     
     #for testing purposes only, need to remove when actually being used and format correctly
     result = []
-    for i in range(1,21):
-        result.append({'linkId': i, 'evidence_bundles': [f'eb{i*2}', f'eb{(i*2)+1}']})
+    if post_body.evidenceBundle == 'information':
+        for i in range(1,10):
+            result.append({'linkId': i, 'evidence_bundles': [f'eb{i*2}', f'eb{(i*2)+1}']})
+    elif post_body.evidenceBundle == 'maternal_demographics':
+        for i in range(10,22):
+            result.append({'linkId': i, 'evidence_bundles': [f'eb{i*2}', f'eb{(i*2)+1}']})
     return result
 
 @app.post("/forms/nlpql")
