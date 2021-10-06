@@ -215,7 +215,7 @@ async def update_form(form_id: str, new_questions: QuestionsJSON):
 
 @app.post("/forms/start", response_model=Union[list, str])
 async def start_jobs(post_body: StartJobPostBody):
-    # time.sleep(5)
+    time.sleep(5)
     try:
         result = db.fakeReturn.find_one({'form_id': post_body.formId, 'evidence_bundle': post_body.evidenceBundle})
         del result["_id"]

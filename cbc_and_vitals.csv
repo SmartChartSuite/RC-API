@@ -1,0 +1,30 @@
+,NAME:,CBC and Vitals Demonstration,,
+,VERSION:,0.1,,
+,DESCRIPTION:,Demo Questionnaire illustrating use of CQL for simple queries such as CBC and Vital Signs.,,
+ID,Question Text,Group,Task Type,CQL Task
+1,Leukocytes [#/volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.wbc_vol
+2,Erythrocytes [#/volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.rbc_vol
+3,Hemoglobin [Mass/volume] in Blood,CBC Panel,CQL,cbc_panel.hemoglobin_mass_vol
+4,Hematocrit [Volume Fraction] of Blood by Automated count,CBC Panel,CQL,cbc_panel.hematocrit_vol_frac
+5,MCV [Entitic volume] by Automated count,CBC Panel,CQL,cbc_panel.mcv_ent_vol
+6,MCH [Entitic mass] by Automated count,CBC Panel,CQL,cbc_panel.mch_ent_mass
+7,MCHC [Mass/volume] by Automated count,CBC Panel,CQL,cbc_panel.mchc_mass_vol
+8,Erythrocyte distribution width [Entitic volume] by Automated count,CBC Panel,CQL,cbc_panel.rbc_ent_vol
+9,Erythrocyte distribution width [Ratio] by Automated count,CBC Panel,CQL,cbc_panel.rbc_ratio
+10,Platelets [#/volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.platelets_vol
+11,Platelet distribution width [Entitic volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.platelets_dw_ent_vol
+12,Platelet mean volume [Entitic volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.platelets_mv_ent_vol
+13,Body mass index (BMI) [Percentile] Per age and sex,Vital Signs,CQL,vital_signs.bmi_percentile
+14,Oxygen saturation in Arterial blood by Pulse oximetry,Vital Signs,CQL,vital_signs.o2_saturation
+15,Inhaled oxygen concentration,Vital Signs,CQL,vital_signs.inhaled_o2_concentration
+16,Inhaled oxygen flow rate,Vital Signs,CQL,vital_signs.inhaled_o2_flow_rate
+17,Respiratory rate,Vital Signs,CQL,vital_signs.respiratory_Rate
+18,Heart rate,Vital Signs,CQL,vital_signs.heart_rate
+19,Oxygen saturation in Arterial blood,Vital Signs,CQL,vital_signs.o2_saturation_in_arterial_blood
+20,Body temperature,Vital Signs,CQL,vital_signs.body_temp
+21,Body height,Vital Signs,CQL,vital_signs.body_height
+22,Body weight,Vital Signs,CQL,vital_signs.body_weight
+23,Body mass index (BMI) [Ratio],Vital Signs,CQL,vital_signs.bmi
+24,Systolic blood pressure,Vital Signs,CQL,vital_signs.systolic_blood_pressure
+25,Diastolic blood pressure,Vital Signs,CQL,vital_signs.diastolic_blood_pressure
+26,Mean blood pressure,Vital Signs,CQL,vital_signs.mean_blood_pressure

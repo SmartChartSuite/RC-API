@@ -1,0 +1,30 @@
+{
+    "resourceType": "Questionnaire",
+    "meta": {
+        "profile": [
+            "http://gtri.gatech.edu/fakeFormIg/StructureDefinition/smartchart-form"
+        ]
+    },
+    "id": "",
+    "url": "Questionnaire/",
+    "name": "",
+    "version": "",
+    "title": "",
+    "status": "draft",
+    "experimental": true,
+    "publisher": "Gatech",
+    "description": "",
+    "subjectType": [
+        "Patient"
+    ],
+    "date": "2020-01-01",
+    "extension": [
+        {
+            "url": "http://gtri.gatech.edu/fakeFormIg/form-task-group-list",
+            "extension": [
+
+            ]
+        }
+    ],
+    "item": [    ]
+}
