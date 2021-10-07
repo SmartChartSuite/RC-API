@@ -74,7 +74,7 @@ pt_define = '''
     
     '''
 cql_template = '''
-        library Retrieve2 version '1.0'
+        library temporary_retrieve version '1.0'
 
         using FHIR version '3.0.0'
 
@@ -100,6 +100,27 @@ cql_template = '''
 
 {}
 
+'''
+
+cql_header_template = '''
+library temporary_retrieve version '1.0'
+
+using FHIR version '3.0.0'
+
+include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+codesystem "LOINC": 'http://loinc.org'
+codesystem "SNOMED": '2.16.840.1.113883.6.96'
+codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+codesystem "ICD9": '2.16.840.1.113883.6.42'
+codesystem "ICD10": '2.16.840.1.113883.6.3'
+codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+context Patient
+
+{}
 '''
 
 # +
@@ -1205,11 +1226,25 @@ def parse_questions_from_feature_csv(folder_prefix='4100r4',
 
 
 if __name__ == "__main__":
-	parse_questions_from_feature_csv(folder_prefix='',
-	                                 form_name="SmartChart2",
-	                                 file_name='https://docs.google.com/spreadsheets/d/1Ge_ccWOTBMs8gabS28Rvgj1DoTR65AOEKZj8rM4QnUI/export?format=csv&gid=0',
-	                                 output_dir='output-smartchart2',
-	                                 description='SmartChart2 Demo Form')
+	output_dir = 'output-smartchart2'
+	csv_link = 'https://docs.google.com/spreadsheets/d/1Ge_ccWOTBMs8gabS28Rvgj1DoTR65AOEKZj8rM4QnUI/export?format=csv&gid=0'
+	parse_questions_from_feature_csv(folder_prefix='', form_name="SmartChart2", file_name=csv_link, output_dir= output_dir, description='SmartChart2 Demo Form')
+
+	entire_cql = []
+	for filename in os.listdir(os.getcwd()+'/'+output_dir+'/cql'):
+		if filename.endswith(".cql"):
+			with open(f'{output_dir}/cql/'+ filename, 'r') as f:
+				data = f.readlines()
+				entire_cql.append(data[24:len(data)])
+	flat_entire_cql = [item for sublist in entire_cql for item in sublist]
+	entire_cql = [i for i in flat_entire_cql if i != '\n']
+	entire_cql = [x.lstrip() for x in entire_cql]
+	final_cql = ''.join(entire_cql)
+	final_cql = cql_header_template.format(final_cql)
+	with open(f'{output_dir}/cql/fullCQL.cql', 'w') as f:
+		f.write(final_cql)
+	
+
 	# parse_questions_from_feature_csv(folder_prefix='death',
 	#                                  form_name="US Death Certificate",
 	#                                  file_name='https://docs.google.com/spreadsheet/ccc?key=1J_JqRjjryjaJE-fB9nNcBb9mQNL3cl7dx_vhbG95XHE&output=csv',
