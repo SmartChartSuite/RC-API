@@ -1,4 +1,3 @@
-from fhir.resources.fhirtypes import String
 from datetime import datetime
 from fastapi import FastAPI, Body
 from pydantic import BaseModel
@@ -11,7 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 import time
 import base64
-import ast
 
 app = FastAPI()
 
