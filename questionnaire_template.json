@@ -12,12 +12,11 @@
     "title": "",
     "status": "draft",
     "experimental": true,
-    "publisher": "Gatech",
+    "publisher": "GTRI",
     "description": "",
     "subjectType": [
         "Patient"
     ],
-    "date": "2020-01-01",
     "extension": [
         {
             "url": "http://gtri.gatech.edu/fakeFormIg/form-task-group-list",

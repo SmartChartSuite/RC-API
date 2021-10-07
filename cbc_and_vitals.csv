@@ -1,30 +1,30 @@
-,NAME:,CBC and Vitals Demonstration,,
-,VERSION:,0.1,,
-,DESCRIPTION:,Demo Questionnaire illustrating use of CQL for simple queries such as CBC and Vital Signs.,,
-ID,Question Text,Group,Task Type,CQL Task
-1,Leukocytes [#/volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.wbc_vol
-2,Erythrocytes [#/volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.rbc_vol
-3,Hemoglobin [Mass/volume] in Blood,CBC Panel,CQL,cbc_panel.hemoglobin_mass_vol
-4,Hematocrit [Volume Fraction] of Blood by Automated count,CBC Panel,CQL,cbc_panel.hematocrit_vol_frac
-5,MCV [Entitic volume] by Automated count,CBC Panel,CQL,cbc_panel.mcv_ent_vol
-6,MCH [Entitic mass] by Automated count,CBC Panel,CQL,cbc_panel.mch_ent_mass
-7,MCHC [Mass/volume] by Automated count,CBC Panel,CQL,cbc_panel.mchc_mass_vol
-8,Erythrocyte distribution width [Entitic volume] by Automated count,CBC Panel,CQL,cbc_panel.rbc_ent_vol
-9,Erythrocyte distribution width [Ratio] by Automated count,CBC Panel,CQL,cbc_panel.rbc_ratio
-10,Platelets [#/volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.platelets_vol
-11,Platelet distribution width [Entitic volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.platelets_dw_ent_vol
-12,Platelet mean volume [Entitic volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.platelets_mv_ent_vol
-13,Body mass index (BMI) [Percentile] Per age and sex,Vital Signs,CQL,vital_signs.bmi_percentile
-14,Oxygen saturation in Arterial blood by Pulse oximetry,Vital Signs,CQL,vital_signs.o2_saturation
-15,Inhaled oxygen concentration,Vital Signs,CQL,vital_signs.inhaled_o2_concentration
-16,Inhaled oxygen flow rate,Vital Signs,CQL,vital_signs.inhaled_o2_flow_rate
-17,Respiratory rate,Vital Signs,CQL,vital_signs.respiratory_Rate
-18,Heart rate,Vital Signs,CQL,vital_signs.heart_rate
-19,Oxygen saturation in Arterial blood,Vital Signs,CQL,vital_signs.o2_saturation_in_arterial_blood
-20,Body temperature,Vital Signs,CQL,vital_signs.body_temp
-21,Body height,Vital Signs,CQL,vital_signs.body_height
-22,Body weight,Vital Signs,CQL,vital_signs.body_weight
-23,Body mass index (BMI) [Ratio],Vital Signs,CQL,vital_signs.bmi
-24,Systolic blood pressure,Vital Signs,CQL,vital_signs.systolic_blood_pressure
-25,Diastolic blood pressure,Vital Signs,CQL,vital_signs.diastolic_blood_pressure
-26,Mean blood pressure,Vital Signs,CQL,vital_signs.mean_blood_pressure
+,NAME:,CBC and Vitals Demonstration,,,
+,VERSION:,0.1,,,
+,DESCRIPTION:,Demo Questionnaire illustrating use of CQL for simple queries such as CBC and Vital Signs.,,,
+ID,Question Text,Group,Task Type,CQL Task,Answer Type
+1,Leukocytes [#/volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.wbc_vol,quantity
+2,Erythrocytes [#/volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.rbc_vol,quantity
+3,Hemoglobin [Mass/volume] in Blood,CBC Panel,CQL,cbc_panel.hemoglobin_mass_vol,quantity
+4,Hematocrit [Volume Fraction] of Blood by Automated count,CBC Panel,CQL,cbc_panel.hematocrit_vol_frac,quantity
+5,MCV [Entitic volume] by Automated count,CBC Panel,CQL,cbc_panel.mcv_ent_vol,quantity
+6,MCH [Entitic mass] by Automated count,CBC Panel,CQL,cbc_panel.mch_ent_mass,quantity
+7,MCHC [Mass/volume] by Automated count,CBC Panel,CQL,cbc_panel.mchc_mass_vol,quantity
+8,Erythrocyte distribution width [Entitic volume] by Automated count,CBC Panel,CQL,cbc_panel.rbc_ent_vol,quantity
+9,Erythrocyte distribution width [Ratio] by Automated count,CBC Panel,CQL,cbc_panel.rbc_ratio,quantity
+10,Platelets [#/volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.platelets_vol,quantity
+11,Platelet distribution width [Entitic volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.platelets_dw_ent_vol,quantity
+12,Platelet mean volume [Entitic volume] in Blood by Automated count,CBC Panel,CQL,cbc_panel.platelets_mv_ent_vol,quantity
+13,Body mass index (BMI) [Percentile] Per age and sex,Vital Signs,CQL,vital_signs.bmi_percentile,quantity
+14,Oxygen saturation in Arterial blood by Pulse oximetry,Vital Signs,CQL,vital_signs.o2_saturation,quantity
+15,Inhaled oxygen concentration,Vital Signs,CQL,vital_signs.inhaled_o2_concentration,quantity
+16,Inhaled oxygen flow rate,Vital Signs,CQL,vital_signs.inhaled_o2_flow_rate,quantity
+17,Respiratory rate,Vital Signs,CQL,vital_signs.respiratory_Rate,quantity
+18,Heart rate,Vital Signs,CQL,vital_signs.heart_rate,quantity
+19,Oxygen saturation in Arterial blood,Vital Signs,CQL,vital_signs.o2_saturation_in_arterial_blood,quantity
+20,Body temperature,Vital Signs,CQL,vital_signs.body_temp,quantity
+21,Body height,Vital Signs,CQL,vital_signs.body_height,quantity
+22,Body weight,Vital Signs,CQL,vital_signs.body_weight,quantity
+23,Body mass index (BMI) [Ratio],Vital Signs,CQL,vital_signs.bmi,quantity
+24,Systolic blood pressure,Vital Signs,CQL,vital_signs.systolic_blood_pressure,quantity
+25,Diastolic blood pressure,Vital Signs,CQL,vital_signs.diastolic_blood_pressure,quantity
+26,Mean blood pressure,Vital Signs,CQL,vital_signs.mean_blood_pressure,quantity
