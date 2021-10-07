@@ -67,7 +67,7 @@ def convert_csv_to_questionnaire(csv_file_path = '', delimiter=","):
             row_as_q_item = {
                 "linkId": row[0],
                 "text": row[1],
-                "type": "display",
+                "type": row[5],
                 "extension": []
             }
             if row[3] == "CQL":
