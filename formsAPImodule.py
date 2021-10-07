@@ -1,13 +1,17 @@
 from fhir.resources.fhirtypes import String
 from datetime import datetime
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from pydantic import BaseModel
 from typing import Dict, Optional, List, Union
 from fhir.resources.questionnaire import Questionnaire
+from fhir.resources.library import Library
 from bson import ObjectId
-import pymongo
+from requests_futures.sessions import FuturesSession
 from fastapi.middleware.cors import CORSMiddleware
+import pymongo
 import time
+import base64
+import ast
 
 app = FastAPI()
 
@@ -53,16 +57,14 @@ class QuestionsJSON(BaseModel):
     questions_with_evidence_count: Optional[str] = None
 
 class StartJobPostBody(BaseModel):
-    formId: str
-    evidenceBundle: str
+    evidenceBundles: List[str]
     patientId: str
 
 class NLPQLDict(BaseModel):
     name: str
     content: str
 
-class CQLDict(BaseModel):
-    form_id: str
+class CQLPost(BaseModel):
     code: str
 
 bundle_template = {
@@ -185,41 +187,148 @@ async def get_list_of_forms(returnBundle: bool = False):
 
     if returnBundle is not True:
         for document in all_forms:
-            form_meta = {"_id": str(document["_id"]),
+            form_meta = {"id": document["id"],
                         "name": document["name"],
                         "description": document["description"]}
             form_list.append(form_meta)
         return form_list
     else:
-        forms_fhir = []
         for form in all_forms:
-            forms_fhir.append(convertToQuestionnaire(form))
-        return bundle_forms(forms_fhir)
+            del form["_id"]
+            form_list.append(form)
+        return bundle_forms(form_list)
 
-@app.get("/forms/{form_id}", response_model=Union[QuestionsJSON, dict, str])
-async def get_form(form_id: str, returnAsFHIR: bool = False, returnAsFhir: bool = False):
-    # return questions.json from database, if returnAsFHIR: convert questions.json to questionnaire and return that
-    if returnAsFHIR or returnAsFhir:
-        result_form = convertToQuestionnaire(db.forms.find_one({'_id': ObjectId(form_id)}))
-    else:
-        try:
-            result_form = db.forms.find_one({'_id': ObjectId(form_id)})
-        except IndexError:
-            return "No form with that id found"
-    return result_form
+@app.get("/forms/cql")
+async def get_cql_libraries():
+    form_list = []
+    all_forms = db.cql.find()
+    for document in all_forms:
+        form_meta = {"name": document["name"],
+                    "version": document["version"]}
+        form_list.append(form_meta)
+    return form_list
+
+@app.get("/forms/cql/{libraryName}")
+async def get_cql(libraryName: str):
+    cql_library = db.cql.find_one({"name": libraryName})
+    base64_cql = cql_library['content'][0]['data']
+    cql_bytes = base64.b64decode(base64_cql)
+    decoded_cql = cql_bytes.decode('ascii')
+    return decoded_cql
+
+@app.get("/forms/{form_id}", response_model=Union[dict, str])
+async def get_form(form_id: str):
+    result_form = db.forms.find_one({'id': form_id})
+    if result_form is None:
+        return "No form with that id found"
+    else : 
+        del result_form["_id"]
+        return result_form
 
 @app.post("/forms")
-async def create_form(questions: QuestionsJSON):
-    result = db.forms.insert_one(questions.dict())
-    return "You have posted a questions.json with a generated ID of {}".format(str(result.inserted_id))
-
-@app.put("/forms/{form_id}")
-async def update_form(form_id: str, new_questions: QuestionsJSON):
-    result = db.forms.replace_one({"_id": ObjectId(form_id)}, new_questions.dict())
-    return "You have updated a form with a form id of {}".format(form_id)
+async def create_form(questions: Questionnaire):
+    duplicate = db.forms.find_one({"id": questions.id})
+    if duplicate is not None:
+        return f"This Questionnaire already exists in the database. To update, use PUT at /forms/{questions.id}. If you would like to create a new version of the form, change the id of the Questionnaire resource and try POSTing again."
+    else:
+        result = db.forms.insert_one(questions.dict())
+    if result.acknowledged:
+        return f"You have created a Questionnaire with an id of {questions.id} in the database"
+    else: return 'Something went wrong!'
 
 @app.post("/forms/start", response_model=Union[list, str])
 async def start_jobs(post_body: StartJobPostBody):
+    #get cql library names to be run
+    libraries = post_body.evidenceBundles
+    #pull cql libraries from db
+    cql_posts = []
+    for library in libraries:
+        cql_library = db.cql.find_one({'name': library})
+        if cql_library is None:
+            return f'Your evidence bundle {library} does not exist in the database. Please POST that to /forms/cql before trying to run the CQL.'
+        base64_cql = cql_library['content'][0]['data']
+        cql_bytes = base64.b64decode(base64_cql)
+        decoded_cql = cql_bytes.decode('ascii')
+        formatted_cql = str(decoded_cql.replace('"', '\"'))
+        full_post_body = {
+            "code": formatted_cql,
+            "dataServiceUri":"https://apps.hdap.gatech.edu/omoponfhir3/fhir/",
+            "dataUser":"client",
+            "dataPass":"secret",
+            "patientId": post_body.patientId,
+            "terminologyServiceUri":"https://cts.nlm.nih.gov/fhir/",
+            "terminologyUser":"jduke99",
+            "terminologyPass":"v6R4*SsU39"
+        }
+        cql_posts.append(full_post_body)
+        print(f'Retrieved library named {library}')
+    
+    session = FuturesSession()
+    url = 'https://apps.hdap.gatech.edu/cql/evaluate'
+    headers = {'Content-Type': 'application/json'}
+    futures = []
+    for cql_post in cql_posts:
+        futures.append(session.post(url, json=cql_post, headers=headers))
+        print(f'Started running job')
+    
+    results = []
+    for i, future in enumerate(futures):
+        result = future.result().json()
+        full_result = {'libraryName': libraries[i], 'patientId': post_body.patientId, 'results': result}
+        results.append(full_result)
+    return results
+
+@app.post("/forms/nlpql")
+async def save_nlpql(post_body: NLPQLDict):
+    result = db.nlpql.insert_one(post_body.dict())
+    return f'Saved NLPQL file named {post_body.name} in database'
+
+@app.post("/forms/cql")
+async def save_cql(code: str = Body(...)):
+    # Get name and version of cql library
+    split_cql = code.split()
+    name = split_cql[1]
+    version = split_cql[3].strip("'")
+
+    # Encode CQL as base64Binary
+    code_bytes = code.encode('ascii')
+    base64_bytes = base64.b64encode(code_bytes)
+    base64_cql = base64_bytes.decode('ascii')
+
+    # Create Library object
+    data = {
+        'name': name,
+        'version': version,
+        'status': 'draft',
+        'experimental': True,
+        'type': {'coding':[{'code':'logic-library'}]},
+        'content': [{
+            'contentType': 'cql',
+            'data': base64_cql
+        }]
+    }
+    cql_library = Library(**data)
+
+    # Store Library object in db
+    result = db.cql.insert_one(cql_library.dict())
+    if result.acknowledged:
+        return f'Saved CQL Library resource named {name} in database'
+    else:
+        return f'Something went wrong!'
+
+@app.put("/forms/{form_id}")
+async def update_form(form_id: str, new_questions: Questionnaire):
+    result = db.forms.replace_one({"id": form_id}, new_questions.dict())
+    print(result)
+    if result.modified_count != 0:
+        return "You have updated a Questionnaire with an id of {}".format(form_id)
+    else:
+        return "There was no Questionnaire found with that id. Please first POST this Questionnaire to the database."
+
+# uvicorn formsAPImodule:app --reload
+
+# Old Start Jobs
+async def start_jobs_old(post_body: StartJobPostBody):
     time.sleep(5)
     try:
         result = db.fakeReturn.find_one({'form_id': post_body.formId, 'evidence_bundle': post_body.evidenceBundle})
@@ -236,18 +345,3 @@ async def start_jobs(post_body: StartJobPostBody):
         for i in range(10,22):
             result.append({'linkId': i, 'evidence_bundles': [f'eb{i*2}', f'eb{(i*2)+1}']})
     return result
-
-@app.post("/forms/nlpql")
-async def save_nlpql(post_body: NLPQLDict):
-    result = db.nlpql.insert_one(post_body.dict())
-    return f'Saved NLPQL file named {post_body.name} in database'
-
-@app.post("/forms/cql")
-async def save_cql(post_body: CQLDict):
-    result = db.cql.insert_one(post_body.dict())
-    if result.acknowledged:
-        return f'Saved CQL file named for form_id {post_body.form_id} in database'
-    else:
-        return f'Something went wrong!'
-
-# uvicorn formsAPImodule:app --reload
