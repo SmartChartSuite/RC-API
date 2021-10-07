@@ -57,10 +57,13 @@ class StartJobPostBody(BaseModel):
     evidenceBundle: str
     patientId: str
 
-
 class NLPQLDict(BaseModel):
     name: str
     content: str
+
+class CQLDict(BaseModel):
+    form_id: str
+    code: str
 
 bundle_template = {
     "resourceType": "Bundle",
@@ -163,6 +166,8 @@ def bundle_forms(forms: list):
     bundle["meta"]["lastUpdated"] = timestamp
     return bundle
 
+def evaluateCQL(post_body: dict):
+    return ''
 
 client = pymongo.MongoClient("mongodb+srv://formsapiuser:i3lworks@forms.18m6i.mongodb.net/Forms?retryWrites=true&w=majority")
 db = client.SmartChartForms
@@ -236,4 +241,13 @@ async def start_jobs(post_body: StartJobPostBody):
 async def save_nlpql(post_body: NLPQLDict):
     result = db.nlpql.insert_one(post_body.dict())
     return f'Saved NLPQL file named {post_body.name} in database'
+
+@app.post("/forms/cql")
+async def save_cql(post_body: CQLDict):
+    result = db.cql.insert_one(post_body.dict())
+    if result.acknowledged:
+        return f'Saved CQL file named for form_id {post_body.form_id} in database'
+    else:
+        return f'Something went wrong!'
+
 # uvicorn formsAPImodule:app --reload

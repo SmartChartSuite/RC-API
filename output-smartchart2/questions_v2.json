@@ -512,22 +512,22 @@
     "evidences": {
         "smartchart2_demo_eb1": {
             "allIds": [
-                "wbc_structured",
+                "fh_sickle_cell_anemia",
                 "asthenia_structured",
-                "fh_sickle_cell_trait",
+                "aphasia_structured",
+                "has_sickle_cell_trait_structured",
                 "headache_structured",
                 "coma_structured",
                 "unconscious_structured",
-                "body_weight_snomed",
+                "wbc_structured",
+                "body_weight_loinc",
+                "fh_sickle_cell_trait",
                 "rbc_structured",
                 "seizure_structured",
-                "aphasia_structured",
-                "has_sickle_cell_trait_structured",
-                "fh_sickle_cell_anemia",
-                "body_weight_loinc"
+                "body_weight_snomed"
             ],
             "byId": {
-                "wbc_structured": {
+                "fh_sickle_cell_anemia": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -539,11 +539,11 @@
                             "value": "r.code_coding_0_display"
                         },
                         {
-                            "label": "Val",
-                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
                         }
                     ],
-                    "title": "WBC"
+                    "title": "FH Sickle Cell Anemia"
                 },
                 "asthenia_structured": {
                     "displayType": "table",
@@ -563,7 +563,7 @@
                     ],
                     "title": "Asthenia"
                 },
-                "fh_sickle_cell_trait": {
+                "aphasia_structured": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -579,7 +579,25 @@
                             "value": "r.code_coding_0_code"
                         }
                     ],
-                    "title": "FH Sickle Cell Trait"
+                    "title": "Aphasia"
+                },
+                "has_sickle_cell_trait_structured": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Has Sickle Cell Trait"
                 },
                 "headache_structured": {
                     "displayType": "table",
@@ -635,7 +653,25 @@
                     ],
                     "title": "Loss of Consciousness"
                 },
-                "body_weight_snomed": {
+                "wbc_structured": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Val",
+                            "value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
+                        }
+                    ],
+                    "title": "WBC"
+                },
+                "body_weight_loinc": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -652,6 +688,24 @@
                         }
                     ],
                     "title": "Body weight"
+                },
+                "fh_sickle_cell_trait": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "FH Sickle Cell Trait"
                 },
                 "rbc_structured": {
                     "displayType": "table",
@@ -689,61 +743,7 @@
                     ],
                     "title": "Seizure"
                 },
-                "aphasia_structured": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Aphasia"
-                },
-                "has_sickle_cell_trait_structured": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Has Sickle Cell Trait"
-                },
-                "fh_sickle_cell_anemia": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "FH Sickle Cell Anemia"
-                },
-                "body_weight_loinc": {
+                "body_weight_snomed": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -765,26 +765,44 @@
         },
         "smartchart2_demo_eb2": {
             "allIds": [
-                "hydroxyurea",
+                "date_transfusion_blood_component",
+                "ankle_ulcer",
                 "avascular_necrosis",
-                "meperidine",
-                "osteonecrosis",
-                "has_transfusion_reaction_history",
-                "morphine",
-                "levorphanol",
-                "shin_ulcer",
-                "thigh_ulcer",
-                "leg_ulcer",
-                "date_transfusion_blood_product",
                 "glutamine",
                 "arthropathy",
-                "date_transfusion_blood_component",
-                "ankle_ulcer"
+                "meperidine",
+                "thigh_ulcer",
+                "has_transfusion_reaction_history",
+                "levorphanol",
+                "shin_ulcer",
+                "osteonecrosis",
+                "leg_ulcer",
+                "date_transfusion_blood_product",
+                "morphine",
+                "hydroxyurea"
             ],
             "byId": {
-                "hydroxyurea": {
+                "date_transfusion_blood_component": {
                     "displayType": "cards",
-                    "title": "Hydroxyurea"
+                    "title": "Date Most Recent Transfusion of Blood Component"
+                },
+                "ankle_ulcer": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Ankle Ulcer"
                 },
                 "avascular_necrosis": {
                     "displayType": "table",
@@ -803,112 +821,6 @@
                         }
                     ],
                     "title": "Avascular Necrosis"
-                },
-                "meperidine": {
-                    "displayType": "cards",
-                    "title": "Meperidine"
-                },
-                "osteonecrosis": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Osteonecrosis"
-                },
-                "has_transfusion_reaction_history": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "History of Blood Transfusion Reaction"
-                },
-                "morphine": {
-                    "displayType": "cards",
-                    "title": "Morphine"
-                },
-                "levorphanol": {
-                    "displayType": "cards",
-                    "title": "Levorphanol"
-                },
-                "shin_ulcer": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Shin Ulcer"
-                },
-                "thigh_ulcer": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Thigh Ulcer"
-                },
-                "leg_ulcer": {
-                    "displayType": "table",
-                    "cols": [
-                        {
-                            "label": "Date",
-                            "value": "r.result_display.date"
-                        },
-                        {
-                            "label": "Name",
-                            "value": "r.code_coding_0_display"
-                        },
-                        {
-                            "label": "Code",
-                            "value": "r.code_coding_0_code"
-                        }
-                    ],
-                    "title": "Leg Ulcer"
-                },
-                "date_transfusion_blood_product": {
-                    "displayType": "cards",
-                    "title": "Date Most Recent Transfusion of Blood Product"
                 },
                 "glutamine": {
                     "displayType": "cards",
@@ -932,11 +844,11 @@
                     ],
                     "title": "Sickle Cell Arthropathy"
                 },
-                "date_transfusion_blood_component": {
+                "meperidine": {
                     "displayType": "cards",
-                    "title": "Date Most Recent Transfusion of Blood Component"
+                    "title": "Meperidine"
                 },
-                "ankle_ulcer": {
+                "thigh_ulcer": {
                     "displayType": "table",
                     "cols": [
                         {
@@ -952,7 +864,95 @@
                             "value": "r.code_coding_0_code"
                         }
                     ],
-                    "title": "Ankle Ulcer"
+                    "title": "Thigh Ulcer"
+                },
+                "has_transfusion_reaction_history": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "History of Blood Transfusion Reaction"
+                },
+                "levorphanol": {
+                    "displayType": "cards",
+                    "title": "Levorphanol"
+                },
+                "shin_ulcer": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Shin Ulcer"
+                },
+                "osteonecrosis": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Osteonecrosis"
+                },
+                "leg_ulcer": {
+                    "displayType": "table",
+                    "cols": [
+                        {
+                            "label": "Date",
+                            "value": "r.result_display.date"
+                        },
+                        {
+                            "label": "Name",
+                            "value": "r.code_coding_0_display"
+                        },
+                        {
+                            "label": "Code",
+                            "value": "r.code_coding_0_code"
+                        }
+                    ],
+                    "title": "Leg Ulcer"
+                },
+                "date_transfusion_blood_product": {
+                    "displayType": "cards",
+                    "title": "Date Most Recent Transfusion of Blood Product"
+                },
+                "morphine": {
+                    "displayType": "cards",
+                    "title": "Morphine"
+                },
+                "hydroxyurea": {
+                    "displayType": "cards",
+                    "title": "Hydroxyurea"
                 }
             }
         }

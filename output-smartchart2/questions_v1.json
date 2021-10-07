@@ -41,9 +41,9 @@
             "answers": [],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
+                    "body_weight_loinc",
                     "body_weight_snomed",
-                    "has_sickle_cell_trait_structured",
-                    "body_weight_loinc"
+                    "has_sickle_cell_trait_structured"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -65,10 +65,10 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
+                    "body_weight_loinc",
                     "fh_sickle_cell_trait",
                     "body_weight_snomed",
-                    "has_sickle_cell_trait_structured",
-                    "body_weight_loinc"
+                    "has_sickle_cell_trait_structured"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -90,11 +90,11 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
-                    "fh_sickle_cell_trait",
-                    "body_weight_snomed",
-                    "has_sickle_cell_trait_structured",
                     "fh_sickle_cell_anemia",
-                    "body_weight_loinc"
+                    "has_sickle_cell_trait_structured",
+                    "body_weight_loinc",
+                    "fh_sickle_cell_trait",
+                    "body_weight_snomed"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -116,12 +116,12 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
-                    "fh_sickle_cell_trait",
-                    "headache_structured",
-                    "body_weight_snomed",
-                    "has_sickle_cell_trait_structured",
                     "fh_sickle_cell_anemia",
-                    "body_weight_loinc"
+                    "has_sickle_cell_trait_structured",
+                    "headache_structured",
+                    "body_weight_loinc",
+                    "fh_sickle_cell_trait",
+                    "body_weight_snomed"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -143,13 +143,13 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
-                    "asthenia_structured",
-                    "fh_sickle_cell_trait",
-                    "headache_structured",
-                    "body_weight_snomed",
-                    "has_sickle_cell_trait_structured",
                     "fh_sickle_cell_anemia",
-                    "body_weight_loinc"
+                    "asthenia_structured",
+                    "has_sickle_cell_trait_structured",
+                    "headache_structured",
+                    "body_weight_loinc",
+                    "fh_sickle_cell_trait",
+                    "body_weight_snomed"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -171,14 +171,14 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
+                    "fh_sickle_cell_anemia",
                     "asthenia_structured",
-                    "fh_sickle_cell_trait",
-                    "headache_structured",
-                    "body_weight_snomed",
                     "aphasia_structured",
                     "has_sickle_cell_trait_structured",
-                    "fh_sickle_cell_anemia",
-                    "body_weight_loinc"
+                    "headache_structured",
+                    "body_weight_loinc",
+                    "fh_sickle_cell_trait",
+                    "body_weight_snomed"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -200,15 +200,15 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
+                    "fh_sickle_cell_anemia",
                     "asthenia_structured",
-                    "fh_sickle_cell_trait",
-                    "headache_structured",
-                    "body_weight_snomed",
-                    "seizure_structured",
                     "aphasia_structured",
                     "has_sickle_cell_trait_structured",
-                    "fh_sickle_cell_anemia",
-                    "body_weight_loinc"
+                    "headache_structured",
+                    "body_weight_loinc",
+                    "fh_sickle_cell_trait",
+                    "seizure_structured",
+                    "body_weight_snomed"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -230,16 +230,16 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
+                    "fh_sickle_cell_anemia",
                     "asthenia_structured",
-                    "fh_sickle_cell_trait",
-                    "headache_structured",
-                    "coma_structured",
-                    "body_weight_snomed",
-                    "seizure_structured",
                     "aphasia_structured",
                     "has_sickle_cell_trait_structured",
-                    "fh_sickle_cell_anemia",
-                    "body_weight_loinc"
+                    "headache_structured",
+                    "coma_structured",
+                    "body_weight_loinc",
+                    "fh_sickle_cell_trait",
+                    "seizure_structured",
+                    "body_weight_snomed"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -261,17 +261,17 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
+                    "fh_sickle_cell_anemia",
                     "asthenia_structured",
-                    "fh_sickle_cell_trait",
+                    "aphasia_structured",
+                    "has_sickle_cell_trait_structured",
                     "headache_structured",
                     "coma_structured",
                     "unconscious_structured",
-                    "body_weight_snomed",
+                    "body_weight_loinc",
+                    "fh_sickle_cell_trait",
                     "seizure_structured",
-                    "aphasia_structured",
-                    "has_sickle_cell_trait_structured",
-                    "fh_sickle_cell_anemia",
-                    "body_weight_loinc"
+                    "body_weight_snomed"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -284,18 +284,18 @@
             "answers": [],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
-                    "wbc_structured",
+                    "fh_sickle_cell_anemia",
                     "asthenia_structured",
-                    "fh_sickle_cell_trait",
+                    "aphasia_structured",
+                    "has_sickle_cell_trait_structured",
                     "headache_structured",
                     "coma_structured",
                     "unconscious_structured",
-                    "body_weight_snomed",
+                    "wbc_structured",
+                    "body_weight_loinc",
+                    "fh_sickle_cell_trait",
                     "seizure_structured",
-                    "aphasia_structured",
-                    "has_sickle_cell_trait_structured",
-                    "fh_sickle_cell_anemia",
-                    "body_weight_loinc"
+                    "body_weight_snomed"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -308,19 +308,19 @@
             "answers": [],
             "evidence_bundle": {
                 "smartchart2_demo_eb1": [
-                    "wbc_structured",
+                    "fh_sickle_cell_anemia",
                     "asthenia_structured",
-                    "fh_sickle_cell_trait",
+                    "aphasia_structured",
+                    "has_sickle_cell_trait_structured",
                     "headache_structured",
                     "coma_structured",
                     "unconscious_structured",
-                    "body_weight_snomed",
+                    "wbc_structured",
+                    "body_weight_loinc",
+                    "fh_sickle_cell_trait",
                     "rbc_structured",
                     "seizure_structured",
-                    "aphasia_structured",
-                    "has_sickle_cell_trait_structured",
-                    "fh_sickle_cell_anemia",
-                    "body_weight_loinc"
+                    "body_weight_snomed"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb1"
@@ -355,9 +355,9 @@
             "answers": [],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "date_transfusion_blood_product",
                     "has_transfusion_reaction_history",
-                    "date_transfusion_blood_component"
+                    "date_transfusion_blood_component",
+                    "date_transfusion_blood_product"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -379,10 +379,10 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "date_transfusion_blood_product",
                     "has_transfusion_reaction_history",
                     "hydroxyurea",
-                    "date_transfusion_blood_component"
+                    "date_transfusion_blood_component",
+                    "date_transfusion_blood_product"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -404,11 +404,11 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
+                    "date_transfusion_blood_component",
+                    "glutamine",
                     "has_transfusion_reaction_history",
                     "date_transfusion_blood_product",
-                    "glutamine",
-                    "date_transfusion_blood_component"
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -430,12 +430,12 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
-                    "has_transfusion_reaction_history",
-                    "morphine",
-                    "date_transfusion_blood_product",
+                    "date_transfusion_blood_component",
                     "glutamine",
-                    "date_transfusion_blood_component"
+                    "has_transfusion_reaction_history",
+                    "date_transfusion_blood_product",
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -457,13 +457,13 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
+                    "date_transfusion_blood_component",
+                    "glutamine",
                     "meperidine",
                     "has_transfusion_reaction_history",
-                    "morphine",
                     "date_transfusion_blood_product",
-                    "glutamine",
-                    "date_transfusion_blood_component"
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -485,14 +485,14 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
+                    "date_transfusion_blood_component",
+                    "glutamine",
                     "meperidine",
                     "has_transfusion_reaction_history",
-                    "morphine",
                     "levorphanol",
                     "date_transfusion_blood_product",
-                    "glutamine",
-                    "date_transfusion_blood_component"
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -514,15 +514,15 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
-                    "meperidine",
-                    "has_transfusion_reaction_history",
-                    "morphine",
-                    "levorphanol",
-                    "date_transfusion_blood_product",
+                    "date_transfusion_blood_component",
                     "glutamine",
                     "arthropathy",
-                    "date_transfusion_blood_component"
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "levorphanol",
+                    "date_transfusion_blood_product",
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -544,16 +544,16 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
+                    "date_transfusion_blood_component",
                     "avascular_necrosis",
-                    "meperidine",
-                    "has_transfusion_reaction_history",
-                    "morphine",
-                    "levorphanol",
-                    "date_transfusion_blood_product",
                     "glutamine",
                     "arthropathy",
-                    "date_transfusion_blood_component"
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "levorphanol",
+                    "date_transfusion_blood_product",
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -575,17 +575,17 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
+                    "date_transfusion_blood_component",
                     "avascular_necrosis",
-                    "meperidine",
-                    "osteonecrosis",
-                    "has_transfusion_reaction_history",
-                    "morphine",
-                    "levorphanol",
-                    "date_transfusion_blood_product",
                     "glutamine",
                     "arthropathy",
-                    "date_transfusion_blood_component"
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "levorphanol",
+                    "osteonecrosis",
+                    "date_transfusion_blood_product",
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -607,18 +607,18 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
+                    "date_transfusion_blood_component",
                     "avascular_necrosis",
-                    "meperidine",
-                    "osteonecrosis",
-                    "has_transfusion_reaction_history",
-                    "morphine",
-                    "levorphanol",
-                    "leg_ulcer",
-                    "date_transfusion_blood_product",
                     "glutamine",
                     "arthropathy",
-                    "date_transfusion_blood_component"
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "levorphanol",
+                    "osteonecrosis",
+                    "leg_ulcer",
+                    "date_transfusion_blood_product",
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -640,19 +640,19 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
+                    "date_transfusion_blood_component",
+                    "ankle_ulcer",
                     "avascular_necrosis",
-                    "meperidine",
-                    "osteonecrosis",
-                    "has_transfusion_reaction_history",
-                    "morphine",
-                    "levorphanol",
-                    "leg_ulcer",
-                    "date_transfusion_blood_product",
                     "glutamine",
                     "arthropathy",
-                    "date_transfusion_blood_component",
-                    "ankle_ulcer"
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "levorphanol",
+                    "osteonecrosis",
+                    "leg_ulcer",
+                    "date_transfusion_blood_product",
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -674,20 +674,20 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
+                    "date_transfusion_blood_component",
+                    "ankle_ulcer",
                     "avascular_necrosis",
-                    "meperidine",
-                    "osteonecrosis",
-                    "has_transfusion_reaction_history",
-                    "morphine",
-                    "levorphanol",
-                    "shin_ulcer",
-                    "leg_ulcer",
-                    "date_transfusion_blood_product",
                     "glutamine",
                     "arthropathy",
-                    "date_transfusion_blood_component",
-                    "ankle_ulcer"
+                    "meperidine",
+                    "has_transfusion_reaction_history",
+                    "levorphanol",
+                    "shin_ulcer",
+                    "osteonecrosis",
+                    "leg_ulcer",
+                    "date_transfusion_blood_product",
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -709,21 +709,21 @@
             ],
             "evidence_bundle": {
                 "smartchart2_demo_eb2": [
-                    "hydroxyurea",
+                    "date_transfusion_blood_component",
+                    "ankle_ulcer",
                     "avascular_necrosis",
-                    "meperidine",
-                    "osteonecrosis",
-                    "has_transfusion_reaction_history",
-                    "morphine",
-                    "levorphanol",
-                    "shin_ulcer",
-                    "thigh_ulcer",
-                    "leg_ulcer",
-                    "date_transfusion_blood_product",
                     "glutamine",
                     "arthropathy",
-                    "date_transfusion_blood_component",
-                    "ankle_ulcer"
+                    "meperidine",
+                    "thigh_ulcer",
+                    "has_transfusion_reaction_history",
+                    "levorphanol",
+                    "shin_ulcer",
+                    "osteonecrosis",
+                    "leg_ulcer",
+                    "date_transfusion_blood_product",
+                    "morphine",
+                    "hydroxyurea"
                 ]
             },
             "nlpql_grouping": "smartchart2_demo_eb2"
@@ -733,6 +733,6 @@
         "smartchart2_demo_eb1",
         "smartchart2_demo_eb2"
     ],
-    "version": "0.0.4",
+    "version": "0.0.31",
     "questions_with_evidence_count": 0
 }
