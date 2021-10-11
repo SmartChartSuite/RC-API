@@ -4,7 +4,7 @@ import json
 import re
 
 # To define a server base for Questionnaire URL elements, set it here.
-server_base = 'http://gtri.gatech.edu/fakeFormIg'
+server_base = 'http://gtri.gatech.edu/fakeFormIg/'
 
 def get_extension_template(url, valueString):
     return { "url": url, "valueString": valueString }
