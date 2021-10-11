@@ -212,7 +212,7 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
                     target_library = library_result
                     break
             if target_library is None:
-                raise HTTPException(404, 'Library specified in form extension was not found in these CQL results, please run the appropriate CQL libraries needed for this form')
+                break
 
             target_result = None
             for result in target_library['results']:
