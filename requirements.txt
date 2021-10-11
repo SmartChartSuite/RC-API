@@ -1,7 +1,0 @@
-fhir.resources
-datetime
-fastapi
-pydantic
-typing
-pymongo
-requests-futures

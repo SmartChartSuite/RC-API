@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "pipInstall",
+        "type": "shell",
+        "osx": {
+          "command": "pip3 install -r requirements.txt"
+        },
+        "windows": {
+          "command": "pip install -r requirements.txt"
+        },
+        "linux": {
+          "command": "pip install -r requirements.txt"
+        },
+        "problemMatcher": [],
+        "options": {
+          "cwd": "${workspaceFolder}//app"
+        }
+      }
+    ]
+  }
