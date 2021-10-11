@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Optional, List, Union
 from fhir.resources.questionnaire import Questionnaire
@@ -55,6 +55,7 @@ class QuestionsJSON(BaseModel):
     questions_with_evidence_count: Optional[str] = None
 
 class StartJobPostBody(BaseModel):
+    formId: str
     evidenceBundles: List[str]
     patientId: str
 
@@ -166,8 +167,67 @@ def bundle_forms(forms: list):
     bundle["meta"]["lastUpdated"] = timestamp
     return bundle
 
-def evaluateCQL(post_body: dict):
-    return ''
+def run_cql(cql_posts: list):
+    session = FuturesSession()
+    url = 'https://apps.hdap.gatech.edu/cql/evaluate'
+    headers = {'Content-Type': 'application/json'}
+    futures = []
+    for cql_post in cql_posts:
+        futures.append(session.post(url, json=cql_post, headers=headers))
+        print(f'Started running job')
+    return futures
+
+def get_cql_results(futures: list, libraries: list, patientId: str):
+    results = []
+    for i, future in enumerate(futures):
+        result = future.result().json()
+        full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
+        results.append(full_result)
+    return results
+
+def create_linked_results(results: list, form_id: str, db: pymongo.database.Database):
+    # {
+    # 1: {
+    #    answer: {type: choice},
+    #    cqlResults: []
+    #    },
+    # 2: {},
+    # 3: {}
+    # }
+    form = db.forms.find_one({'id': form_id})
+    if form is None:
+        raise HTTPException(404, 'Form needed to create evidence links not found')
+    
+    linked_results = {}
+    for group in form['item']:
+        for question in group['item']:
+            linkId = question['linkId']
+            library_task = question['extension'][0]['valueString']
+            library, task = library_task.split('.')
+
+            target_library = None
+            for library_result in results:
+                if library_result['libraryName'] == library:
+                    target_library = library_result
+                    break
+            if target_library is None:
+                raise HTTPException(404, 'Library specified in form extension was not found in these CQL results, please run the appropriate CQL libraries needed for this form')
+
+            target_result = None
+            for result in target_library['results']:
+                if result['name'] == task:
+                    target_result = result['result']
+                    break
+            if target_result is None:
+                raise HTTPException(404, f'CQL result {task} not found in library {library}')
+
+            body = {
+                'answer': {'type': question['type'] },
+                'cqlResults': target_result
+            }
+            linked_results[linkId] = body
+   
+    return linked_results
 
 client = pymongo.MongoClient("mongodb+srv://formsapiuser:i3lworks@forms.18m6i.mongodb.net/Forms?retryWrites=true&w=majority")
 db = client.SmartChartForms
@@ -209,6 +269,8 @@ async def get_cql_libraries():
 @app.get("/forms/cql/{libraryName}")
 async def get_cql(libraryName: str):
     cql_library = db.cql.find_one({"name": libraryName})
+    if cql_library is None:
+        raise HTTPException(status_code=404, detail='CQL Library not found')
     base64_cql = cql_library['content'][0]['data']
     cql_bytes = base64.b64decode(base64_cql)
     decoded_cql = cql_bytes.decode('ascii')
@@ -218,7 +280,7 @@ async def get_cql(libraryName: str):
 async def get_form(form_id: str):
     result_form = db.forms.find_one({'id': form_id})
     if result_form is None:
-        return "No form with that id found"
+        raise HTTPException(404, 'Form with that ID not found in the database')
     else : 
         del result_form["_id"]
         return result_form
@@ -234,7 +296,7 @@ async def create_form(questions: Questionnaire):
         return f"You have created a Questionnaire with an id of {questions.id} in the database"
     else: return 'Something went wrong!'
 
-@app.post("/forms/start", response_model=Union[list, str])
+@app.post("/forms/start", response_model=Union[dict, str])
 async def start_jobs(post_body: StartJobPostBody):
     #get cql library names to be run
     libraries = post_body.evidenceBundles
@@ -261,20 +323,13 @@ async def start_jobs(post_body: StartJobPostBody):
         cql_posts.append(full_post_body)
         print(f'Retrieved library named {library}')
     
-    session = FuturesSession()
-    url = 'https://apps.hdap.gatech.edu/cql/evaluate'
-    headers = {'Content-Type': 'application/json'}
-    futures = []
-    for cql_post in cql_posts:
-        futures.append(session.post(url, json=cql_post, headers=headers))
-        print(f'Started running job')
-    
-    results = []
-    for i, future in enumerate(futures):
-        result = future.result().json()
-        full_result = {'libraryName': libraries[i], 'patientId': post_body.patientId, 'results': result}
-        results.append(full_result)
-    return results
+    futures = run_cql(cql_posts)
+    print('Created futures array')
+    results = get_cql_results(futures, libraries, post_body.patientId)
+    print('Retrived all results from futures')
+    linked_results = create_linked_results(results, post_body.formId, db)
+
+    return linked_results
 
 @app.post("/forms/nlpql")
 async def save_nlpql(post_body: NLPQLDict):
