@@ -235,11 +235,11 @@ db = client.SmartChartForms
 
 
 @app.get("/")
-async def root():
+def root():
     return "Please use one of the endpoints, this is just the root of the api"
 
 @app.get("/forms", response_model=Union[list, dict])
-async def get_list_of_forms(returnBundle: bool = False):
+def get_list_of_forms(returnBundle: bool = False):
     # Pull list of forms from the database
     form_list = []
     all_forms = db.forms.find()
@@ -258,7 +258,7 @@ async def get_list_of_forms(returnBundle: bool = False):
         return bundle_forms(form_list)
 
 @app.get("/forms/cql")
-async def get_cql_libraries():
+def get_cql_libraries():
     form_list = []
     all_forms = db.cql.find()
     for document in all_forms:
@@ -268,7 +268,7 @@ async def get_cql_libraries():
     return form_list
 
 @app.get("/forms/cql/{libraryName}")
-async def get_cql(libraryName: str):
+def get_cql(libraryName: str):
     cql_library = db.cql.find_one({"name": libraryName})
     if cql_library is None:
         raise HTTPException(status_code=404, detail='CQL Library not found')
@@ -278,7 +278,7 @@ async def get_cql(libraryName: str):
     return decoded_cql
 
 @app.get("/forms/{form_id}", response_model=Union[dict, str])
-async def get_form(form_id: str):
+def get_form(form_id: str):
     result_form = db.forms.find_one({'id': form_id})
     if result_form is None:
         raise HTTPException(404, 'Form with that ID not found in the database')
@@ -287,7 +287,7 @@ async def get_form(form_id: str):
         return result_form
 
 @app.post("/forms")
-async def create_form(questions: Questionnaire):
+def create_form(questions: Questionnaire):
     duplicate = db.forms.find_one({"id": questions.id})
     if duplicate is not None:
         return f"This Questionnaire already exists in the database. To update, use PUT at /forms/{questions.id}. If you would like to create a new version of the form, change the id of the Questionnaire resource and try POSTing again."
@@ -298,7 +298,7 @@ async def create_form(questions: Questionnaire):
     else: return 'Something went wrong!'
 
 @app.post("/forms/start", response_model=Union[dict, str])
-async def start_jobs(post_body: StartJobPostBody):
+def start_jobs(post_body: StartJobPostBody):
     #get cql library names to be run
     libraries = post_body.evidenceBundles
     #pull cql libraries from db
@@ -333,12 +333,12 @@ async def start_jobs(post_body: StartJobPostBody):
     return linked_results
 
 @app.post("/forms/nlpql")
-async def save_nlpql(post_body: NLPQLDict):
+def save_nlpql(post_body: NLPQLDict):
     result = db.nlpql.insert_one(post_body.dict())
     return f'Saved NLPQL file named {post_body.name} in database'
 
 @app.post("/forms/cql")
-async def save_cql(code: str = Body(...)):
+def save_cql(code: str = Body(...)):
     # Get name and version of cql library
     split_cql = code.split()
     name = split_cql[1]
@@ -371,7 +371,7 @@ async def save_cql(code: str = Body(...)):
         return f'Something went wrong!'
 
 @app.put("/forms/{form_id}")
-async def update_form(form_id: str, new_questions: Questionnaire):
+def update_form(form_id: str, new_questions: Questionnaire):
     result = db.forms.replace_one({"id": form_id}, new_questions.dict())
     print(result)
     if result.modified_count != 0:
@@ -382,7 +382,7 @@ async def update_form(form_id: str, new_questions: Questionnaire):
 # uvicorn formsAPImodule:app --reload
 
 # Old Start Jobs
-async def start_jobs_old(post_body: StartJobPostBody):
+def start_jobs_old(post_body: StartJobPostBody):
     time.sleep(5)
     try:
         result = db.fakeReturn.find_one({'form_id': post_body.formId, 'evidence_bundle': post_body.evidenceBundle})

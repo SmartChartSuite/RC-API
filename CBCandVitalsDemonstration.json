@@ -6,18 +6,17 @@
         ]
     },
     "id": "CBCandVitalsDemonstration",
-    "url": "http://gtri.gatech.edu/fakeFormIgQuestionnaire/CBCandVitalsDemonstration",
+    "url": "http://gtri.gatech.edu/fakeFormIg/Questionnaire/CBCandVitalsDemonstration",
     "name": "CBCandVitalsDemonstration",
     "version": "0.1",
     "title": "CBC and Vitals Demonstration",
     "status": "draft",
     "experimental": true,
-    "publisher": "Gatech",
+    "publisher": "GTRI",
     "description": "Demo Questionnaire illustrating use of CQL for simple queries such as CBC and Vital Signs.",
     "subjectType": [
         "Patient"
     ],
-    "date": "2020-01-01T00:00:00.000Z",
     "extension": [
         {
             "url": "http://gtri.gatech.edu/fakeFormIg/form-task-group-list",
@@ -42,10 +41,10 @@
                 {
                     "linkId": "1",
                     "text": "Leukocytes [#/volume] in Blood by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.wbc_vol"
                         }
                     ]
@@ -53,10 +52,10 @@
                 {
                     "linkId": "2",
                     "text": "Erythrocytes [#/volume] in Blood by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.rbc_vol"
                         }
                     ]
@@ -64,10 +63,10 @@
                 {
                     "linkId": "3",
                     "text": "Hemoglobin [Mass/volume] in Blood",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.hemoglobin_mass_vol"
                         }
                     ]
@@ -75,10 +74,10 @@
                 {
                     "linkId": "4",
                     "text": "Hematocrit [Volume Fraction] of Blood by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.hematocrit_vol_frac"
                         }
                     ]
@@ -86,10 +85,10 @@
                 {
                     "linkId": "5",
                     "text": "MCV [Entitic volume] by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.mcv_ent_vol"
                         }
                     ]
@@ -97,10 +96,10 @@
                 {
                     "linkId": "6",
                     "text": "MCH [Entitic mass] by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.mch_ent_mass"
                         }
                     ]
@@ -108,10 +107,10 @@
                 {
                     "linkId": "7",
                     "text": "MCHC [Mass/volume] by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.mchc_mass_vol"
                         }
                     ]
@@ -119,10 +118,10 @@
                 {
                     "linkId": "8",
                     "text": "Erythrocyte distribution width [Entitic volume] by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.rbc_ent_vol"
                         }
                     ]
@@ -130,10 +129,10 @@
                 {
                     "linkId": "9",
                     "text": "Erythrocyte distribution width [Ratio] by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.rbc_ratio"
                         }
                     ]
@@ -141,10 +140,10 @@
                 {
                     "linkId": "10",
                     "text": "Platelets [#/volume] in Blood by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.platelets_vol"
                         }
                     ]
@@ -152,10 +151,10 @@
                 {
                     "linkId": "11",
                     "text": "Platelet distribution width [Entitic volume] in Blood by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.platelets_dw_ent_vol"
                         }
                     ]
@@ -163,10 +162,10 @@
                 {
                     "linkId": "12",
                     "text": "Platelet mean volume [Entitic volume] in Blood by Automated count",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.platelets_mv_ent_vol"
                         }
                     ]
@@ -181,10 +180,10 @@
                 {
                     "linkId": "13",
                     "text": "Body mass index (BMI) [Percentile] Per age and sex",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.bmi_percentile"
                         }
                     ]
@@ -192,10 +191,10 @@
                 {
                     "linkId": "14",
                     "text": "Oxygen saturation in Arterial blood by Pulse oximetry",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.o2_saturation"
                         }
                     ]
@@ -203,10 +202,10 @@
                 {
                     "linkId": "15",
                     "text": "Inhaled oxygen concentration",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.inhaled_o2_concentration"
                         }
                     ]
@@ -214,10 +213,10 @@
                 {
                     "linkId": "16",
                     "text": "Inhaled oxygen flow rate",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.inhaled_o2_flow_rate"
                         }
                     ]
@@ -225,10 +224,10 @@
                 {
                     "linkId": "17",
                     "text": "Respiratory rate",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.respiratory_Rate"
                         }
                     ]
@@ -236,10 +235,10 @@
                 {
                     "linkId": "18",
                     "text": "Heart rate",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.heart_rate"
                         }
                     ]
@@ -247,10 +246,10 @@
                 {
                     "linkId": "19",
                     "text": "Oxygen saturation in Arterial blood",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.o2_saturation_in_arterial_blood"
                         }
                     ]
@@ -258,10 +257,10 @@
                 {
                     "linkId": "20",
                     "text": "Body temperature",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.body_temp"
                         }
                     ]
@@ -269,10 +268,10 @@
                 {
                     "linkId": "21",
                     "text": "Body height",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.body_height"
                         }
                     ]
@@ -280,10 +279,10 @@
                 {
                     "linkId": "22",
                     "text": "Body weight",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.body_weight"
                         }
                     ]
@@ -291,10 +290,10 @@
                 {
                     "linkId": "23",
                     "text": "Body mass index (BMI) [Ratio]",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.bmi"
                         }
                     ]
@@ -302,10 +301,10 @@
                 {
                     "linkId": "24",
                     "text": "Systolic blood pressure",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.systolic_blood_pressure"
                         }
                     ]
@@ -313,10 +312,10 @@
                 {
                     "linkId": "25",
                     "text": "Diastolic blood pressure",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.diastolic_blood_pressure"
                         }
                     ]
@@ -324,10 +323,10 @@
                 {
                     "linkId": "26",
                     "text": "Mean blood pressure",
-                    "type": "display",
+                    "type": "quantity",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIgcqlTask",
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.mean_blood_pressure"
                         }
                     ]
