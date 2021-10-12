@@ -19,6 +19,7 @@ from ..util.settings import formsdb
 import os
 import base64
 import pymongo
+import ast
 
 formsrouter = APIRouter()
 
@@ -209,9 +210,11 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
             if target_result is None:
                 raise HTTPException(404, f'CQL result {task} not found in library {library}')
 
+            formatted_result = ast.literal_eval(target_result)
+            
             body = {
                 'answer': {'type': question['type'] },
-                'cqlResults': target_result
+                'cqlResults': formatted_result
             }
             linked_results[linkId] = body
    
