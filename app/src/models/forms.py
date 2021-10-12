@@ -153,15 +153,18 @@ def run_cql(cql_posts: list):
     url = 'https://apps.hdap.gatech.edu/cql/evaluate'
     headers = {'Content-Type': 'application/json'}
     futures = []
-    for cql_post in cql_posts:
+    for i, cql_post in enumerate(cql_posts):
         futures.append(session.post(url, json=cql_post, headers=headers))
-        print(f'Started running job')
+        print(f'Started running job {i}')
     return futures
 
 def get_cql_results(futures: list, libraries: list, patientId: str):
     results = []
+    print('Starting to get future results')
     for i, future in enumerate(futures):
         result = future.result().json()
+        print(f'Got result {i}')
+        print(result)
         full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
         results.append(full_result)
     return results

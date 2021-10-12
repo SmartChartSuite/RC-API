@@ -1226,9 +1226,9 @@ def parse_questions_from_feature_csv(folder_prefix='4100r4',
 
 
 if __name__ == "__main__":
-	output_dir = 'output-smartchart2'
-	csv_link = 'https://docs.google.com/spreadsheets/d/1Ge_ccWOTBMs8gabS28Rvgj1DoTR65AOEKZj8rM4QnUI/export?format=csv&gid=0'
-	parse_questions_from_feature_csv(folder_prefix='', form_name="SmartChart2", file_name=csv_link, output_dir= output_dir, description='SmartChart2 Demo Form')
+	output_dir = 'output-setnet'
+	csv_link = 'https://docs.google.com/spreadsheets/d/1DX0wiOr7VJ0HknLmR0svmYJx-nI0F0AJPf7kzYRlYbM/export?format=csv&gid=0'
+	parse_questions_from_feature_csv(folder_prefix='', form_name="SETNETUpdate", file_name=csv_link, output_dir= output_dir, description='Set-Net Update Form')
 
 	entire_cql = []
 	for filename in os.listdir(os.getcwd()+'/'+output_dir+'/cql'):
