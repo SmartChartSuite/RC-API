@@ -1,8 +1,8 @@
 library cbc_panel version '1.0'
 
-using FHIR version '3.0.0'
+using FHIR version '4.0.0'
 
-include FHIRHelpers version '3.0.0' called FHIRHelpers
+include FHIRHelpers version '4.0.0' called FHIRHelpers
 
 codesystem "LOINC": 'http://loinc.org'
 codesystem "SNOMED": '2.16.840.1.113883.6.96'
@@ -52,15 +52,15 @@ define "platelets_mv_ent_vol_concept": Concept {
 }
 
 // Retrieval Definitions
-define "wbc_vol": [Observation: Code in "wbc_vol_concept"]
-define "rbc_vol": [Observation: Code in "rbc_vol_concept"]
-define "hemoglobin_mass_vol": [Observation: Code in "hemoglobin_mass_vol_concept"]
-define "hematocrit_vol_frac": [Observation: Code in "hematocrit_vol_frac_concept"]
-define "mcv_ent_vol": [Observation: Code in "mcv_ent_vol_concept"]
-define "mch_ent_mass": [Observation: Code in "mch_ent_mass_concept"]
-define "mchc_mass_vol": [Observation: Code in "mchc_mass_vol_concept"]
-define "rbc_ent_vol": [Observation: Code in "rbc_ent_vol_concept"]
-define "rbc_ratio": [Observation: Code in "rbc_ratio_concept"]
-define "platelets_vol": [Observation: Code in "platelets_vol_concept"]
-define "platelets_dw_ent_vol": [Observation: Code in "platelets_dw_ent_vol_concept"]
-define "platelets_mv_ent_vol": [Observation: Code in "platelets_mv_ent_vol_concept"]
+define "wbc_vol": [Observation: code in "wbc_vol_concept"]
+define "rbc_vol": [Observation: code in "rbc_vol_concept"]
+define "hemoglobin_mass_vol": [Observation: code in "hemoglobin_mass_vol_concept"]
+define "hematocrit_vol_frac": [Observation: code in "hematocrit_vol_frac_concept"]
+define "mcv_ent_vol": [Observation: code in "mcv_ent_vol_concept"]
+define "mch_ent_mass": [Observation: code in "mch_ent_mass_concept"]
+define "mchc_mass_vol": [Observation: code in "mchc_mass_vol_concept"]
+define "rbc_ent_vol": [Observation: code in "rbc_ent_vol_concept"]
+define "rbc_ratio": [Observation: code in "rbc_ratio_concept"]
+define "platelets_vol": [Observation: code in "platelets_vol_concept"]
+define "platelets_dw_ent_vol": [Observation: code in "platelets_dw_ent_vol_concept"]
+define "platelets_mv_ent_vol": [Observation: code in "platelets_mv_ent_vol_concept"]

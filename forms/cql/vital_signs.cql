@@ -1,8 +1,8 @@
 library vital_signs version '1.0'
 
-using FHIR version '3.0.0'
+using FHIR version '4.0.0'
 
-include FHIRHelpers version '3.0.0' called FHIRHelpers
+include FHIRHelpers version '4.0.0' called FHIRHelpers
 
 codesystem "LOINC": 'http://loinc.org'
 codesystem "SNOMED": '2.16.840.1.113883.6.96'
@@ -59,17 +59,17 @@ define "inhaled_o2_flow_rate_concept": Concept {
 
 // Retrieve definitions
 
-define "respiratory_rate": [Observation: Code in "respiratory_rate_concept"]
-define "heart_rate": [Observation: Code in "heart_rate_concept"]
-define "o2_saturation_in_arterial_blood": [Observation: Code in "o2_saturation_in_arterial_blood_concept"]
-define "body_temp": [Observation: Code in "body_temp_concept"]
-define "body_height": [Observation: Code in "body_height_concept"]
-define "bmi_percentile": [Observation: Code in "bmi_percentile_concept"]
-define "body_weight": [Observation: Code in "body_weight_concept"]
-define "bmi": [Observation: Code in "bmi_concept"]
-define "o2_saturation": [Observation: Code in "o2_saturation_concept"]
-define "systolic_blood_pressure": [Observation: Code in "systolic_blood_pressure_concept"]
-define "diastolic_blood_pressure": [Observation: Code in "diastolic_blood_pressure_concept"]
-define "mean_blood_pressure": [Observation: Code in "mean_blood_pressure_concept"]
-define "inhaled_o2_concentration": [Observation: Code in "inhaled_o2_concentration_concept"]
-define "inhaled_o2_flow_rate": [Observation: Code in "inhaled_o2_flow_rate_concept"]
+define "respiratory_rate": [Observation: code in "respiratory_rate_concept"]
+define "heart_rate": [Observation: code in "heart_rate_concept"]
+define "o2_saturation_in_arterial_blood": [Observation: code in "o2_saturation_in_arterial_blood_concept"]
+define "body_temp": [Observation: code in "body_temp_concept"]
+define "body_height": [Observation: code in "body_height_concept"]
+define "bmi_percentile": [Observation: code in "bmi_percentile_concept"]
+define "body_weight": [Observation: code in "body_weight_concept"]
+define "bmi": [Observation: code in "bmi_concept"]
+define "o2_saturation": [Observation: code in "o2_saturation_concept"]
+define "systolic_blood_pressure": [Observation: code in "systolic_blood_pressure_concept"]
+define "diastolic_blood_pressure": [Observation: code in "diastolic_blood_pressure_concept"]
+define "mean_blood_pressure": [Observation: code in "mean_blood_pressure_concept"]
+define "inhaled_o2_concentration": [Observation: code in "inhaled_o2_concentration_concept"]
+define "inhaled_o2_flow_rate": [Observation: code in "inhaled_o2_flow_rate_concept"]
