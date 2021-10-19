@@ -102,7 +102,7 @@ def start_jobs(post_body: StartJobPostBody):
             return f'Your evidence bundle {library} does not exist in the database. Please POST that to /forms/cql before trying to run the CQL.'
         base64_cql = cql_library['content'][0]['data']
         cql_bytes = base64.b64decode(base64_cql)
-        decoded_cql = cql_bytes.decode('ascii')
+        decoded_cql = cql_bytes.decode('utf-8')
         formatted_cql = str(decoded_cql.replace('"', '\"'))
         full_post_body = {
             "code": formatted_cql,
@@ -139,9 +139,9 @@ def save_cql(code: str = Body(...)):
     version = split_cql[3].strip("'")
 
     # Encode CQL as base64Binary
-    code_bytes = code.encode('ascii')
+    code_bytes = code.encode('utf-8')
     base64_bytes = base64.b64encode(code_bytes)
-    base64_cql = base64_bytes.decode('ascii')
+    base64_cql = base64_bytes.decode('utf-8')
 
     # Create Library object
     data = {
@@ -151,14 +151,17 @@ def save_cql(code: str = Body(...)):
         'experimental': True,
         'type': {'coding':[{'code':'logic-library'}]},
         'content': [{
-            'contentType': 'cql',
+            'contentType': 'text/cql',
             'data': base64_cql
         }]
     }
     cql_library = Library(**data)
-
+    cql_library = cql_library.dict()
+    cql_library['content'][0]['data'] = base64_cql
+    print(cql_library)
+    
     # Store Library object in db
-    result = formsdb.cql.insert_one(cql_library.dict())
+    result = formsdb.cql.insert_one(cql_library)
     if result.acknowledged:
         return f'Saved CQL Library resource named {name} in database'
     else:
