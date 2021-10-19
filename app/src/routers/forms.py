@@ -21,6 +21,8 @@ import base64
 import pymongo
 import ast
 
+import time
+
 formsrouter = APIRouter()
 
 
@@ -31,6 +33,7 @@ def root():
 @formsrouter.get("/forms", response_model=Union[list, dict])
 def get_list_of_forms(returnBundle: bool = False):
     # Pull list of forms from the database
+    # time.sleep(10)
     form_list = []
     all_forms = formsdb.forms.find()
 

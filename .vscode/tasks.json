@@ -8,10 +8,10 @@
           "command": "pip3 install -I --user -r requirements.txt"
         },
         "windows": {
-          "command": "pip install -r requirements.txt"
+          "command": "pip install -I --user -r requirements.txt"
         },
         "linux": {
-          "command": "pip install -r requirements.txt"
+          "command": "pip install -I --user -r requirements.txt"
         },
         "problemMatcher": [],
         "options": {

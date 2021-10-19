@@ -30,57 +30,77 @@ def convert_csv_to_questionnaire(csv_file_path = '', delimiter=","):
 
         questionnaire = get_questionnaire_template()
 
+        ## Print Header information.
         print("------------------------")
         title_row = next(csvFile)
-        print("TITLE: ", title_row[2])
+        print("TITLE: ", title_row[1])
         version_row = next(csvFile)
-        print("VERSION: ", version_row[2])
+        print("VERSION: ", version_row[1])
         description_row = next(csvFile)
-        print("DESCRIPTION: ", description_row[2])
+        print("DESCRIPTION: ", description_row[1])
         print("------------------------")
 
-        questionnaire['id'] = parse_title_to_id(title_row[2])
+        ## Set root "header" elements of the resource.
+        questionnaire['id'] = parse_title_to_id(title_row[1])
         questionnaire['url'] = server_base + questionnaire['url'] + questionnaire['id']
         questionnaire['name'] = questionnaire['id']
-        questionnaire['title'] = title_row[2]
-        questionnaire['version'] = version_row[2]
-        questionnaire["description"] = description_row[2]
+        questionnaire['title'] = title_row[1]
+        questionnaire['version'] = version_row[1]
+        questionnaire["description"] = description_row[1]
 
+        ## The csv table header row that isn't actually parsed.
         header_row = next(csvFile)
+        ## Columns: Question Text | Group | LinkID | Task Type | CQL Library | CQL Task | Item/Answer Type | AnswerOptions
 
-        parsed_groups = []
-        group_item_list = []
-        group_sub_items_dict = {}
+        parsed_groups = [] ## Tracks root level group items by name. TODO: Refactor, shouldn't be needed.
+        group_item_list = [] ## Root level group items.
+        group_sub_items_dict = {} ## Sub items divided by key equivalent to group.
+        job_list = []
 
         for row in csvFile:
-            if not row[2] in parsed_groups:
-                parsed_groups.append(row[2])
+
+            ## Check if group has been previously observed/parsed. If not, create a new root level group item.
+            if not row[1] in parsed_groups: ## Group - Column 2
+                parsed_groups.append(row[1]) ## Group - Column 2
                 new_group_item = {
-                    "linkId": row[2],
+                    "linkId": row[1], ## Group - Column 2
                     "type": "group",
-                    "text": row[2],
+                    "text": row[1], ## Group - Column 2
                     "item": []
                 }
                 group_item_list.append(new_group_item)
-                group_sub_items_dict[row[2]] = []
+                group_sub_items_dict[row[1]] = []
             
+            ## Parse the row into a questionnaire Item.
             row_as_q_item = {
-                "linkId": row[0],
-                "text": row[1],
-                "type": row[5],
+                "linkId": row[2], ## LinkID - Column 3
+                "text": row[0], ## Question Text - Column 1
+                "type": row[6], ## Item/Question Type - Column 7
                 "extension": []
             }
-            if row[3] == "CQL":
-                extension = get_extension_template(server_base + "cqlTask", row[4])
+
+            ## If the row has a task type of CQL, add the CQL extension.
+            if row[3] == "CQL": ## Task Type - Column 4
+                ## If the library has not yet been observed and added to the job list, do so.
+                if not row[4] in job_list: ## CQL Library - Column 5
+                    job_list.append(row[4]) ## CQL Library - Column 5
+                extension = get_extension_template(server_base + "cqlTask", row[4] + "." + row[5]) ## CQL Library - Column 5 + CQL Task - Column 6 combined as string for value.
                 row_as_q_item["extension"].append(extension)
             
-            group_sub_items_dict[row[2]].append(row_as_q_item)
+            ## TODO: Add NLP task type handling in future.
+            elif row[3] == "NLP": ## Task Type - Column 4
+                print("NLP Not yet supported, invalid source form.")
+
+            ## After parsing the row, add it to the list of items associated with the group by key.
+            group_sub_items_dict[row[1]].append(row_as_q_item) ## Group - Column 2
         
         for item in group_item_list:
             item['item'] = group_sub_items_dict[item['linkId']]
-            extension = get_extension_template("form-task-group", parse_group_to_machine_readable(item['linkId']))
-            questionnaire['extension'][0]['extension'].append(extension)
             questionnaire['item'].append(item)
+        
+        for job in job_list:
+            extension = get_extension_template("form-job", job)
+            questionnaire['extension'][0]['extension'].append(extension)
         
         save_file(questionnaire)
 
