@@ -31,24 +31,16 @@ def root():
     return "Please use one of the endpoints, this is just the root of the api"
 
 @formsrouter.get("/forms", response_model=Union[list, dict])
-def get_list_of_forms(returnBundle: bool = False):
+def get_list_of_forms():
     # Pull list of forms from the database
     # time.sleep(10)
     form_list = []
     all_forms = formsdb.forms.find()
 
-    if returnBundle is not True:
-        for document in all_forms:
-            form_meta = {"id": document["id"],
-                        "name": document["name"],
-                        "description": document["description"]}
-            form_list.append(form_meta)
-        return form_list
-    else:
-        for form in all_forms:
-            del form["_id"]
-            form_list.append(form)
-        return bundle_forms(form_list)
+    for form in all_forms:
+        del form["_id"]
+        form_list.append(form)
+    return bundle_forms(form_list)
 
 @formsrouter.get("/forms/cql")
 def get_cql_libraries():
