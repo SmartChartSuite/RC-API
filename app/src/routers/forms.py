@@ -75,7 +75,7 @@ def get_form(form_id: str):
     result_form = formsdb.forms.find_one({'id': form_id})
     if result_form is None:
         raise HTTPException(404, 'Form with that ID not found in the database')
-    else : 
+    else :
         del result_form["_id"]
         return result_form
 
@@ -116,8 +116,8 @@ def start_jobs(post_body: StartJobPostBody):
         }
         cql_posts.append(full_post_body)
         print(f'Retrieved library named {library}')
-    
-     
+
+
     futures = run_cql(cql_posts)
     print('Created futures array')
     results = get_cql_results(futures, libraries, post_body.patientId)
@@ -159,7 +159,7 @@ def save_cql(code: str = Body(...)):
     cql_library = cql_library.dict()
     cql_library['content'][0]['data'] = base64_cql
     print(cql_library)
-    
+
     # Store Library object in db
     result = formsdb.cql.insert_one(cql_library)
     if result.acknowledged:
@@ -188,12 +188,14 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
     form = db.forms.find_one({'id': form_id})
     if form is None:
         raise HTTPException(404, 'Form needed to create evidence links not found')
-    
+
     linked_results = {}
     for group in form['item']:
         for question in group['item']:
             linkId = question['linkId']
-            library_task = question['extension'][0]['valueString']
+            for extension in question['extension']:
+                if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cqlTask':
+                    library_task = extension['valueString']
             library, task = library_task.split('.')
 
             target_library = None
@@ -219,6 +221,6 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
                 'cqlResults': formatted_result
             }
             linked_results[linkId] = body
-    
+
     print(linked_results)
-    return linked_results        
+    return linked_results
