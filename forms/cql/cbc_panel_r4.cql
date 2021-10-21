@@ -54,6 +54,7 @@ define "platelets_mv_ent_vol_concept": Concept {
 // Retrieval Definitions
 define "wbc_vol": [Observation: code in "wbc_vol_concept"]
 define "rbc_vol": [Observation: code in "rbc_vol_concept"]
+define "rbc_snapshot": "rbc_vol"[0]
 define "hemoglobin_mass_vol": [Observation: code in "hemoglobin_mass_vol_concept"]
 define "hematocrit_vol_frac": [Observation: code in "hematocrit_vol_frac_concept"]
 define "mcv_ent_vol": [Observation: code in "mcv_ent_vol_concept"]
