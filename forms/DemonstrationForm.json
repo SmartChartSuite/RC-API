@@ -48,8 +48,12 @@
                     "type": "string",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "demographicsomb_race_complete_string"
+                            "valueString": "demographics.omb_race_complete_string"
                         }
                     ]
                 },
@@ -59,8 +63,12 @@
                     "type": "string",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "demographicsomb_race_summary"
+                            "valueString": "demographics.omb_race_summary"
                         }
                     ]
                 },
@@ -68,10 +76,25 @@
                     "linkId": "29",
                     "text": "Hispanic or Latino?",
                     "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Unknown"
+                        }
+                    ],
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "demographicshispanic_or_latino_choice"
+                            "valueString": "demographics.hispanic_or_latino_choice"
                         }
                     ]
                 }
@@ -88,25 +111,47 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelwbc_vol"
+                            "valueString": "cbc_panel.wbc_vol"
                         }
                     ]
                 },
                 {
                     "linkId": "display1",
                     "text": "This is a display item for testing purposes",
-                    "type": "display",
-                    "extension": []
+                    "type": "display"
                 },
                 {
-                    "linkId": "2",
-                    "text": "Erythrocytes [#/volume] in Blood by Automated count",
+                    "linkId": "rbc1",
+                    "text": "Most Recent RBC",
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelrbc_vol"
+                            "valueString": "cbc_panel.rbc_snapshot"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "2",
+                    "text": "History of RBC",
+                    "type": "quantity",
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "cbc_panel.rbc_vol"
                         }
                     ]
                 },
@@ -116,8 +161,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelhemoglobin_mass_vol"
+                            "valueString": "cbc_panel.hemoglobin_mass_vol"
                         }
                     ]
                 },
@@ -127,8 +176,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelhematocrit_vol_frac"
+                            "valueString": "cbc_panel.hematocrit_vol_frac"
                         }
                     ]
                 },
@@ -138,8 +191,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelmcv_ent_vol"
+                            "valueString": "cbc_panel.mcv_ent_vol"
                         }
                     ]
                 },
@@ -149,8 +206,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelmch_ent_mass"
+                            "valueString": "cbc_panel.mch_ent_mass"
                         }
                     ]
                 },
@@ -160,8 +221,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelmchc_mass_vol"
+                            "valueString": "cbc_panel.mchc_mass_vol"
                         }
                     ]
                 },
@@ -171,8 +236,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelrbc_ent_vol"
+                            "valueString": "cbc_panel.rbc_ent_vol"
                         }
                     ]
                 },
@@ -182,8 +251,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelrbc_ratio"
+                            "valueString": "cbc_panel.rbc_ratio"
                         }
                     ]
                 },
@@ -193,8 +266,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelplatelets_vol"
+                            "valueString": "cbc_panel.platelets_vol"
                         }
                     ]
                 },
@@ -204,8 +281,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelplatelets_dw_ent_vol"
+                            "valueString": "cbc_panel.platelets_dw_ent_vol"
                         }
                     ]
                 },
@@ -215,8 +296,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "cbc_panelplatelets_mv_ent_vol"
+                            "valueString": "cbc_panel.platelets_mv_ent_vol"
                         }
                     ]
                 }
@@ -230,8 +315,7 @@
                 {
                     "linkId": "display2",
                     "text": "This should display at the top of vital signs despite being in the middle of CBC Panel.",
-                    "type": "display",
-                    "extension": []
+                    "type": "display"
                 },
                 {
                     "linkId": "13",
@@ -239,8 +323,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsbmi_percentile"
+                            "valueString": "vital_signs.bmi_percentile"
                         }
                     ]
                 },
@@ -250,8 +338,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signso2_saturation"
+                            "valueString": "vital_signs.o2_saturation"
                         }
                     ]
                 },
@@ -261,8 +353,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsinhaled_o2_concentration"
+                            "valueString": "vital_signs.inhaled_o2_concentration"
                         }
                     ]
                 },
@@ -272,8 +368,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsinhaled_o2_flow_rate"
+                            "valueString": "vital_signs.inhaled_o2_flow_rate"
                         }
                     ]
                 },
@@ -283,8 +383,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsrespiratory_rate"
+                            "valueString": "vital_signs.respiratory_rate"
                         }
                     ]
                 },
@@ -294,8 +398,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsheart_rate"
+                            "valueString": "vital_signs.heart_rate"
                         }
                     ]
                 },
@@ -305,8 +413,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signso2_saturation_in_arterial_blood"
+                            "valueString": "vital_signs.o2_saturation_in_arterial_blood"
                         }
                     ]
                 },
@@ -316,8 +428,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsbody_temp"
+                            "valueString": "vital_signs.body_temp"
                         }
                     ]
                 },
@@ -327,8 +443,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsbody_height"
+                            "valueString": "vital_signs.body_height"
                         }
                     ]
                 },
@@ -338,8 +458,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsbody_weight"
+                            "valueString": "vital_signs.body_weight"
                         }
                     ]
                 },
@@ -349,8 +473,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsbmi"
+                            "valueString": "vital_signs.bmi"
                         }
                     ]
                 },
@@ -360,8 +488,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signssystolic_blood_pressure"
+                            "valueString": "vital_signs.systolic_blood_pressure"
                         }
                     ]
                 },
@@ -371,8 +503,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsdiastolic_blood_pressure"
+                            "valueString": "vital_signs.diastolic_blood_pressure"
                         }
                     ]
                 },
@@ -382,8 +518,12 @@
                     "type": "quantity",
                     "extension": [
                         {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "series"
+                        },
+                        {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "vital_signsmean_blood_pressure"
+                            "valueString": "vital_signs.mean_blood_pressure"
                         }
                     ]
                 }

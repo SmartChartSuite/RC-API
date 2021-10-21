@@ -50,7 +50,7 @@ def convert_csv_to_questionnaire(csv_file_path = '', delimiter=","):
 
         ## The csv table header row that isn't actually parsed.
         header_row = next(csvFile)
-        ## Columns: Question Text | Group | LinkID | Task Type | CQL Library | CQL Task | Item/Answer Type | AnswerOptions
+        ## Columns: 1 Question Text | 2 Group | 3 LinkID | 4 Task Type | 5 CQL Library | 6 CQL Task | 7 Cardinality | 8 Item/Answer Type | 9 AnswerOptions
 
         parsed_groups = [] ## Tracks root level group items by name. TODO: Refactor, shouldn't be needed.
         group_item_list = [] ## Root level group items.
@@ -75,21 +75,35 @@ def convert_csv_to_questionnaire(csv_file_path = '', delimiter=","):
             row_as_q_item = {
                 "linkId": row[2], ## LinkID - Column 3
                 "text": row[0], ## Question Text - Column 1
-                "type": row[6], ## Item/Question Type - Column 7
-                "extension": []
+                "type": row[7] ## Item/Question Type - Column 8
             }
 
-            ## If the row has a task type of CQL, add the CQL extension.
-            if row[3] == "CQL": ## Task Type - Column 4
-                ## If the library has not yet been observed and added to the job list, do so.
-                if not row[4] in job_list: ## CQL Library - Column 5
-                    job_list.append(row[4]) ## CQL Library - Column 5
-                extension = get_extension_template(server_base + "cqlTask", row[4] + "." + row[5]) ## CQL Library - Column 5 + CQL Task - Column 6 combined as string for value.
-                row_as_q_item["extension"].append(extension)
-            
-            ## TODO: Add NLP task type handling in future.
-            elif row[3] == "NLP": ## Task Type - Column 4
-                print("NLP Not yet supported, invalid source form.")
+            ## Set the answer choices for items with type choice.
+            if row_as_q_item["type"] == "choice":
+                row_as_q_item["answerOption"] = [] # Initialize list of answerOption.
+                answerOption = row[8].split("|")
+                for answer in answerOption:
+                    row_as_q_item["answerOption"].append({"valueString": answer.strip()})
+
+            ## If type is not display, set the cardinality of the expected answer and extensions.
+            if not row_as_q_item["type"] == "display":
+                row_as_q_item["extension"] = [] ## Initialize the Extension list if not type display.
+                cardinality_extension = get_extension_template(server_base + "cardinality", row[6]) ## Cardinality - Column 7
+                row_as_q_item["extension"].append(cardinality_extension)
+
+                ## If the row has a task type of CQL, add the CQL extension.
+                if row[3] == "CQL": ## Task Type - Column 4
+                    ## If the library has not yet been observed and added to the job list, do so.
+                    if not row[4] in job_list: ## CQL Library - Column 5
+                        job_list.append(row[4]) ## CQL Library - Column 5
+                    cql_task_extension = get_extension_template(server_base + "cqlTask", row[4] + "." + row[5]) ## CQL Library - Column 5 + CQL Task - Column 6 combined as string for value.
+                    row_as_q_item["extension"].append(cql_task_extension)
+                
+                ## TODO: Add NLP task type handling in future.
+                elif row[3] == "NLP": ## Task Type - Column 4
+                    print("NLP Not yet supported, invalid source form.")
+                elif not row_as_q_item["type"] == "display":
+                    print("No task type found, all items which aren't type display must include valid task type.")
 
             ## After parsing the row, add it to the list of items associated with the group by key.
             group_sub_items_dict[row[1]].append(row_as_q_item) ## Group - Column 2
