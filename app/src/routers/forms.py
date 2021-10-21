@@ -211,8 +211,11 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
             if target_result is None:
                 raise HTTPException(404, f'CQL result {task} not found in library {library}')
 
+            full_resource_flag = False
             if target_result[0] in ['[', '{']:
                 formatted_result = ast.literal_eval(target_result)
+                full_resource_flag = True
+
             else:
                 formatted_result = target_result
             if cardinality == 'series':
@@ -221,9 +224,15 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
                     'cqlResults': formatted_result
                 }
             elif cardinality =='single':
+                single_answer = formatted_result
+                value_key = 'valueString'
+                if full_resource_flag:
+                    full_key = 'value'+question['type'].capitalize()
+                    single_answer = formatted_result[full_key]
+                    value_key = full_key
                 body = {
-                    'answer': {'type': question['type'], 'valueString': formatted_result },
-                    'cqlResults': []
+                    'answer': {'type': question['type'], value_key : single_answer},
+                    'cqlResults': formatted_result
                 }
             linked_results[linkId] = body
 
