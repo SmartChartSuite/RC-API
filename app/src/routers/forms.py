@@ -193,10 +193,13 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
     for group in form['item']:
         for question in group['item']:
             linkId = question['linkId']
-            for extension in question['extension']:
-                if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cqlTask':
-                    library_task = extension['valueString']
-            library, task = library_task.split('.')
+            try:
+                for extension in question['extension']:
+                    if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cqlTask':
+                        library_task = extension['valueString']
+                library, task = library_task.split('.')
+            except KeyError:
+                pass
 
             target_library = None
             for library_result in results:
@@ -214,7 +217,10 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
             if target_result is None:
                 raise HTTPException(404, f'CQL result {task} not found in library {library}')
 
-            formatted_result = ast.literal_eval(target_result)
+            if target_result[0] in ['[', '{']:
+                formatted_result = ast.literal_eval(target_result)
+            else:
+                formatted_result = target_result
 
             body = {
                 'answer': {'type': question['type'] },
