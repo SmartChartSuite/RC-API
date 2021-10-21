@@ -189,6 +189,8 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
                 for extension in question['extension']:
                     if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cqlTask':
                         library_task = extension['valueString']
+                    if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cardinality':
+                        cardinality = extension['valueString']
                 library, task = library_task.split('.')
             except KeyError:
                 pass
@@ -213,11 +215,16 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
                 formatted_result = ast.literal_eval(target_result)
             else:
                 formatted_result = target_result
-
-            body = {
-                'answer': {'type': question['type'] },
-                'cqlResults': formatted_result
-            }
+            if cardinality == 'series':
+                body = {
+                    'answer': {'type': question['type'] },
+                    'cqlResults': formatted_result
+                }
+            elif cardinality =='single':
+                body = {
+                    'answer': {'type': question['type'], 'valueString': formatted_result },
+                    'cqlResults': []
+                }
             linked_results[linkId] = body
 
     print(linked_results)
