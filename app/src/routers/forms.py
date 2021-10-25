@@ -199,9 +199,10 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
             for library_result in results:
                 if library_result['libraryName'] == library:
                     target_library = library_result
+                    print('found target library line 202')
                     break
             if target_library is None:
-                break
+                continue
 
             target_result = None
             for result in target_library['results']:
@@ -210,20 +211,20 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
                     break
             if target_result is None:
                 raise HTTPException(404, f'CQL result {task} not found in library {library}')
-
             full_resource_flag = False
+
             if target_result[0] in ['[', '{']:
                 formatted_result = ast.literal_eval(target_result)
                 full_resource_flag = True
-
             else:
                 formatted_result = target_result
+
             if cardinality == 'series':
                 body = {
                     'answer': {'type': question['type'] },
                     'cqlResults': formatted_result
                 }
-            elif cardinality =='single':
+            else:
                 single_answer = formatted_result
                 value_key = 'valueString'
                 if full_resource_flag:
@@ -235,6 +236,4 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
                     'cqlResults': formatted_result
                 }
             linked_results[linkId] = body
-
-    print(linked_results)
     return linked_results

@@ -57,7 +57,7 @@ bundle_template = {
 }
 
 def convertToQuestionnaire(questions: QuestionsJSON):
-    
+
     data = {
         "meta": {
             "profile": ["http://sample.com/StructureDefinition/smartchart-form"]
@@ -90,16 +90,16 @@ def convertToQuestionnaire(questions: QuestionsJSON):
     for question in questions['questions']:
 
         groupNumber = questions['groups'].index(question['group'])
-        
+
         if question['question_type']=='TEXT': question_type = 'string'
         elif question['question_type']=='RADIO': question_type = 'choice'
         elif question['question_type']=='DESCRIPTION': question_type = 'display'
-        
+
         if question['answers'] != []:
             answer_data = []
             for answer in question['answers']:
                 answer_data.append({'valueString': answer['text']})
-        
+
         if question['answers'] != []:
             question_data = {
                 'linkId': question['question_number'],
@@ -136,7 +136,7 @@ def convertToQuestionnaire(questions: QuestionsJSON):
         except KeyError:
             quest.item[groupNumber]['item'] = []
             quest.item[groupNumber]['item'].append(question_data)
-    
+
     return quest.dict()
 
 def bundle_forms(forms: list):
@@ -155,20 +155,15 @@ def run_cql(cql_posts: list):
     futures = []
     for i, cql_post in enumerate(cql_posts):
         futures.append(session.post(url, json=cql_post, headers=headers))
-        print(f'Started running job {i}')
+        print(f'Started running job')
     return futures
 
 def get_cql_results(futures: list, libraries: list, patientId: str):
     results = []
-    print('Starting to get future results')
+    print('Starting to get results')
     for i, future in enumerate(futures):
         result = future.result().json()
-        print(f'Got result {i}')
-        print(result)
+        print(f'Got result for library {libraries[i]}')
         full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
         results.append(full_result)
     return results
-
-
-def evaluateCQL(post_body: dict):
-    return ''

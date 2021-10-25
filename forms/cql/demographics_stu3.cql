@@ -13,6 +13,14 @@ codesystem "ICD10": '2.16.840.1.113883.6.3'
 
 context Patient
 
+define "patient_resource" : [Patient]
 define "omb_race_complete_string": 'White, American Indian or Alaska Native, Asian, Shoshone, Filipino'
 define "omb_race_summary": 'Mixed'
-define "hispanic_or_latino_choice": 'Unknown'
+define "hispanic_or_latino_choice":
+    "patient_resource" P
+        return
+            case
+                when p.extension then (no ethnicity then 'Unknwon')
+                when (condition) then (if code 2135-2 present then 'Yes')
+                else 'No'
+
