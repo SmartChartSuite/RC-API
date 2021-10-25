@@ -32,8 +32,8 @@ def root():
 
 @formsrouter.get("/forms", response_model=Union[list, dict])
 def get_list_of_forms():
+
     # Pull list of forms from the database
-    # time.sleep(10)
     form_list = []
     all_forms = formsdb.forms.find()
 
@@ -44,6 +44,8 @@ def get_list_of_forms():
 
 @formsrouter.get("/forms/cql")
 def get_cql_libraries():
+
+    # Pulls list of CQL libraries from the database
     form_list = []
     all_forms = formsdb.cql.find()
     for document in all_forms:
@@ -54,9 +56,13 @@ def get_cql_libraries():
 
 @formsrouter.get("/forms/cql/{libraryName}")
 def get_cql(libraryName: str):
+
+    # Return CQL library
     cql_library = formsdb.cql.find_one({"name": libraryName})
     if cql_library is None:
         raise HTTPException(status_code=404, detail='CQL Library not found')
+
+    # Decode CQL from base64 Library encoding in DB
     base64_cql = cql_library['content'][0]['data']
     cql_bytes = base64.b64decode(base64_cql)
     decoded_cql = cql_bytes.decode('ascii')
@@ -64,6 +70,8 @@ def get_cql(libraryName: str):
 
 @formsrouter.get("/forms/{form_id}", response_model=Union[dict, str])
 def get_form(form_id: str):
+
+    # Return Questionnaire from the DB based on a form_id
     result_form = formsdb.forms.find_one({'id': form_id})
     if result_form is None:
         raise HTTPException(404, 'Form with that ID not found in the database')
@@ -73,7 +81,11 @@ def get_form(form_id: str):
 
 @formsrouter.post("/forms")
 def create_form(questions: Questionnaire):
+
+    # Create Questionnaire in the DB
     duplicate = formsdb.forms.find_one({"id": questions.id})
+
+    # Determines if theres a duplicate form or not, if there is, returns the first statement, if not, creates the form in the db
     if duplicate is not None:
         return f"This Questionnaire already exists in the database. To update, use PUT at /forms/{questions.id}. If you would like to create a new version of the form, change the id of the Questionnaire resource and try POSTing again."
     else:
@@ -84,18 +96,24 @@ def create_form(questions: Questionnaire):
 
 @formsrouter.post("/forms/start", response_model=Union[dict, str])
 def start_jobs(post_body: StartJobPostBody):
-    #get cql library names to be run
+
+    # Get CQL library names to be run
     libraries = post_body.evidenceBundles
-    #pull cql libraries from db
+
+    # Pull CQL libraries from db
     cql_posts = []
     for library in libraries:
         cql_library = formsdb.cql.find_one({'name': library})
         if cql_library is None:
             return f'Your evidence bundle {library} does not exist in the database. Please POST that to /forms/cql before trying to run the CQL.'
+
+        # Decodes and formats CQL from the base64 encoded data in the Library resource
         base64_cql = cql_library['content'][0]['data']
         cql_bytes = base64.b64decode(base64_cql)
         decoded_cql = cql_bytes.decode('utf-8')
         formatted_cql = str(decoded_cql.replace('"', '\"'))
+
+        # Creates post body for the CQL Execution Service
         full_post_body = {
             "code": formatted_cql,
             "dataServiceUri": os.environ["DATA_SERVICE_URL"],
@@ -109,22 +127,30 @@ def start_jobs(post_body: StartJobPostBody):
         cql_posts.append(full_post_body)
         print(f'Retrieved library named {library}')
 
-
+    # Pass list of post bodies to be POSTed to the CQL Execution Service, gets back a list of future objects that represent the pending status of the POSTs
     futures = run_cql(cql_posts)
     print('Created futures array')
+
+    # Passes list of futures to get the results from them, will wait until all are processed until returning results
     results = get_cql_results(futures, libraries, post_body.patientId)
-    print('Retrived all results from futures')
+    print(f'Retrieved all results from futures for jobs {str(libraries)}')
+
+    # Creates the linked evidence format needed for the UI to render evidence thats related to certain questions from a certain form
     linked_results = create_linked_results(results, post_body.formId, formsdb)
 
     return linked_results
 
 @formsrouter.post("/forms/nlpql")
 def save_nlpql(post_body: NLPQLDict):
+
+    # Saves NLPQL into the database in a simple format
+    # TODO: Convert to Library resource format for this to prepare for future
     result = formsdb.nlpql.insert_one(post_body.dict())
     return f'Saved NLPQL file named {post_body.name} in database'
 
 @formsrouter.post("/forms/cql")
 def save_cql(code: str = Body(...)):
+
     # Get name and version of cql library
     split_cql = code.split()
     name = split_cql[1]
@@ -161,30 +187,33 @@ def save_cql(code: str = Body(...)):
 
 @formsrouter.put("/forms/{form_id}")
 def update_form(form_id: str, new_questions: Questionnaire):
+    # Replace form based on form_id
     result = formsdb.forms.replace_one({"id": form_id}, new_questions.dict())
-    print(result)
+
+    # If it didnt actually do anything, returns a string saying there wasn't one found to update, if it does, returns that it was successful
     if result.modified_count != 0:
         return "You have updated a Questionnaire with an id of {}".format(form_id)
     else:
         return "There was no Questionnaire found with that id. Please first POST this Questionnaire to the database."
 
 def create_linked_results(results: list, form_id: str, db: pymongo.database.Database):
-    # {
-    # 1: {
-    #    answer: {type: choice},
-    #    cqlResults: []
-    #    },
-    # 2: {},
-    # 3: {}
-    # }
+
+    # Get form from DB, raise 404 Not Found if form_id doesnt exist in DB
     form = db.forms.find_one({'id': form_id})
     if form is None:
         raise HTTPException(404, 'Form needed to create evidence links not found')
 
     linked_results = {}
+
+    # For each group of questions in the form
     for group in form['item']:
+
+        # For each question in the group in the form
         for question in group['item']:
+
             linkId = question['linkId']
+
+            # If the question has these extensions, get their values, if not, keep going
             try:
                 for extension in question['extension']:
                     if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cqlTask':
@@ -195,35 +224,43 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
             except KeyError:
                 pass
 
+            # If this question has a task in a library whose results were passed to this function, get the results from that library run
             target_library = None
             for library_result in results:
                 if library_result['libraryName'] == library:
                     target_library = library_result
-                    print('found target library line 202')
                     break
+            # if library was not found, just skip rest of loop to move on because its not needed
             if target_library is None:
                 continue
 
+            # Find the result in the CQL library run that corresponds to what the question has defined in its cqlTask extension
             target_result = None
             for result in target_library['results']:
                 if result['name'] == task:
                     target_result = result['result']
                     break
+            # If task isnt in the defined library, raise 404 Not Found
             if target_result is None:
                 raise HTTPException(404, f'CQL result {task} not found in library {library}')
+
+            # Flag if we need to format the response as a real resource, or if its a single string (relates to cardinality extension)
             full_resource_flag = False
 
             if target_result[0] in ['[', '{']:
+                # Format results as lists and objects and flags as a full resource
                 formatted_result = ast.literal_eval(target_result)
                 full_resource_flag = True
             else:
                 formatted_result = target_result
 
+            # If cardinality is a series, does the standard return body format
             if cardinality == 'series':
                 body = {
                     'answer': {'type': question['type'] },
                     'cqlResults': formatted_result
                 }
+            # If cardinality is a single, does a modified return body to have the value in multiple places
             else:
                 single_answer = formatted_result
                 value_key = 'valueString'

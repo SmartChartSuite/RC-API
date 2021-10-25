@@ -149,21 +149,26 @@ def bundle_forms(forms: list):
     return bundle
 
 def run_cql(cql_posts: list):
+
+    # Create an asynchrounous HTTP Request session to do multiple requests at the same time
     session = FuturesSession()
     url = 'https://apps.hdap.gatech.edu/cql/evaluate'
     headers = {'Content-Type': 'application/json'}
     futures = []
     for i, cql_post in enumerate(cql_posts):
+        # Get future object that represents the response when its finished but isnt a blocker
         futures.append(session.post(url, json=cql_post, headers=headers))
         print(f'Started running job')
     return futures
 
 def get_cql_results(futures: list, libraries: list, patientId: str):
     results = []
-    print('Starting to get results')
     for i, future in enumerate(futures):
+        # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
         result = future.result().json()
         print(f'Got result for library {libraries[i]}')
+
+        # Formats result into format for further processing and linking
         full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
         results.append(full_result)
     return results
