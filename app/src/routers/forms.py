@@ -196,6 +196,7 @@ def update_form(form_id: str, new_questions: Questionnaire):
     else:
         return "There was no Questionnaire found with that id. Please first POST this Questionnaire to the database."
 
+
 def create_linked_results(results: list, form_id: str, db: pymongo.database.Database):
 
     # Get form from DB, raise 404 Not Found if form_id doesnt exist in DB
