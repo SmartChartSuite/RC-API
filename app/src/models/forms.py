@@ -6,7 +6,30 @@ from fhir.resources.library import Library
 from bson import ObjectId
 from requests_futures.sessions import FuturesSession
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 
+class CustomFormatter(logging.Formatter):
+
+    grey = "\x1b[38;21m"
+    green = "\x1b[32m"
+    yellow = "\x1b[33m"
+    red = "\x1b[31;21m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    format = '%(asctime)s %(levelname)s - %(message)s'
+
+    FORMATS = {
+        logging.DEBUG: grey + format + reset,
+        logging.INFO: green + format + reset,
+        logging.WARNING: yellow + format + reset,
+        logging.ERROR: red + format + reset,
+        logging.CRITICAL: bold_red + format + reset
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt, '%m/%d/%Y %I:%M:%S %p')
+        return formatter.format(record)
 
 class Answer(BaseModel):
     text: str
@@ -158,7 +181,6 @@ def run_cql(cql_posts: list):
     for i, cql_post in enumerate(cql_posts):
         # Get future object that represents the response when its finished but isnt a blocker
         futures.append(session.post(url, json=cql_post, headers=headers))
-        print(f'Started running job')
     return futures
 
 def get_cql_results(futures: list, libraries: list, patientId: str):
@@ -166,7 +188,6 @@ def get_cql_results(futures: list, libraries: list, patientId: str):
     for i, future in enumerate(futures):
         # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
         result = future.result().json()
-        print(f'Got result for library {libraries[i]}')
 
         # Formats result into format for further processing and linking
         full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}

@@ -5,12 +5,14 @@ from fastapi import (
 )
 
 from ..models.forms import (
-    StartJobPostBody, NLPQLDict, bundle_forms, run_cql, get_cql_results
+    CustomFormatter, StartJobPostBody, NLPQLDict, bundle_forms, run_cql, get_cql_results
 )
 
 from typing import Union
 from fhir.resources.questionnaire import Questionnaire
 from fhir.resources.library import Library
+from fhir.resources.parameters import Parameters
+from fhir.resources.operationoutcome import OperationOutcome
 from bson import ObjectId
 from requests_futures.sessions import FuturesSession
 
@@ -20,19 +22,34 @@ import os
 import base64
 import pymongo
 import ast
+import logging
 
 import time
+
+# Formats logging message to include the level of log message
+#logging.basicConfig(format='%(asctime)s %(levelname)s - %(message)s', level=logging.DEBUG, datefmt='%m/%d/%Y %I:%M:%S %p')
+
+# Create logger
+logger = logging.getLogger("SPUD Forms API")
+logger.setLevel(logging.DEBUG)
+
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(CustomFormatter())
+logger.addHandler(ch)
 
 formsrouter = APIRouter()
 
 
 @formsrouter.get("/")
 def root():
+    logger.info('Retrieved root of API')
+    logger.warning('Test warning')
     return "Please use one of the endpoints, this is just the root of the api"
 
 @formsrouter.get("/forms", response_model=Union[list, dict])
 def get_list_of_forms():
-
     # Pull list of forms from the database
     form_list = []
     all_forms = formsdb.forms.find()
@@ -95,48 +112,77 @@ def create_form(questions: Questionnaire):
     else: return 'Something went wrong!'
 
 @formsrouter.post("/forms/start", response_model=Union[dict, str])
-def start_jobs(post_body: StartJobPostBody):
+def start_jobs(post_body: Parameters):
 
-    # Get CQL library names to be run
-    libraries = post_body.evidenceBundles
+    # Make list of parameters
+    body_json = post_body.dict()
+    parameters = body_json['parameter']
+    parameter_names = [x['name'] for x in parameters]
+    logger.info(f'Recieved parameters {parameter_names}')
+
+    try:
+        patient_id = parameters[parameter_names.index('patientId')]['valueString']
+    except ValueError:
+        logger.error('patientID was not found in the parameters posted')
+        # TODO: Turn this return into an OperationOutcome
+        raise HTTPException(404, 'patientID was not found in the parameters posted')
+
+    try:
+        library = parameters[parameter_names.index('job')]['valueString']
+    except ValueError:
+        logger.error('job was not found in the parameters posted')
+        # TODO: Turn this return into an OperationOutcome
+        raise HTTPException(404, 'job was not found in the parameters posted')
+
+    try:
+        form_id = parameters[parameter_names.index('jobPackage')]['valueString']
+    except ValueError:
+        logger.error('jobPackage was not found in the parameters posted')
+        # TODO: Turn this return into an OperationOutcome
+        raise HTTPException(404, 'jobPackage was not found in the parameters posted')
 
     # Pull CQL libraries from db
-    cql_posts = []
-    for library in libraries:
-        cql_library = formsdb.cql.find_one({'name': library})
-        if cql_library is None:
-            return f'Your evidence bundle {library} does not exist in the database. Please POST that to /forms/cql before trying to run the CQL.'
+    cql_library = formsdb.cql.find_one({'name': library})
+    if cql_library is None:
+        logger.error(f'The library {library} does not exist in the database.')
+        # TODO: Turn this return into an OperationOutcome
+        return f'Your evidence bundle {library} does not exist in the database. Please POST that to /forms/cql before trying to run the CQL.'
+    logger.info('Found CQL Library in the database')
 
-        # Decodes and formats CQL from the base64 encoded data in the Library resource
-        base64_cql = cql_library['content'][0]['data']
-        cql_bytes = base64.b64decode(base64_cql)
-        decoded_cql = cql_bytes.decode('utf-8')
-        formatted_cql = str(decoded_cql.replace('"', '\"'))
+    # Decodes and formats CQL from the base64 encoded data in the Library resource
+    base64_cql = cql_library['content'][0]['data']
+    cql_bytes = base64.b64decode(base64_cql)
+    decoded_cql = cql_bytes.decode('utf-8')
+    formatted_cql = str(decoded_cql.replace('"', '\"'))
 
-        # Creates post body for the CQL Execution Service
-        full_post_body = {
-            "code": formatted_cql,
-            "dataServiceUri": os.environ["DATA_SERVICE_URL"],
-            "dataUser":"client",
-            "dataPass":"secret",
-            "patientId": post_body.patientId,
-            "terminologyServiceUri": os.environ["TERMOLOGY_SERVICE_URL"],
-            "terminologyUser": os.environ["TERMOLOGY_USER"],
-            "terminologyPass": os.environ["TERMOLOGY_PASS"]
-        }
-        cql_posts.append(full_post_body)
-        print(f'Retrieved library named {library}')
+    # Creates post body for the CQL Execution Service
+    full_post_body = {
+        "code": formatted_cql,
+        "dataServiceUri": os.environ["DATA_SERVICE_URL"],
+        "dataUser":"client",
+        "dataPass":"secret",
+        "patientId": patient_id,
+        "terminologyServiceUri": os.environ["TERMOLOGY_SERVICE_URL"],
+        "terminologyUser": os.environ["TERMOLOGY_USER"],
+        "terminologyPass": os.environ["TERMOLOGY_PASS"]
+    }
+    post_bodies = [full_post_body]
+    logger.info('Created post body')
 
     # Pass list of post bodies to be POSTed to the CQL Execution Service, gets back a list of future objects that represent the pending status of the POSTs
-    futures = run_cql(cql_posts)
-    print('Created futures array')
+    logger.info('Start submitting jobs')
+    futures = run_cql(post_bodies)
+    logger.info('Submitted all jobs')
 
     # Passes list of futures to get the results from them, will wait until all are processed until returning results
-    results = get_cql_results(futures, libraries, post_body.patientId)
-    print(f'Retrieved all results from futures for jobs {str(libraries)}')
+    logger.info('Start getting job results')
+    results = get_cql_results(futures, [library], patient_id)
+    logger.info(f'Retrived results for job {library}')
 
     # Creates the linked evidence format needed for the UI to render evidence thats related to certain questions from a certain form
-    linked_results = create_linked_results(results, post_body.formId, formsdb)
+    logger.info('Start linking results')
+    linked_results = create_linked_results(results, form_id, formsdb)
+    logger.info('Finished linking results')
 
     return linked_results
 
@@ -198,6 +244,7 @@ def update_form(form_id: str, new_questions: Questionnaire):
 
 
 def create_linked_results(results: list, form_id: str, db: pymongo.database.Database):
+
 
     # Get form from DB, raise 404 Not Found if form_id doesnt exist in DB
     form = db.forms.find_one({'id': form_id})
@@ -275,3 +322,4 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
                 }
             linked_results[linkId] = body
     return linked_results
+
