@@ -1,5 +1,6 @@
 from datetime import datetime
 from fastapi.exceptions import HTTPException
+from fhir.resources.operationoutcome import OperationOutcome
 from pydantic import BaseModel
 from typing import Dict, Optional, List, Union
 from fhir.resources.questionnaire import Questionnaire
@@ -81,6 +82,20 @@ bundle_template = {
     "type": "collection",
     "entry": []
 }
+
+
+
+def make_operation_outcome(code: str, diagnostics: str, severity = 'error'):
+    oo_template = {
+        'issue': [
+            {
+                'severity': severity,
+                'code': code,
+                'diagnostics': diagnostics,
+            }
+        ]
+    }
+    return OperationOutcome(**oo_template).dict()
 
 def convertToQuestionnaire(questions: QuestionsJSON):
 

@@ -1,6 +1,4 @@
-
-// Phenotype library name
-phenotype " - maternal demographics" version "1";
+phenotype "maternal_demographics" version "1";
 
 // # Referenced libraries #
 include ClarityCore version "1.0" called Clarity;
@@ -26,7 +24,7 @@ define final mg_co:
     Clarity.CQLExecutionTask({
         "task_index": 0,
         cql: """
-                
+
         library Retrieve2 version '1.0'
 
         using FHIR version '3.0.0'
@@ -39,20 +37,20 @@ define final mg_co:
         codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
         codesystem "ICD9": '2.16.840.1.113883.6.42'
         codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
         codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
-        
-        
+
+
 
         context Patient
 
-  
 
 
 
 
-       define "mg_co": 
+
+       define "mg_co":
             [Patient]
 
 
@@ -66,7 +64,7 @@ define final mg_race_wh:
     Clarity.CQLExecutionTask({
         "task_index": 0,
         cql: """
-                
+
         library Retrieve2 version '1.0'
 
         using FHIR version '3.0.0'
@@ -79,20 +77,20 @@ define final mg_race_wh:
         codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
         codesystem "ICD9": '2.16.840.1.113883.6.42'
         codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
         codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
-        
-        
+
+
 
         context Patient
 
-  
 
 
 
 
-       define "mg_race_wh": 
+
+       define "mg_race_wh":
             	 [Patient]
 
 
@@ -106,7 +104,7 @@ define final mg_race_oth:
     Clarity.CQLExecutionTask({
         "task_index": 0,
         cql: """
-                
+
         library Retrieve2 version '1.0'
 
         using FHIR version '3.0.0'
@@ -119,20 +117,20 @@ define final mg_race_oth:
         codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
         codesystem "ICD9": '2.16.840.1.113883.6.42'
         codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
         codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
-        
-        
+
+
 
         context Patient
 
-  
 
 
 
 
-       define "mg_race_oth": 
+
+       define "mg_race_oth":
             	 [Patient]
 
 
@@ -146,7 +144,7 @@ define final mg_ethn:
     Clarity.ProviderAssertion({
       termset: [mg_ethn_terms]
     });
-                    
+
 
 
 
@@ -154,7 +152,7 @@ define final mg_zip:
     Clarity.CQLExecutionTask({
         "task_index": 0,
         cql: """
-                
+
         library Retrieve2 version '1.0'
 
         using FHIR version '3.0.0'
@@ -167,20 +165,20 @@ define final mg_zip:
         codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
         codesystem "ICD9": '2.16.840.1.113883.6.42'
         codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
         codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
-        
-        
+
+
 
         context Patient
 
-  
 
 
 
 
-       define "mg_zip": 
+
+       define "mg_zip":
             [Patient]
 
 
@@ -194,7 +192,7 @@ define final mg_race_baa:
     Clarity.CQLExecutionTask({
         "task_index": 0,
         cql: """
-                
+
         library Retrieve2 version '1.0'
 
         using FHIR version '3.0.0'
@@ -207,20 +205,20 @@ define final mg_race_baa:
         codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
         codesystem "ICD9": '2.16.840.1.113883.6.42'
         codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
         codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
-        
-        
+
+
 
         context Patient
 
-  
 
 
 
 
-       define "mg_race_baa": 
+
+       define "mg_race_baa":
             	 [Patient]
 
 
@@ -234,7 +232,7 @@ define final mg_race_asian:
     Clarity.CQLExecutionTask({
         "task_index": 0,
         cql: """
-                
+
         library Retrieve2 version '1.0'
 
         using FHIR version '3.0.0'
@@ -247,20 +245,20 @@ define final mg_race_asian:
         codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
         codesystem "ICD9": '2.16.840.1.113883.6.42'
         codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
         codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
-        
-        
+
+
 
         context Patient
 
-  
 
 
 
 
-       define "mg_race_asian": 
+
+       define "mg_race_asian":
             	 [Patient]
 
 
@@ -274,7 +272,7 @@ define final mg_race_nhopi:
     Clarity.CQLExecutionTask({
         "task_index": 0,
         cql: """
-                
+
         library Retrieve2 version '1.0'
 
         using FHIR version '3.0.0'
@@ -287,20 +285,20 @@ define final mg_race_nhopi:
         codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
         codesystem "ICD9": '2.16.840.1.113883.6.42'
         codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
         codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
-        
-        
+
+
 
         context Patient
 
-  
 
 
 
 
-       define "mg_race_nhopi": 
+
+       define "mg_race_nhopi":
             	 [Patient]
 
 
@@ -314,7 +312,7 @@ define final mg_race_aian:
     Clarity.CQLExecutionTask({
         "task_index": 0,
         cql: """
-                
+
         library Retrieve2 version '1.0'
 
         using FHIR version '3.0.0'
@@ -327,20 +325,20 @@ define final mg_race_aian:
         codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
         codesystem "ICD9": '2.16.840.1.113883.6.42'
         codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
         codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
-        
-        
+
+
 
         context Patient
 
-  
 
 
 
 
-       define "mg_race_aian": 
+
+       define "mg_race_aian":
             	 [Patient]
 
 
@@ -354,7 +352,7 @@ define final mg_edu:
     Clarity.ProviderAssertion({
       termset: [mg_edu_terms]
     });
-                    
+
 
 
 // Operations

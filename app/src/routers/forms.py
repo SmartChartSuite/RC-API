@@ -9,7 +9,7 @@ from fhir.resources import resource
 from requests.api import request
 
 from ..models.forms import (
-    CustomFormatter, StartJobPostBody, NLPQLDict, bundle_forms, run_cql, get_cql_results
+    CustomFormatter, StartJobPostBody, NLPQLDict, make_operation_outcome, bundle_forms, run_cql, get_cql_results
 )
 
 from typing import Union
@@ -52,7 +52,7 @@ formsrouter = APIRouter()
 @formsrouter.get("/")
 def root():
     logger.info('Retrieved root of API')
-    return "Please use one of the endpoints, this is just the root of the api"
+    return make_operation_outcome('processing', 'This is the base URL of API. Unable to handle this request as it is the root.')
 
 @formsrouter.get("/forms", response_model=dict)
 def get_list_of_forms():
@@ -62,9 +62,9 @@ def get_list_of_forms():
     if r.status_code == 200:
         return r.json()
     else:
-        logger.error('Getting Questionnaires from server failed')
+        logger.error(f'Getting Questionnaires from server failed with code {r.status_code}')
         logger.error(r.json())
-        return {}
+        return make_operation_outcome('transient', f'Getting Questionnaires from server failed with code {r.status_code}, see API logs for more detail')
 
 @formsrouter.get("/forms/cql")
 def get_cql_libraries():
@@ -76,7 +76,7 @@ def get_cql_libraries():
     else:
         logger.error(f'Getting Libraries from server failed with status code {r.status_code}')
         logger.error(r.json())
-        return {}
+        return make_operation_outcome('transient', f'Getting Libraries from server failed with code {r.status_code}, see API logs for more detail')
 
 @formsrouter.get("/forms/cql/{library_name}")
 def get_cql(library_name: str):
@@ -86,7 +86,7 @@ def get_cql(library_name: str):
     if r.status_code != 200:
         logger.error(f'Getting library from server failed with status code {r.status_code}')
         logger.error(r.json())
-        return {}
+        return make_operation_outcome('transient', f'Getting Library from server failed with code {r.status_code}, see API logs for more detail')
 
     search_bundle = r.json()
     try:
@@ -94,7 +94,7 @@ def get_cql(library_name: str):
         logger.info(f'Found CQL Library with name {library_name}')
     except KeyError:
         logger.error('CQL Library with that name not found')
-        return {}
+        return make_operation_outcome('not-found', f'CQL Library named {library_name} not found on the FHIR server.')
 
     # Decode CQL from base64 Library encoding
     base64_cql = cql_library['content'][0]['data']
@@ -110,7 +110,7 @@ def get_form(form_name: str):
     if r.status_code != 200:
         logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
         logger.error(r.json())
-        return {}
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {r.status_code}, see API logs for more detail')
 
     search_bundle = r.json()
     try:
@@ -119,7 +119,7 @@ def get_form(form_name: str):
         return questionnaire
     except KeyError:
         logger.error('Questionnaire with that name not found')
-        return {}
+        return make_operation_outcome('not-found', f'Getting Questionnaire named {form_name} not found on the FHIR server.')
 
 @formsrouter.post("/forms")
 def save_form(questions: Questionnaire):
@@ -129,7 +129,7 @@ def save_form(questions: Questionnaire):
     if r.status_code != 200:
         logger.error(f'Trying to get Questionnaire from server failed with status code {r.status_code}')
         logger.error(r.json())
-        return {}
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {r.status_code}, see API logs for more detail')
 
     search_bundle = r.json()
     try:
@@ -137,20 +137,19 @@ def save_form(questions: Questionnaire):
         logger.info(f'Found Questionnaire with name {questions.name} and version {questions.version}')
         logger.info('Not completing POST operation because a Questionnaire with that name and version already exist on this FHIR Server')
         logger.info('Change Questionnaire name or version number or use PUT to update this version')
-        # TODO turn this into an OperationOutcome
-        return f'There is already a Questionnaire with that name and version with id {questionnaire_current_id}'
+        return make_operation_outcome('duplicate', f'There is already a Questionnaire with this name with resource id {questionnaire_current_id}')
     except KeyError:
-        logger.error('Questionnaire with that name not found')
+        logger.info('Questionnaire with that name not found, continuing POST operation')
 
     # Create Questionnaire in CQF Ruler
     r = requests.post(cqfr4_fhir+'Questionnaire', json=questions.dict())
     if r.status_code != 201:
         logger.error(f'Posting Questionnaire to server failed with status code {r.status_code}')
         logger.error(r.json())
-        return {}
+        return make_operation_outcome('transient', f'Posting Questionnaire to server failed with code {r.status_code}, see API logs for more detail')
 
     resource_id = r.json()['id']
-    return f'Questionnaire successfully posted with id {resource_id}'
+    return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
 
 @formsrouter.post("/forms/start", response_model=Union[dict, str])
 def start_jobs(post_body: Parameters):
@@ -165,29 +164,26 @@ def start_jobs(post_body: Parameters):
         patient_id = parameters[parameter_names.index('patientId')]['valueString']
     except ValueError:
         logger.error('patientID was not found in the parameters posted')
-        # TODO: Turn this return into an OperationOutcome
-        raise HTTPException(404, 'patientID was not found in the parameters posted')
+        return make_operation_outcome('required', 'patientID was not found in the parameters posted')
 
     try:
         library = parameters[parameter_names.index('job')]['valueString']
     except ValueError:
         logger.error('job was not found in the parameters posted')
-        # TODO: Turn this return into an OperationOutcome
-        raise HTTPException(404, 'job was not found in the parameters posted')
+        return make_operation_outcome('required', 'job was not found in the parameters posted')
 
     try:
         form_name = parameters[parameter_names.index('jobPackage')]['valueString']
     except ValueError:
         logger.error('jobPackage was not found in the parameters posted')
-        # TODO: Turn this return into an OperationOutcome
-        raise HTTPException(404, 'jobPackage was not found in the parameters posted')
+        return make_operation_outcome('required', 'jobPackage was not found in the parameters posted')
 
     # Pull CQL library resource ID from CQF Ruler
     r = requests.get(cqfr4_fhir+f'Library?name={library}')
     if r.status_code != 200:
         logger.error(f'Getting library from server failed with status code {r.status_code}')
         logger.error(r.json())
-        return {}
+        return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
 
     search_bundle = r.json()
     try:
@@ -195,14 +191,14 @@ def start_jobs(post_body: Parameters):
         logger.info(f'Found CQL Library with name {library} and server id {library_server_id}')
     except KeyError:
         logger.error('CQL Library with that name not found')
-        return {}
+        return make_operation_outcome('not-found','CQL Library with that name not found')
 
     # Pull Questionnaire resource ID from CQF Ruler
     r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
     if r.status_code != 200:
         logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
         logger.error(r.json())
-        return {}
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {r.status_code}')
 
     search_bundle = r.json()
     try:
@@ -210,7 +206,7 @@ def start_jobs(post_body: Parameters):
         logger.info(f'Found Questionnaire with name {form_name} and server id {form_server_id}')
     except KeyError:
         logger.error('Questionnaire with that name not found')
-        return {}
+        return make_operation_outcome('not-found','Questionnaire with that name not found')
 
     # Create parameters post body for library evaluation
     parameters_post = {
@@ -263,7 +259,8 @@ def start_jobs(post_body: Parameters):
 
     # Upstream request timeout handling
     if type(result)==str:
-        return result
+        return make_operation_outcome('timeout',result)
+
 
     # Creates the linked evidence format needed for the UI to render evidence thats related to certain questions from a certain form
     logger.info('Start linking results')
@@ -275,10 +272,9 @@ def start_jobs(post_body: Parameters):
 @formsrouter.post("/forms/nlpql")
 def save_nlpql(code: str = Body(...)):
     # Get name and version of NLPQL Library
-    # FIXME split names correctly for name and version of nlpql library
     split_cql = code.split()
-    name = split_cql[1]
-    version = split_cql[3].strip("'")
+    name = split_cql[1].strip('"')
+    version = split_cql[3].strip('"')
 
     # Encode NLPQL as base64Binary
     code_bytes = code.encode('utf-8')
@@ -308,10 +304,10 @@ def save_nlpql(code: str = Body(...)):
     if r.status_code != 201:
         logger.error(f'Posting Library {name} to server failed with status code {r.status_code}')
         logger.error(r.json())
-        return {}
+        return make_operation_outcome('transient', f'Posting Library to server failed with code {r.status_code}, see API logs for more detail')
 
     resource_id = r.json()['id']
-    raise HTTPException(201, f'Library resource {name} created with server id {resource_id}')
+    return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
 
 @formsrouter.post("/forms/cql")
 def save_cql(code: str = Body(...)):
@@ -333,10 +329,9 @@ def save_cql(code: str = Body(...)):
         logger.info(f'Found CQL Library with name {name} and version {version}')
         logger.info('Not completing POST operation because a CQL Library with that name and version already exist on this FHIR Server')
         logger.info('Change library name or version number or use PUT to update this version')
-        # TODO turn this into an OperationOutcome
-        return 'There is already a Library with that name and version'
+        return make_operation_outcome('duplicate', 'There is already a library with that name and version')
     except KeyError:
-        logger.error('CQL Library with that name not found')
+        logger.info('CQL Library with that name not found, continuing POST operation')
 
     # Encode CQL as base64Binary
     code_bytes = code.encode('utf-8')
@@ -369,7 +364,7 @@ def save_cql(code: str = Body(...)):
         return {}
 
     resource_id = r.json()['id']
-    return f'Library resource {name} created with server id {resource_id}'
+    return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
 
 @formsrouter.put("/forms/{form_name}")
 def update_form(form_name: str, new_questions: Questionnaire):
