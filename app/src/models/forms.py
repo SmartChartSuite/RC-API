@@ -1,11 +1,14 @@
 from datetime import datetime
+from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from typing import Dict, Optional, List, Union
 from fhir.resources.questionnaire import Questionnaire
 from fhir.resources.library import Library
 from bson import ObjectId
+from requests.exceptions import HTTPError
 from requests_futures.sessions import FuturesSession
 from fastapi.middleware.cors import CORSMiddleware
+from ..util.settings import cqfr4_fhir
 import logging
 
 class CustomFormatter(logging.Formatter):
@@ -13,7 +16,7 @@ class CustomFormatter(logging.Formatter):
     grey = "\x1b[38;21m"
     green = "\x1b[32m"
     yellow = "\x1b[33m"
-    red = "\x1b[31;21m"
+    red = "\x1b[31m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
     format = '%(asctime)s %(levelname)s - %(message)s'
@@ -171,25 +174,23 @@ def bundle_forms(forms: list):
     bundle["meta"]["lastUpdated"] = timestamp
     return bundle
 
-def run_cql(cql_posts: list):
+def run_cql(library_id: str, parameters_post: dict):
 
-    # Create an asynchrounous HTTP Request session to do multiple requests at the same time
+    # Create an asynchrounous HTTP Request session
     session = FuturesSession()
-    url = 'https://apps.hdap.gatech.edu/cql/evaluate'
-    headers = {'Content-Type': 'application/json'}
-    futures = []
-    for i, cql_post in enumerate(cql_posts):
-        # Get future object that represents the response when its finished but isnt a blocker
-        futures.append(session.post(url, json=cql_post, headers=headers))
-    return futures
+    url = cqfr4_fhir+f'Library/{library_id}/$evaluate'
+    future = session.post(url, json=parameters_post)
+    return future
 
-def get_cql_results(futures: list, libraries: list, patientId: str):
-    results = []
-    for i, future in enumerate(futures):
-        # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
-        result = future.result().json()
+def get_cql_results(future, library: str, patientId: str):
 
-        # Formats result into format for further processing and linking
-        full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
-        results.append(full_result)
-    return results
+    # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
+
+    pre_result = future.result()
+    if pre_result.status_code == 504:
+        return 'Upstream request timeout'
+    result = pre_result.json()
+
+    # Formats result into format for further processing and linking
+    full_result = {'libraryName': library, 'patientId': patientId, 'results': result}
+    return full_result
