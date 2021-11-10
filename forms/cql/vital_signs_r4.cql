@@ -20,7 +20,7 @@ define "respiratory_rate_concept": Concept {
 define "heart_rate_concept": Concept {
     Code '8867-4' from "LOINC"
 }
-define "o2_saturation_in_arterial_blood_concept": Concept {    
+define "o2_saturation_in_arterial_blood_concept": Concept {
     Code '2708-6' from "LOINC"
 }
 define "body_temp_concept": Concept {
@@ -59,17 +59,17 @@ define "inhaled_o2_flow_rate_concept": Concept {
 
 // Retrieve definitions
 
-define "respiratory_rate": [Observation: code in "respiratory_rate_concept"]
-define "heart_rate": [Observation: code in "heart_rate_concept"]
-define "o2_saturation_in_arterial_blood": [Observation: code in "o2_saturation_in_arterial_blood_concept"]
-define "body_temp": [Observation: code in "body_temp_concept"]
-define "body_height": [Observation: code in "body_height_concept"]
-define "bmi_percentile": [Observation: code in "bmi_percentile_concept"]
-define "body_weight": [Observation: code in "body_weight_concept"]
-define "bmi": [Observation: code in "bmi_concept"]
-define "o2_saturation": [Observation: code in "o2_saturation_concept"]
-define "systolic_blood_pressure": [Observation: code in "systolic_blood_pressure_concept"]
-define "diastolic_blood_pressure": [Observation: code in "diastolic_blood_pressure_concept"]
-define "mean_blood_pressure": [Observation: code in "mean_blood_pressure_concept"]
-define "inhaled_o2_concentration": [Observation: code in "inhaled_o2_concentration_concept"]
-define "inhaled_o2_flow_rate": [Observation: code in "inhaled_o2_flow_rate_concept"]
+define "respiratory_rate": [Observation: "respiratory_rate_concept"]
+define "heart_rate": [Observation: "heart_rate_concept"]
+define "o2_saturation_in_arterial_blood": [Observation: "o2_saturation_in_arterial_blood_concept"]
+define "body_temp": [Observation: "body_temp_concept"]
+define "body_height": [Observation: "body_height_concept"]
+define "bmi_percentile": [Observation: "bmi_percentile_concept"]
+define "body_weight": [Observation: "body_weight_concept"]
+define "bmi": [Observation: "bmi_concept"]
+define "o2_saturation": [Observation: "o2_saturation_concept"]
+define "systolic_blood_pressure": [Observation: "systolic_blood_pressure_concept"]
+define "diastolic_blood_pressure": [Observation: "diastolic_blood_pressure_concept"]
+define "mean_blood_pressure": [Observation: "mean_blood_pressure_concept"]
+define "inhaled_o2_concentration": [Observation: "inhaled_o2_concentration_concept"]
+define "inhaled_o2_flow_rate": [Observation: "inhaled_o2_flow_rate_concept"]

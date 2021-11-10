@@ -47,6 +47,6 @@ define "cbc_panel_concepts": Concept {
 
 define "vital_signs": [Observation: code in "vital_signs_concepts"]
 
-define "cbc_panel_obs": [Observation: code in "cbc_panel_concepts"]
+define "cbc_panel_obs": [Observation: "cbc_panel_concepts"]
 define "sample_single_resource_return": "cbc_panel_obs"[0]
 define "sample_single_string_return": 'Filipino, White, American Shoshone'

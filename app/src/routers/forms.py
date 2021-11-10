@@ -255,7 +255,7 @@ def start_jobs(post_body: Parameters):
     # Passes future to get the results from it, will wait until all are processed until returning results
     logger.info('Start getting job results')
     result = get_cql_results(future, library, patient_id)
-    logger.info(f'Retrived result for job {library}')
+    logger.info(f'Retrieved result for job {library}')
 
     # Upstream request timeout handling
     if type(result)==str:
@@ -520,39 +520,46 @@ def create_linked_results(result: dict, form_name: str):
                         }
                     ]
                 },
-                "focus": [],
+                'focus': []
             }
             answer_obs = Observation(**answer_obs)
 
             # Find the result in the CQL library run that corresponds to what the question has defined in its cqlTask extension
             target_result = None
+            single_return_value = None
             for entry in result['results']['entry']:
                 if entry['fullUrl'] == task:
                     value_return = [item for item in entry['resource']['parameter'] if item.get('name')=='value'][0]
                     supporting_resources = None
                     try:
-                        if value_return['resourceType']=='Bundle':
-                            supporting_resources = value_return['entry']
+                        if value_return['resource']['resourceType']=='Bundle':
+                            supporting_resources = value_return['resource']['entry']
                             single_resource_flag = False
                         else:
-                            resource_type = value_return['resourceType']
-                            supporting_resources = [value_return]
+                            resource_type = value_return['resource']['resourceType']
                             single_resource_flag = True
                     except KeyError:
                         single_return_type = [item for item in entry['resource']['parameter'] if item.get('name')=='resultType'][0]['valueString']
-                        single_return_value = value_return[f'value{single_return_type}']
-                    logger.info('Found task and supporting resources')
+                        single_return_value = value_return[f'valueString']
+                    logger.info(f'Found task {task} and supporting resources')
+            if single_return_value == '[]':
+                continue
             if supporting_resources is not None:
                 for resource in supporting_resources:
-                    focus_object = {'reference': resource['fullUrl']}
-                    answer_obs.focus.append(focus_object)
-
+                    try:
+                        focus_object = {'reference': resource['fullUrl']}
+                        answer_obs.focus.append(focus_object)
+                    except KeyError:
+                        pass
+            answer_obs = answer_obs.dict()
+            if answer_obs['focus'] == []:
+                del answer_obs['focus']
             # If cardinality is a series, does the standard return body format
             if cardinality == 'series':
                 # Construct final answer object bundle before result bundle insertion
                 answer_obs_bundle_item = {
                     'fullUrl' : 'Observation/'+answer_obs_uuid,
-                    'resource': answer_obs.dict()
+                    'resource': answer_obs
                 }
 
             # If cardinality is a single, does a modified return body to have the value in multiple places
@@ -561,14 +568,14 @@ def create_linked_results(result: dict, form_name: str):
                 value_key = 'value'+single_return_type
                 answer_obs_bundle_item = {
                     'fullUrl' : 'Observation/'+answer_obs_uuid,
-                    'resource': answer_obs.dict(),
-                    value_key: single_answer
+                    'resource': answer_obs,
+                    'valueString': single_answer
                 }
 
             #Add items to return bundle entry list
             bundle_entries.append(answer_obs_bundle_item)
             if supporting_resources is not None:
-                bundle_entries.append(supporting_resources)
+                bundle_entries.extend(supporting_resources)
 
     return_bundle_id = str(uuid.uuid4())
     return_bundle = {
@@ -576,5 +583,16 @@ def create_linked_results(result: dict, form_name: str):
         'id': return_bundle_id,
         'entry': bundle_entries
     }
+
+    delete_list = []
+    for i, entry in enumerate(return_bundle['entry']):
+        try:
+            if entry['valueString'] == None:
+                delete_list.append(i)
+        except KeyError:
+            pass
+
+    for index in sorted(delete_list, reverse=True):
+        del return_bundle['entry'][index]
 
     return return_bundle

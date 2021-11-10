@@ -204,6 +204,8 @@ def get_cql_results(future, library: str, patientId: str):
     pre_result = future.result()
     if pre_result.status_code == 504:
         return 'Upstream request timeout'
+    if pre_result.status_code == 408:
+        return 'stream timeout'
     result = pre_result.json()
 
     # Formats result into format for further processing and linking
