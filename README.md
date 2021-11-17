@@ -20,7 +20,7 @@ git clone https://github.gatech.edu/HDAP/spud-clientAPI.git
 Pull the `main` branch (this is the project main working/dev branch).
 
 Double-check that you're in the same folder as docker-compose.
-e```shell
+```shell
 cd spud-clientAPI/
 docker-compose build
 docker-compose up
