@@ -189,25 +189,30 @@ def bundle_forms(forms: list):
     bundle["meta"]["lastUpdated"] = timestamp
     return bundle
 
-def run_cql(library_id: str, parameters_post: dict):
+def run_cql(library_ids: list, parameters_post: dict):
 
     # Create an asynchrounous HTTP Request session
     session = FuturesSession()
-    url = cqfr4_fhir+f'Library/{library_id}/$evaluate'
-    future = session.post(url, json=parameters_post)
-    return future
+    futures = []
+    for library_id in library_ids:
+        url = cqfr4_fhir+f'Library/{library_id}/$evaluate'
+        future = session.post(url, json=parameters_post)
+        futures.append(future)
+    return futures
 
-def get_cql_results(future, library: str, patientId: str):
+def get_cql_results(futures: list, libraries: list, patientId: str):
 
+    results = []
     # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
+    for i, future in enumerate(futures):
+        pre_result = future.result()
+        if pre_result.status_code == 504:
+            return 'Upstream request timeout'
+        if pre_result.status_code == 408:
+            return 'stream timeout'
+        result = pre_result.json()
 
-    pre_result = future.result()
-    if pre_result.status_code == 504:
-        return 'Upstream request timeout'
-    if pre_result.status_code == 408:
-        return 'stream timeout'
-    result = pre_result.json()
-
-    # Formats result into format for further processing and linking
-    full_result = {'libraryName': library, 'patientId': patientId, 'results': result}
-    return full_result
+        # Formats result into format for further processing and linking
+        full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
+        results.append(full_result)
+    return results

@@ -163,35 +163,26 @@ def start_jobs(post_body: Parameters):
     try:
         patient_id = parameters[parameter_names.index('patientId')]['valueString']
     except ValueError:
-        logger.error('patientID was not found in the parameters posted')
-        return make_operation_outcome('required', 'patientID was not found in the parameters posted')
+        try:
+            logger.info('patientID was not found in the parameters posted, trying looking for patientIdentifier')
+            patient_identifier = parameters[parameter_names.index('patientIdentifier')]['valueString']
+        except ValueError:
+            logger.error('patientID or patientIdentifier was not found in parameters posted')
+            return make_operation_outcome('required', 'patientID or patientIdentifier was not found in the parameters posted')
 
+    run_all_jobs = False
     try:
         library = parameters[parameter_names.index('job')]['valueString']
+        libraries_to_run = [library]
     except ValueError:
-        logger.error('job was not found in the parameters posted')
-        return make_operation_outcome('required', 'job was not found in the parameters posted')
+        logger.info('job was not found in the parameters posted, will be running all jobs for the jobPackage given')
+        run_all_jobs = True
 
     try:
         form_name = parameters[parameter_names.index('jobPackage')]['valueString']
     except ValueError:
         logger.error('jobPackage was not found in the parameters posted')
         return make_operation_outcome('required', 'jobPackage was not found in the parameters posted')
-
-    # Pull CQL library resource ID from CQF Ruler
-    r = requests.get(cqfr4_fhir+f'Library?name={library}')
-    if r.status_code != 200:
-        logger.error(f'Getting library from server failed with status code {r.status_code}')
-        logger.error(r.json())
-        return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
-
-    search_bundle = r.json()
-    try:
-        library_server_id = search_bundle['entry'][0]['resource']['id']
-        logger.info(f'Found CQL Library with name {library} and server id {library_server_id}')
-    except KeyError:
-        logger.error('CQL Library with that name not found')
-        return make_operation_outcome('not-found','CQL Library with that name not found')
 
     # Pull Questionnaire resource ID from CQF Ruler
     r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
@@ -207,6 +198,47 @@ def start_jobs(post_body: Parameters):
     except KeyError:
         logger.error('Questionnaire with that name not found')
         return make_operation_outcome('not-found','Questionnaire with that name not found')
+
+    if run_all_jobs:
+        libraries_to_run = []
+        library_server_ids = []
+        libraries_to_run_extension = search_bundle['entry'][0]['resource']['extension'][0]['extension']
+        for extension in libraries_to_run_extension:
+            libraries_to_run.append(extension['valueString'])
+        logger.info(f'Going to run the following libraries for this jobPackage: {libraries_to_run}')
+
+        for library_name in libraries_to_run:
+            r = requests.get(cqfr4_fhir+f'Library?name={library_name}')
+            if r.status_code != 200:
+                logger.error(f'Getting library from server failed with status code {r.status_code}')
+                logger.error(r.json())
+                return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
+
+            search_bundle = r.json()
+            try:
+                library_server_id = search_bundle['entry'][0]['resource']['id']
+                library_server_ids.append(library_server_id)
+                logger.info(f'Found CQL Library with name {library_name} and server id {library_server_id}')
+            except KeyError:
+                logger.error('CQL Library with that name not found')
+                return make_operation_outcome('not-found','CQL Library with that name not found')
+
+    if not run_all_jobs:
+        # Pull CQL library resource ID from CQF Ruler
+        r = requests.get(cqfr4_fhir+f'Library?name={library}')
+        if r.status_code != 200:
+            logger.error(f'Getting library from server failed with status code {r.status_code}')
+            logger.error(r.json())
+            return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
+
+        search_bundle = r.json()
+        try:
+            library_server_id = search_bundle['entry'][0]['resource']['id']
+            library_server_ids = [library_server_id]
+            logger.info(f'Found CQL Library with name {library} and server id {library_server_id}')
+        except KeyError:
+            logger.error('CQL Library with that name not found')
+            return make_operation_outcome('not-found','CQL Library with that name not found')
 
     # Create parameters post body for library evaluation
     parameters_post = {
@@ -248,23 +280,23 @@ def start_jobs(post_body: Parameters):
     }
 
     # Pass library id to be evaluated, gets back a future object that represent the pending status of the POST
-    logger.info('Started submitting jobs')
-    future = run_cql(library_server_id, parameters_post)
+    logger.info('Start submitting jobs')
+    futures = run_cql(library_server_ids, parameters_post)
     logger.info('Submitted all jobs')
 
     # Passes future to get the results from it, will wait until all are processed until returning results
     logger.info('Start getting job results')
-    result = get_cql_results(future, library, patient_id)
-    logger.info(f'Retrieved result for job {library}')
+    results = get_cql_results(futures, libraries_to_run, patient_id)
+    logger.info(f'Retrieved result for jobs {libraries_to_run}')
 
     # Upstream request timeout handling
-    if type(result)==str:
-        return make_operation_outcome('timeout',result)
+    if type(results)==str:
+        return make_operation_outcome('timeout',results)
 
 
     # Creates the linked evidence format needed for the UI to render evidence thats related to certain questions from a certain form
     logger.info('Start linking results')
-    bundled_results = create_linked_results(result, form_name)
+    bundled_results = create_linked_results(results, form_name)
     logger.info('Finished linking results')
 
     return bundled_results
@@ -471,7 +503,7 @@ def update_nlpql(library_name: str, new_nlpql: str = Body(...)):
 
     raise HTTPException(200, f'Library resource updated with server id {resource_id}')
 
-def create_linked_results(result: dict, form_name: str):
+def create_linked_results(results: list, form_name: str):
 
     # Get form (using get_form from this API)
     form = get_form(form_name)
@@ -500,11 +532,12 @@ def create_linked_results(result: dict, form_name: str):
 
             # If this question has a task in a library whose results were passed to this function, get the results from that library run
             target_library = None
-            if result['libraryName'] == library:
-                target_library = result
-            # if library was not found, just skip rest of loop to move on because its not needed
-            if target_library is None:
-                continue
+            for result in results:
+                if result['libraryName'] == library:
+                    target_library = result
+                # if library was not found, just skip rest of loop to move on because its not needed
+                if target_library is None:
+                    continue
 
             # Create answer observation for this question
             answer_obs_uuid = str(uuid.uuid4())
@@ -527,33 +560,42 @@ def create_linked_results(result: dict, form_name: str):
             # Find the result in the CQL library run that corresponds to what the question has defined in its cqlTask extension
             target_result = None
             single_return_value = None
-            for entry in result['results']['entry']:
-                if entry['fullUrl'] == task:
-                    value_return = [item for item in entry['resource']['parameter'] if item.get('name')=='value'][0]
-                    supporting_resources = None
-                    try:
-                        if value_return['resource']['resourceType']=='Bundle':
-                            supporting_resources = value_return['resource']['entry']
-                            single_resource_flag = False
-                        else:
-                            resource_type = value_return['resource']['resourceType']
-                            single_resource_flag = True
-                    except KeyError:
-                        single_return_type = [item for item in entry['resource']['parameter'] if item.get('name')=='resultType'][0]['valueString']
-                        single_return_value = value_return[f'valueString']
-                    logger.info(f'Found task {task} and supporting resources')
-            if single_return_value == '[]':
+            supporting_resources = None
+            empty_single_return = False
+            for result in results:
+                for entry in result['results']['entry']:
+                    if entry['fullUrl'] == task:
+                        value_return = [item for item in entry['resource']['parameter'] if item.get('name')=='value'][0]
+                        try:
+                            if value_return['resource']['resourceType']=='Bundle':
+                                supporting_resources = value_return['resource']['entry']
+                                single_resource_flag = False
+                            else:
+                                resource_type = value_return['resource']['resourceType']
+                                single_resource_flag = True
+                        except KeyError:
+                            single_return_type = [item for item in entry['resource']['parameter'] if item.get('name')=='resultType'][0]['valueString']
+                            single_return_value = value_return[f'valueString']
+                        logger.info(f'Found task {task} and supporting resources')
+                if single_return_value == '[]':
+                    empty_single_return = True
+                    logger.info('Empty single return')
+                    continue
+                if supporting_resources is not None:
+                    for resource in supporting_resources:
+                        try:
+                            focus_object = {'reference': resource['fullUrl']}
+                            answer_obs.focus.append(focus_object)
+                        except KeyError:
+                            pass
+            if empty_single_return:
                 continue
-            if supporting_resources is not None:
-                for resource in supporting_resources:
-                    try:
-                        focus_object = {'reference': resource['fullUrl']}
-                        answer_obs.focus.append(focus_object)
-                    except KeyError:
-                        pass
+
             answer_obs = answer_obs.dict()
             if answer_obs['focus'] == []:
+                logger.info('Answer Observation does not have a focus, deleting field')
                 del answer_obs['focus']
+
             # If cardinality is a series, does the standard return body format
             if cardinality == 'series':
                 # Construct final answer object bundle before result bundle insertion
@@ -565,13 +607,24 @@ def create_linked_results(result: dict, form_name: str):
             # If cardinality is a single, does a modified return body to have the value in multiple places
             else:
                 single_answer = single_return_value
-                value_key = 'value'+single_return_type
+                logger.info(single_answer)
+                if single_answer == None:
+                    continue
+
+                #value_key = 'value'+single_return_type
+                answer_obs['valueString'] = single_answer
                 answer_obs_bundle_item = {
                     'fullUrl' : 'Observation/'+answer_obs_uuid,
-                    'resource': answer_obs,
-                    'valueString': single_answer
+                    'resource': answer_obs
                 }
 
+            try:
+                focus_test = answer_obs_bundle_item['resource']['focus']
+            except KeyError:
+                try:
+                    value_test = answer_obs_bundle_item['resource']['valueString']
+                except KeyError:
+                    continue
             #Add items to return bundle entry list
             bundle_entries.append(answer_obs_bundle_item)
             if supporting_resources is not None:
