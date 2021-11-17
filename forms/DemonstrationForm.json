@@ -1,53 +1,38 @@
 {
     "resourceType": "Questionnaire",
-    "meta": {
-        "profile": [
-            "http://gtri.gatech.edu/fakeFormIg/StructureDefinition/smartchart-form"
+    "extension": [{
+        "url": "http://gtri.gatech.edu/fakeFormIg/form-job-list",
+        "extension": [{
+                "url": "form-job",
+                "valueString": "demographics"
+            },
+            {
+                "url": "form-job",
+                "valueString": "cbc_panel"
+            },
+            {
+                "url": "form-job",
+                "valueString": "vital_signs"
+            }
         ]
-    },
-    "id": "DemonstrationForm",
+    }],
     "url": "http://gtri.gatech.edu/fakeFormIg/Questionnaire/DemonstrationForm",
-    "name": "DemonstrationForm",
     "version": "0.1",
+    "name": "DemonstrationForm",
     "title": "Demonstration Form",
     "status": "draft",
     "experimental": true,
-    "publisher": "GTRI",
-    "description": "Demo Questionnaire illustrating use of CQL for simple queries such as CBC and Vital Signs and additional complex queries.",
     "subjectType": [
         "Patient"
     ],
-    "extension": [
-        {
-            "url": "http://gtri.gatech.edu/fakeFormIg/form-job-list",
-            "extension": [
-                {
-                    "url": "form-job",
-                    "valueString": "demographics"
-                },
-                {
-                    "url": "form-job",
-                    "valueString": "cbc_panel"
-                },
-                {
-                    "url": "form-job",
-                    "valueString": "vital_signs"
-                }
-            ]
-        }
-    ],
-    "item": [
-        {
+    "publisher": "GTRI",
+    "description": "Demo Questionnaire illustrating use of CQL for simple queries such as CBC and Vital Signs and additional complex queries.",
+    "item": [{
             "linkId": "Demographics",
-            "type": "group",
             "text": "Demographics",
-            "item": [
-                {
-                    "linkId": "27",
-                    "text": "Race (Complete Omb Category List)",
-                    "type": "string",
-                    "extension": [
-                        {
+            "type": "group",
+            "item": [{
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
                         },
@@ -55,14 +40,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "demographics.omb_race_complete_string"
                         }
-                    ]
+                    ],
+                    "linkId": "27",
+                    "text": "Race (Complete Omb Category List)",
+                    "type": "string"
                 },
                 {
-                    "linkId": "28",
-                    "text": "Race (Summary)",
-                    "type": "string",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
                         },
@@ -70,14 +54,25 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "demographics.omb_race_summary"
                         }
-                    ]
+                    ],
+                    "linkId": "28",
+                    "text": "Race (Summary)",
+                    "type": "string"
                 },
                 {
+                    "extension": [{
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "demographics.hispanic_or_latino_choice"
+                        }
+                    ],
                     "linkId": "29",
                     "text": "Hispanic or Latino?",
                     "type": "choice",
-                    "answerOption": [
-                        {
+                    "answerOption": [{
                             "valueString": "Yes"
                         },
                         {
@@ -86,31 +81,16 @@
                         {
                             "valueString": "Unknown"
                         }
-                    ],
-                    "extension": [
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
-                            "valueString": "single"
-                        },
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "demographics.hispanic_or_latino_choice"
-                        }
                     ]
                 }
             ]
         },
         {
             "linkId": "CBC Panel",
-            "type": "group",
             "text": "CBC Panel",
-            "item": [
-                {
-                    "linkId": "1",
-                    "text": "Leukocytes [#/volume] in Blood by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+            "type": "group",
+            "item": [{
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -118,7 +98,10 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.wbc_vol"
                         }
-                    ]
+                    ],
+                    "linkId": "1",
+                    "text": "Leukocytes [#/volume] in Blood by Automated count",
+                    "type": "quantity"
                 },
                 {
                     "linkId": "display1",
@@ -126,11 +109,7 @@
                     "type": "display"
                 },
                 {
-                    "linkId": "rbc1",
-                    "text": "Most Recent RBC",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
                         },
@@ -138,14 +117,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.rbc_snapshot"
                         }
-                    ]
+                    ],
+                    "linkId": "rbc1",
+                    "text": "Most Recent RBC",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "2",
-                    "text": "History of RBC",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -153,14 +131,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.rbc_vol"
                         }
-                    ]
+                    ],
+                    "linkId": "2",
+                    "text": "History of RBC",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "3",
-                    "text": "Hemoglobin [Mass/volume] in Blood",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -168,14 +145,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.hemoglobin_mass_vol"
                         }
-                    ]
+                    ],
+                    "linkId": "3",
+                    "text": "Hemoglobin [Mass/volume] in Blood",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "4",
-                    "text": "Hematocrit [Volume Fraction] of Blood by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -183,14 +159,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.hematocrit_vol_frac"
                         }
-                    ]
+                    ],
+                    "linkId": "4",
+                    "text": "Hematocrit [Volume Fraction] of Blood by Automated count",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "5",
-                    "text": "MCV [Entitic volume] by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -198,14 +173,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.mcv_ent_vol"
                         }
-                    ]
+                    ],
+                    "linkId": "5",
+                    "text": "MCV [Entitic volume] by Automated count",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "1230921",
-                    "text": "MCH [Entitic mass] by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -213,14 +187,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.mch_ent_mass"
                         }
-                    ]
+                    ],
+                    "linkId": "1230921",
+                    "text": "MCH [Entitic mass] by Automated count",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "7",
-                    "text": "MCHC [Mass/volume] by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -228,14 +201,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.mchc_mass_vol"
                         }
-                    ]
+                    ],
+                    "linkId": "7",
+                    "text": "MCHC [Mass/volume] by Automated count",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "8",
-                    "text": "Erythrocyte distribution width [Entitic volume] by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -243,14 +215,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.rbc_ent_vol"
                         }
-                    ]
+                    ],
+                    "linkId": "8",
+                    "text": "Erythrocyte distribution width [Entitic volume] by Automated count",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "9",
-                    "text": "Erythrocyte distribution width [Ratio] by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -258,14 +229,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.rbc_ratio"
                         }
-                    ]
+                    ],
+                    "linkId": "9",
+                    "text": "Erythrocyte distribution width [Ratio] by Automated count",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "10",
-                    "text": "Platelets [#/volume] in Blood by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -273,14 +243,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.platelets_vol"
                         }
-                    ]
+                    ],
+                    "linkId": "10",
+                    "text": "Platelets [#/volume] in Blood by Automated count",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "11",
-                    "text": "Platelet distribution width [Entitic volume] in Blood by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -288,14 +257,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.platelets_dw_ent_vol"
                         }
-                    ]
+                    ],
+                    "linkId": "11",
+                    "text": "Platelet distribution width [Entitic volume] in Blood by Automated count",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "12",
-                    "text": "Platelet mean volume [Entitic volume] in Blood by Automated count",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -303,26 +271,24 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "cbc_panel.platelets_mv_ent_vol"
                         }
-                    ]
+                    ],
+                    "linkId": "12",
+                    "text": "Platelet mean volume [Entitic volume] in Blood by Automated count",
+                    "type": "quantity"
                 }
             ]
         },
         {
             "linkId": "Vital Signs",
-            "type": "group",
             "text": "Vital Signs",
-            "item": [
-                {
+            "type": "group",
+            "item": [{
                     "linkId": "display2",
                     "text": "This should display at the top of vital signs despite being in the middle of CBC Panel.",
                     "type": "display"
                 },
                 {
-                    "linkId": "13",
-                    "text": "Body mass index (BMI) [Percentile] Per age and sex",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -330,14 +296,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.bmi_percentile"
                         }
-                    ]
+                    ],
+                    "linkId": "13",
+                    "text": "Body mass index (BMI) [Percentile] Per age and sex",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "14",
-                    "text": "Oxygen saturation in Arterial blood by Pulse oximetry",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -345,14 +310,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.o2_saturation"
                         }
-                    ]
+                    ],
+                    "linkId": "14",
+                    "text": "Oxygen saturation in Arterial blood by Pulse oximetry",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "15",
-                    "text": "Inhaled oxygen concentration",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -360,14 +324,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.inhaled_o2_concentration"
                         }
-                    ]
+                    ],
+                    "linkId": "15",
+                    "text": "Inhaled oxygen concentration",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "16",
-                    "text": "Inhaled oxygen flow rate",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -375,14 +338,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.inhaled_o2_flow_rate"
                         }
-                    ]
+                    ],
+                    "linkId": "16",
+                    "text": "Inhaled oxygen flow rate",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "17",
-                    "text": "Respiratory rate",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -390,14 +352,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.respiratory_rate"
                         }
-                    ]
+                    ],
+                    "linkId": "17",
+                    "text": "Respiratory rate",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "18",
-                    "text": "Heart rate",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -405,14 +366,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.heart_rate"
                         }
-                    ]
+                    ],
+                    "linkId": "18",
+                    "text": "Heart rate",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "19",
-                    "text": "Oxygen saturation in Arterial blood",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -420,14 +380,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.o2_saturation_in_arterial_blood"
                         }
-                    ]
+                    ],
+                    "linkId": "19",
+                    "text": "Oxygen saturation in Arterial blood",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "20",
-                    "text": "Body temperature",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -435,14 +394,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.body_temp"
                         }
-                    ]
+                    ],
+                    "linkId": "20",
+                    "text": "Body temperature",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "21",
-                    "text": "Body height",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -450,14 +408,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.body_height"
                         }
-                    ]
+                    ],
+                    "linkId": "21",
+                    "text": "Body height",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "22",
-                    "text": "Body weight",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -465,14 +422,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.body_weight"
                         }
-                    ]
+                    ],
+                    "linkId": "22",
+                    "text": "Body weight",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "23",
-                    "text": "Body mass index (BMI) [Ratio]",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -480,14 +436,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.bmi"
                         }
-                    ]
+                    ],
+                    "linkId": "23",
+                    "text": "Body mass index (BMI) [Ratio]",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "24",
-                    "text": "Systolic blood pressure",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -495,14 +450,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.systolic_blood_pressure"
                         }
-                    ]
+                    ],
+                    "linkId": "24",
+                    "text": "Systolic blood pressure",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "25",
-                    "text": "Diastolic blood pressure",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -510,14 +464,13 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.diastolic_blood_pressure"
                         }
-                    ]
+                    ],
+                    "linkId": "25",
+                    "text": "Diastolic blood pressure",
+                    "type": "quantity"
                 },
                 {
-                    "linkId": "26",
-                    "text": "Mean blood pressure",
-                    "type": "quantity",
-                    "extension": [
-                        {
+                    "extension": [{
                             "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
                         },
@@ -525,7 +478,10 @@
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "vital_signs.mean_blood_pressure"
                         }
-                    ]
+                    ],
+                    "linkId": "26",
+                    "text": "Mean blood pressure",
+                    "type": "quantity"
                 }
             ]
         }

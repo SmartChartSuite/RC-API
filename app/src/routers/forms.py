@@ -1,11 +1,15 @@
+import json
+from re import search
 from fastapi import (
     APIRouter,
     Body,
     HTTPException
 )
+from fhir.resources import resource
+from requests.api import request
 
 from ..models.forms import (
-    CustomFormatter, StartJobPostBody, NLPQLDict, bundle_forms, run_cql, get_cql_results
+    CustomFormatter, StartJobPostBody, NLPQLDict, make_operation_outcome, bundle_forms, run_cql, get_cql_results
 )
 
 from typing import Union
@@ -13,16 +17,19 @@ from fhir.resources.questionnaire import Questionnaire
 from fhir.resources.library import Library
 from fhir.resources.parameters import Parameters
 from fhir.resources.operationoutcome import OperationOutcome
+from fhir.resources.observation import Observation
 from bson import ObjectId
 from requests_futures.sessions import FuturesSession
 
-from ..util.settings import formsdb
+from ..util.settings import (formsdb, cqfr4_fhir)
 
 import os
 import base64
 import pymongo
 import ast
 import logging
+import requests
+import uuid
 
 import time
 
@@ -45,71 +52,104 @@ formsrouter = APIRouter()
 @formsrouter.get("/")
 def root():
     logger.info('Retrieved root of API')
-    logger.warning('Test warning')
-    return "Please use one of the endpoints, this is just the root of the api"
+    return make_operation_outcome('processing', 'This is the base URL of API. Unable to handle this request as it is the root.')
 
-@formsrouter.get("/forms", response_model=Union[list, dict])
+@formsrouter.get("/forms", response_model=dict)
 def get_list_of_forms():
-    # Pull list of forms from the database
-    form_list = []
-    all_forms = formsdb.forms.find()
 
-    for form in all_forms:
-        del form["_id"]
-        form_list.append(form)
-    return bundle_forms(form_list)
+    # Pull list of forms from CQF Ruler
+    r = requests.get(cqfr4_fhir+'Questionnaire')
+    if r.status_code == 200:
+        return r.json()
+    else:
+        logger.error(f'Getting Questionnaires from server failed with code {r.status_code}')
+        logger.error(r.json())
+        return make_operation_outcome('transient', f'Getting Questionnaires from server failed with code {r.status_code}, see API logs for more detail')
 
 @formsrouter.get("/forms/cql")
 def get_cql_libraries():
 
-    # Pulls list of CQL libraries from the database
-    form_list = []
-    all_forms = formsdb.cql.find()
-    for document in all_forms:
-        form_meta = {"name": document["name"],
-                    "version": document["version"]}
-        form_list.append(form_meta)
-    return form_list
+    # Pulls list of CQL libraries from CQF Ruler
+    r = requests.get(cqfr4_fhir+'Library')
+    if r.status_code == 200:
+        return r.json()
+    else:
+        logger.error(f'Getting Libraries from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return make_operation_outcome('transient', f'Getting Libraries from server failed with code {r.status_code}, see API logs for more detail')
 
-@formsrouter.get("/forms/cql/{libraryName}")
-def get_cql(libraryName: str):
+@formsrouter.get("/forms/cql/{library_name}")
+def get_cql(library_name: str):
 
     # Return CQL library
-    cql_library = formsdb.cql.find_one({"name": libraryName})
-    if cql_library is None:
-        raise HTTPException(status_code=404, detail='CQL Library not found')
+    r = requests.get(cqfr4_fhir+f'Library?name={library_name}')
+    if r.status_code != 200:
+        logger.error(f'Getting library from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return make_operation_outcome('transient', f'Getting Library from server failed with code {r.status_code}, see API logs for more detail')
 
-    # Decode CQL from base64 Library encoding in DB
+    search_bundle = r.json()
+    try:
+        cql_library = search_bundle['entry'][0]['resource']
+        logger.info(f'Found CQL Library with name {library_name}')
+    except KeyError:
+        logger.error('CQL Library with that name not found')
+        return make_operation_outcome('not-found', f'CQL Library named {library_name} not found on the FHIR server.')
+
+    # Decode CQL from base64 Library encoding
     base64_cql = cql_library['content'][0]['data']
     cql_bytes = base64.b64decode(base64_cql)
     decoded_cql = cql_bytes.decode('ascii')
     return decoded_cql
 
-@formsrouter.get("/forms/{form_id}", response_model=Union[dict, str])
-def get_form(form_id: str):
+@formsrouter.get("/forms/{form_name}", response_model=Union[dict, str])
+def get_form(form_name: str):
 
-    # Return Questionnaire from the DB based on a form_id
-    result_form = formsdb.forms.find_one({'id': form_id})
-    if result_form is None:
-        raise HTTPException(404, 'Form with that ID not found in the database')
-    else :
-        del result_form["_id"]
-        return result_form
+    # Return Questionnaire from CQF Ruler based on form name
+    r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
+    if r.status_code != 200:
+        logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {r.status_code}, see API logs for more detail')
+
+    search_bundle = r.json()
+    try:
+        questionnaire = search_bundle['entry'][0]['resource']
+        logger.info(f'Found Questionnaire with name {form_name}')
+        return questionnaire
+    except KeyError:
+        logger.error('Questionnaire with that name not found')
+        return make_operation_outcome('not-found', f'Getting Questionnaire named {form_name} not found on the FHIR server.')
 
 @formsrouter.post("/forms")
-def create_form(questions: Questionnaire):
+def save_form(questions: Questionnaire):
 
-    # Create Questionnaire in the DB
-    duplicate = formsdb.forms.find_one({"id": questions.id})
+    # Check to see if library and version of this exists
+    r = requests.get(cqfr4_fhir+f'Questionnaire?name={questions.name}&version={questions.version}')
+    if r.status_code != 200:
+        logger.error(f'Trying to get Questionnaire from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {r.status_code}, see API logs for more detail')
 
-    # Determines if theres a duplicate form or not, if there is, returns the first statement, if not, creates the form in the db
-    if duplicate is not None:
-        return f"This Questionnaire already exists in the database. To update, use PUT at /forms/{questions.id}. If you would like to create a new version of the form, change the id of the Questionnaire resource and try POSTing again."
-    else:
-        result = formsdb.forms.insert_one(questions.dict())
-    if result.acknowledged:
-        return f"You have created a Questionnaire with an id of {questions.id} in the database"
-    else: return 'Something went wrong!'
+    search_bundle = r.json()
+    try:
+        questionnaire_current_id = search_bundle['entry'][0]['resource']['id']
+        logger.info(f'Found Questionnaire with name {questions.name} and version {questions.version}')
+        logger.info('Not completing POST operation because a Questionnaire with that name and version already exist on this FHIR Server')
+        logger.info('Change Questionnaire name or version number or use PUT to update this version')
+        return make_operation_outcome('duplicate', f'There is already a Questionnaire with this name with resource id {questionnaire_current_id}')
+    except KeyError:
+        logger.info('Questionnaire with that name not found, continuing POST operation')
+
+    # Create Questionnaire in CQF Ruler
+    r = requests.post(cqfr4_fhir+'Questionnaire', json=questions.dict())
+    if r.status_code != 201:
+        logger.error(f'Posting Questionnaire to server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return make_operation_outcome('transient', f'Posting Questionnaire to server failed with code {r.status_code}, see API logs for more detail')
+
+    resource_id = r.json()['id']
+    return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
 
 @formsrouter.post("/forms/start", response_model=Union[dict, str])
 def start_jobs(post_body: Parameters):
@@ -124,75 +164,150 @@ def start_jobs(post_body: Parameters):
         patient_id = parameters[parameter_names.index('patientId')]['valueString']
     except ValueError:
         logger.error('patientID was not found in the parameters posted')
-        # TODO: Turn this return into an OperationOutcome
-        raise HTTPException(404, 'patientID was not found in the parameters posted')
+        return make_operation_outcome('required', 'patientID was not found in the parameters posted')
 
     try:
         library = parameters[parameter_names.index('job')]['valueString']
     except ValueError:
         logger.error('job was not found in the parameters posted')
-        # TODO: Turn this return into an OperationOutcome
-        raise HTTPException(404, 'job was not found in the parameters posted')
+        return make_operation_outcome('required', 'job was not found in the parameters posted')
 
     try:
-        form_id = parameters[parameter_names.index('jobPackage')]['valueString']
+        form_name = parameters[parameter_names.index('jobPackage')]['valueString']
     except ValueError:
         logger.error('jobPackage was not found in the parameters posted')
-        # TODO: Turn this return into an OperationOutcome
-        raise HTTPException(404, 'jobPackage was not found in the parameters posted')
+        return make_operation_outcome('required', 'jobPackage was not found in the parameters posted')
 
-    # Pull CQL libraries from db
-    cql_library = formsdb.cql.find_one({'name': library})
-    if cql_library is None:
-        logger.error(f'The library {library} does not exist in the database.')
-        # TODO: Turn this return into an OperationOutcome
-        return f'Your evidence bundle {library} does not exist in the database. Please POST that to /forms/cql before trying to run the CQL.'
-    logger.info('Found CQL Library in the database')
+    # Pull CQL library resource ID from CQF Ruler
+    r = requests.get(cqfr4_fhir+f'Library?name={library}')
+    if r.status_code != 200:
+        logger.error(f'Getting library from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
 
-    # Decodes and formats CQL from the base64 encoded data in the Library resource
-    base64_cql = cql_library['content'][0]['data']
-    cql_bytes = base64.b64decode(base64_cql)
-    decoded_cql = cql_bytes.decode('utf-8')
-    formatted_cql = str(decoded_cql.replace('"', '\"'))
+    search_bundle = r.json()
+    try:
+        library_server_id = search_bundle['entry'][0]['resource']['id']
+        logger.info(f'Found CQL Library with name {library} and server id {library_server_id}')
+    except KeyError:
+        logger.error('CQL Library with that name not found')
+        return make_operation_outcome('not-found','CQL Library with that name not found')
 
-    # Creates post body for the CQL Execution Service
-    full_post_body = {
-        "code": formatted_cql,
-        "dataServiceUri": os.environ["DATA_SERVICE_URL"],
-        "dataUser":"client",
-        "dataPass":"secret",
-        "patientId": patient_id,
-        "terminologyServiceUri": os.environ["TERMOLOGY_SERVICE_URL"],
-        "terminologyUser": os.environ["TERMOLOGY_USER"],
-        "terminologyPass": os.environ["TERMOLOGY_PASS"]
+    # Pull Questionnaire resource ID from CQF Ruler
+    r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
+    if r.status_code != 200:
+        logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {r.status_code}')
+
+    search_bundle = r.json()
+    try:
+        form_server_id = search_bundle['entry'][0]['resource']['id']
+        logger.info(f'Found Questionnaire with name {form_name} and server id {form_server_id}')
+    except KeyError:
+        logger.error('Questionnaire with that name not found')
+        return make_operation_outcome('not-found','Questionnaire with that name not found')
+
+    # Create parameters post body for library evaluation
+    parameters_post = {
+        'resourceType': 'Parameters',
+        'parameter': [
+            {
+                'name': 'patientId',
+                'valueString': patient_id
+            },
+            {
+                'name': 'context',
+                'valueString': 'Patient'
+            },
+            {
+                'name': 'dataEndpoint',
+                "resource": {
+                    "resourceType": "Endpoint",
+                    "identifier": [{
+                        "system": "http://example.org/enpoint-identifier",
+                        "value": "omopv53onfhir4"
+                    }],
+                    "status": "active",
+                    "connectionType": {
+                        "system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type",
+                        "code": "hl7-fhir-rest"
+                    },
+                    "name": "OMOPonFHIR v5.3.1 on R4",
+                    "payloadType": [{
+                        "coding": [{
+                            "system": "http://terminology.hl7.org/CodeSystem/endpoint-payload-type",
+                            "code": "any"
+                        }]
+                    }],
+                    "address": "https://apps.hdap.gatech.edu/omopv53onfhir4/fhir/",
+                    "header": ["Authorization: Basic Y2xpZW50OnNlY3JldA=="]
+			    }
+            }
+        ]
     }
-    post_bodies = [full_post_body]
-    logger.info('Created post body')
 
-    # Pass list of post bodies to be POSTed to the CQL Execution Service, gets back a list of future objects that represent the pending status of the POSTs
-    logger.info('Start submitting jobs')
-    futures = run_cql(post_bodies)
+    # Pass library id to be evaluated, gets back a future object that represent the pending status of the POST
+    logger.info('Started submitting jobs')
+    future = run_cql(library_server_id, parameters_post)
     logger.info('Submitted all jobs')
 
-    # Passes list of futures to get the results from them, will wait until all are processed until returning results
+    # Passes future to get the results from it, will wait until all are processed until returning results
     logger.info('Start getting job results')
-    results = get_cql_results(futures, [library], patient_id)
-    logger.info(f'Retrived results for job {library}')
+    result = get_cql_results(future, library, patient_id)
+    logger.info(f'Retrieved result for job {library}')
+
+    # Upstream request timeout handling
+    if type(result)==str:
+        return make_operation_outcome('timeout',result)
+
 
     # Creates the linked evidence format needed for the UI to render evidence thats related to certain questions from a certain form
     logger.info('Start linking results')
-    linked_results = create_linked_results(results, form_id, formsdb)
+    bundled_results = create_linked_results(result, form_name)
     logger.info('Finished linking results')
 
-    return linked_results
+    return bundled_results
 
 @formsrouter.post("/forms/nlpql")
-def save_nlpql(post_body: NLPQLDict):
+def save_nlpql(code: str = Body(...)):
+    # Get name and version of NLPQL Library
+    split_cql = code.split()
+    name = split_cql[1].strip('"')
+    version = split_cql[3].strip('"')
 
-    # Saves NLPQL into the database in a simple format
-    # TODO: Convert to Library resource format for this to prepare for future
-    result = formsdb.nlpql.insert_one(post_body.dict())
-    return f'Saved NLPQL file named {post_body.name} in database'
+    # Encode NLPQL as base64Binary
+    code_bytes = code.encode('utf-8')
+    base64_bytes = base64.b64encode(code_bytes)
+    base64_nlpql = base64_bytes.decode('utf-8')
+    logger.info('Encoded NLPQL')
+
+    # Create Library object
+    data = {
+        'name': name,
+        'version': version,
+        'status': 'draft',
+        'experimental': True,
+        'type': {'coding':[{'code':'logic-library'}]},
+        'content': [{
+            'contentType': 'text/nlpql',
+            'data': base64_nlpql
+        }]
+    }
+    nlpql_library = Library(**data)
+    nlpql_library = nlpql_library.dict()
+    nlpql_library['content'][0]['data'] = base64_nlpql
+    logger.info('Created Library object')
+
+    # Store Library object in CQF Ruler
+    r = requests.post(cqfr4_fhir+'Library', json=nlpql_library)
+    if r.status_code != 201:
+        logger.error(f'Posting Library {name} to server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return make_operation_outcome('transient', f'Posting Library to server failed with code {r.status_code}, see API logs for more detail')
+
+    resource_id = r.json()['id']
+    return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
 
 @formsrouter.post("/forms/cql")
 def save_cql(code: str = Body(...)):
@@ -202,10 +317,27 @@ def save_cql(code: str = Body(...)):
     name = split_cql[1]
     version = split_cql[3].strip("'")
 
+    # Check to see if library and version of this exists
+    r = requests.get(cqfr4_fhir+f'Library?name={name}&version={version}')
+    if r.status_code != 200:
+        logger.error(f'Trying to get library from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return {}
+    search_bundle = r.json()
+    try:
+        cql_library = search_bundle['entry'][0]['resource']
+        logger.info(f'Found CQL Library with name {name} and version {version}')
+        logger.info('Not completing POST operation because a CQL Library with that name and version already exist on this FHIR Server')
+        logger.info('Change library name or version number or use PUT to update this version')
+        return make_operation_outcome('duplicate', 'There is already a library with that name and version')
+    except KeyError:
+        logger.info('CQL Library with that name not found, continuing POST operation')
+
     # Encode CQL as base64Binary
     code_bytes = code.encode('utf-8')
     base64_bytes = base64.b64encode(code_bytes)
     base64_cql = base64_bytes.decode('utf-8')
+    logger.info('Encoded CQL')
 
     # Create Library object
     data = {
@@ -222,42 +354,136 @@ def save_cql(code: str = Body(...)):
     cql_library = Library(**data)
     cql_library = cql_library.dict()
     cql_library['content'][0]['data'] = base64_cql
-    print(cql_library)
+    logger.info('Created Library object')
 
-    # Store Library object in db
-    result = formsdb.cql.insert_one(cql_library)
-    if result.acknowledged:
-        return f'Saved CQL Library resource named {name} in database'
-    else:
-        return f'Something went wrong!'
+    # Store Library object in CQF Ruler
+    r = requests.post(cqfr4_fhir+'Library', json=cql_library)
+    if r.status_code != 201:
+        logger.error(f'Posting Library {name} to server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return {}
 
-@formsrouter.put("/forms/{form_id}")
-def update_form(form_id: str, new_questions: Questionnaire):
-    # Replace form based on form_id
-    result = formsdb.forms.replace_one({"id": form_id}, new_questions.dict())
+    resource_id = r.json()['id']
+    return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
 
-    # If it didnt actually do anything, returns a string saying there wasn't one found to update, if it does, returns that it was successful
-    if result.modified_count != 0:
-        return "You have updated a Questionnaire with an id of {}".format(form_id)
-    else:
-        return "There was no Questionnaire found with that id. Please first POST this Questionnaire to the database."
+@formsrouter.put("/forms/{form_name}")
+def update_form(form_name: str, new_questions: Questionnaire):
 
+    r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
+    if r.status_code != 200:
+        logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return {}
 
-def create_linked_results(results: list, form_id: str, db: pymongo.database.Database):
+    search_bundle = r.json()
+    try:
+        resource_id = search_bundle['entry'][0]['resource']['id']
+        logger.info(f'Found Questionnaire with name {form_name}')
+    except KeyError:
+        logger.error('Questionnaire with that name not found')
+        return {}
 
+    new_questions.id = resource_id
+    r = requests.put(cqfr4_fhir+f'Questionnaire/{resource_id}', json=new_questions.dict())
+    if r.status_code != 200:
+        logger.error(f'Putting Questionnaire from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return {}
 
-    # Get form from DB, raise 404 Not Found if form_id doesnt exist in DB
-    form = db.forms.find_one({'id': form_id})
-    if form is None:
-        raise HTTPException(404, 'Form needed to create evidence links not found')
+    return f'Questionnaire resource updated with server id {resource_id}'
 
-    linked_results = {}
+@formsrouter.put("/forms/cql/{library_name}")
+def update_cql(library_name: str, code: str = Body(...)):
+
+    r = requests.get(cqfr4_fhir+f'Library?name={library_name}')
+    if r.status_code != 200:
+        logger.error(f'Getting Library from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return {}
+
+    search_bundle = r.json()
+    try:
+        resource_id = search_bundle['entry'][0]['resource']['id']
+        logger.info(f'Found Library with name {library_name}')
+    except KeyError:
+        logger.error('Library with that name not found')
+        return {}
+
+    # Get name and version of cql library
+    split_cql = code.split()
+    name = split_cql[1]
+    version = split_cql[3].strip("'")
+
+    # Encode CQL as base64Binary
+    code_bytes = code.encode('utf-8')
+    base64_bytes = base64.b64encode(code_bytes)
+    base64_cql = base64_bytes.decode('utf-8')
+    logger.info('Encoded CQL')
+
+    # Create Library object
+    data = {
+        'name': name,
+        'version': version,
+        'status': 'draft',
+        'experimental': True,
+        'type': {'coding':[{'code':'logic-library'}]},
+        'content': [{
+            'contentType': 'text/cql',
+            'data': base64_cql
+        }]
+    }
+    cql_library = Library(**data)
+    cql_library = cql_library.dict()
+    cql_library['content'][0]['data'] = base64_cql
+    cql_library['id']=resource_id
+    logger.info('Created Library object')
+
+    r = requests.put(cqfr4_fhir+f'Library/{resource_id}', json=cql_library)
+    if r.status_code != 200:
+        logger.error(f'Putting Library from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return {}
+
+    return f'Library resource updated with server id {resource_id}'
+
+@formsrouter.put("/forms/nlpql/{library_name}")
+def update_nlpql(library_name: str, new_nlpql: str = Body(...)):
+
+    r = requests.get(cqfr4_fhir=f'Library?name={library_name}')
+    if r.status_code != 200:
+        logger.error(f'Getting Library from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return {}
+
+    search_bundle = r.json()
+    try:
+        resource_id = search_bundle['entry'][0]['resource']['id']
+        logger.info(f'Found Library with name {library_name}')
+    except KeyError:
+        logger.error('Library with that name not found')
+        return {}
+
+    r = requests.put(cqfr4_fhir+f'Library/{resource_id}', data=new_nlpql)
+    if r.status_code != 200:
+        logger.error(f'Putting Library from server failed with status code {r.status_code}')
+        logger.error(r.json())
+        return {}
+
+    raise HTTPException(200, f'Library resource updated with server id {resource_id}')
+
+def create_linked_results(result: dict, form_name: str):
+
+    # Get form (using get_form from this API)
+    form = get_form(form_name)
+
+    bundle_entries = []
 
     # For each group of questions in the form
     for group in form['item']:
 
         # For each question in the group in the form
         for question in group['item']:
+
 
             linkId = question['linkId']
 
@@ -274,52 +500,99 @@ def create_linked_results(results: list, form_id: str, db: pymongo.database.Data
 
             # If this question has a task in a library whose results were passed to this function, get the results from that library run
             target_library = None
-            for library_result in results:
-                if library_result['libraryName'] == library:
-                    target_library = library_result
-                    break
+            if result['libraryName'] == library:
+                target_library = result
             # if library was not found, just skip rest of loop to move on because its not needed
             if target_library is None:
                 continue
 
+            # Create answer observation for this question
+            answer_obs_uuid = str(uuid.uuid4())
+            answer_obs = {
+                "resourceType": "Observation",
+                "id": answer_obs_uuid,
+                "status": "final",
+                "code": {
+                    "coding": [
+                        {
+                            "system": f"urn:gtri:heat:form:{form_name}",
+                            "code": linkId
+                        }
+                    ]
+                },
+                'focus': []
+            }
+            answer_obs = Observation(**answer_obs)
+
             # Find the result in the CQL library run that corresponds to what the question has defined in its cqlTask extension
             target_result = None
-            for result in target_library['results']:
-                if result['name'] == task:
-                    target_result = result['result']
-                    break
-            # If task isnt in the defined library, raise 404 Not Found
-            if target_result is None:
-                raise HTTPException(404, f'CQL result {task} not found in library {library}')
-
-            # Flag if we need to format the response as a real resource, or if its a single string (relates to cardinality extension)
-            full_resource_flag = False
-
-            if target_result[0] in ['[', '{']:
-                # Format results as lists and objects and flags as a full resource
-                formatted_result = ast.literal_eval(target_result)
-                full_resource_flag = True
-            else:
-                formatted_result = target_result
-
+            single_return_value = None
+            for entry in result['results']['entry']:
+                if entry['fullUrl'] == task:
+                    value_return = [item for item in entry['resource']['parameter'] if item.get('name')=='value'][0]
+                    supporting_resources = None
+                    try:
+                        if value_return['resource']['resourceType']=='Bundle':
+                            supporting_resources = value_return['resource']['entry']
+                            single_resource_flag = False
+                        else:
+                            resource_type = value_return['resource']['resourceType']
+                            single_resource_flag = True
+                    except KeyError:
+                        single_return_type = [item for item in entry['resource']['parameter'] if item.get('name')=='resultType'][0]['valueString']
+                        single_return_value = value_return[f'valueString']
+                    logger.info(f'Found task {task} and supporting resources')
+            if single_return_value == '[]':
+                continue
+            if supporting_resources is not None:
+                for resource in supporting_resources:
+                    try:
+                        focus_object = {'reference': resource['fullUrl']}
+                        answer_obs.focus.append(focus_object)
+                    except KeyError:
+                        pass
+            answer_obs = answer_obs.dict()
+            if answer_obs['focus'] == []:
+                del answer_obs['focus']
             # If cardinality is a series, does the standard return body format
             if cardinality == 'series':
-                body = {
-                    'answer': {'type': question['type'] },
-                    'cqlResults': formatted_result
+                # Construct final answer object bundle before result bundle insertion
+                answer_obs_bundle_item = {
+                    'fullUrl' : 'Observation/'+answer_obs_uuid,
+                    'resource': answer_obs
                 }
+
             # If cardinality is a single, does a modified return body to have the value in multiple places
             else:
-                single_answer = formatted_result
-                value_key = 'valueString'
-                if full_resource_flag:
-                    full_key = 'value'+question['type'].capitalize()
-                    single_answer = formatted_result[full_key]
-                    value_key = full_key
-                body = {
-                    'answer': {'type': question['type'], value_key : single_answer},
-                    'cqlResults': formatted_result
+                single_answer = single_return_value
+                value_key = 'value'+single_return_type
+                answer_obs_bundle_item = {
+                    'fullUrl' : 'Observation/'+answer_obs_uuid,
+                    'resource': answer_obs,
+                    'valueString': single_answer
                 }
-            linked_results[linkId] = body
-    return linked_results
 
+            #Add items to return bundle entry list
+            bundle_entries.append(answer_obs_bundle_item)
+            if supporting_resources is not None:
+                bundle_entries.extend(supporting_resources)
+
+    return_bundle_id = str(uuid.uuid4())
+    return_bundle = {
+        'resourceType': 'Bundle',
+        'id': return_bundle_id,
+        'entry': bundle_entries
+    }
+
+    delete_list = []
+    for i, entry in enumerate(return_bundle['entry']):
+        try:
+            if entry['valueString'] == None:
+                delete_list.append(i)
+        except KeyError:
+            pass
+
+    for index in sorted(delete_list, reverse=True):
+        del return_bundle['entry'][index]
+
+    return return_bundle

@@ -24,3 +24,5 @@ file_storage = gridfs.GridFS(db)
 formsclient = MongoClient(os.environ["MONGO_FORM_URL"])
 formsdb = formsclient["SmartChartForms"]
 
+#-----------CQF RULER R4 Endpoint------------------------------------------
+cqfr4_fhir = os.environ["CQF_RULER_R4"]
