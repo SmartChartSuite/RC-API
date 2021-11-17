@@ -12,23 +12,20 @@ Prerequisites to install:
 
 ## Developing
 
-In order to run the code and test changes, you'll need to clone the code from BitBucket and set up the Docker containers:
+In order to run the code and test changes, you'll need to clone the code from Enterprise GitHub and set up the Docker containers:
 
 ```shell
-git clone https://github.gatech.edu/HDAP/spud-clientAPI.git
+git clone https://github.gatech.edu/HDAP/SmartPacer-CR-API.git
 ```
 Pull the `main` branch (this is the project main working/dev branch).
 
 Double-check that you're in the same folder as docker-compose.
 ```shell
-cd spud-clientAPI/
+cd SmartPacer-CR-API/
 docker-compose build
 docker-compose up
 ```
 
-### Module Documentation/Swagger
-
-Webservices Docs - http://localhost:60000/docs
 
 ### Building
 
