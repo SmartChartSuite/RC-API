@@ -3,16 +3,17 @@ from re import search
 from fastapi import (
     APIRouter,
     Body,
-    HTTPException
+    HTTPException,
+    BackgroundTasks
 )
 from fhir.resources import resource
 from requests.api import request
 
 from ..models.forms import (
-    CustomFormatter, StartJobPostBody, NLPQLDict, make_operation_outcome, bundle_forms, run_cql, get_cql_results
+    CustomFormatter, StartJobPostBody, NLPQLDict, ParametersJob, make_operation_outcome, bundle_forms, run_cql, get_cql_results
 )
 
-from typing import Union
+from typing import Union, Dict
 from fhir.resources.questionnaire import Questionnaire
 from fhir.resources.library import Library
 from fhir.resources.parameters import Parameters
@@ -47,7 +48,7 @@ ch.setFormatter(CustomFormatter())
 logger.addHandler(ch)
 
 formsrouter = APIRouter()
-
+jobs: Dict[str, ParametersJob] = {}
 
 @formsrouter.get("/")
 def root():
@@ -152,6 +153,25 @@ def save_form(questions: Questionnaire):
     return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
 
 @formsrouter.post("/forms/start", response_model=Union[dict, str])
+def start_jobs_header_function(post_body: Parameters, background_tasks: BackgroundTasks, asyncFlag: bool=False):
+    if asyncFlag:
+        logger.info('asyncFlag detected, running asynchronously')
+        new_job = ParametersJob()
+        new_job.parameter[0].valueString = str(uuid.uuid4())
+        logger.info(f'Created new job with jobId {new_job.parameter[0].valueString}')
+        jobs[new_job.parameter[0].valueString] = new_job
+        logger.info('Added to jobs array')
+        background_tasks.add_task(start_async_jobs, post_body, new_job.parameter[0].valueString)
+        logger.info('Added background task')
+        return new_job.dict()
+    else:
+        return start_jobs(post_body)
+
+def start_async_jobs(post_body: Parameters, uid: str):
+    logger.info(jobs)
+    jobs[uid].parameter[2].valueString = start_jobs(post_body)
+    jobs[uid].parameter[1].valueString = "complete"
+
 def start_jobs(post_body: Parameters):
 
     # Make list of parameters
@@ -300,6 +320,10 @@ def start_jobs(post_body: Parameters):
     logger.info('Finished linking results')
 
     return bundled_results
+
+@formsrouter.get('/forms/status/{uid}')
+def get_job_status(uid: str):
+    return jobs[uid]
 
 @formsrouter.post("/forms/nlpql")
 def save_nlpql(code: str = Body(...)):

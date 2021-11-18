@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi.exceptions import HTTPException
 from fhir.resources.operationoutcome import OperationOutcome
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict, Optional, List, Union
 from fhir.resources.questionnaire import Questionnaire
 from fhir.resources.library import Library
@@ -9,6 +9,7 @@ from bson import ObjectId
 from requests.exceptions import HTTPError
 from requests_futures.sessions import FuturesSession
 from fastapi.middleware.cors import CORSMiddleware
+from uuid import UUID, uuid4
 from ..util.settings import cqfr4_fhir
 import logging
 
@@ -74,6 +75,22 @@ class NLPQLDict(BaseModel):
 class CQLPost(BaseModel):
     code: str
 
+class JobIDParameter(BaseModel):
+    name: str = "jobId"
+    valueString: UUID = Field(default_factory=uuid4)
+
+class JobStatusParameter(BaseModel):
+    name: str = "jobStatus"
+    valueString: str = "inProgress"
+
+class ResultParameter(BaseModel):
+    name: str = "result"
+    valueString: dict = {}
+
+class ParametersJob(BaseModel):
+    resourceType: str = "Parameters"
+    parameter: list = [JobIDParameter(), JobStatusParameter(), ResultParameter()]
+
 bundle_template = {
     "resourceType": "Bundle",
     "meta": {
@@ -82,8 +99,6 @@ bundle_template = {
     "type": "collection",
     "entry": []
 }
-
-
 
 def make_operation_outcome(code: str, diagnostics: str, severity = 'error'):
     oo_template = {
