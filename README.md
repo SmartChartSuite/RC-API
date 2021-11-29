@@ -1,5 +1,6 @@
-# NEEDS DEVELOPMENT TO BE ACCURATE, THIS IS A TEMPLATE
+# SmartPacer Results Combing API (RC-API)
 
+## All of the below information is out of date and needs to be changed
 ## Installing / Getting started
 
 Prerequisites to install:
