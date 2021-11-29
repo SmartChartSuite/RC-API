@@ -1,4 +1,4 @@
-# SmartPacer Results Combing API (RC-API)
+# SmartPacer Results Combining API (RC-API)
 
 ## All of the below information is out of date and needs to be changed
 ## Installing / Getting started
