@@ -14,7 +14,7 @@ steps:
     image: plugins/docker
     settings:
       repo: gt-build.hdap.gatech.edu/smartpacer-rc-api
-      context: .
+      context: ./app/
       dockerfile: ./app/Dockerfile
       tags:
         - latest
