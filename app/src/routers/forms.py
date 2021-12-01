@@ -22,7 +22,7 @@ from fhir.resources.observation import Observation
 from bson import ObjectId
 from requests_futures.sessions import FuturesSession
 
-from ..util.settings import (formsdb, cqfr4_fhir)
+from ..util.settings import cqfr4_fhir
 
 import os
 import base64
