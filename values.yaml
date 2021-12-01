@@ -11,7 +11,7 @@ frontend:
   connect_timeout_ms: 600000
   proxy:
     incomingPath: /rc-api
-    containerPath: / # The empty string "" means use same as incomingPath, otherwise the value in the string will replace the value of incomingPath when traffic is sent to the application in the deployed container
+    containerPath: "/" # The empty string "" means use same as incomingPath, otherwise the value in the string will replace the value of incomingPath when traffic is sent to the application in the deployed container
   image:
     repository: gt-build.hdap.gatech.edu/smartpacer-rc-api
     tag: latest
