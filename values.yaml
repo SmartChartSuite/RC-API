@@ -16,6 +16,5 @@ frontend:
     repository: gt-build.hdap.gatech.edu/smartpacer-rc-api
     tag: latest
     pullPolicy: Always
-#  env:
-#    - name: APP_NAME
-#      value: https://gt-apps.hdap.gatech.edu/hapifhirtrifolia/fhir/
+  envFrom:
+    name: smartpacer-rc-api-environment-variables
