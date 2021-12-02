@@ -20,6 +20,7 @@ else:
     app = FastAPI(title=os.environ["PROJECT"],
         version=os.environ["VERSION"], include_in_schema=False, docs_url=None, redoc_url=None)
 
+# TODO: check with ellie to see if this should be in production 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -50,6 +51,7 @@ def custom_openapi():
 app.openapi = custom_openapi
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# TODO: Switch to env vars
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
     return get_swagger_ui_html(

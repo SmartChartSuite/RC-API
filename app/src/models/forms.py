@@ -87,6 +87,7 @@ class ResultParameter(BaseModel):
     name: str = "result"
     valueString: dict = {}
 
+# TODO: 
 class ParametersJob(BaseModel):
     resourceType: str = "Parameters"
     parameter: list = [JobIDParameter(), JobStatusParameter(), ResultParameter()]

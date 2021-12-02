@@ -59,11 +59,13 @@ def root():
 def get_list_of_forms():
 
     # Pull list of forms from CQF Ruler
+    # TODO: Check for valid URL including foreward slash
     r = requests.get(cqfr4_fhir+'Questionnaire')
     if r.status_code == 200:
         return r.json()
     else:
         logger.error(f'Getting Questionnaires from server failed with code {r.status_code}')
+        # TODO: change this so doesnt error
         logger.error(r.json())
         return make_operation_outcome('transient', f'Getting Questionnaires from server failed with code {r.status_code}, see API logs for more detail')
 
@@ -163,6 +165,7 @@ def start_jobs_header_function(post_body: Parameters, background_tasks: Backgrou
         logger.info('Added to jobs array')
         background_tasks.add_task(start_async_jobs, post_body, new_job.parameter[0].valueString)
         logger.info('Added background task')
+        # TODO: Add location header to response with relative URL
         return new_job.dict()
     else:
         return start_jobs(post_body)
@@ -323,7 +326,10 @@ def start_jobs(post_body: Parameters):
 
 @formsrouter.get('/forms/status/{uid}')
 def get_job_status(uid: str):
-    return jobs[uid]
+    try:
+        return jobs[uid]
+    except KeyError:
+        return make_operation_outcome('not-found', f'The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id.')
 
 @formsrouter.post("/forms/nlpql")
 def save_nlpql(code: str = Body(...)):
