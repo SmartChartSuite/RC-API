@@ -37,14 +37,15 @@ def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
     openapi_schema = get_openapi(
-        title="FormsAPI",
-        version="0.1.0",
-        description="This is a very custom OpenAPI schema",
+        title="SmartPacer Results Combining (RC) API",
+        version="1.0.0",
+        description="This is a custom Open API Schema to align with SmartPacer's RC API.",
         routes=app.routes,
     )
     openapi_schema["info"]["x-logo"] = {
         "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
     }
+    openapi_schema["servers"] = [{"url":"https://gt-apps.hdap.gatech.edu/rc-api"}]
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
