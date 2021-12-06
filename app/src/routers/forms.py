@@ -39,11 +39,11 @@ import time
 
 # Create logger
 logger = logging.getLogger("SPUD Forms API")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 # create console handler with a higher log level
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+ch.setLevel(logging.INFO)
 ch.setFormatter(CustomFormatter())
 logger.addHandler(ch)
 
@@ -539,7 +539,7 @@ def create_linked_results(results: list, form_name: str):
     form = get_form(form_name)
 
     bundle_entries = []
-
+    logger.debug(results)
     # For each group of questions in the form
     for group in form['item']:
 
@@ -592,7 +592,6 @@ def create_linked_results(results: list, form_name: str):
             single_return_value = None
             supporting_resources = None
             empty_single_return = False
-            logger.info(results)
             for result in results:
                 for entry in result['results']['entry']:
                     if entry['fullUrl'] == task:
