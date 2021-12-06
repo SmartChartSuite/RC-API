@@ -623,7 +623,7 @@ def create_linked_results(results: list, form_name: str):
 
             answer_obs = answer_obs.dict()
             if answer_obs['focus'] == []:
-                logger.info('Answer Observation does not have a focus, deleting field')
+                logger.debug('Answer Observation does not have a focus, deleting field')
                 del answer_obs['focus']
 
             # If cardinality is a series, does the standard return body format
@@ -637,7 +637,7 @@ def create_linked_results(results: list, form_name: str):
             # If cardinality is a single, does a modified return body to have the value in multiple places
             else:
                 single_answer = single_return_value
-                logger.info(single_answer)
+                logger.debug(single_answer)
                 if single_answer == None:
                     continue
 
