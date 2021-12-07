@@ -22,7 +22,7 @@ from fhir.resources.observation import Observation
 from bson import ObjectId
 from requests_futures.sessions import FuturesSession
 
-from ..util.settings import cqfr4_fhir
+from ..util.settings import cqfr4_fhir, external_fhir_server_url, external_fhir_server_auth
 
 import os
 import base64
@@ -279,24 +279,20 @@ def start_jobs(post_body: Parameters):
                 'name': 'dataEndpoint',
                 "resource": {
                     "resourceType": "Endpoint",
-                    "identifier": [{
-                        "system": "http://example.org/enpoint-identifier",
-                        "value": "omopv53onfhir4"
-                    }],
                     "status": "active",
                     "connectionType": {
                         "system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type",
                         "code": "hl7-fhir-rest"
                     },
-                    "name": "OMOPonFHIR v5.3.1 on R4",
+                    "name": "External FHIR Server",
                     "payloadType": [{
                         "coding": [{
                             "system": "http://terminology.hl7.org/CodeSystem/endpoint-payload-type",
                             "code": "any"
                         }]
                     }],
-                    "address": "https://apps.hdap.gatech.edu/omopv53onfhir4/fhir/",
-                    "header": ["Authorization: Basic Y2xpZW50OnNlY3JldA=="]
+                    "address": external_fhir_server_url,
+                    "header": [f'Authorization: {external_fhir_server_auth}']
 			    }
             }
         ]
