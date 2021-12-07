@@ -1,0 +1,3 @@
+[submodule "cqf-ruler"]
+	path = cqf-ruler
+	url = https://github.gatech.edu/HDAP/cqf-ruler.git
