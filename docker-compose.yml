@@ -1,33 +1,33 @@
 version: '3.9'
 
 services:
-    # Mongo Database services
-    mongodb:
-        image: mongo
-        env_file:
-            - .env
-        ports:
-            - '${MONGO_DB_PORT}:27017'
-        command: 'mongod --bind_ip ${MONGO_DB_HOST}'   
-        volumes:
-            - ./volumes/mongodb:/mongodb
-
-    # Mongo seed service will load inital data to the mongo db that is required
-    mongo-seed:
-        build: ./init
-        env_file:
-            - .env
-        links:
-            - mongodb
-
-    # The api service
-    api:
+    # The core RC API service
+    rc-api:
         build: ./app
         volumes:
             - ./app:/app
         ports:
-            - '${API_PORT}:80'
-        env_file:
-            - .env
-        depends_on:
-            - mongodb
+            - '80:8080'
+        environment:
+            - PROJECT="RC API" 
+            - VERSION=0.1.0
+            - CQF_RULER_R4=http://cqfruler:8080/cqf-ruler-r4/fhir/
+            - INCLUDE_SCHEME=True
+            - EXTERNAL_FHIR_SERVER_URL=https://apps.hdap.gatech.edu/omopv53onfhir4/fhir/
+            - EXTERNAL_FHIR_SERVER_AUTH=Basic Y2xpZW50OnNlY3JldA==
+
+    # The CQF Ruler FHIR server
+    cqfruler:
+        build: ./cqf-ruler
+        ports:
+            - '8080:8080'
+        environment:
+            - SERVER_ADDRESS=http://localhost:8080/cqf-ruler-r4/fhir
+        # depends_on:
+        #   - cqf-postgres
+    
+    # Optional Postgres database example for setting up an external PG container to use with CQF ruler. 
+    # cqf-postgres:
+    #     image: postgres
+    #     volumes:
+    #       - ./data/db:/var/lib/postgresql/data
