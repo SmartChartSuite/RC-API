@@ -185,10 +185,12 @@ def start_jobs(post_body: Parameters):
 
     try:
         patient_id = parameters[parameter_names.index('patientId')]['valueString']
+        has_patient_identifier = False
     except ValueError:
         try:
             logger.info('patientID was not found in the parameters posted, trying looking for patientIdentifier')
             patient_identifier = parameters[parameter_names.index('patientIdentifier')]['valueString']
+            has_patient_identifier = True
         except ValueError:
             logger.error('patientID or patientIdentifier was not found in parameters posted')
             return make_operation_outcome('required', 'patientID or patientIdentifier was not found in the parameters posted')
@@ -219,8 +221,8 @@ def start_jobs(post_body: Parameters):
         form_server_id = search_bundle['entry'][0]['resource']['id']
         logger.info(f'Found Questionnaire with name {form_name} and server id {form_server_id}')
     except KeyError:
-        logger.error('Questionnaire with that name not found')
-        return make_operation_outcome('not-found','Questionnaire with that name not found')
+        logger.error(f'Questionnaire with name {form_name} not found')
+        return make_operation_outcome('not-found',f'Questionnaire with name {form_name} not found')
 
     if run_all_jobs:
         libraries_to_run = []
@@ -234,6 +236,7 @@ def start_jobs(post_body: Parameters):
             r = requests.get(cqfr4_fhir+f'Library?name={library_name}')
             if r.status_code != 200:
                 logger.error(f'Getting library from server failed with status code {r.status_code}')
+                # TODO: this is going to error sometimes
                 logger.error(r.json())
                 return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
 
@@ -262,6 +265,22 @@ def start_jobs(post_body: Parameters):
         except KeyError:
             logger.error('CQL Library with that name not found')
             return make_operation_outcome('not-found','CQL Library with that name not found')
+
+    if has_patient_identifier:
+        r = requests.get(external_fhir_server_url+f'/Patient?identifier={patient_identifier}', headers={'Authorization': external_fhir_server_auth})
+        if r.status_code != 200:
+            logger.error(f'Getting Patient from server failed with status code {r.status_code}')
+            # TODO: this is going to error sometimes
+            logger.error(r.json())
+            return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
+
+        search_bundle = r.json()
+        try:
+            patient_id = search_bundle['entry'][0]['resource']['id']
+            logger.info(f'Found Patient with identifier {patient_identifier} and server id {patient_id}')
+        except KeyError:
+            logger.error('Patient with that identifier not found')
+            return make_operation_outcome('not-found','Patient with that identifier not found')
 
     # Create parameters post body for library evaluation
     parameters_post = {
