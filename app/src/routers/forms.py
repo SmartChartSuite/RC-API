@@ -221,8 +221,8 @@ def start_jobs(post_body: Parameters):
         form_server_id = search_bundle['entry'][0]['resource']['id']
         logger.info(f'Found Questionnaire with name {form_name} and server id {form_server_id}')
     except KeyError:
-        logger.error('Questionnaire with that name not found')
-        return make_operation_outcome('not-found','Questionnaire with that name not found')
+        logger.error(f'Questionnaire with name {form_name} not found')
+        return make_operation_outcome('not-found',f'Questionnaire with name {form_name} not found')
 
     if run_all_jobs:
         libraries_to_run = []
