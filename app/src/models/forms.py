@@ -21,7 +21,7 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[31m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    format = '%(asctime)s %(levelname)s - %(message)s'
+    format = '%(levelname)s: %(asctime)s - %(message)s'
 
     FORMATS = {
         logging.DEBUG: grey + format + reset,
@@ -87,7 +87,7 @@ class ResultParameter(BaseModel):
     name: str = "result"
     valueString: dict = {}
 
-# TODO: 
+# TODO:
 class ParametersJob(BaseModel):
     resourceType: str = "Parameters"
     parameter: list = [JobIDParameter(), JobStatusParameter(), ResultParameter()]
