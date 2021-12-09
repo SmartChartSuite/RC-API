@@ -236,13 +236,14 @@ def get_cql_results(futures: list, libraries: list, patientId: str):
 
 def flatten_results(results: dict):
     flat_results = {}
-    for resource_full in results['entry']:
-        job_name = resource_full['fullUrl']
-        value_list = [item for item in resource_full['resource']['parameter'] if item.get('name')=='value']
-        value_dict = value_list[0]
-        del value_dict['name']
-        value_value_list = value_dict.values()
-        value = value_value_list[0]
-        flat_results[job_name]=value
+    for result in results:
+        for resource_full in result['results']['entry']:
+            job_name = resource_full['fullUrl']
+            value_list = [item for item in resource_full['resource']['parameter'] if item.get('name')=='value']
+            value_dict = value_list[0]
+            del value_dict['name']
+            value_value_list = value_dict.values()
+            value = value_value_list[0]
+            flat_results[job_name]=value
 
     return flat_results
