@@ -10,7 +10,7 @@ from fhir.resources import resource
 from requests.api import request
 
 from ..models.forms import (
-    CustomFormatter, StartJobPostBody, NLPQLDict, ParametersJob, make_operation_outcome, bundle_forms, run_cql, get_cql_results
+    CustomFormatter, StartJobPostBody, NLPQLDict, ParametersJob, flatten_results, make_operation_outcome, bundle_forms, run_cql, get_cql_results, flatten_results
 )
 
 from typing import Union, Dict
@@ -213,6 +213,7 @@ def start_jobs(post_body: Parameters):
     r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
     if r.status_code != 200:
         logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
+        #TODO fix this
         logger.error(r.json())
         return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {r.status_code}')
 
@@ -331,6 +332,8 @@ def start_jobs(post_body: Parameters):
     if type(results)==str:
         return make_operation_outcome('timeout',results)
 
+    temp_flat_results = flatten_results(results)
+    logger.info(temp_flat_results)
 
     # Creates the linked evidence format needed for the UI to render evidence thats related to certain questions from a certain form
     logger.info('Start linking results')

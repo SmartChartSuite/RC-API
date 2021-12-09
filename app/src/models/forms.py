@@ -1,5 +1,6 @@
 from datetime import datetime
 from fastapi.exceptions import HTTPException
+from fhir.resources import library
 from fhir.resources.operationoutcome import OperationOutcome
 from pydantic import BaseModel, Field
 from typing import Dict, Optional, List, Union
@@ -87,7 +88,7 @@ class ResultParameter(BaseModel):
     name: str = "result"
     valueString: dict = {}
 
-# TODO:
+
 class ParametersJob(BaseModel):
     resourceType: str = "Parameters"
     parameter: list = [JobIDParameter(), JobStatusParameter(), ResultParameter()]
@@ -232,3 +233,16 @@ def get_cql_results(futures: list, libraries: list, patientId: str):
         full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
         results.append(full_result)
     return results
+
+def flatten_results(results: dict):
+    flat_results = {}
+    for resource_full in results['entry']:
+        job_name = resource_full['fullUrl']
+        value_list = [item for item in resource_full['resource']['parameter'] if item.get('name')=='value']
+        value_dict = value_list[0]
+        del value_dict['name']
+        value_value_list = value_dict.values()
+        value = value_value_list[0]
+        flat_results[job_name]=value
+
+    return flat_results
