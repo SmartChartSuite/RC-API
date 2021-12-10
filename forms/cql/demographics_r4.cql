@@ -13,6 +13,6 @@ codesystem "ICD10": '2.16.840.1.113883.6.3'
 
 context Patient
 
-define "patient_resource" : [Patient]
+define "hispanic_or_latino_choice": 'No'
 define "omb_race_complete_string": 'White, American Indian or Alaska Native, Asian, Shoshone, Filipino'
 define "omb_race_summary": 'Mixed'

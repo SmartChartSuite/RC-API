@@ -332,9 +332,6 @@ def start_jobs(post_body: Parameters):
     if type(results)==str:
         return make_operation_outcome('timeout',results)
 
-    temp_flat_results = flatten_results(results)
-    logger.info(temp_flat_results)
-
     # Creates the linked evidence format needed for the UI to render evidence thats related to certain questions from a certain form
     logger.info('Start linking results')
     bundled_results = create_linked_results(results, form_name)
@@ -558,6 +555,12 @@ def create_linked_results(results: list, form_name: str):
 
     bundle_entries = []
     logger.debug(results)
+    result = results[0]
+    target_library = result['libraryName']
+
+    results = flatten_results(results)
+    logger.info('"Flattened" Results into the dictionary')
+
     # For each group of questions in the form
     for group in form['item']:
 
@@ -566,7 +569,7 @@ def create_linked_results(results: list, form_name: str):
 
 
             linkId = question['linkId']
-
+            logger.info(f'Working on question {linkId}')
             # If the question has these extensions, get their values, if not, keep going
             try:
                 for extension in question['extension']:
@@ -578,14 +581,8 @@ def create_linked_results(results: list, form_name: str):
             except KeyError:
                 pass
 
-            # If this question has a task in a library whose results were passed to this function, get the results from that library run
-            target_library = None
-            for result in results:
-                if result['libraryName'] == library:
-                    target_library = result
-                # if library was not found, just skip rest of loop to move on because its not needed
-                if target_library is None:
-                    continue
+            if library != target_library:
+                continue
 
             # Create answer observation for this question
             answer_obs_uuid = str(uuid.uuid4())
@@ -610,32 +607,35 @@ def create_linked_results(results: list, form_name: str):
             single_return_value = None
             supporting_resources = None
             empty_single_return = False
-            for result in results:
-                for entry in result['results']['entry']:
-                    if entry['fullUrl'] == task:
-                        value_return = [item for item in entry['resource']['parameter'] if item.get('name')=='value'][0]
-                        try:
-                            if value_return['resource']['resourceType']=='Bundle':
-                                supporting_resources = value_return['resource']['entry']
-                                single_resource_flag = False
-                            else:
-                                resource_type = value_return['resource']['resourceType']
-                                single_resource_flag = True
-                        except KeyError:
-                            single_return_type = [item for item in entry['resource']['parameter'] if item.get('name')=='resultType'][0]['valueString']
-                            single_return_value = value_return[f'valueString']
-                        logger.info(f'Found task {task} and supporting resources')
-                if single_return_value == '[]':
-                    empty_single_return = True
-                    logger.info('Empty single return')
-                    continue
-                if supporting_resources is not None:
-                    for resource in supporting_resources:
-                        try:
-                            focus_object = {'reference': resource['fullUrl']}
-                            answer_obs.focus.append(focus_object)
-                        except KeyError:
-                            pass
+
+            try:
+                value_return = results[task]
+            except KeyError:
+                logger.error(f'The task {task} was not found in the library results')
+                return make_operation_outcome('not-found', f'The task {task} was not found in the library results')
+            try:
+                if value_return['resourceType']=='Bundle':
+                    supporting_resources = value_return['entry']
+                    single_resource_flag = False
+                    logger.info(f'Found task {task} and supporting resources')
+                else:
+                    resource_type = value_return['resourceType']
+                    single_resource_flag = True
+                    logger.info(f'Found task {task} result')
+            except (KeyError, TypeError) as e:
+                single_return_value = value_return
+                logger.info('Found single return value')
+
+            if single_return_value == '[]':
+                empty_single_return = True
+                logger.info('Empty single return')
+            if supporting_resources is not None:
+                for resource in supporting_resources:
+                    try:
+                        focus_object = {'reference': resource['fullUrl']}
+                        answer_obs.focus.append(focus_object)
+                    except KeyError:
+                        pass
             if empty_single_return:
                 continue
 

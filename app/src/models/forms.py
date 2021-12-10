@@ -241,9 +241,8 @@ def flatten_results(results: dict):
             job_name = resource_full['fullUrl']
             value_list = [item for item in resource_full['resource']['parameter'] if item.get('name')=='value']
             value_dict = value_list[0]
-            del value_dict['name']
-            value_value_list = value_dict.values()
-            value = value_value_list[0]
+            value_value_list = list(value_dict.values())
+            value = value_value_list[1]
             flat_results[job_name]=value
 
     return flat_results
