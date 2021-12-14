@@ -343,6 +343,9 @@ def start_jobs(post_body: Parameters):
     logger.info('Finished linking results')
 
     return bundled_results
+@formsrouter.get('/forms/status/all')
+def return_all_jobs():
+    return jobs
 
 @formsrouter.get('/forms/status/{uid}')
 def get_job_status(uid: str):
@@ -350,6 +353,8 @@ def get_job_status(uid: str):
         return jobs[uid]
     except KeyError:
         return make_operation_outcome('not-found', f'The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id.')
+
+
 
 @formsrouter.post("/forms/nlpql")
 def save_nlpql(code: str = Body(...)):
@@ -521,7 +526,6 @@ def update_cql(library_name: str, code: str = Body(...)):
         return make_operation_outcome('transient', f'Putting Library from server failed with status code {r.status_code}')
 
     return make_operation_outcome('informational',f'Library {library_name} successfully put on server', severity='information')
-
 
 @formsrouter.put("/forms/nlpql/{library_name}")
 def update_nlpql(library_name: str, new_nlpql: str = Body(...)):
