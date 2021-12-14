@@ -714,7 +714,7 @@ def create_linked_results(results: list, form_name: str):
                     tuple_observations = []
                     for answer_tuple in tuple_dict_list:
                         answer_value_split = answer_tuple['answerValue'].split('^')
-
+                        supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation'}
 
                         temp_uuid = str(uuid.uuid4())
                         temp_answer_obs = {
@@ -739,6 +739,7 @@ def create_linked_results(results: list, form_name: str):
                             "subject": {
                                 "reference": f'Patient/{patient_resource_id}'
                             },
+                            "focus": [{"reference": supporting_resource_type_map[answer_tuple['fhirField']]+'/'+answer_tuple['fhirResourceId'].split('/')[-1]}],
                             "note": [{
                                 "text": answer_tuple['sourceNote']
                             }],
