@@ -173,9 +173,9 @@ def start_jobs_header_function(post_body: Parameters, background_tasks: Backgrou
         return start_jobs(post_body)
 
 def start_async_jobs(post_body: Parameters, uid: str):
-    logger.info(jobs)
     jobs[uid].parameter[2].valueString = start_jobs(post_body)
     jobs[uid].parameter[1].valueString = "complete"
+    logger.info(f'Job id {uid} complete and results are available at /forms/status/{uid}')
 
 def start_jobs(post_body: Parameters):
 
@@ -407,7 +407,6 @@ def save_cql(code: str = Body(...)):
         logger.error(f'Trying to get library from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
     search_bundle = r.json()
-    logger.info(search_bundle)
     try:
         cql_library = search_bundle['entry'][0]['resource']
         logger.info(f'Found CQL Library with name {name} and version {version}')
@@ -560,9 +559,10 @@ def create_linked_results(results: list, form_name: str):
         result = results[0]
         target_library = result['libraryName']
 
+    logger.debug(results)
     results = flatten_results(results)
     logger.info('"Flattened" Results into the dictionary')
-    logger.info(results)
+    logger.debug(results)
     try:
         patient_resource = results['Patient']
         patient_resource_id = results['Patient']['id']
