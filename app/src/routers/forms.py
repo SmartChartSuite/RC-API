@@ -354,8 +354,6 @@ def get_job_status(uid: str):
     except KeyError:
         return make_operation_outcome('not-found', f'The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id.')
 
-
-
 @formsrouter.post("/forms/nlpql")
 def save_nlpql(code: str = Body(...)):
     # Get name and version of NLPQL Library
@@ -566,7 +564,13 @@ def create_linked_results(results: list, form_name: str):
     logger.info('"Flattened" Results into the dictionary')
     logger.info(results)
     try:
-        bundle_entries.append(results['Patient'])
+        patient_resource = results['Patient']
+        patient_resource_id = results['Patient']['id']
+        patient_bundle_entry = {
+            "fullUrl": f'Patient/{patient_resource_id}',
+            "resource": patient_resource
+        }
+        bundle_entries.append(patient_bundle_entry)
     except KeyError:
         logger.error('Patient resource not found in results, results from CQF Ruler are logged below')
         logger.error(results)
@@ -577,7 +581,6 @@ def create_linked_results(results: list, form_name: str):
 
         # For each question in the group in the form
         for question in group['item']:
-
 
             linkId = question['linkId']
             logger.info(f'Working on question {linkId}')
@@ -602,6 +605,13 @@ def create_linked_results(results: list, form_name: str):
                 "resourceType": "Observation",
                 "id": answer_obs_uuid,
                 "status": "final",
+                "category": [{
+                    "coding": [{
+                        "system": "http://hl7.org/fhir/ValueSet/observation-category",
+                        "code": "survey",
+                        "display": "Survey"
+                    }]
+                }],
                 "code": {
                     "coding": [
                         {
@@ -609,6 +619,9 @@ def create_linked_results(results: list, form_name: str):
                             "code": linkId
                         }
                     ]
+                },
+                "subject": {
+                    "reference": f'Patient/{patient_resource_id}'
                 },
                 'focus': []
             }
@@ -698,13 +711,47 @@ def create_linked_results(results: list, form_name: str):
                             test_dict[key] = value
                         tuple_dict_list.append(test_dict)
                     logger.debug(tuple_dict_list)
+                    tuple_observations = []
+                    for answer_tuple in tuple_dict_list:
+                        answer_value_split = answer_tuple['answerValue'].split('^')
 
-                    answer_obs['valueString'] = single_answer
-                    answer_obs_bundle_item = {
-                        'fullUrl' : 'Observation/'+answer_obs_uuid,
-                        'resource': answer_obs
-                    }
 
+                        temp_uuid = str(uuid.uuid4())
+                        temp_answer_obs = {
+                            "resourceType": "Observation",
+                            "id": temp_uuid,
+                            "status": "final",
+                            "category": [{
+                                "coding": [{
+                                    "system": "http://hl7.org/fhir/ValueSet/observation-category",
+                                    "code": "survey",
+                                    "display": "Survey"
+                                }]
+                            }],
+                            "code": {
+                                "coding": [
+                                    {
+                                        "system": f"urn:gtri:heat:form:{form_name}",
+                                        "code": linkId
+                                    }
+                                ]
+                            },
+                            "subject": {
+                                "reference": f'Patient/{patient_resource_id}'
+                            },
+                            "note": [{
+                                "text": answer_tuple['sourceNote']
+                            }],
+                            "effectiveDateTime": answer_value_split[0],
+                            "valueCodeableConcept": {
+                                "coding": [{
+                                    "system": answer_value_split[1],
+                                    "code": answer_value_split[2],
+                                    "display": answer_value_split[3]
+                                }]
+                            }
+                        }
+                        tuple_observations.append(temp_answer_obs)
 
             try:
                 focus_test = answer_obs_bundle_item['resource']['focus']
@@ -714,7 +761,10 @@ def create_linked_results(results: list, form_name: str):
                 except KeyError:
                     continue
             #Add items to return bundle entry list
-            bundle_entries.append(answer_obs_bundle_item)
+            if tuple_flag == False:
+                bundle_entries.append(answer_obs_bundle_item)
+            else:
+                bundle_entries.extend(tuple_observations)
             if supporting_resources is not None:
                 bundle_entries.extend(supporting_resources)
 
