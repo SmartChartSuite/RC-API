@@ -234,9 +234,10 @@ def get_cql_results(futures: list, libraries: list, patientId: str):
         results.append(full_result)
     return results
 
-def flatten_results(results: dict):
+def flatten_results(results):
     flat_results = {}
     for result in results:
+        library_name = result['libraryName']
         for resource_full in result['results']['entry']:
             job_name = resource_full['fullUrl']
             value_list = [item for item in resource_full['resource']['parameter'] if item.get('name')=='value']
@@ -246,3 +247,12 @@ def flatten_results(results: dict):
             flat_results[job_name]=value
 
     return flat_results
+
+def check_results(results):
+    for result in results:
+        try:
+            full_list = result['results']['entry']
+        except KeyError:
+            issue = result['results']['issue']
+            return make_operation_outcome(issue[0]['code'], issue[0]['diagnostics'])
+    return None

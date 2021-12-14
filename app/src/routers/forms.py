@@ -11,7 +11,8 @@ from fhir.resources import resource
 from requests.api import request
 
 from ..models.forms import (
-    CustomFormatter, StartJobPostBody, NLPQLDict, ParametersJob, flatten_results, make_operation_outcome, bundle_forms, run_cql, get_cql_results, flatten_results
+    CustomFormatter, StartJobPostBody, NLPQLDict, ParametersJob, flatten_results, make_operation_outcome, bundle_forms,
+    run_cql, get_cql_results, flatten_results, check_results
 )
 
 from typing import Union, Dict
@@ -37,6 +38,7 @@ import uuid
 
 import time
 
+
 # Formats logging message to include the level of log message
 #logging.basicConfig(format='%(asctime)s %(levelname)s - %(message)s', level=logging.DEBUG, datefmt='%m/%d/%Y %I:%M:%S %p')
 
@@ -60,11 +62,12 @@ def root():
 
 @formsrouter.get("/forms", response_model=dict)
 def get_list_of_forms():
+    cqfr4_fhir = os.environ["CQF_RULER_R4"]
     # Pull list of forms from CQF Ruler
-    if cqfr4_fhir[-5:]=='fhir/': # type: ignore
+    if cqfr4_fhir[-5:]=='fhir/':
         pass
-    elif cqfr4_fhir[-4:]=='fhir': # type: ignore
-        cqfr4_fhir = cqfr4_fhir + '/' # type: ignore
+    elif cqfr4_fhir[-4:]=='fhir':
+        cqfr4_fhir = cqfr4_fhir + '/'
     else:
         return make_operation_outcome('invalid', f'The CQF Ruler url ({cqfr4_fhir}) passed in as an environmental variable is not correct, please check that it ends with fhir or fhir/')# type:ignore
     r = requests.get(cqfr4_fhir+'Questionnaire')
@@ -324,6 +327,16 @@ def start_jobs(post_body: Parameters):
     if type(results)==str:
         return make_operation_outcome('timeout',results)
 
+    # Checks results for any CQL issues
+    results_check_return = check_results(results)
+    if type(results_check_return) == dict:
+        logger.error('There were errors in the CQL, see OperationOutcome')
+        logger.error(results_check_return)
+        return results_check_return
+    else:
+        pass
+    logger.info('No CQL result errors, continuing to link results')
+
     # Creates the linked evidence format needed for the UI to render evidence thats related to certain questions from a certain form
     logger.info('Start linking results')
     bundled_results = create_linked_results(results, form_name)
@@ -391,6 +404,7 @@ def save_cql(code: str = Body(...)):
         logger.error(f'Trying to get library from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
     search_bundle = r.json()
+    logger.info(search_bundle)
     try:
         cql_library = search_bundle['entry'][0]['resource']
         logger.info(f'Found CQL Library with name {name} and version {version}')
@@ -539,11 +553,14 @@ def create_linked_results(results: list, form_name: str):
 
     bundle_entries = []
     logger.debug(results)
-    result = results[0]
-    target_library = result['libraryName']
+    result_length = len(results)
+    if result_length == 1:
+        result = results[0]
+        target_library = result['libraryName']
 
     results = flatten_results(results)
     logger.info('"Flattened" Results into the dictionary')
+    logger.info(results)
     try:
         bundle_entries.append(results['Patient'])
     except KeyError:
@@ -571,8 +588,9 @@ def create_linked_results(results: list, form_name: str):
             except KeyError:
                 pass
 
-            if library != target_library:
-                continue
+            if result_length == 1:
+                if library != target_library:
+                    continue
 
             # Create answer observation for this question
             answer_obs_uuid = str(uuid.uuid4())
@@ -597,6 +615,7 @@ def create_linked_results(results: list, form_name: str):
             single_return_value = None
             supporting_resources = None
             empty_single_return = False
+            tuple_flag = False
 
             try:
                 value_return = results[task]
@@ -614,12 +633,12 @@ def create_linked_results(results: list, form_name: str):
                     logger.info(f'Found task {task} result')
             except (KeyError, TypeError) as e:
                 single_return_value = value_return
-                logger.info('Found single return value')
+                logger.debug(f'Found single return value {single_return_value}')
 
             if single_return_value == '[]':
                 empty_single_return = True
                 logger.info('Empty single return')
-            if single_value_return[0:6]=='[Tuple':
+            if type(single_return_value) == str and single_return_value[0:6]=='[Tuple':
                 tuple_flag=True
                 logger.info('Found Tuple in results')
             if supporting_resources is not None:
@@ -638,7 +657,7 @@ def create_linked_results(results: list, form_name: str):
                 del answer_obs['focus']
 
             # If cardinality is a series, does the standard return body format
-            if cardinality == 'series':
+            if cardinality == 'series' and tuple_flag==False:
                 # Construct final answer object bundle before result bundle insertion
                 answer_obs_bundle_item = {
                     'fullUrl' : 'Observation/'+answer_obs_uuid,
@@ -653,11 +672,35 @@ def create_linked_results(results: list, form_name: str):
                     continue
 
                 #value_key = 'value'+single_return_type
-                answer_obs['valueString'] = single_answer
-                answer_obs_bundle_item = {
-                    'fullUrl' : 'Observation/'+answer_obs_uuid,
-                    'resource': answer_obs
-                }
+                if tuple_flag==False:
+                    answer_obs['valueString'] = single_answer
+                    answer_obs_bundle_item = {
+                        'fullUrl' : 'Observation/'+answer_obs_uuid,
+                        'resource': answer_obs
+                    }
+                elif tuple_flag==True:
+                    tuple_string = single_answer.strip('[]')
+                    tuple_string = tuple_string.split('Tuple ')
+                    tuple_string.remove('')
+                    tuple_dict_list = []
+                    for item in tuple_string:
+                        new_item = item.strip(', ')
+                        new_item = new_item.replace('\n', '').strip('{ }').replace('"', '')
+                        new_item_list = new_item.split('\t')
+                        new_item_list.remove('')
+                        test_dict = {}
+                        for new_item in new_item_list:
+                            key, value = new_item.split(': ')
+                            test_dict[key] = value
+                        tuple_dict_list.append(test_dict)
+                    logger.debug(tuple_dict_list)
+
+                    answer_obs['valueString'] = single_answer
+                    answer_obs_bundle_item = {
+                        'fullUrl' : 'Observation/'+answer_obs_uuid,
+                        'resource': answer_obs
+                    }
+
 
             try:
                 focus_test = answer_obs_bundle_item['resource']['focus']

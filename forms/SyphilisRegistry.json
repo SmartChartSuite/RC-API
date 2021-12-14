@@ -1,294 +1,279 @@
 {
-    "status": "draft", 
-    "publisher": "GTRI", 
-    "version": "0.1", 
-    "extension": [
-        {
-            "url": "http://gtri.gatech.edu/fakeFormIg/form-job-list", 
-            "extension": [
-                {
-                    "url": "form-job", 
-                    "valueString": "demographics"
-                }, 
-                {
-                    "url": "form-job", 
-                    "valueString": "Syphilis_Lab_Results"
-                }, 
-                {
-                    "url": "form-job", 
-                    "valueString": "Syphilis_Diagnoses"
-                }, 
-                {
-                    "url": "form-job", 
-                    "valueString": "Syphilis_Treatment"
-                }, 
-                {
-                    "url": "form-job", 
-                    "valueString": "Pregnancy"
-                }
-            ]
-        }
-    ], 
-    "title": "Syphilis Registry", 
-    "resourceType": "Questionnaire", 
-    "description": "Package for Syphilis Registry", 
-    "subjectType": [
-        "Patient"
-    ], 
-    "url": "http://gtri.gatech.edu/fakeFormIg/Questionnaire/SyphilisRegistry", 
+    "resourceType": "Questionnaire",
     "meta": {
         "profile": [
             "http://gtri.gatech.edu/fakeFormIg/StructureDefinition/smartchart-form"
         ]
-    }, 
+    },
+    "id": "SyphilisRegistry",
+    "url": "http://gtri.gatech.edu/fakeFormIg/Questionnaire/SyphilisRegistry",
+    "name": "SyphilisRegistry",
+    "version": "0.1",
+    "title": "Syphilis Registry",
+    "status": "draft",
+    "experimental": true,
+    "publisher": "GTRI",
+    "description": "Package for Syphilis Registry",
+    "subjectType": [
+        "Patient"
+    ],
+    "extension": [
+        {
+            "url": "http://gtri.gatech.edu/fakeFormIg/form-job-list",
+            "extension": [
+                {
+                    "url": "form-job",
+                    "valueString": "demographics"
+                },
+                {
+                    "url": "form-job",
+                    "valueString": "Syphilis_Lab_Results"
+                },
+                {
+                    "url": "form-job",
+                    "valueString": "Syphilis_Diagnoses"
+                },
+                {
+                    "url": "form-job",
+                    "valueString": "Syphilis_Treatment"
+                },
+                {
+                    "url": "form-job",
+                    "valueString": "Pregnancy"
+                }
+            ]
+        }
+    ],
     "item": [
         {
-            "linkId": "Demographics", 
-            "type": "group", 
+            "linkId": "Demographics",
+            "type": "group",
+            "text": "Demographics",
             "item": [
                 {
-                    "linkId": "20000001", 
-                    "type": "string", 
+                    "linkId": "20000001",
+                    "text": "First Name",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "demographics.first_name"
                         }
-                    ], 
-                    "text": "First Name"
-                }, 
+                    ]
+                },
                 {
-                    "linkId": "20000002", 
-                    "type": "string", 
+                    "linkId": "20000002",
+                    "text": "Last Name",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "demographics.last_name"
                         }
-                    ], 
-                    "text": "Last Name"
-                }, 
+                    ]
+                },
                 {
-                    "linkId": "20000003", 
-                    "type": "string", 
+                    "linkId": "20000003",
+                    "text": "DOB",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "demographics.date_of_birth"
                         }
-                    ], 
-                    "text": "DOB"
-                }, 
+                    ]
+                },
                 {
-                    "linkId": "20000004", 
-                    "type": "string", 
+                    "linkId": "20000004",
+                    "text": "Age",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "demographics.age"
                         }
-                    ], 
-                    "text": "Age"
-                }, 
+                    ]
+                },
                 {
-                    "linkId": "20000005", 
-                    "type": "string", 
+                    "linkId": "20000005",
+                    "text": "Gender",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "demographics.gender"
                         }
-                    ], 
-                    "text": "Gender"
-                }, 
+                    ]
+                },
                 {
-                    "linkId": "20000006", 
-                    "type": "string", 
+                    "linkId": "20000006",
+                    "text": "Race",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "demographics.race"
                         }
-                    ], 
-                    "text": "Race"
-                }, 
+                    ]
+                },
                 {
-                    "linkId": "20000007", 
-                    "type": "string", 
+                    "linkId": "20000007",
+                    "text": "Ethnicity",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "demographics.ethnicity"
                         }
-                    ], 
-                    "text": "Ethnicity"
+                    ]
                 }
-            ], 
-            "text": "Demographics"
-        }, 
+            ]
+        },
         {
-            "linkId": "Test Results", 
-            "type": "group", 
+            "linkId": "Lab Results",
+            "type": "group",
+            "text": "Lab Results",
             "item": [
                 {
-                    "linkId": "20000008", 
-                    "type": "string", 
+                    "linkId": "20000008",
+                    "text": "Lab Results",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
-                            "valueString": "Syphilis_Lab_Results.test_results"
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "Syphilis_Lab_Results.lab_results"
                         }
-                    ], 
-                    "text": "Test Results"
+                    ]
                 }
-            ], 
-            "text": "Test Results"
-        }, 
+            ]
+        },
         {
-            "linkId": "Diagnoses", 
-            "type": "group", 
+            "linkId": "Diagnoses",
+            "type": "group",
+            "text": "Diagnoses",
             "item": [
                 {
-                    "linkId": "20000009", 
-                    "type": "string", 
+                    "linkId": "20000009",
+                    "text": "Syphilis Diagnoses",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Diagnoses.syphilis_diagnoses"
                         }
-                    ], 
-                    "text": "Syphilis Diagnoses"
-                }, 
+                    ]
+                },
                 {
-                    "linkId": "20000010", 
-                    "type": "string", 
+                    "linkId": "20000010",
+                    "text": "Related Diagnoses",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Diagnoses.syphilis_related_diagnoses"
                         }
-                    ], 
-                    "text": "Related Diagnoses"
-                }, 
+                    ]
+                },
                 {
-                    "linkId": "20000011", 
-                    "type": "string", 
+                    "linkId": "20000011",
+                    "text": "Symptoms",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Diagnoses.syphilis_symptoms"
                         }
-                    ], 
-                    "text": "Symptoms"
+                    ]
                 }
-            ], 
-            "text": "Diagnoses"
-        }, 
+            ]
+        },
         {
-            "linkId": "Treatment", 
-            "type": "group", 
+            "linkId": "Treatment",
+            "type": "group",
+            "text": "Treatment",
             "item": [
                 {
-                    "linkId": "20000012", 
-                    "type": "string", 
+                    "linkId": "20000012",
+                    "text": "Syphilis Treatment",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "series"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
-                            "valueString": "Syphilis_Treatment.treatment_from_Medication_Statement"
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "Syphilis_Treatment.syphilis_treatment_medication_statement"
                         }
-                    ], 
-                    "text": "Syphilis Treatment"
-                }, 
-                {
-                    "linkId": "20000012", 
-                    "type": "string", 
-                    "extension": [
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
-                            "valueString": "series"
-                        }, 
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
-                            "valueString": "Syphilis_Treatment.treatment_from_Order"
-                        }
-                    ], 
-                    "text": "Syphilis Treatment"
+                    ]
                 }
-            ], 
-            "text": "Treatment"
-        }, 
+            ]
+        },
         {
-            "linkId": "Pregnancy", 
-            "type": "group", 
+            "linkId": "Pregnancy",
+            "type": "group",
+            "text": "Pregnancy",
             "item": [
                 {
-                    "linkId": "20000013", 
-                    "type": "string", 
+                    "linkId": "20000013",
+                    "text": "Pregnancy Status",
+                    "type": "string",
                     "extension": [
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
                             "valueString": "single"
-                        }, 
+                        },
                         {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask", 
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Pregnancy.pregnancy_status"
                         }
-                    ], 
-                    "text": "Pregnancy Status"
+                    ]
                 }
-            ], 
-            "text": "Pregnancy"
+            ]
         }
-    ], 
-    "id": "SyphilisRegistry", 
-    "experimental": true, 
-    "name": "SyphilisRegistry"
+    ]
 }
