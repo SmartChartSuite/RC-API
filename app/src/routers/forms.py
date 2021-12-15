@@ -714,6 +714,7 @@ def create_linked_results(results: list, form_name: str):
                     tuple_observations = []
                     for answer_tuple in tuple_dict_list:
                         answer_value_split = answer_tuple['answerValue'].split('^')
+                        logger.info(f'The tuple response split by character is: {answer_value_split}')
                         supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation'}
 
                         temp_uuid = str(uuid.uuid4())
