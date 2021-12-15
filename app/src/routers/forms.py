@@ -173,7 +173,7 @@ def start_jobs_header_function(post_body: Parameters, background_tasks: Backgrou
         return start_jobs(post_body)
 
 def start_async_jobs(post_body: Parameters, uid: str):
-    jobs[uid].parameter[2].valueString = start_jobs(post_body)
+    jobs[uid].parameter[2].resource = start_jobs(post_body)
     jobs[uid].parameter[1].valueString = "complete"
     logger.info(f'Job id {uid} complete and results are available at /forms/status/{uid}')
 
