@@ -752,7 +752,11 @@ def create_linked_results(results: list, form_name: str):
                             }],
                             f'value{value_type}': answer_tuple['answerValue']
                         }
-                        tuple_observations.append(temp_answer_obs)
+                        temp_answer_obs_entry = {
+                            "fullUrl": f'Observation/{temp_uuid}',
+                            "resource": temp_answer_obs
+                        }
+                        tuple_observations.append(temp_answer_obs_entry)
 
             try:
                 focus_test = answer_obs_bundle_item['resource']['focus']
