@@ -351,7 +351,7 @@ def return_all_jobs():
 def get_job_status(uid: str):
     try:
         try:
-            job_results = jobs[uid]['parameter'][2]['valueString']
+            job_results = jobs[uid].parameter[2].resource
             job_results_severity = job_results['issue'][0]['severity']
             if job_results_severity == 'error':
                 return JSONResponse(status_code=500, content=job_results)
