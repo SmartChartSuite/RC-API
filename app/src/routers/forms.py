@@ -360,7 +360,7 @@ def get_job_status(uid: str):
         except KeyError:
             return jobs[uid]
     except KeyError:
-        return make_operation_outcome('not-found', f'The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id.')
+        return JSONResponse(content=make_operation_outcome('not-found', f'The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id.'), status_code=404)
 
 @formsrouter.post("/forms/nlpql")
 def save_nlpql(code: str = Body(...)):
