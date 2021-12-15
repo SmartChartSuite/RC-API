@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi.exceptions import HTTPException
-from fhir.resources import library
+from fhir.resources import library, resource
 from fhir.resources.operationoutcome import OperationOutcome
 from pydantic import BaseModel, Field
 from typing import Dict, Optional, List, Union
@@ -86,7 +86,7 @@ class JobStatusParameter(BaseModel):
 
 class ResultParameter(BaseModel):
     name: str = "result"
-    valueString: dict = {}
+    resource: dict = {}
 
 
 class ParametersJob(BaseModel):

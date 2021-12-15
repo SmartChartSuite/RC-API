@@ -721,10 +721,8 @@ def create_linked_results(results: list, form_name: str):
                     logger.debug(tuple_dict_list)
                     tuple_observations = []
                     for answer_tuple in tuple_dict_list:
-                        answer_value_split = answer_tuple['answerValue'].split('^')
-                        logger.info(f'The tuple response split by character is: {answer_value_split}')
                         supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation'}
-
+                        value_type = answer_tuple['valueType']
                         temp_uuid = str(uuid.uuid4())
                         temp_answer_obs = {
                             "resourceType": "Observation",
@@ -752,14 +750,7 @@ def create_linked_results(results: list, form_name: str):
                             "note": [{
                                 "text": answer_tuple['sourceNote']
                             }],
-                            "effectiveDateTime": answer_value_split[0],
-                            "valueCodeableConcept": {
-                                "coding": [{
-                                    "system": answer_value_split[1],
-                                    "code": answer_value_split[2],
-                                    "display": answer_value_split[3]
-                                }]
-                            }
+                            f'value{value_type}': answer_tuple['answerValue']
                         }
                         tuple_observations.append(temp_answer_obs)
 
