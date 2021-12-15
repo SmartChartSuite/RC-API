@@ -350,7 +350,15 @@ def return_all_jobs():
 @formsrouter.get('/forms/status/{uid}')
 def get_job_status(uid: str):
     try:
-        return jobs[uid]
+        try:
+            job_results = jobs[uid]['parameter'][2]['valueString']
+            job_results_severity = job_results['issue'][0]['severity']
+            if job_results_severity == 'error':
+                return JSONResponse(status_code=500, content=job_results)
+            else:
+                return jobs[uid]
+        except KeyError:
+            return jobs[uid]
     except KeyError:
         return make_operation_outcome('not-found', f'The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id.')
 
