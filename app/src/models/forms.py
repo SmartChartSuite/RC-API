@@ -86,7 +86,7 @@ class JobStatusParameter(BaseModel):
 
 class ResultParameter(BaseModel):
     name: str = "result"
-    resource: dict = {}
+    resource: dict = {"resourceType": "Bundle"}
 
 
 class ParametersJob(BaseModel):
