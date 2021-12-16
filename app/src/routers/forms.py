@@ -615,7 +615,7 @@ def create_linked_results(results: list, form_name: str):
                 "status": "final",
                 "category": [{
                     "coding": [{
-                        "system": "http://hl7.org/fhir/ValueSet/observation-category",
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
                         "code": "survey",
                         "display": "Survey"
                     }]
@@ -721,7 +721,10 @@ def create_linked_results(results: list, form_name: str):
                     logger.debug(tuple_dict_list)
                     tuple_observations = []
                     for answer_tuple in tuple_dict_list:
+                        answer_value_split = answer_tuple['answerValue'].split('^')
+                        logger.info(answer_value_split)
                         supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation'}
+                        supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
                         value_type = answer_tuple['valueType']
                         temp_uuid = str(uuid.uuid4())
                         temp_answer_obs = {
@@ -730,7 +733,7 @@ def create_linked_results(results: list, form_name: str):
                             "status": "final",
                             "category": [{
                                 "coding": [{
-                                    "system": "http://hl7.org/fhir/ValueSet/observation-category",
+                                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
                                     "code": "survey",
                                     "display": "Survey"
                                 }]
@@ -746,7 +749,9 @@ def create_linked_results(results: list, form_name: str):
                             "subject": {
                                 "reference": f'Patient/{patient_resource_id}'
                             },
-                            "focus": [{"reference": supporting_resource_type_map[answer_tuple['fhirField']]+'/'+answer_tuple['fhirResourceId'].split('/')[-1]}],
+                            "focus": [{
+                                "reference": supporting_resource_type +'/'+answer_tuple['fhirResourceId'].split('/')[-1]
+                            }],
                             "note": [{
                                 "text": answer_tuple['sourceNote']
                             }],
@@ -757,6 +762,60 @@ def create_linked_results(results: list, form_name: str):
                             "resource": temp_answer_obs
                         }
                         tuple_observations.append(temp_answer_obs_entry)
+
+                        # Create focus reference from data
+                        if supporting_resource_type == 'MedicationStatement':
+                            supporting_resource = {
+                                "resourceType": "MedicationStatement",
+                                "id": answer_tuple['fhirResourceId'].split('/')[-1],
+                                "status": "active",
+                                "medicationCodeableConcept": {
+                                    "coding": [{
+                                        "system": answer_value_split[1],
+                                        "code": answer_value_split[2],
+                                        "display": answer_value_split[3],
+                                    }]
+                                },
+                                "effectiveDateTime": answer_value_split[0],
+                                "subject": {
+                                    "reference": f'Patient/{patient_resource_id}'
+                                },
+                                "dosage": [{
+                                    "doseAndRate":[{
+                                        "doseQuantity": {
+                                            "value": answer_value_split[4],
+                                            "unit": answer_value_split[5]
+                                        }
+                                    }]
+                                }]
+                            }
+                            supporting_resource_bundle_entry = {
+                                "fullUrl": 'MedicationStatement/'+supporting_resource["id"],
+                                "resource": supporting_resource
+                            }
+                        elif supporting_resource_type == 'Observation':
+                            supporting_resource = {
+                                "resourceType": "Observation",
+                                "id": answer_tuple['fhirResourceId'].split('/')[-1],
+                                "status": "final",
+                                "code":{
+                                    "coding": [{
+                                        "system": answer_value_split[1],
+                                        "code": answer_value_split[2],
+                                        "display": answer_value_split[3],
+                                    }]
+                                },
+                                "effectiveDateTime": answer_value_split[0],
+                                "subject": {
+                                    "reference": f'Patient/{patient_resource_id}'
+                                },
+                                "valueString": answer_value_split[4]+' '+answer_value_split[5]
+                            }
+                            supporting_resource_bundle_entry = {
+                                "fullUrl": 'Observation/'+supporting_resource["id"],
+                                "resource": supporting_resource
+                            }
+                        tuple_observations.append(supporting_resource_bundle_entry)
 
             try:
                 focus_test = answer_obs_bundle_item['resource']['focus']
@@ -778,7 +837,6 @@ def create_linked_results(results: list, form_name: str):
         'resourceType': 'Bundle',
         'id': return_bundle_id,
         'type': 'collection',
-        'total': len(bundle_entries),
         'entry': bundle_entries
     }
 
