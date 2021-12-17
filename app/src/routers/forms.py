@@ -768,6 +768,10 @@ def create_linked_results(results: list, form_name: str):
                             supporting_resource = {
                                 "resourceType": "MedicationStatement",
                                 "id": answer_tuple['fhirResourceId'].split('/')[-1],
+                                "identifier": [{
+                                    "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                                    "value": "MedicationStatement/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                }],
                                 "status": "active",
                                 "medicationCodeableConcept": {
                                     "coding": [{
@@ -797,6 +801,10 @@ def create_linked_results(results: list, form_name: str):
                             supporting_resource = {
                                 "resourceType": "Observation",
                                 "id": answer_tuple['fhirResourceId'].split('/')[-1],
+                                "identifier": [{
+                                    "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                                    "value": "Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                }],
                                 "status": "final",
                                 "code":{
                                     "coding": [{
