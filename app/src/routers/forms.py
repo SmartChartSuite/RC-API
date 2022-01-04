@@ -478,7 +478,7 @@ def update_form(form_name: str, new_questions: Questionnaire):
         logger.error(f'Putting Questionnaire from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Putting Questionnaire from server failed with status code {r.status_code}')
 
-    return f'Questionnaire resource updated with server id {resource_id}'
+    return make_operation_outcome('informational',f'Questionnaire {form_name} successfully put on server with resource_id {resource_id}', severity='information')
 
 @formsrouter.put("/forms/cql/{library_name}")
 def update_cql(library_name: str, code: str = Body(...)):

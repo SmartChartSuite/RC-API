@@ -51,8 +51,8 @@
             "text": "Demographics",
             "item": [
                 {
-                    "linkId": "2000000005",
-                    "text": "Name",
+                    "linkId": "2000000001",
+                    "text": "First Name",
                     "type": "string",
                     "extension": [
                         {
@@ -61,12 +61,27 @@
                         },
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "demographics.full_name"
+                            "valueString": "demographics.first_name"
                         }
                     ]
                 },
                 {
-                    "linkId": "2000000014",
+                    "linkId": "2000000002",
+                    "text": "Last Name",
+                    "type": "string",
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "demographics.last_name"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "2000000003",
                     "text": "DOB",
                     "type": "string",
                     "extension": [
@@ -81,7 +96,7 @@
                     ]
                 },
                 {
-                    "linkId": "2000000006",
+                    "linkId": "2000000004",
                     "text": "Age",
                     "type": "string",
                     "extension": [
@@ -96,7 +111,7 @@
                     ]
                 },
                 {
-                    "linkId": "2000000007",
+                    "linkId": "2000000005",
                     "text": "Gender",
                     "type": "string",
                     "extension": [
@@ -111,7 +126,7 @@
                     ]
                 },
                 {
-                    "linkId": "2000000008",
+                    "linkId": "2000000006",
                     "text": "Race",
                     "type": "string",
                     "extension": [
@@ -126,7 +141,7 @@
                     ]
                 },
                 {
-                    "linkId": "2000000009",
+                    "linkId": "2000000007",
                     "text": "Ethnicity",
                     "type": "string",
                     "extension": [
@@ -148,7 +163,7 @@
             "text": "Lab Results",
             "item": [
                 {
-                    "linkId": "2000000001",
+                    "linkId": "2000000008",
                     "text": "Lab Results",
                     "type": "string",
                     "extension": [
@@ -170,7 +185,7 @@
             "text": "Diagnoses",
             "item": [
                 {
-                    "linkId": "2000000002",
+                    "linkId": "2000000009",
                     "text": "Syphilis Diagnoses",
                     "type": "string",
                     "extension": [
@@ -185,7 +200,7 @@
                     ]
                 },
                 {
-                    "linkId": "2000000013",
+                    "linkId": "2000000010",
                     "text": "Related Diagnoses",
                     "type": "string",
                     "extension": [
@@ -200,7 +215,7 @@
                     ]
                 },
                 {
-                    "linkId": "2000000003",
+                    "linkId": "2000000011",
                     "text": "Symptoms",
                     "type": "string",
                     "extension": [
@@ -222,7 +237,7 @@
             "text": "Treatment",
             "item": [
                 {
-                    "linkId": "2000000004",
+                    "linkId": "2000000012",
                     "text": "Syphilis Treatment",
                     "type": "string",
                     "extension": [
@@ -244,7 +259,7 @@
             "text": "Pregnancy",
             "item": [
                 {
-                    "linkId": "2000000012",
+                    "linkId": "2000000013",
                     "text": "Pregnancy Status",
                     "type": "string",
                     "extension": [
