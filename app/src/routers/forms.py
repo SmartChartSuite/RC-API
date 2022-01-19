@@ -820,7 +820,7 @@ def create_linked_results(results: list, form_name: str):
                                 "subject": {
                                     "reference": f'Patient/{patient_resource_id}'
                                 },
-                                "valueString": answer_value_split[4]+' '+answer_value_split[5]
+                                "valueString": ' '.join(answer_value_split[4:])
                             }
                             supporting_resource_bundle_entry = {
                                 "fullUrl": 'Observation/'+supporting_resource["id"],
