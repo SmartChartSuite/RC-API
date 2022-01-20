@@ -343,6 +343,7 @@ def start_jobs(post_body: Parameters):
     logger.info('Finished linking results')
 
     return bundled_results
+
 @formsrouter.get('/forms/status/all')
 def return_all_jobs():
     return jobs
@@ -353,6 +354,9 @@ def get_job_status(uid: str):
         try:
             job_results = jobs[uid].parameter[2].resource
             job_results_severity = job_results['issue'][0]['severity']
+            job_results_code = job_results['issue'][0]['code']
+            if job_results_code == 'not-found':
+                return JSONResponse(status_code=404, content=job_results)
             if job_results_severity == 'error':
                 return JSONResponse(status_code=500, content=job_results)
             else:
