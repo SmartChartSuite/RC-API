@@ -4,6 +4,7 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 
+
 from ..models.models import (
     CustomFormatter, ParametersJob
 )
@@ -46,6 +47,8 @@ if log_level == "DEBUG":
 
 apirouter = APIRouter()
 jobs: Dict[str, ParametersJob] = {}
+
+
 
 @apirouter.get("/")
 def root():
@@ -687,7 +690,7 @@ def update_nlpql(library_name: str, code: str = Body(...)):
     nlpql_library = nlpql_library.dict()
     nlpql_library['content'][0]['data'] = base64_nlpql
     nlpql_library['id'] = resource_id
-    logger.debug(nlpql_library)
+
     r = requests.put(cqfr4_fhir+f'Library/{resource_id}', json=nlpql_library)
     if r.status_code != 200:
         logger.error(f'Putting Library to server failed with status code {r.status_code}')
