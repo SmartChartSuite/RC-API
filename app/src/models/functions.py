@@ -197,23 +197,65 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url: str,
         futures.append(future)
     return futures
 
-def get_results(futures: list, libraries: list, patientId: str):
+def get_results(futures: list, libraries: list, patientId: str, flags: list):
 
-    results = []
+    results_cql = []
+    results_nlpql = []
     # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
-    for i, future in enumerate(futures):
-        pre_result = future.result()
-        if pre_result.status_code == 504:
-            return 'Upstream request timeout'
-        if pre_result.status_code == 408:
-            return 'stream timeout'
-        result = pre_result.json()
+    if flags[0] and flags[1]:
+        for i, future in enumerate(futures[0]):
+            pre_result = future.result()
+            if pre_result.status_code == 504:
+                return 'Upstream request timeout'
+            if pre_result.status_code == 408:
+                return 'stream timeout'
+            result = pre_result.json()
 
-        # Formats result into format for further processing and linking
-        full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
-        logger.info(f'Got result for {libraries[i]}')
-        results.append(full_result)
-    return results
+            # Formats result into format for further processing and linking
+            full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
+            logger.info(f'Got result for {libraries[i]}')
+            results_cql.append(full_result)
+
+        for i, future in enumerate(futures[1]):
+            pre_result = future.result()
+            if pre_result.status_code == 504:
+                return 'Upstream request timeout'
+            if pre_result.status_code == 408:
+                return 'stream timeout'
+            result = pre_result.json()
+
+            # Formats result into format for further processing and linking
+            full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
+            logger.info(f'Got result for {libraries[i]}')
+            results_nlpql.append(full_result)
+    elif flags[0] and not flags[1]:
+        for i, future in enumerate(futures[0]):
+            pre_result = future.result()
+            if pre_result.status_code == 504:
+                return 'Upstream request timeout'
+            if pre_result.status_code == 408:
+                return 'stream timeout'
+            result = pre_result.json()
+
+            # Formats result into format for further processing and linking
+            full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
+            logger.info(f'Got result for {libraries[i]}')
+            results_cql.append(full_result)
+    elif not flags[0] and flags[1]:
+        for i, future in enumerate(futures[1]):
+            pre_result = future.result()
+            if pre_result.status_code == 504:
+                return 'Upstream request timeout'
+            if pre_result.status_code == 408:
+                return 'stream timeout'
+            result = pre_result.json()
+
+            # Formats result into format for further processing and linking
+            full_result = {'libraryName': libraries[i], 'patientId': patientId, 'results': result}
+            logger.info(f'Got result for {libraries[i]}')
+            results_nlpql.append(full_result)
+            
+    return results_cql, results_nlpql
 
 def flatten_results(results):
     flat_results = {}
@@ -268,10 +310,8 @@ def check_results(results):
             pass
     return None
 
-def create_linked_results(results: list, form_name: str, flags: list):
+def create_linked_results(results: list, form_name: str):
 
-    cql_flag = flags[0]
-    nlpql_flag = flags[1]
     # Get form (using get_form from this API)
     form = get_form(form_name)
 
@@ -295,13 +335,9 @@ def create_linked_results(results: list, form_name: str, flags: list):
         }
         bundle_entries.append(patient_bundle_entry)
     except KeyError:
-        if cql_flag:
-            logger.error('Patient resource not found in results, results from CQF Ruler are logged below')
-            logger.error(results)
-            return make_operation_outcome('not-found', 'Patient resource not found in results from CQF Ruler, see logs for more details')
-        else:
-            patient_resource_id = results[0]['subject']
-            pass
+        logger.error('Patient resource not found in results, results from CQF Ruler are logged below')
+        logger.error(results)
+        return make_operation_outcome('not-found', 'Patient resource not found in results from CQF Ruler, see logs for more details')
 
     # For each group of questions in the form
     for group in form['item']:
@@ -315,34 +351,15 @@ def create_linked_results(results: list, form_name: str, flags: list):
             try:
                 for extension in question['extension']:
                     if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cqlTask':
-                        cql_library_task = extension['valueString']
-                    if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/nlpqlTask':
-                        nlpql_library_task = extension['valueString']
+                        library_task = extension['valueString']
                     if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cardinality':
                         cardinality = extension['valueString']
-                try:
-                    cql_library, cql_task = cql_library_task.split('.')
-                    logger.debug(f'Found CQL Library {cql_library} and task {cql_task}')
-                    no_cql = False
-                except UnboundLocalError:
-                    no_cql = True
-                    logger.debug('No CQL extension for this question')
-                    pass
-                try:
-                    nlpql_library, nlpql_task = nlpql_library_task.split('.')
-                    logger.debug(f'Found NLPQL Library {nlpql_library} and task {nlpql_task}')
-                    no_nlpql = False
-                except UnboundLocalError:
-                    no_nlpql = True
-                    logger.debug('No NLPQL extension for this question')
-                    pass
+                library, task = library_task.split('.')
             except KeyError:
                 pass
 
             if result_length == 1:
-                if cql_library != target_library:
-                    continue
-                elif nlpql_library != target_library:
+                if library != target_library:
                     continue
 
             # Create answer observation for this question
@@ -371,329 +388,239 @@ def create_linked_results(results: list, form_name: str, flags: list):
                 },
                 'focus': []
             }
-            template_answer_obs = Observation(**answer_obs)
+            answer_obs = Observation(**answer_obs)
 
-            if cql_flag and no_cql == False:
-                logger.info('CQL Result Found')
-                # Find the result in the CQL library run that corresponds to what the question has defined in its cqlTask extension
-                target_result = None
-                single_return_value = None
-                supporting_resources = None
-                empty_single_return = False
-                tuple_flag = False
-                answer_obs = template_answer_obs
+            # Find the result in the CQL library run that corresponds to what the question has defined in its cqlTask extension
+            target_result = None
+            single_return_value = None
+            supporting_resources = None
+            empty_single_return = False
+            tuple_flag = False
 
-                try:
-                    value_return = results[cql_task]
-                except KeyError:
-                    logger.error(f'The task {cql_task} was not found in the library results')
-                    return make_operation_outcome('not-found', f'The task {cql_task} was not found in the library results')
-                try:
-                    if value_return['resourceType']=='Bundle':
-                        supporting_resources = value_return['entry']
-                        single_resource_flag = False
-                        logger.info(f'Found task {cql_task} and supporting resources')
-                    else:
-                        resource_type = value_return['resourceType']
-                        single_resource_flag = True
-                        logger.info(f'Found task {cql_task} result')
-                except (KeyError, TypeError) as e:
-                    single_return_value = value_return
-                    logger.debug(f'Found single return value {single_return_value}')
+            try:
+                value_return = results[task]
+            except KeyError:
+                logger.error(f'The task {task} was not found in the library results')
+                return make_operation_outcome('not-found', f'The task {task} was not found in the library results')
+            try:
+                if value_return['resourceType']=='Bundle':
+                    supporting_resources = value_return['entry']
+                    single_resource_flag = False
+                    logger.info(f'Found task {task} and supporting resources')
+                else:
+                    resource_type = value_return['resourceType']
+                    single_resource_flag = True
+                    logger.info(f'Found task {task} result')
+            except (KeyError, TypeError) as e:
+                single_return_value = value_return
+                logger.debug(f'Found single return value {single_return_value}')
 
-                if single_return_value == '[]':
-                    empty_single_return = True
-                    logger.info('Empty single return')
-                if type(single_return_value) == str and single_return_value[0:6]=='[Tuple':
-                    tuple_flag=True
-                    logger.info('Found Tuple in results')
-                if supporting_resources is not None:
-                    for resource in supporting_resources:
-                        try:
-                            focus_object = {'reference': resource['fullUrl']}
-                            answer_obs.focus.append(focus_object)
-                        except KeyError:
-                            pass
-                if empty_single_return:
+            if single_return_value == '[]':
+                empty_single_return = True
+                logger.info('Empty single return')
+            if type(single_return_value) == str and single_return_value[0:6]=='[Tuple':
+                tuple_flag=True
+                logger.info('Found Tuple in results')
+            if supporting_resources is not None:
+                for resource in supporting_resources:
+                    try:
+                        focus_object = {'reference': resource['fullUrl']}
+                        answer_obs.focus.append(focus_object)
+                    except KeyError:
+                        pass
+            if empty_single_return:
+                continue
+
+            answer_obs = answer_obs.dict()
+            if answer_obs['focus'] == []:
+                logger.debug('Answer Observation does not have a focus, deleting field')
+                del answer_obs['focus']
+
+            # If cardinality is a series, does the standard return body format
+            if cardinality == 'series' and tuple_flag==False:
+                # Construct final answer object bundle before result bundle insertion
+                answer_obs_bundle_item = {
+                    'fullUrl' : 'Observation/'+answer_obs_uuid,
+                    'resource': answer_obs
+                }
+
+            # If cardinality is a single, does a modified return body to have the value in multiple places
+            else:
+                single_answer = single_return_value
+                logger.debug(single_answer)
+                if single_answer == None:
                     continue
 
-                answer_obs = answer_obs.dict()
-                if answer_obs['focus'] == []:
-                    logger.debug('Answer Observation does not have a focus, deleting field')
-                    del answer_obs['focus']
-
-                # If cardinality is a series, does the standard return body format
-                if cardinality == 'series' and tuple_flag==False:
-                    # Construct final answer object bundle before result bundle insertion
+                #value_key = 'value'+single_return_type
+                if tuple_flag==False:
+                    answer_obs['valueString'] = single_answer
                     answer_obs_bundle_item = {
                         'fullUrl' : 'Observation/'+answer_obs_uuid,
                         'resource': answer_obs
                     }
-
-                # If cardinality is a single, does a modified return body to have the value in multiple places
-                else:
-                    single_answer = single_return_value
-                    logger.debug(single_answer)
-                    if single_answer == None:
-                        continue
-
-                    #value_key = 'value'+single_return_type
-                    if tuple_flag==False:
-                        answer_obs['valueString'] = single_answer
-                        answer_obs_bundle_item = {
-                            'fullUrl' : 'Observation/'+answer_obs_uuid,
-                            'resource': answer_obs
+                elif tuple_flag==True:
+                    tuple_string = single_answer.strip('[]')
+                    tuple_string = tuple_string.split('Tuple ')
+                    tuple_string.remove('')
+                    tuple_dict_list = []
+                    for item in tuple_string:
+                        new_item = item.strip(', ')
+                        new_item = new_item.replace('\n', '').strip('{ }').replace('"', '')
+                        new_item_list = new_item.split('\t')
+                        new_item_list.remove('')
+                        test_dict = {}
+                        for new_item in new_item_list:
+                            key, value = new_item.split(': ')
+                            test_dict[key] = value
+                        tuple_dict_list.append(test_dict)
+                    logger.debug(tuple_dict_list)
+                    tuple_observations = []
+                    for answer_tuple in tuple_dict_list:
+                        answer_value_split = answer_tuple['answerValue'].split('^')
+                        logger.info(answer_value_split)
+                        supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation', 'onset': 'Condition'}
+                        try:
+                            supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
+                        except KeyError:
+                            return make_operation_outcome('not-found', f'The fhirField thats being returned in the CQL is not the the supporting resource type, this needs to be updated as more resources are added')
+                        value_type = answer_tuple['valueType']
+                        temp_uuid = str(uuid.uuid4())
+                        temp_answer_obs = {
+                            "resourceType": "Observation",
+                            "id": temp_uuid,
+                            "status": "final",
+                            "category": [{
+                                "coding": [{
+                                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                                    "code": "survey",
+                                    "display": "Survey"
+                                }]
+                            }],
+                            "code": {
+                                "coding": [
+                                    {
+                                        "system": f"urn:gtri:heat:form:{form_name}",
+                                        "code": linkId
+                                    }
+                                ]
+                            },
+                            "subject": {
+                                "reference": f'Patient/{patient_resource_id}'
+                            },
+                            "focus": [{
+                                "reference": supporting_resource_type +'/'+answer_tuple['fhirResourceId'].split('/')[-1]
+                            }],
+                            "note": [{
+                                "text": answer_tuple['sourceNote']
+                            }],
+                            f'value{value_type}': answer_tuple['answerValue']
                         }
-                    elif tuple_flag==True:
-                        tuple_string = single_answer.strip('[]')
-                        tuple_string = tuple_string.split('Tuple ')
-                        tuple_string.remove('')
-                        tuple_dict_list = []
-                        for item in tuple_string:
-                            new_item = item.strip(', ')
-                            new_item = new_item.replace('\n', '').strip('{ }').replace('"', '')
-                            new_item_list = new_item.split('\t')
-                            new_item_list.remove('')
-                            test_dict = {}
-                            for new_item in new_item_list:
-                                key, value = new_item.split(': ')
-                                test_dict[key] = value
-                            tuple_dict_list.append(test_dict)
-                        logger.debug(tuple_dict_list)
+                        temp_answer_obs_entry = {
+                            "fullUrl": f'Observation/{temp_uuid}',
+                            "resource": temp_answer_obs
+                        }
+                        tuple_observations.append(temp_answer_obs_entry)
 
-                        cql_tuple_observations = []
-                        for answer_tuple in tuple_dict_list:
-                            answer_value_split = answer_tuple['answerValue'].split('^')
-                            logger.info(answer_value_split)
-                            supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation', 'onset': 'Condition', 'code': 'Observation'}
-                            try:
-                                supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
-                            except KeyError:
-                                return make_operation_outcome('not-found', f'The fhirField thats being returned in the CQL is not the the supporting resource type, this needs to be updated as more resources are added')
-                            value_type = answer_tuple['valueType']
-                            temp_uuid = str(uuid.uuid4())
-                            # TODO: Refactor code using fhirclient
-                            temp_answer_obs = {
-                                "resourceType": "Observation",
-                                "id": temp_uuid,
-                                "status": "final",
-                                "category": [{
-                                    "coding": [{
-                                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                                        "code": "survey",
-                                        "display": "Survey"
-                                    }]
+                        # Create focus reference from data
+                        if supporting_resource_type == 'MedicationStatement':
+                            supporting_resource = {
+                                "resourceType": "MedicationStatement",
+                                "id": answer_tuple['fhirResourceId'].split('/')[-1],
+                                "identifier": [{
+                                    "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                                    "value": "MedicationStatement/"+answer_tuple['fhirResourceId'].split('/')[-1],
                                 }],
-                                "code": {
-                                    "coding": [
-                                        {
-                                            "system": f"urn:gtri:heat:form:{form_name}",
-                                            "code": linkId
-                                        }
-                                    ]
+                                "status": "active",
+                                "medicationCodeableConcept": {
+                                    "coding": [{
+                                        "system": answer_value_split[1],
+                                        "code": answer_value_split[2],
+                                        "display": answer_value_split[3],
+                                    }]
                                 },
+                                "effectiveDateTime": answer_value_split[0],
                                 "subject": {
                                     "reference": f'Patient/{patient_resource_id}'
                                 },
-                                "focus": [{
-                                    "reference": supporting_resource_type +'/'+answer_tuple['fhirResourceId'].split('/')[-1]
-                                }],
-                                "note": [{
-                                    "text": answer_tuple['sourceNote']
-                                }],
-                                f'value{value_type}': answer_tuple['answerValue']
-                            }
-                            temp_answer_obs_entry = {
-                                "fullUrl": f'Observation/{temp_uuid}',
-                                "resource": temp_answer_obs
-                            }
-                            cql_tuple_observations.append(temp_answer_obs_entry)
-
-                            # Create focus reference from data
-                            if supporting_resource_type == 'MedicationStatement':
-                                supporting_resource = {
-                                    "resourceType": "MedicationStatement",
-                                    "id": answer_tuple['fhirResourceId'].split('/')[-1],
-                                    "identifier": [{
-                                        "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                        "value": "MedicationStatement/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                    }],
-                                    "status": "active",
-                                    "medicationCodeableConcept": {
-                                        "coding": [{
-                                            "system": answer_value_split[1],
-                                            "code": answer_value_split[2],
-                                            "display": answer_value_split[3],
-                                        }]
-                                    },
-                                    "effectiveDateTime": answer_value_split[0],
-                                    "subject": {
-                                        "reference": f'Patient/{patient_resource_id}'
-                                    },
-                                    "dosage": [{
-                                        "doseAndRate":[{
-                                            "doseQuantity": {
-                                                "value": answer_value_split[4],
-                                                "unit": answer_value_split[5]
-                                            }
-                                        }]
+                                "dosage": [{
+                                    "doseAndRate":[{
+                                        "doseQuantity": {
+                                            "value": answer_value_split[4],
+                                            "unit": answer_value_split[5]
+                                        }
                                     }]
+                                }]
+                            }
+                            supporting_resource_bundle_entry = {
+                                "fullUrl": 'MedicationStatement/'+supporting_resource["id"],
+                                "resource": supporting_resource
+                            }
+                        elif supporting_resource_type == 'Observation':
+                            supporting_resource = {
+                                "resourceType": "Observation",
+                                "id": answer_tuple['fhirResourceId'].split('/')[-1],
+                                "identifier": [{
+                                    "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                                    "value": "Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                }],
+                                "status": "final",
+                                "code":{
+                                    "coding": [{
+                                        "system": answer_value_split[1],
+                                        "code": answer_value_split[2],
+                                        "display": answer_value_split[3],
+                                    }]
+                                },
+                                "effectiveDateTime": answer_value_split[0],
+                                "subject": {
+                                    "reference": f'Patient/{patient_resource_id}'
+                                },
+                                "valueString": ' '.join(answer_value_split[4:])
+                            }
+                            supporting_resource_bundle_entry = {
+                                "fullUrl": 'Observation/'+supporting_resource["id"],
+                                "resource": supporting_resource
+                            }
+                        elif supporting_resource_type == 'Condition':
+                            supporting_resource = {
+                                "resourceType": "Condition",
+                                "id": answer_tuple['fhirResourceId'].split('/')[-1],
+                                "identifier": [{
+                                    "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                                    "value": "Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                }],
+                                "code":{
+                                    "coding": [{
+                                        "system": answer_value_split[1],
+                                        "code": answer_value_split[2],
+                                        "display": answer_value_split[3],
+                                    }]
+                                },
+                                "onsetDateTime": answer_value_split[0],
+                                "subject": {
+                                    "reference": f'Patient/{patient_resource_id}'
                                 }
-                                supporting_resource_bundle_entry = {
-                                    "fullUrl": 'MedicationStatement/'+supporting_resource["id"],
-                                    "resource": supporting_resource
-                                }
-                            elif supporting_resource_type == 'Observation':
-                                supporting_resource = {
-                                    "resourceType": "Observation",
-                                    "id": answer_tuple['fhirResourceId'].split('/')[-1],
-                                    "identifier": [{
-                                        "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                        "value": "Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                    }],
-                                    "status": "final",
-                                    "code":{
-                                        "coding": [{
-                                            "system": answer_value_split[1],
-                                            "code": answer_value_split[2],
-                                            "display": answer_value_split[3],
-                                        }]
-                                    },
-                                    "effectiveDateTime": answer_value_split[0],
-                                    "subject": {
-                                        "reference": f'Patient/{patient_resource_id}'
-                                    },
-                                    "valueString": ' '.join(answer_value_split[4:])
-                                }
-                                supporting_resource_bundle_entry = {
-                                    "fullUrl": 'Observation/'+supporting_resource["id"],
-                                    "resource": supporting_resource
-                                }
-                            elif supporting_resource_type == 'Condition':
-                                supporting_resource = {
-                                    "resourceType": "Condition",
-                                    "id": answer_tuple['fhirResourceId'].split('/')[-1],
-                                    "identifier": [{
-                                        "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                        "value": "Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                    }],
-                                    "code":{
-                                        "coding": [{
-                                            "system": answer_value_split[1],
-                                            "code": answer_value_split[2],
-                                            "display": answer_value_split[3],
-                                        }]
-                                    },
-                                    "onsetDateTime": answer_value_split[0],
-                                    "subject": {
-                                        "reference": f'Patient/{patient_resource_id}'
-                                    }
-                                }
-                                supporting_resource_bundle_entry = {
-                                    "fullUrl": 'Condition/'+supporting_resource["id"],
-                                    "resource": supporting_resource
-                                }
-                            cql_tuple_observations.append(supporting_resource_bundle_entry)
-                cql_answer_obs_bundle_item = answer_obs_bundle_item
-
-            if nlpql_flag and no_nlpql == False:
-                logger.info('NLPQL Result found')
-                # Find the result in the NLPQL library run that corresponds to what the question has defined in its cqlTask extension
-                try:
-                    value_return = results[nlpql_task]
-                except KeyError:
-                    logger.error(f'The task {nlpql_task} was not found in the library results')
-                    return make_operation_outcome('not-found', f'The task {nlpql_task} was not found in the library results')
-
-                nlpql_answer_obs = template_answer_obs
-
-                nlpql_tuple_observations = []
-                nlpql_tuple_resource_ids = []
-                for nlpql_result_obj in value_return:
-                    if 'tuple' not in nlpql_result_obj:
-                        logger.error(f'The NLPQL results do not contain a Tuple. Currently, this API cannot support NLPQL results without tuple returns.')
-                        return make_operation_outcome('not-found', 'The NLPQL results do not contain a tuple.')
-
-                    tuple_str = nlpql_result_obj['tuple']
-                    tuple_dict = {}
-                    tuple_str_list = tuple_str.split('"')[1:-1]
-                    for i in range(0, len(tuple_str_list), 4):
-                        key_name = tuple_str_list[i]
-                        value_name = tuple_str_list[i+2]
-                        tuple_dict[key_name] = value_name
-
-                    value_type = tuple_dict['answerType']
-                    temp_uuid = str(uuid.uuid4())
-
-                    temp_answer_obs = {
-                        "resourceType": "Observation",
-                        "id": temp_uuid,
-                        "status": "final",
-                        "category": [{
-                            "coding": [{
-                                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                                "code": "survey",
-                                "display": "Survey"
-                            }]
-                        }],
-                        "code": {
-                            "coding": [
-                                {
-                                    "system": f"urn:gtri:heat:form:{form_name}",
-                                    "code": linkId
-                                }
-                            ]
-                        },
-                        "subject": {
-                            "reference": f'Patient/{patient_resource_id}'
-                        },
-                        "focus": [],
-                        "note": [{
-                            "text": answer_tuple['sourceNote']
-                        }],
-                        f'value{value_type}': answer_tuple['answerValue']
-                    }
-
-                    temp_answer_obs_entry = {
-                        "fullUrl": f'Observation/{temp_uuid}',
-                        "resource": temp_answer_obs
-                    }
-                    nlpql_tuple_observations.append(temp_answer_obs_entry)
-                    nlpql_tuple_resource_ids.append(temp_uuid)
-
-                for resource_id in nlpql_tuple_resource_ids:
-                    focus_object = {'reference': f'Observation/{resource_id}'}
-                    nlpql_answer_obs.focus.append(focus_object)
-
-                nlpql_answer_obs = nlpql_answer_obs.dict()
-                if answer_obs['focus'] == []:
-                    logger.debug('Answer Observation does not have a focus, deleting field')
-                    del answer_obs['focus']
-                nlpql_answer_obs_uuid = str(uuid.uuid4())
-                nlpql_answer_obs['id'] = nlpql_answer_obs_uuid
-
-                nlpql_answer_obs_bundle_item = {
-                    'fullUrl' : 'Observation/'+nlpql_answer_obs_uuid,
-                    'resource': nlpql_answer_obs
-                }
+                            }
+                            supporting_resource_bundle_entry = {
+                                "fullUrl": 'Condition/'+supporting_resource["id"],
+                                "resource": supporting_resource
+                            }
+                        tuple_observations.append(supporting_resource_bundle_entry)
 
             try:
-                focus_test = cql_answer_obs_bundle_item['resource']['focus']
+                focus_test = answer_obs_bundle_item['resource']['focus']
             except KeyError:
                 try:
-                    value_test = cql_answer_obs_bundle_item['resource']['valueString']
+                    value_test = answer_obs_bundle_item['resource']['valueString']
                 except KeyError:
                     continue
             #Add items to return bundle entry list
             if tuple_flag == False:
-                bundle_entries.append(cql_answer_obs_bundle_item)
+                bundle_entries.append(answer_obs_bundle_item)
             else:
-                bundle_entries.extend(cql_tuple_observations)
+                bundle_entries.extend(tuple_observations)
             if supporting_resources is not None:
                 bundle_entries.extend(supporting_resources)
-            if nlpql_flag and no_nlpql == False:
-                bundle_entries.append(nlpql_answer_obs_bundle_item)
-                bundle_entries.extend(nlpql_tuple_observations)
 
     return_bundle_id = str(uuid.uuid4())
     return_bundle = {

@@ -375,35 +375,35 @@ def start_jobs(post_body: Parameters):
     if cql_flag:
         logger.info('Start submitting CQL jobs')
         futures_cql = run_cql(cql_library_server_ids, parameters_post)
-        futures.extend(futures_cql)
+        futures.append(futures_cql)
         logger.info('Submitted all CQL jobs')
     if nlpql_flag:
         logger.info('Start submitting NLPQL jobs')
         futures_nlpql = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)
         if type(futures_nlpql) == dict:
             return futures_nlpql
-        futures.extend(futures_nlpql)
+        futures.append(futures_nlpql)
         logger.info('Submitted all NLPQL jobs.')
     logger.info(f'CQL Libraries to Run: {cql_libraries_to_run}')
     logger.info(f'NLPQL Libraries to Run: {nlpql_libraries_to_run}')
     if cql_flag and nlpql_flag:
-        libraries_to_run = cql_libraries_to_run + nlpql_libraries_to_run
+        libraries_to_run = [cql_libraries_to_run, nlpql_libraries_to_run]
     elif cql_flag:
-        libraries_to_run = cql_libraries_to_run
+        libraries_to_run = [cql_libraries_to_run]
     elif nlpql_flag:
-        libraries_to_run = nlpql_libraries_to_run
+        libraries_to_run = [nlpql_libraries_to_run]
 
     # Passes future to get the results from it, will wait until all are processed until returning results
     logger.info('Start getting job results')
-    results = get_results(futures, libraries_to_run, patient_id)
+    results_cql, results_nlpql = get_results(futures, libraries_to_run, patient_id, [cql_flag, nlpql_flag])
     logger.info(f'Retrieved results for jobs {libraries_to_run}')
 
     # Upstream request timeout handling
-    if type(results)==str:
-        return make_operation_outcome('timeout',results)
+    if type(results_cql)==str:
+        return make_operation_outcome('timeout',results_cql)
 
     # Checks results for any CQL issues
-    results_check_return = check_results(results)
+    results_check_return = check_results(results_cql)
     if type(results_check_return) == dict:
         logger.error('There were errors in the CQL, see OperationOutcome')
         logger.error(results_check_return)
@@ -411,10 +411,10 @@ def start_jobs(post_body: Parameters):
     else:
         pass
     logger.info('No CQL result errors, continuing to link results')
-
+    return {'cql results': results_cql, 'nlpql results': results_nlpql}
     # Creates the registry bundle format
     logger.info('Start linking results')
-    bundled_results = create_linked_results(results, form_name, [cql_flag, nlpql_flag])
+    bundled_results = create_linked_results([results_cql, results_nlpql], form_name, [cql_flag, nlpql_flag])
     logger.info('Finished linking results')
 
     return bundled_results
