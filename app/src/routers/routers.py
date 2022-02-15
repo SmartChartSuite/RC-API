@@ -1,49 +1,36 @@
-import json
-from re import search
 from fastapi import (
-    APIRouter,
-    Body,
-    HTTPException,
-    BackgroundTasks
+    APIRouter, Body, HTTPException, BackgroundTasks
 )
 from fastapi.responses import JSONResponse
-from fhir.resources import resource
-from requests.api import request
 
-from ..models.forms import (
-    CustomFormatter, StartJobPostBody, NLPQLDict, ParametersJob, flatten_results, make_operation_outcome, bundle_forms,
-    run_cql, get_cql_results, flatten_results, check_results
+from ..models.models import (
+    CustomFormatter, ParametersJob
+)
+from ..models.functions import (
+    make_operation_outcome, run_cql, run_nlpql, get_results, check_results, create_linked_results, validate_cql, validate_nlpql
+)
+from ..util.settings import (
+    cqfr4_fhir, external_fhir_server_url, external_fhir_server_auth, nlpaas_url, log_level
 )
 
 from typing import Union, Dict
-from fhir.resources.questionnaire import Questionnaire
+from fhir.resources.questionnaire import Questionnaire #TODO: replace to using fhirclient package as well as below imports
 from fhir.resources.library import Library
 from fhir.resources.parameters import Parameters
-from fhir.resources.operationoutcome import OperationOutcome
-from fhir.resources.observation import Observation
-from bson import ObjectId
-from requests_futures.sessions import FuturesSession
 
-from ..util.settings import (
-    cqfr4_fhir, external_fhir_server_url, external_fhir_server_auth
-)
+from pprint import pprint
 
 import os
 import base64
-import pymongo
-import ast
 import logging
 import requests
 import uuid
-
-import time
-
 
 # Formats logging message to include the level of log message
 #logging.basicConfig(format='%(asctime)s %(levelname)s - %(message)s', level=logging.DEBUG, datefmt='%m/%d/%Y %I:%M:%S %p')
 
 # Create logger
-logger = logging.getLogger("SPUD Forms API")
+logger = logging.getLogger("RC API")
 logger.setLevel(logging.INFO)
 
 # create console handler with a higher log level
@@ -52,15 +39,19 @@ ch.setLevel(logging.INFO)
 ch.setFormatter(CustomFormatter())
 logger.addHandler(ch)
 
-formsrouter = APIRouter()
+if log_level == "DEBUG":
+    logger.setLevel(logging.DEBUG)
+    ch.setLevel(logging.DEBUG)
+
+apirouter = APIRouter()
 jobs: Dict[str, ParametersJob] = {}
 
-@formsrouter.get("/")
+@apirouter.get("/")
 def root():
     logger.info('Retrieved root of API')
     return make_operation_outcome('processing', 'This is the base URL of API. Unable to handle this request as it is the root.')
 
-@formsrouter.get("/forms", response_model=dict)
+@apirouter.get("/forms", response_model=dict)
 def get_list_of_forms():
     cqfr4_fhir = os.environ["CQF_RULER_R4"]
     # Pull list of forms from CQF Ruler
@@ -77,7 +68,7 @@ def get_list_of_forms():
         logger.error(f'Getting Questionnaires from server failed with code {r.status_code}')
         return make_operation_outcome('transient', f'Getting Questionnaires from server failed with code {r.status_code}.')
 
-@formsrouter.get("/forms/cql")
+@apirouter.get("/forms/cql")
 def get_cql_libraries():
 
     # Pulls list of CQL libraries from CQF Ruler
@@ -88,11 +79,11 @@ def get_cql_libraries():
         logger.error(f'Getting Libraries from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Getting Libraries from server failed with code {r.status_code}')
 
-@formsrouter.get("/forms/cql/{library_name}")
+@apirouter.get("/forms/cql/{library_name}")
 def get_cql(library_name: str):
 
     # Return CQL library
-    r = requests.get(cqfr4_fhir+f'Library?name={library_name}')
+    r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text%2Fcql')
     if r.status_code != 200:
         logger.error(f'Getting library from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Getting Library from server failed with code {r.status_code}')
@@ -111,7 +102,29 @@ def get_cql(library_name: str):
     decoded_cql = cql_bytes.decode('ascii')
     return decoded_cql
 
-@formsrouter.get("/forms/{form_name}", response_model=Union[dict, str])
+@apirouter.get("/forms/nlpql/{library_name}")
+def get_nlpql(library_name: str):
+    # Return NLPQL library
+    r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text%2Fnlpql')
+    if r.status_code != 200:
+        logger.error(f'Getting library from server failed with status code {r.status_code}')
+        return make_operation_outcome('transient', f'Getting Library from server failed with code {r.status_code}')
+
+    search_bundle = r.json()
+    try:
+        cql_library = search_bundle['entry'][0]['resource']
+        logger.info(f'Found CQL Library with name {library_name}')
+    except KeyError:
+        logger.error('CQL Library with that name not found')
+        return make_operation_outcome('not-found', f'CQL Library named {library_name} not found on the FHIR server.')
+
+    # Decode CQL from base64 Library encoding
+    base64_cql = cql_library['content'][0]['data']
+    cql_bytes = base64.b64decode(base64_cql)
+    decoded_cql = cql_bytes.decode('ascii')
+    return decoded_cql
+
+@apirouter.get("/forms/{form_name}", response_model=Union[dict, str])
 def get_form(form_name: str):
 
     # Return Questionnaire from CQF Ruler based on form name
@@ -129,7 +142,7 @@ def get_form(form_name: str):
         logger.error('Questionnaire with that name not found')
         return make_operation_outcome('not-found', f'Questionnaire named {form_name} not found on the FHIR server.')
 
-@formsrouter.post("/forms")
+@apirouter.post("/forms")
 def save_form(questions: Questionnaire):
 
     # Check to see if library and version of this exists
@@ -157,7 +170,7 @@ def save_form(questions: Questionnaire):
     resource_id = r.json()['id']
     return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
 
-@formsrouter.post("/forms/start")
+@apirouter.post("/forms/start")
 def start_jobs_header_function(post_body: Parameters, background_tasks: BackgroundTasks, asyncFlag: bool=False):
     if asyncFlag:
         logger.info('asyncFlag detected, running asynchronously')
@@ -225,16 +238,32 @@ def start_jobs(post_body: Parameters):
         logger.error(f'Questionnaire with name {form_name} not found')
         return make_operation_outcome('not-found',f'Questionnaire with name {form_name} not found')
 
+    cql_flag = False
+    nlpql_flag = False
     if run_all_jobs:
-        libraries_to_run = []
-        library_server_ids = []
-        libraries_to_run_extension = search_bundle['entry'][0]['resource']['extension'][0]['extension']
-        for extension in libraries_to_run_extension:
-            libraries_to_run.append(extension['valueString'])
-        logger.info(f'Going to run the following libraries for this jobPackage: {libraries_to_run}')
+        cql_libraries_to_run = []
+        nlpql_libraries_to_run = []
+        cql_library_server_ids = []
+        nlpql_library_server_ids = []
 
-        for library_name in libraries_to_run:
-            r = requests.get(cqfr4_fhir+f'Library?name={library_name}')
+        cql_libraries_to_run_extension = search_bundle['entry'][0]['resource']['extension'][0]['extension']
+        for extension in cql_libraries_to_run_extension:
+            cql_libraries_to_run.append(extension['valueString'])
+        logger.info(f'Going to run the following CQL libraries for this jobPackage: {cql_libraries_to_run}')
+
+        nlpql_libraries_to_run_extension = search_bundle['entry'][0]['resource']['extension'][1]['extension']
+        for extension in nlpql_libraries_to_run_extension:
+            nlpql_libraries_to_run.append(extension['valueString'])
+        logger.info(f'Going to run the following NLPQL libraries for this jobPackage: {nlpql_libraries_to_run}')
+
+        libraries_to_run = cql_libraries_to_run + nlpql_libraries_to_run
+
+        cql_libraries_to_run = []
+        nlpql_libraries_to_run = []
+
+        for library_name_full in libraries_to_run:
+            library_name, library_name_ext = library_name_full.split('.')
+            r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text/{library_name_ext}')
             if r.status_code != 200:
                 logger.error(f'Getting library from server failed with status code {r.status_code}')
                 return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
@@ -242,11 +271,26 @@ def start_jobs(post_body: Parameters):
             search_bundle = r.json()
             try:
                 library_server_id = search_bundle['entry'][0]['resource']['id']
-                library_server_ids.append(library_server_id)
-                logger.info(f'Found CQL Library with name {library_name} and server id {library_server_id}')
+                logger.info(f'Found Library with name {library_name} and server id {library_server_id}')
+                try:
+                    library_type = search_bundle['entry'][0]['resource']['content'][0]['contentType']
+                except KeyError:
+                    return make_operation_outcome('invalid', f'Library with name {library_name} does not contain a content type in content[0].contentType. Because of this, the API is unable to process the library. Please update the Library to include a content type.')
+                if library_type == 'text/nlpql':
+                    nlpql_flag = True
+                    nlpql_library_server_ids.append(library_server_id)
+                    nlpql_libraries_to_run.append(library_name)
+                elif library_type == 'text/cql':
+                    cql_flag = True
+                    cql_library_server_ids.append(library_server_id)
+                    cql_libraries_to_run.append(library_name)
+                else:
+                    logger.error(f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
+                    return make_operation_outcome('invalid', f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
             except KeyError:
-                logger.error(f'CQL Library with name {library_name} not found')
-                return make_operation_outcome('not-found',f'CQL Library with name {library_name} not found')
+                logger.error(f'Library with name {library_name} not found')
+                return make_operation_outcome('not-found',f'Library with name {library_name} not found')
+
 
     if not run_all_jobs:
         # Pull CQL library resource ID from CQF Ruler
@@ -258,11 +302,24 @@ def start_jobs(post_body: Parameters):
         search_bundle = r.json()
         try:
             library_server_id = search_bundle['entry'][0]['resource']['id']
-            library_server_ids = [library_server_id]
-            logger.info(f'Found CQL Library with name {library} and server id {library_server_id}')
+
+            logger.info(f'Found Library with name {library} and server id {library_server_id}')
+            try:
+                library_type = search_bundle['entry'][0]['resource']['content'][0]['contentType']
+            except KeyError:
+                return make_operation_outcome('invalid', f'Library with name {library_name} does not contain a content type in content[0].contentType. Because of this, the API is unable to process the library. Please update the Library to include a content type.')
+            if library_type == 'text/nlpql':
+                nlpql_flag = True
+                nlpql_library_server_ids = [library_server_id]
+            elif library_type == 'text/cql':
+                cql_flag = True
+                cql_library_server_ids = [library_server_id]
+            else:
+                logger.error(f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
+                return make_operation_outcome('invalid', f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
         except KeyError:
-            logger.error(f'CQL Library with name {library} not found')
-            return make_operation_outcome('not-found',f'CQL Library with name {library} not found')
+            logger.error(f'Library with name {library} not found')
+            return make_operation_outcome('not-found',f'Library with name {library} not found')
 
     if has_patient_identifier:
         r = requests.get(external_fhir_server_url+f'/Patient?identifier={patient_identifier}', headers={'Authorization': external_fhir_server_auth})
@@ -314,14 +371,32 @@ def start_jobs(post_body: Parameters):
     }
 
     # Pass library id to be evaluated, gets back a future object that represent the pending status of the POST
-    logger.info('Start submitting jobs')
-    futures = run_cql(library_server_ids, parameters_post)
-    logger.info('Submitted all jobs')
+    futures = []
+    if cql_flag:
+        logger.info('Start submitting CQL jobs')
+        futures_cql = run_cql(cql_library_server_ids, parameters_post)
+        futures.extend(futures_cql)
+        logger.info('Submitted all CQL jobs')
+    if nlpql_flag:
+        logger.info('Start submitting NLPQL jobs')
+        futures_nlpql = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)
+        if type(futures_nlpql) == dict:
+            return futures_nlpql
+        futures.extend(futures_nlpql)
+        logger.info('Submitted all NLPQL jobs.')
+    logger.info(f'CQL Libraries to Run: {cql_libraries_to_run}')
+    logger.info(f'NLPQL Libraries to Run: {nlpql_libraries_to_run}')
+    if cql_flag and nlpql_flag:
+        libraries_to_run = cql_libraries_to_run + nlpql_libraries_to_run
+    elif cql_flag:
+        libraries_to_run = cql_libraries_to_run
+    elif nlpql_flag:
+        libraries_to_run = nlpql_libraries_to_run
 
     # Passes future to get the results from it, will wait until all are processed until returning results
     logger.info('Start getting job results')
-    results = get_cql_results(futures, libraries_to_run, patient_id)
-    logger.info(f'Retrieved result for jobs {libraries_to_run}')
+    results = get_results(futures, libraries_to_run, patient_id)
+    logger.info(f'Retrieved results for jobs {libraries_to_run}')
 
     # Upstream request timeout handling
     if type(results)==str:
@@ -337,18 +412,18 @@ def start_jobs(post_body: Parameters):
         pass
     logger.info('No CQL result errors, continuing to link results')
 
-    # Creates the linked evidence format needed for the UI to render evidence thats related to certain questions from a certain form
+    # Creates the registry bundle format
     logger.info('Start linking results')
-    bundled_results = create_linked_results(results, form_name)
+    bundled_results = create_linked_results(results, form_name, [cql_flag, nlpql_flag])
     logger.info('Finished linking results')
 
     return bundled_results
 
-@formsrouter.get('/forms/status/all')
+@apirouter.get('/forms/status/all')
 def return_all_jobs():
     return jobs
 
-@formsrouter.get('/forms/status/{uid}')
+@apirouter.get('/forms/status/{uid}')
 def get_job_status(uid: str):
     try:
         try:
@@ -366,12 +441,20 @@ def get_job_status(uid: str):
     except KeyError:
         return JSONResponse(content=make_operation_outcome('not-found', f'The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id.'), status_code=404)
 
-@formsrouter.post("/forms/nlpql")
+@apirouter.post("/forms/nlpql")
 def save_nlpql(code: str = Body(...)):
+    # Validates NLPQL using NLPaaS before saving to Library
+    validation_results = validate_nlpql(code)
+    if type(validation_results)==dict:
+        return validation_results
+    else:
+        pass
+
     # Get name and version of NLPQL Library
-    split_cql = code.split()
-    name = split_cql[1].strip('"')
-    version = split_cql[3].strip('"')
+    split_nlpql = code.split()
+
+    name = split_nlpql[5].strip('"')
+    version = split_nlpql[7].strip(';').strip('"')
 
     # Encode NLPQL as base64Binary
     code_bytes = code.encode('utf-8')
@@ -403,10 +486,16 @@ def save_nlpql(code: str = Body(...)):
         return make_operation_outcome('transient', f'Posting Library to server failed with code {r.status_code}')
 
     resource_id = r.json()['id']
-    return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
+    return JSONResponse(content=make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information'), status_code=201)
 
-@formsrouter.post("/forms/cql")
+@apirouter.post("/forms/cql")
 def save_cql(code: str = Body(...)):
+
+    validation_results = validate_cql(code)
+    if type(validation_results)==dict:
+        return validation_results
+    else:
+        pass
 
     # Get name and version of cql library
     split_cql = code.split()
@@ -458,9 +547,9 @@ def save_cql(code: str = Body(...)):
         return make_operation_outcome('transient', f'Posting Library {name} to server failed with status code {r.status_code}')
 
     resource_id = r.json()['id']
-    return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
+    return JSONResponse(content=make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information'), status_code=201)
 
-@formsrouter.put("/forms/{form_name}")
+@apirouter.put("/forms/{form_name}")
 def update_form(form_name: str, new_questions: Questionnaire):
 
     r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
@@ -484,7 +573,7 @@ def update_form(form_name: str, new_questions: Questionnaire):
 
     return make_operation_outcome('informational',f'Questionnaire {form_name} successfully put on server with resource_id {resource_id}', severity='information')
 
-@formsrouter.put("/forms/cql/{library_name}")
+@apirouter.put("/forms/cql/{library_name}")
 def update_cql(library_name: str, code: str = Body(...)):
 
     r = requests.get(cqfr4_fhir+f'Library?name={library_name}')
@@ -499,6 +588,13 @@ def update_cql(library_name: str, code: str = Body(...)):
     except KeyError:
         logger.error('Library with that name not found')
         return make_operation_outcome('not-found', f'Getting Library named {library_name} not found on server')
+
+    # Validate the CQL before updating
+    validation_results = validate_cql(code)
+    if type(validation_results)==dict:
+        return validation_results
+    else:
+        pass
 
     # Get name and version of cql library
     split_cql = code.split()
@@ -534,9 +630,9 @@ def update_cql(library_name: str, code: str = Body(...)):
         logger.error(f'Putting Library from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Putting Library from server failed with status code {r.status_code}')
 
-    return make_operation_outcome('informational',f'Library {library_name} successfully put on server', severity='information')
+    return JSONResponse(content=make_operation_outcome('informational',f'Library {library_name} successfully put on server', severity='information'), status_code=201)
 
-@formsrouter.put("/forms/nlpql/{library_name}")
+@apirouter.put("/forms/nlpql/{library_name}")
 def update_nlpql(library_name: str, new_nlpql: str = Body(...)):
 
     r = requests.get(cqfr4_fhir=f'Library?name={library_name}')
@@ -557,337 +653,4 @@ def update_nlpql(library_name: str, new_nlpql: str = Body(...)):
         logger.error(f'Putting Library from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Putting Library from server failed with status code {r.status_code}')
 
-    raise HTTPException(200, f'Library resource updated with server id {resource_id}')
-
-def create_linked_results(results: list, form_name: str):
-
-    # Get form (using get_form from this API)
-    form = get_form(form_name)
-
-    bundle_entries = []
-    logger.debug(results)
-    result_length = len(results)
-    if result_length == 1:
-        result = results[0]
-        target_library = result['libraryName']
-
-    logger.debug(results)
-    results = flatten_results(results)
-    logger.info('"Flattened" Results into the dictionary')
-    logger.debug(results)
-    try:
-        patient_resource = results['Patient']
-        patient_resource_id = results['Patient']['id']
-        patient_bundle_entry = {
-            "fullUrl": f'Patient/{patient_resource_id}',
-            "resource": patient_resource
-        }
-        bundle_entries.append(patient_bundle_entry)
-    except KeyError:
-        logger.error('Patient resource not found in results, results from CQF Ruler are logged below')
-        logger.error(results)
-        return make_operation_outcome('not-found', 'Patient resource not found in results from CQF Ruler, see logs for more details')
-
-    # For each group of questions in the form
-    for group in form['item']:
-
-        # For each question in the group in the form
-        for question in group['item']:
-
-            linkId = question['linkId']
-            logger.info(f'Working on question {linkId}')
-            # If the question has these extensions, get their values, if not, keep going
-            try:
-                for extension in question['extension']:
-                    if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cqlTask':
-                        library_task = extension['valueString']
-                    if extension['url'] == 'http://gtri.gatech.edu/fakeFormIg/cardinality':
-                        cardinality = extension['valueString']
-                library, task = library_task.split('.')
-            except KeyError:
-                pass
-
-            if result_length == 1:
-                if library != target_library:
-                    continue
-
-            # Create answer observation for this question
-            answer_obs_uuid = str(uuid.uuid4())
-            answer_obs = {
-                "resourceType": "Observation",
-                "id": answer_obs_uuid,
-                "status": "final",
-                "category": [{
-                    "coding": [{
-                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                        "code": "survey",
-                        "display": "Survey"
-                    }]
-                }],
-                "code": {
-                    "coding": [
-                        {
-                            "system": f"urn:gtri:heat:form:{form_name}",
-                            "code": linkId
-                        }
-                    ]
-                },
-                "subject": {
-                    "reference": f'Patient/{patient_resource_id}'
-                },
-                'focus': []
-            }
-            answer_obs = Observation(**answer_obs)
-
-            # Find the result in the CQL library run that corresponds to what the question has defined in its cqlTask extension
-            target_result = None
-            single_return_value = None
-            supporting_resources = None
-            empty_single_return = False
-            tuple_flag = False
-
-            try:
-                value_return = results[task]
-            except KeyError:
-                logger.error(f'The task {task} was not found in the library results')
-                return make_operation_outcome('not-found', f'The task {task} was not found in the library results')
-            try:
-                if value_return['resourceType']=='Bundle':
-                    supporting_resources = value_return['entry']
-                    single_resource_flag = False
-                    logger.info(f'Found task {task} and supporting resources')
-                else:
-                    resource_type = value_return['resourceType']
-                    single_resource_flag = True
-                    logger.info(f'Found task {task} result')
-            except (KeyError, TypeError) as e:
-                single_return_value = value_return
-                logger.debug(f'Found single return value {single_return_value}')
-
-            if single_return_value == '[]':
-                empty_single_return = True
-                logger.info('Empty single return')
-            if type(single_return_value) == str and single_return_value[0:6]=='[Tuple':
-                tuple_flag=True
-                logger.info('Found Tuple in results')
-            if supporting_resources is not None:
-                for resource in supporting_resources:
-                    try:
-                        focus_object = {'reference': resource['fullUrl']}
-                        answer_obs.focus.append(focus_object)
-                    except KeyError:
-                        pass
-            if empty_single_return:
-                continue
-
-            answer_obs = answer_obs.dict()
-            if answer_obs['focus'] == []:
-                logger.debug('Answer Observation does not have a focus, deleting field')
-                del answer_obs['focus']
-
-            # If cardinality is a series, does the standard return body format
-            if cardinality == 'series' and tuple_flag==False:
-                # Construct final answer object bundle before result bundle insertion
-                answer_obs_bundle_item = {
-                    'fullUrl' : 'Observation/'+answer_obs_uuid,
-                    'resource': answer_obs
-                }
-
-            # If cardinality is a single, does a modified return body to have the value in multiple places
-            else:
-                single_answer = single_return_value
-                logger.debug(single_answer)
-                if single_answer == None:
-                    continue
-
-                #value_key = 'value'+single_return_type
-                if tuple_flag==False:
-                    answer_obs['valueString'] = single_answer
-                    answer_obs_bundle_item = {
-                        'fullUrl' : 'Observation/'+answer_obs_uuid,
-                        'resource': answer_obs
-                    }
-                elif tuple_flag==True:
-                    tuple_string = single_answer.strip('[]')
-                    tuple_string = tuple_string.split('Tuple ')
-                    tuple_string.remove('')
-                    tuple_dict_list = []
-                    for item in tuple_string:
-                        new_item = item.strip(', ')
-                        new_item = new_item.replace('\n', '').strip('{ }').replace('"', '')
-                        new_item_list = new_item.split('\t')
-                        new_item_list.remove('')
-                        test_dict = {}
-                        for new_item in new_item_list:
-                            key, value = new_item.split(': ')
-                            test_dict[key] = value
-                        tuple_dict_list.append(test_dict)
-                    logger.debug(tuple_dict_list)
-                    tuple_observations = []
-                    for answer_tuple in tuple_dict_list:
-                        answer_value_split = answer_tuple['answerValue'].split('^')
-                        logger.info(answer_value_split)
-                        supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation', 'onset': 'Condition'}
-                        try:
-                            supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
-                        except KeyError:
-                            return make_operation_outcome('not-found', f'The fhirField thats being returned in the CQL is not the the supporting resource type, this needs to be updated as more resources are added')
-                        value_type = answer_tuple['valueType']
-                        temp_uuid = str(uuid.uuid4())
-                        temp_answer_obs = {
-                            "resourceType": "Observation",
-                            "id": temp_uuid,
-                            "status": "final",
-                            "category": [{
-                                "coding": [{
-                                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                                    "code": "survey",
-                                    "display": "Survey"
-                                }]
-                            }],
-                            "code": {
-                                "coding": [
-                                    {
-                                        "system": f"urn:gtri:heat:form:{form_name}",
-                                        "code": linkId
-                                    }
-                                ]
-                            },
-                            "subject": {
-                                "reference": f'Patient/{patient_resource_id}'
-                            },
-                            "focus": [{
-                                "reference": supporting_resource_type +'/'+answer_tuple['fhirResourceId'].split('/')[-1]
-                            }],
-                            "note": [{
-                                "text": answer_tuple['sourceNote']
-                            }],
-                            f'value{value_type}': answer_tuple['answerValue']
-                        }
-                        temp_answer_obs_entry = {
-                            "fullUrl": f'Observation/{temp_uuid}',
-                            "resource": temp_answer_obs
-                        }
-                        tuple_observations.append(temp_answer_obs_entry)
-
-                        # Create focus reference from data
-                        if supporting_resource_type == 'MedicationStatement':
-                            supporting_resource = {
-                                "resourceType": "MedicationStatement",
-                                "id": answer_tuple['fhirResourceId'].split('/')[-1],
-                                "identifier": [{
-                                    "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                    "value": "MedicationStatement/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                }],
-                                "status": "active",
-                                "medicationCodeableConcept": {
-                                    "coding": [{
-                                        "system": answer_value_split[1],
-                                        "code": answer_value_split[2],
-                                        "display": answer_value_split[3],
-                                    }]
-                                },
-                                "effectiveDateTime": answer_value_split[0],
-                                "subject": {
-                                    "reference": f'Patient/{patient_resource_id}'
-                                },
-                                "dosage": [{
-                                    "doseAndRate":[{
-                                        "doseQuantity": {
-                                            "value": answer_value_split[4],
-                                            "unit": answer_value_split[5]
-                                        }
-                                    }]
-                                }]
-                            }
-                            supporting_resource_bundle_entry = {
-                                "fullUrl": 'MedicationStatement/'+supporting_resource["id"],
-                                "resource": supporting_resource
-                            }
-                        elif supporting_resource_type == 'Observation':
-                            supporting_resource = {
-                                "resourceType": "Observation",
-                                "id": answer_tuple['fhirResourceId'].split('/')[-1],
-                                "identifier": [{
-                                    "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                    "value": "Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                }],
-                                "status": "final",
-                                "code":{
-                                    "coding": [{
-                                        "system": answer_value_split[1],
-                                        "code": answer_value_split[2],
-                                        "display": answer_value_split[3],
-                                    }]
-                                },
-                                "effectiveDateTime": answer_value_split[0],
-                                "subject": {
-                                    "reference": f'Patient/{patient_resource_id}'
-                                },
-                                "valueString": ' '.join(answer_value_split[4:])
-                            }
-                            supporting_resource_bundle_entry = {
-                                "fullUrl": 'Observation/'+supporting_resource["id"],
-                                "resource": supporting_resource
-                            }
-                        elif supporting_resource_type == 'Condition':
-                            supporting_resource = {
-                                "resourceType": "Condition",
-                                "id": answer_tuple['fhirResourceId'].split('/')[-1],
-                                "identifier": [{
-                                    "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                    "value": "Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                }],
-                                "code":{
-                                    "coding": [{
-                                        "system": answer_value_split[1],
-                                        "code": answer_value_split[2],
-                                        "display": answer_value_split[3],
-                                    }]
-                                },
-                                "onsetDateTime": answer_value_split[0],
-                                "subject": {
-                                    "reference": f'Patient/{patient_resource_id}'
-                                }
-                            }
-                            supporting_resource_bundle_entry = {
-                                "fullUrl": 'Condition/'+supporting_resource["id"],
-                                "resource": supporting_resource
-                            }
-                        tuple_observations.append(supporting_resource_bundle_entry)
-
-            try:
-                focus_test = answer_obs_bundle_item['resource']['focus']
-            except KeyError:
-                try:
-                    value_test = answer_obs_bundle_item['resource']['valueString']
-                except KeyError:
-                    continue
-            #Add items to return bundle entry list
-            if tuple_flag == False:
-                bundle_entries.append(answer_obs_bundle_item)
-            else:
-                bundle_entries.extend(tuple_observations)
-            if supporting_resources is not None:
-                bundle_entries.extend(supporting_resources)
-
-    return_bundle_id = str(uuid.uuid4())
-    return_bundle = {
-        'resourceType': 'Bundle',
-        'id': return_bundle_id,
-        'type': 'collection',
-        'entry': bundle_entries
-    }
-
-    delete_list = []
-    for i, entry in enumerate(return_bundle['entry']):
-        try:
-            if entry['valueString'] == None:
-                delete_list.append(i)
-        except KeyError:
-            pass
-
-    for index in sorted(delete_list, reverse=True):
-        del return_bundle['entry'][index]
-
-    return return_bundle
+    return JSONResponse(content=make_operation_outcome('informational',f'Library {library_name} successfully put on server', severity='information'), status_code=201)

@@ -9,7 +9,7 @@ from fastapi.openapi.docs import (
     get_swagger_ui_oauth2_redirect_html,
 )
 
-from src.routers.forms import formsrouter
+from src.routers.routers import apirouter
 
 
 #------------------ FastAPI variable ----------------------------------
@@ -30,7 +30,7 @@ app.add_middleware(
 )
 
 # ================= Routers inclusion from src directory ===============
-app.include_router(formsrouter)
+app.include_router(apirouter)
 
 #----------------------- Custom OpenAPI -------------------------------
 def custom_openapi():
