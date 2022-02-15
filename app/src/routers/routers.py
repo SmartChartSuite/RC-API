@@ -1,3 +1,4 @@
+import json
 from fastapi import (
     APIRouter, Body, HTTPException, BackgroundTasks
 )
@@ -456,6 +457,20 @@ def save_nlpql(code: str = Body(...)):
     name = split_nlpql[5].strip('"')
     version = split_nlpql[7].strip(';').strip('"')
 
+    r = requests.get(cqfr4_fhir+f'Library?name={name}&version={version}&content-type=text/nlpql')
+    if r.status_code != 200:
+        logger.error(f'Trying to get library from server failed with status code {r.status_code}')
+        return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
+    search_bundle = r.json()
+    try:
+        cql_library = search_bundle['entry'][0]['resource']
+        logger.info(f'Found NLPQL Library with name {name} and version {version}')
+        logger.info('Not completing POST operation because a NLPQL Library with that name and version already exist on this FHIR Server')
+        logger.info('Change library name or version number or use PUT to update this version')
+        return make_operation_outcome('duplicate', f'There is already a library with that name ({name}) and version ({version})')
+    except KeyError:
+        logger.info('NLPQL Library with that name not found, continuing POST operation')
+
     # Encode NLPQL as base64Binary
     code_bytes = code.encode('utf-8')
     base64_bytes = base64.b64encode(code_bytes)
@@ -477,7 +492,6 @@ def save_nlpql(code: str = Body(...)):
     nlpql_library = Library(**data)
     nlpql_library = nlpql_library.dict()
     nlpql_library['content'][0]['data'] = base64_nlpql
-    logger.info('Created Library object')
 
     # Store Library object in CQF Ruler
     r = requests.post(cqfr4_fhir+'Library', json=nlpql_library)
@@ -503,7 +517,7 @@ def save_cql(code: str = Body(...)):
     version = split_cql[3].strip("'")
 
     # Check to see if library and version of this exists
-    r = requests.get(cqfr4_fhir+f'Library?name={name}&version={version}')
+    r = requests.get(cqfr4_fhir+f'Library?name={name}&version={version}&content-type=text/cql')
     if r.status_code != 200:
         logger.error(f'Trying to get library from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
@@ -576,18 +590,18 @@ def update_form(form_name: str, new_questions: Questionnaire):
 @apirouter.put("/forms/cql/{library_name}")
 def update_cql(library_name: str, code: str = Body(...)):
 
-    r = requests.get(cqfr4_fhir+f'Library?name={library_name}')
+    r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text/cql')
     if r.status_code != 200:
         logger.error(f'Getting Library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
+        return make_operation_outcome('transient', f'Getting CQL Library from server failed with status code {r.status_code}')
 
     search_bundle = r.json()
     try:
         resource_id = search_bundle['entry'][0]['resource']['id']
-        logger.info(f'Found Library with name {library_name}')
+        logger.info(f'Found CQL Library with name {library_name}')
     except KeyError:
         logger.error('Library with that name not found')
-        return make_operation_outcome('not-found', f'Getting Library named {library_name} not found on server')
+        return make_operation_outcome('not-found', f'Getting CQL Library named {library_name} not found on server')
 
     # Validate the CQL before updating
     validation_results = validate_cql(code)
@@ -633,24 +647,50 @@ def update_cql(library_name: str, code: str = Body(...)):
     return JSONResponse(content=make_operation_outcome('informational',f'Library {library_name} successfully put on server', severity='information'), status_code=201)
 
 @apirouter.put("/forms/nlpql/{library_name}")
-def update_nlpql(library_name: str, new_nlpql: str = Body(...)):
+def update_nlpql(library_name: str, code: str = Body(...)):
 
-    r = requests.get(cqfr4_fhir=f'Library?name={library_name}')
+    r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text/nlpql')
     if r.status_code != 200:
-        logger.error(f'Getting Library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
-
+        logger.error(f'Getting NLPQL Library from server failed with status code {r.status_code}')
+        return make_operation_outcome('transient', f'Getting NLPQL Library from server failed with status code {r.status_code}')
     search_bundle = r.json()
     try:
         resource_id = search_bundle['entry'][0]['resource']['id']
-        logger.info(f'Found Library with name {library_name}')
+        logger.info(f'Found Library with name {library_name} and resource id {resource_id}')
     except KeyError:
         logger.error('Library with that name not found')
         return make_operation_outcome('not-found', f'Getting Library named {library_name} not found on server')
 
-    r = requests.put(cqfr4_fhir+f'Library/{resource_id}', data=new_nlpql)
+    # Get name and version of NLPQL Library
+    split_nlpql = code.split()
+    name = split_nlpql[5].strip('"')
+    version = split_nlpql[7].strip(';').strip('"')
+
+    code_bytes = code.encode('utf-8')
+    base64_bytes = base64.b64encode(code_bytes)
+    base64_nlpql = base64_bytes.decode('utf-8')
+    logger.info('Encoded NLPQL')
+
+    # Create Library object
+    data = {
+        'name': name,
+        'version': version,
+        'status': 'draft',
+        'experimental': True,
+        'type': {'coding':[{'code':'logic-library'}]},
+        'content': [{
+            'contentType': 'text/nlpql',
+            'data': base64_nlpql
+        }]
+    }
+    nlpql_library = Library(**data)
+    nlpql_library = nlpql_library.dict()
+    nlpql_library['content'][0]['data'] = base64_nlpql
+    nlpql_library['id'] = resource_id
+    logger.debug(nlpql_library)
+    r = requests.put(cqfr4_fhir+f'Library/{resource_id}', json=nlpql_library)
     if r.status_code != 200:
-        logger.error(f'Putting Library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Putting Library from server failed with status code {r.status_code}')
+        logger.error(f'Putting Library to server failed with status code {r.status_code}')
+        return make_operation_outcome('transient', f'Putting Library to server failed with status code {r.status_code}')
 
     return JSONResponse(content=make_operation_outcome('informational',f'Library {library_name} successfully put on server', severity='information'), status_code=201)
