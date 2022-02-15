@@ -234,17 +234,6 @@
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Diagnoses.syphilis_diagnoses"
-                        }
-                    ]
-                },
-                {
-                    "linkId": "2000000009",
-                    "text": "Syphilis Diagnoses",
-                    "type": "string",
-                    "extension": [
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
-                            "valueString": "series"
                         },
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
@@ -264,17 +253,6 @@
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Diagnoses.syphilis_related_diagnoses"
-                        }
-                    ]
-                },
-                {
-                    "linkId": "2000000010",
-                    "text": "Related Diagnoses",
-                    "type": "string",
-                    "extension": [
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
-                            "valueString": "series"
                         },
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
@@ -294,17 +272,6 @@
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Diagnoses.syphilis_symptoms"
-                        }
-                    ]
-                },
-                {
-                    "linkId": "2000000011",
-                    "text": "Symptoms",
-                    "type": "string",
-                    "extension": [
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
-                            "valueString": "series"
                         },
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
@@ -336,17 +303,6 @@
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Treatment.syphilis_treatment_medication_statement"
-                        }
-                    ]
-                },
-                {
-                    "linkId": "2000000012",
-                    "text": "Syphilis Treatment",
-                    "type": "string",
-                    "extension": [
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
-                            "valueString": "series"
                         },
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
