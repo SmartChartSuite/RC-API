@@ -411,10 +411,10 @@ def start_jobs(post_body: Parameters):
     else:
         pass
     logger.info('No CQL result errors, continuing to link results')
-    return {'cql results': results_cql, 'nlpql results': results_nlpql}
+
     # Creates the registry bundle format
     logger.info('Start linking results')
-    bundled_results = create_linked_results([results_cql, results_nlpql], form_name, [cql_flag, nlpql_flag])
+    bundled_results = create_linked_results([results_cql, results_nlpql], form_name)
     logger.info('Finished linking results')
 
     return bundled_results
