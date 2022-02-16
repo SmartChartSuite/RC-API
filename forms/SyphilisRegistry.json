@@ -8,7 +8,7 @@
     "id": "SyphilisRegistry",
     "url": "http://gtri.gatech.edu/fakeFormIg/Questionnaire/SyphilisRegistry",
     "name": "SyphilisRegistry",
-    "version": "0.2",
+    "version": "0.1",
     "title": "Syphilis Registry",
     "status": "draft",
     "experimental": true,
@@ -19,48 +19,27 @@
     ],
     "extension": [
         {
-            "url": "http://gtri.gatech.edu/fakeFormIg/cql-form-job-list",
+            "url": "http://gtri.gatech.edu/fakeFormIg/form-job-list",
             "extension": [
                 {
                     "url": "form-job",
-                    "valueString": "demographics.cql"
+                    "valueString": "demographics"
                 },
                 {
                     "url": "form-job",
-                    "valueString": "Syphilis_Lab_Results.cql"
+                    "valueString": "Syphilis_Lab_Results"
                 },
                 {
                     "url": "form-job",
-                    "valueString": "Syphilis_Diagnoses.cql"
+                    "valueString": "Syphilis_Diagnoses"
                 },
                 {
                     "url": "form-job",
-                    "valueString": "Syphilis_Treatment.cql"
+                    "valueString": "Syphilis_Treatment"
                 },
                 {
                     "url": "form-job",
-                    "valueString": "Pregnancy.cql"
-                }
-            ]
-        },
-        {
-            "url": "http://gtri.gatech.edu/fakeFormIg/nlpql-form-job-list",
-            "extension": [
-                {
-                    "url": "form-job",
-                    "valueString": "Syphilis_Diagnoses.nlpql"
-                },
-                {
-                    "url": "form-job",
-                    "valueString": "Syphilis_Related_Diagnoses.nlpql"
-                },
-                {
-                    "url": "form-job",
-                    "valueString": "Syphilis_Symptoms.nlpql"
-                },
-                {
-                    "url": "form-job",
-                    "valueString": "Syphilis_Treatment.nlpql"
+                    "valueString": "Pregnancy"
                 }
             ]
         }
@@ -179,18 +158,6 @@
             ]
         },
         {
-            "linkId": "Testing",
-            "type": "group",
-            "text": "Testing",
-            "item": [
-                {
-                    "linkId": "display1",
-                    "text": "Test Results",
-                    "type": "display"
-                }
-            ]
-        },
-        {
             "linkId": "Lab Results",
             "type": "group",
             "text": "Lab Results",
@@ -218,11 +185,6 @@
             "text": "Diagnoses",
             "item": [
                 {
-                    "linkId": "display2",
-                    "text": "Diagnoses",
-                    "type": "display"
-                },
-                {
                     "linkId": "2000000009",
                     "text": "Syphilis Diagnoses",
                     "type": "string",
@@ -233,10 +195,6 @@
                         },
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
-                            "valueString": "Syphilis_Diagnoses.syphilis_diagnoses"
-                        },
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
                             "valueString": "Syphilis_Diagnoses.syphilis_diagnoses"
                         }
                     ]
@@ -253,10 +211,6 @@
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Diagnoses.syphilis_related_diagnoses"
-                        },
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
-                            "valueString": "Syphilis_Related_Diagnoses.syphilis_related_diagnoses"
                         }
                     ]
                 },
@@ -272,10 +226,6 @@
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Diagnoses.syphilis_symptoms"
-                        },
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
-                            "valueString": "Syphilis_Symptoms.syphilis_symptoms"
                         }
                     ]
                 }
@@ -286,11 +236,6 @@
             "type": "group",
             "text": "Treatment",
             "item": [
-                {
-                    "linkId": "display2",
-                    "text": "Treatments",
-                    "type": "display"
-                },
                 {
                     "linkId": "2000000012",
                     "text": "Syphilis Treatment",
@@ -303,10 +248,6 @@
                         {
                             "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
                             "valueString": "Syphilis_Treatment.syphilis_treatment_medication_statement"
-                        },
-                        {
-                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
-                            "valueString": "Syphilis_Treatment.syphilis_treatment"
                         }
                     ]
                 }
@@ -317,11 +258,6 @@
             "type": "group",
             "text": "Pregnancy",
             "item": [
-                {
-                    "linkId": "display2",
-                    "text": "Pregnancy",
-                    "type": "display"
-                },
                 {
                     "linkId": "2000000013",
                     "text": "Pregnancy Status",

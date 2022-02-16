@@ -13,9 +13,7 @@
             "envFile": "${workspaceFolder}/.env",
             "args": [
                 "--reload",
-                "main:app",
-                "--env-file",
-                ".env"
+                "main:app"
             ],
             "preLaunchTask": "pipInstall",
             "jinja": true

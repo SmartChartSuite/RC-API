@@ -1,19 +1,15 @@
 import os
 from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import (
     get_redoc_html,
     get_swagger_ui_html,
     get_swagger_ui_oauth2_redirect_html,
 )
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
-
-from src.routers.routers import apirouter
-from src.models.functions import make_operation_outcome
+from src.routers.forms import formsrouter
 
 
 #------------------ FastAPI variable ----------------------------------
@@ -34,12 +30,7 @@ app.add_middleware(
 )
 
 # ================= Routers inclusion from src directory ===============
-app.include_router(apirouter)
-
-# ================= Invalid Request Exception Handling =================
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    return JSONResponse(make_operation_outcome('invalid', str(exc)), status_code=400)
+app.include_router(formsrouter)
 
 #----------------------- Custom OpenAPI -------------------------------
 def custom_openapi():
