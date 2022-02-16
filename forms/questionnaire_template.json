@@ -17,13 +17,16 @@
     "subjectType": [
         "Patient"
     ],
-    "extension": [
-        {
-            "url": "http://gtri.gatech.edu/fakeFormIg/form-job-list",
-            "extension": [
+    "extension": [{
+        "url": "http://gtri.gatech.edu/fakeFormIg/cql-form-job-list",
+        "extension": [
 
-            ]
-        }
-    ],
-    "item": [    ]
+        ]
+    }, {
+        "url": "http://gtri.gatech.edu/fakeFormIg/nlpql-form-job-list",
+        "extension": [
+
+        ]
+    }],
+    "item": []
 }
