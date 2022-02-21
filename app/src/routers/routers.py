@@ -76,12 +76,23 @@ def get_list_of_forms():
 def get_cql_libraries():
 
     # Pulls list of CQL libraries from CQF Ruler
-    r = requests.get(cqfr4_fhir+'Library')
+    r = requests.get(cqfr4_fhir+'Library?content-type=text/cql')
     if r.status_code == 200:
         return r.json()
     else:
-        logger.error(f'Getting Libraries from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Libraries from server failed with code {r.status_code}')
+        logger.error(f'Getting CQL Libraries from server failed with status code {r.status_code}')
+        return make_operation_outcome('transient', f'Getting CQL Libraries from server failed with code {r.status_code}')
+
+@apirouter.get("/forms/nlpql")
+def get_cql_libraries():
+
+    # Pulls list of CQL libraries from CQF Ruler
+    r = requests.get(cqfr4_fhir+'Library?content-type=text/nlpql')
+    if r.status_code == 200:
+        return r.json()
+    else:
+        logger.error(f'Getting NLPQL Libraries from server failed with status code {r.status_code}')
+        return make_operation_outcome('transient', f'Getting NLPQL Libraries from server failed with code {r.status_code}')
 
 @apirouter.get("/forms/cql/{library_name}")
 def get_cql(library_name: str):
