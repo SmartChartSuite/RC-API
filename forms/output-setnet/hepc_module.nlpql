@@ -1,0 +1,931 @@
+
+// Phenotype library name
+phenotype " - hepc module" version "1";
+
+// # Referenced libraries #
+include ClarityCore version "1.0" called Clarity;
+
+// Termsets
+
+termset mc_sub_op_il_terms_terms: [
+    "opium", "heroin"
+];
+
+
+
+
+termset mc_sub_op_oth_terms_terms: [
+    "pcp", "ghb", "drug use", "cocaine", "lsd", "ketamine", "methamphetamines", "hallucinogens", "ecstasy", "inhalants"
+];
+
+
+
+
+termset mc_sub_op_mat_terms_terms: [
+    "naltrexone", "buprenorphine", "methadone"
+];
+
+
+
+
+termset mc_sub_op_rx_terms_terms: [
+    "oxymorphone", "oxycodone", "kadian", "morphine", "codeine", "fentanyl", "percocet", "avinza", "vicodin", "hydrocodone", "oxycontin", "opana"
+];
+
+
+
+
+termset mc_sub_mj_terms_terms: [
+    "weed", "blunts", "hasish", "marijuana", "thc", "cannabinoids"
+];
+
+
+
+// Data Entities
+
+define final mc_sub_op_mat_rxnorm:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library temporary_retrieve version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+
+        
+
+        context Patient
+
+
+
+
+        define "mc_sub_op_mat_rxnorm_concepts": Concept {
+            Code '5865811000001103' from "RxNorm", 
+            Code '347893005' from "RxNorm", 
+            Code '347894004' from "RxNorm", 
+            Code '350296004' from "RxNorm", 
+            Code '347758008' from "RxNorm", 
+            Code '350295000' from "RxNorm", 
+            Code '350294001' from "RxNorm", 
+            Code '410976003' from "RxNorm", 
+            Code '387286002' from "RxNorm", 
+            Code '30939011000001104' from "RxNorm", 
+            Code '30939111000001103' from "RxNorm", 
+            Code '21509811000001104' from "RxNorm", 
+            Code '21643311000001105' from "RxNorm", 
+            Code '21795911000001106' from "RxNorm", 
+            Code '21796111000001102' from "RxNorm", 
+            Code '22158211000001105' from "RxNorm", 
+            Code '22605511000001108' from "RxNorm", 
+            Code '22605711000001103' from "RxNorm", 
+            Code '24119311000001107' from "RxNorm", 
+            Code '24570911000001102' from "RxNorm", 
+            Code '29732211000001108' from "RxNorm", 
+            Code '29729511000001100' from "RxNorm", 
+            Code '29729411000001104' from "RxNorm", 
+            Code '29729611000001101' from "RxNorm", 
+            Code '116728002' from "RxNorm", 
+            Code '23883005' from "RxNorm", 
+            Code '410975004' from "RxNorm", 
+            Code '370238000' from "RxNorm", 
+            Code '370237005' from "RxNorm", 
+            Code '320970006' from "RxNorm", 
+            Code '322570006' from "RxNorm", 
+            Code '322579007' from "RxNorm", 
+            Code '322589006' from "RxNorm", 
+            Code '322592005' from "RxNorm", 
+            Code '322571005' from "RxNorm", 
+            Code '322588003' from "RxNorm", 
+            Code '322591003' from "RxNorm", 
+            Code '322575001' from "RxNorm", 
+            Code '322590002' from "RxNorm", 
+            Code '418000008' from "RxNorm", 
+            Code '376782004' from "RxNorm", 
+            Code '374576001' from "RxNorm", 
+            Code '19841711000001107' from "RxNorm", 
+            Code '19722711000001100' from "RxNorm", 
+            Code '14204211000001100' from "RxNorm", 
+            Code '12389411000001104' from "RxNorm", 
+            Code '12389911000001107' from "RxNorm", 
+            Code '12389611000001101' from "RxNorm", 
+            Code '12390111000001103' from "RxNorm", 
+            Code '12390011000001104' from "RxNorm", 
+            Code '12389511000001100' from "RxNorm", 
+            Code '12389711000001105' from "RxNorm", 
+            Code '12389811000001102' from "RxNorm", 
+            Code '12300311000001103' from "RxNorm", 
+            Code '12299911000001100' from "RxNorm", 
+            Code '12299211000001109' from "RxNorm", 
+            Code '12300111000001100' from "RxNorm", 
+            Code '12300011000001101' from "RxNorm", 
+            Code '12299811000001105' from "RxNorm", 
+            Code '12299111000001103' from "RxNorm", 
+            Code '12300211000001106' from "RxNorm", 
+            Code '12212111000001108' from "RxNorm", 
+            Code '12212011000001107' from "RxNorm", 
+            Code '12138311000001104' from "RxNorm", 
+            Code '12138211000001107' from "RxNorm", 
+            Code '12138511000001105' from "RxNorm", 
+            Code '12138411000001106' from "RxNorm", 
+            Code '12138711000001100' from "RxNorm", 
+            Code '12138611000001109' from "RxNorm", 
+            Code '12138911000001103' from "RxNorm", 
+            Code '12138811000001108' from "RxNorm", 
+            Code '12139111000001108' from "RxNorm", 
+            Code '12139011000001107' from "RxNorm", 
+            Code '12139311000001105' from "RxNorm", 
+            Code '12139211000001102' from "RxNorm", 
+            Code '12139511000001104' from "RxNorm", 
+            Code '12139411000001103' from "RxNorm", 
+            Code '12139711000001109' from "RxNorm", 
+            Code '12139611000001100' from "RxNorm", 
+            Code '12139911000001106' from "RxNorm", 
+            Code '12139811000001101' from "RxNorm", 
+            Code '12105111000001101' from "RxNorm", 
+            Code '12105011000001102' from "RxNorm", 
+            Code '12105311000001104' from "RxNorm", 
+            Code '12105211000001107' from "RxNorm", 
+            Code '12105511000001105' from "RxNorm", 
+            Code '12105411000001106' from "RxNorm", 
+            Code '12105711000001100' from "RxNorm", 
+            Code '12105611000001109' from "RxNorm", 
+            Code '12105811000001108' from "RxNorm", 
+            Code '12105911000001103' from "RxNorm", 
+            Code '12106111000001107' from "RxNorm", 
+            Code '12106011000001106' from "RxNorm", 
+            Code '12106811000001100' from "RxNorm", 
+            Code '12106711000001108' from "RxNorm", 
+            Code '12107011000001109' from "RxNorm", 
+            Code '12106911000001105' from "RxNorm", 
+            Code '12090811000001106' from "RxNorm", 
+            Code '12090711000001103' from "RxNorm", 
+            Code '5709211000001102' from "RxNorm", 
+            Code '5709011000001107' from "RxNorm", 
+            Code '4317311000001105' from "RxNorm", 
+            Code '466311000001109' from "RxNorm", 
+            Code '186911000001106' from "RxNorm", 
+            Code '903811000001107' from "RxNorm", 
+            Code '835211000001106' from "RxNorm", 
+            Code '337711000001108' from "RxNorm", 
+            Code '10911000001102' from "RxNorm", 
+            Code '257711000001102' from "RxNorm", 
+            Code '6611000001107' from "RxNorm", 
+            Code '231011000001105' from "RxNorm", 
+            Code '87611000001109' from "RxNorm", 
+            Code '852411000001103' from "RxNorm", 
+            Code '879011000001102' from "RxNorm", 
+            Code '325411000001105' from "RxNorm", 
+            Code '491111000001101' from "RxNorm", 
+            Code '331911000001102' from "RxNorm", 
+            Code '170111000001100' from "RxNorm", 
+            Code '54711000001100' from "RxNorm", 
+            Code '928511000001106' from "RxNorm", 
+            Code '467511000001101' from "RxNorm", 
+            Code '679311000001106' from "RxNorm", 
+            Code '537511000001101' from "RxNorm", 
+            Code '643211000001104' from "RxNorm", 
+            Code '699611000001108' from "RxNorm", 
+            Code '889811000001104' from "RxNorm", 
+            Code '600111000001108' from "RxNorm", 
+            Code '426311000001102' from "RxNorm", 
+            Code '448311000001101' from "RxNorm", 
+            Code '844611000001106' from "RxNorm", 
+            Code '3865511000001109' from "RxNorm", 
+            Code '3866111000001106' from "RxNorm", 
+            Code '3866711000001107' from "RxNorm", 
+            Code '4298611000001107' from "RxNorm", 
+            Code '4299111000001106' from "RxNorm", 
+            Code '4299411000001101' from "RxNorm", 
+            Code '4299811000001104' from "RxNorm", 
+            Code '4300311000001106' from "RxNorm", 
+            Code '4831411000001102' from "RxNorm", 
+            Code '4831911000001105' from "RxNorm", 
+            Code '4832211000001108' from "RxNorm", 
+            Code '4832411000001107' from "RxNorm", 
+            Code '5196111000001108' from "RxNorm", 
+            Code '5643311000001106' from "RxNorm", 
+            Code '5644711000001107' from "RxNorm", 
+            Code '5865111000001105' from "RxNorm", 
+            Code '5866211000001105' from "RxNorm", 
+            Code '12075711000001101' from "RxNorm", 
+            Code '12076411000001103' from "RxNorm", 
+            Code '12097611000001106' from "RxNorm", 
+            Code '12097911000001100' from "RxNorm", 
+            Code '12098211000001108' from "RxNorm", 
+            Code '12098511000001106' from "RxNorm", 
+            Code '12098811000001109' from "RxNorm", 
+            Code '12099111000001109' from "RxNorm", 
+            Code '12099411000001104' from "RxNorm", 
+            Code '12099711000001105' from "RxNorm", 
+            Code '12100211000001103' from "RxNorm", 
+            Code '12100511000001100' from "RxNorm", 
+            Code '12100811000001102' from "RxNorm", 
+            Code '12101111000001103' from "RxNorm", 
+            Code '12101711000001102' from "RxNorm", 
+            Code '12102011000001107' from "RxNorm", 
+            Code '12102311000001105' from "RxNorm", 
+            Code '12102611000001100' from "RxNorm", 
+            Code '12123111000001108' from "RxNorm", 
+            Code '12123411000001103' from "RxNorm", 
+            Code '12123711000001109' from "RxNorm", 
+            Code '12124011000001109' from "RxNorm", 
+            Code '12124311000001107' from "RxNorm", 
+            Code '12124611000001102' from "RxNorm", 
+            Code '12124911000001108' from "RxNorm", 
+            Code '12125211000001103' from "RxNorm", 
+            Code '12125511000001100' from "RxNorm", 
+            Code '12125811000001102' from "RxNorm", 
+            Code '12126111000001103' from "RxNorm", 
+            Code '12126411000001108' from "RxNorm", 
+            Code '12126711000001102' from "RxNorm", 
+            Code '12127011000001101' from "RxNorm", 
+            Code '12127311000001103' from "RxNorm", 
+            Code '12127611000001108' from "RxNorm", 
+            Code '12127911000001102' from "RxNorm", 
+            Code '12128211000001105' from "RxNorm", 
+            Code '12201011000001101' from "RxNorm", 
+            Code '12201311000001103' from "RxNorm", 
+            Code '12239211000001104' from "RxNorm", 
+            Code '12239611000001102' from "RxNorm", 
+            Code '12240411000001106' from "RxNorm", 
+            Code '12243111000001108' from "RxNorm", 
+            Code '12243511000001104' from "RxNorm", 
+            Code '12245011000001108' from "RxNorm", 
+            Code '12245711000001105' from "RxNorm", 
+            Code '12246111000001103' from "RxNorm", 
+            Code '12316811000001106' from "RxNorm", 
+            Code '12317111000001101' from "RxNorm", 
+            Code '12317611000001109' from "RxNorm", 
+            Code '12318811000001107' from "RxNorm", 
+            Code '12319311000001109' from "RxNorm", 
+            Code '12319611000001104' from "RxNorm", 
+            Code '12319911000001105' from "RxNorm", 
+            Code '12320211000001102' from "RxNorm", 
+            Code '14189911000001106' from "RxNorm", 
+            Code '15110611000001102' from "RxNorm", 
+            Code '16437311000001102' from "RxNorm", 
+            Code '16437811000001106' from "RxNorm", 
+            Code '17328711000001108' from "RxNorm", 
+            Code '17328911000001105' from "RxNorm", 
+            Code '19710311000001108' from "RxNorm", 
+            Code '19739811000001100' from "RxNorm", 
+            Code '19831611000001102' from "RxNorm", 
+            Code '21509411000001101' from "RxNorm", 
+            Code '21509711000001107' from "RxNorm", 
+            Code '21643211000001102' from "RxNorm", 
+            Code '21795811000001101' from "RxNorm", 
+            Code '21796011000001103' from "RxNorm", 
+            Code '22158111000001104' from "RxNorm", 
+            Code '22605411000001109' from "RxNorm", 
+            Code '22605611000001107' from "RxNorm", 
+            Code '24119211000001104' from "RxNorm", 
+            Code '24570811000001107' from "RxNorm", 
+            Code '19831511000001101' from "RxNorm", 
+            Code '19710211000001100' from "RxNorm", 
+            Code '16437711000001103' from "RxNorm", 
+            Code '16437411000001109' from "RxNorm", 
+            Code '15927511000001105' from "RxNorm", 
+            Code '15927311000001104' from "RxNorm", 
+            Code '14189811000001101' from "RxNorm", 
+            Code '12320111000001108' from "RxNorm", 
+            Code '12319811000001100' from "RxNorm", 
+            Code '12319511000001103' from "RxNorm", 
+            Code '12319211000001101' from "RxNorm", 
+            Code '12318711000001104' from "RxNorm", 
+            Code '12317511000001105' from "RxNorm", 
+            Code '12317011000001102' from "RxNorm", 
+            Code '12316711000001103' from "RxNorm", 
+            Code '12246011000001104' from "RxNorm", 
+            Code '12245511000001100' from "RxNorm", 
+            Code '12244811000001103' from "RxNorm", 
+            Code '12243311000001105' from "RxNorm", 
+            Code '12243011000001107' from "RxNorm", 
+            Code '12240111000001101' from "RxNorm", 
+            Code '12239711000001106' from "RxNorm", 
+            Code '12239111000001105' from "RxNorm", 
+            Code '12201211000001106' from "RxNorm", 
+            Code '12200911000001109' from "RxNorm", 
+            Code '12128111000001104' from "RxNorm", 
+            Code '12127811000001107' from "RxNorm", 
+            Code '12127511000001109' from "RxNorm", 
+            Code '12127211000001106' from "RxNorm", 
+            Code '12126911000001100' from "RxNorm", 
+            Code '12126611000001106' from "RxNorm", 
+            Code '12126311000001101' from "RxNorm", 
+            Code '12126011000001104' from "RxNorm", 
+            Code '12125711000001105' from "RxNorm", 
+            Code '12125411000001104' from "RxNorm", 
+            Code '12125111000001109' from "RxNorm", 
+            Code '12124811000001103' from "RxNorm", 
+            Code '12124511000001101' from "RxNorm", 
+            Code '12124211000001104' from "RxNorm", 
+            Code '12123911000001106' from "RxNorm", 
+            Code '12123611000001100' from "RxNorm", 
+            Code '12123311000001105' from "RxNorm", 
+            Code '12123011000001107' from "RxNorm", 
+            Code '12102511000001104' from "RxNorm", 
+            Code '12102211000001102' from "RxNorm", 
+            Code '12101911000001100' from "RxNorm", 
+            Code '12101611000001106' from "RxNorm", 
+            Code '12101011000001104' from "RxNorm", 
+            Code '12100711000001105' from "RxNorm", 
+            Code '12100411000001104' from "RxNorm", 
+            Code '12100111000001109' from "RxNorm", 
+            Code '12099611000001101' from "RxNorm", 
+            Code '12099311000001106' from "RxNorm", 
+            Code '12099011000001108' from "RxNorm", 
+            Code '12098711000001101' from "RxNorm", 
+            Code '12098411000001107' from "RxNorm", 
+            Code '12098111000001102' from "RxNorm", 
+            Code '12097811000001105' from "RxNorm", 
+            Code '12097511000001107' from "RxNorm", 
+            Code '12076211000001102' from "RxNorm", 
+            Code '12075511000001106' from "RxNorm", 
+            Code '12055911000001102' from "RxNorm", 
+            Code '12055811000001107' from "RxNorm", 
+            Code '12054911000001101' from "RxNorm", 
+            Code '12054811000001106' from "RxNorm", 
+            Code '12054711000001103' from "RxNorm", 
+            Code '12054611000001107' from "RxNorm", 
+            Code '5644511000001102' from "RxNorm", 
+            Code '5642911000001100' from "RxNorm", 
+            Code '4298511000001108' from "RxNorm", 
+            Code '4298411000001109' from "RxNorm", 
+            Code '4298311000001102' from "RxNorm", 
+            Code '4298211000001105' from "RxNorm", 
+            Code '3865411000001105' from "RxNorm", 
+            Code '1034911000001100' from "RxNorm", 
+            Code '1028911000001109' from "RxNorm", 
+            Code '1141311000001107' from "RxNorm", 
+            Code '1268211000001101' from "RxNorm", 
+            Code '971511000001100' from "RxNorm", 
+            Code '1230111000001100' from "RxNorm", 
+            Code '1201311000001103' from "RxNorm", 
+            Code '1069411000001102' from "RxNorm", 
+            Code '1161711000001101' from "RxNorm", 
+            Code '1171811000001104' from "RxNorm", 
+            Code '945611000001102' from "RxNorm", 
+            Code '1104511000001109' from "RxNorm", 
+            Code '1057111000001109' from "RxNorm", 
+            Code '1228811000001108' from "RxNorm", 
+            Code '1209711000001100' from "RxNorm", 
+            Code '1302111000001101' from "RxNorm", 
+            Code '2259011000001109' from "RxNorm", 
+            Code '2260111000001106' from "RxNorm", 
+            Code '2260311000001108' from "RxNorm", 
+            Code '2260511000001102' from "RxNorm", 
+            Code '2260711000001107' from "RxNorm", 
+            Code '2264011000001103' from "RxNorm", 
+            Code '2264211000001108' from "RxNorm", 
+            Code '2264311000001100' from "RxNorm", 
+            Code '2264511000001106' from "RxNorm", 
+            Code '2265811000001105' from "RxNorm", 
+            Code '2266011000001108' from "RxNorm", 
+            Code '2266111000001109' from "RxNorm", 
+            Code '2266211000001103' from "RxNorm", 
+            Code '2266811000001102' from "RxNorm", 
+            Code '2279411000001103' from "RxNorm", 
+            Code '2279611000001100' from "RxNorm", 
+            Code '2279811000001101' from "RxNorm", 
+            Code '2280111000001108' from "RxNorm", 
+            Code '2280411000001103' from "RxNorm", 
+            Code '2280511000001104' from "RxNorm", 
+            Code '2280611000001100' from "RxNorm", 
+            Code '2282011000001106' from "RxNorm", 
+            Code '2282111000001107' from "RxNorm", 
+            Code '2282311000001109' from "RxNorm", 
+            Code '2282411000001102' from "RxNorm", 
+            Code '2282611000001104' from "RxNorm", 
+            Code '2282711000001108' from "RxNorm", 
+            Code '2808911000001103' from "RxNorm", 
+            Code '2809211000001102' from "RxNorm", 
+            Code '2809411000001103' from "RxNorm", 
+            Code '2810011000001101' from "RxNorm", 
+            Code '2810611000001108' from "RxNorm", 
+            Code '2810711000001104' from "RxNorm", 
+            Code '2810811000001107' from "RxNorm", 
+            Code '2811011000001105' from "RxNorm", 
+            Code '2811611000001103' from "RxNorm", 
+            Code '2812111000001101' from "RxNorm", 
+            Code '2812311000001104' from "RxNorm", 
+            Code '2812411000001106' from "RxNorm", 
+            Code '2812611000001109' from "RxNorm", 
+            Code '2813211000001101' from "RxNorm", 
+            Code '2813911000001105' from "RxNorm", 
+            Code '2814111000001109' from "RxNorm", 
+            Code '2814211000001103' from "RxNorm", 
+            Code '2814711000001105' from "RxNorm", 
+            Code '2815111000001108' from "RxNorm", 
+            Code '3865711000001104' from "RxNorm", 
+            Code '3866611000001103' from "RxNorm", 
+            Code '3866811000001104' from "RxNorm", 
+            Code '4298811000001106' from "RxNorm", 
+            Code '4298711000001103' from "RxNorm", 
+            Code '4298911000001101' from "RxNorm", 
+            Code '4299011000001105' from "RxNorm", 
+            Code '4299211000001100' from "RxNorm", 
+            Code '4299311000001108' from "RxNorm", 
+            Code '4299511000001102' from "RxNorm", 
+            Code '4299611000001103' from "RxNorm", 
+            Code '4299711000001107' from "RxNorm", 
+            Code '4299911000001109' from "RxNorm", 
+            Code '4300011000001108' from "RxNorm", 
+            Code '4300111000001109' from "RxNorm", 
+            Code '4300211000001103' from "RxNorm", 
+            Code '4300411000001104' from "RxNorm", 
+            Code '4300511000001100' from "RxNorm", 
+            Code '4300611000001101' from "RxNorm", 
+            Code '4573011000001108' from "RxNorm", 
+            Code '4831511000001103' from "RxNorm", 
+            Code '4832111000001102' from "RxNorm", 
+            Code '4832311000001100' from "RxNorm", 
+            Code '4832711000001101' from "RxNorm", 
+            Code '5200711000001106' from "RxNorm", 
+            Code '5643411000001104' from "RxNorm", 
+            Code '5645211000001104' from "RxNorm", 
+            Code '51758009' from "RxNorm", 
+            Code '5866311000001102' from "RxNorm", 
+            Code '9744211000001102' from "RxNorm", 
+            Code '11254711000001108' from "RxNorm", 
+            Code '11254811000001100' from "RxNorm", 
+            Code '11254911000001105' from "RxNorm", 
+            Code '11255311000001108' from "RxNorm", 
+            Code '11382811000001106' from "RxNorm", 
+            Code '12075911000001104' from "RxNorm", 
+            Code '12076711000001109' from "RxNorm", 
+            Code '12097711000001102' from "RxNorm", 
+            Code '12098011000001103' from "RxNorm", 
+            Code '12098311000001100' from "RxNorm", 
+            Code '12098611000001105' from "RxNorm", 
+            Code '12098911000001104' from "RxNorm", 
+            Code '12099211000001103' from "RxNorm", 
+            Code '12099511000001100' from "RxNorm", 
+            Code '12099811000001102' from "RxNorm", 
+            Code '12100311000001106' from "RxNorm", 
+            Code '12100611000001101' from "RxNorm", 
+            Code '12100911000001107' from "RxNorm", 
+            Code '12101211000001109' from "RxNorm", 
+            Code '12101811000001105' from "RxNorm", 
+            Code '12102111000001108' from "RxNorm", 
+            Code '12102411000001103' from "RxNorm", 
+            Code '12102711000001109' from "RxNorm", 
+            Code '12123211000001102' from "RxNorm", 
+            Code '12123511000001104' from "RxNorm", 
+            Code '12123811000001101' from "RxNorm", 
+            Code '12124111000001105' from "RxNorm", 
+            Code '12124411000001100' from "RxNorm", 
+            Code '12124711000001106' from "RxNorm", 
+            Code '12125011000001108' from "RxNorm", 
+            Code '12125311000001106' from "RxNorm", 
+            Code '12125611000001101' from "RxNorm", 
+            Code '12125911000001107' from "RxNorm", 
+            Code '12126211000001109' from "RxNorm", 
+            Code '12126511000001107' from "RxNorm", 
+            Code '12126811000001105' from "RxNorm", 
+            Code '12127111000001100' from "RxNorm", 
+            Code '12127411000001105' from "RxNorm", 
+            Code '12127711000001104' from "RxNorm", 
+            Code '12128011000001100' from "RxNorm", 
+            Code '12128311000001102' from "RxNorm", 
+            Code '12201111000001100' from "RxNorm", 
+            Code '12201411000001105' from "RxNorm", 
+            Code '12239311000001107' from "RxNorm", 
+            Code '12239911000001108' from "RxNorm", 
+            Code '12240511000001105' from "RxNorm", 
+            Code '12243211000001102' from "RxNorm", 
+            Code '12243611000001100' from "RxNorm", 
+            Code '12245211000001103' from "RxNorm", 
+            Code '12245811000001102' from "RxNorm", 
+            Code '12246311000001101' from "RxNorm", 
+            Code '12316911000001101' from "RxNorm", 
+            Code '12317211000001107' from "RxNorm", 
+            Code '12318111000001100' from "RxNorm", 
+            Code '12318911000001102' from "RxNorm", 
+            Code '12319411000001102' from "RxNorm", 
+            Code '12319711000001108' from "RxNorm", 
+            Code '12320011000001107' from "RxNorm", 
+            Code '12320311000001105' from "RxNorm", 
+            Code '14190011000001103' from "RxNorm", 
+            Code '15110811000001103' from "RxNorm", 
+            Code '15927411000001106' from "RxNorm", 
+            Code '15927611000001109' from "RxNorm", 
+            Code '16437511000001108' from "RxNorm", 
+            Code '16437911000001101' from "RxNorm", 
+            Code '17328811000001100' from "RxNorm", 
+            Code '17329011000001101' from "RxNorm", 
+            Code '19710411000001101' from "RxNorm", 
+            Code '19718311000001105' from "RxNorm", 
+            Code '19720011000001101' from "RxNorm", 
+            Code '19739911000001105' from "RxNorm", 
+            Code '19831711000001106' from "RxNorm", 
+            Code '21509511000001102' from "RxNorm", 
+            Code '447180001' from "RxNorm", 
+            Code '447181002' from "RxNorm", 
+            Code '29776411000001105' from "RxNorm", 
+            Code '438433000' from "RxNorm", 
+            Code '407897008' from "RxNorm", 
+            Code '438419000' from "RxNorm", 
+            Code '407895000' from "RxNorm", 
+            Code '407896004' from "RxNorm", 
+            Code '407092001' from "RxNorm", 
+            Code '407093006' from "RxNorm", 
+            Code '387173000' from "RxNorm", 
+            Code '32038411000001102' from "RxNorm", 
+            Code '31877111000001109' from "RxNorm", 
+            Code '447029004' from "RxNorm", 
+            Code '447171001' from "RxNorm", 
+            Code '29505611000001108' from "RxNorm", 
+            Code '437819009' from "RxNorm", 
+            Code '30028011000001104' from "RxNorm", 
+            Code '30028211000001109' from "RxNorm", 
+            Code '30028411000001108' from "RxNorm", 
+            Code '21066009' from "RxNorm", 
+            Code '31684002' from "RxNorm", 
+            Code '425741009' from "RxNorm", 
+            Code '322497001' from "RxNorm", 
+            Code '322498006' from "RxNorm", 
+            Code '322499003' from "RxNorm", 
+            Code '322496005' from "RxNorm", 
+            Code '322492007' from "RxNorm", 
+            Code '28565211000001107' from "RxNorm", 
+            Code '28565711000001100' from "RxNorm", 
+            Code '28565811000001108' from "RxNorm", 
+            Code '11055811000001106' from "RxNorm", 
+            Code '11055911000001101' from "RxNorm", 
+            Code '9567211000001104' from "RxNorm", 
+            Code '9567411000001100' from "RxNorm", 
+            Code '9567311000001107' from "RxNorm", 
+            Code '14719611000001105' from "RxNorm", 
+            Code '14719811000001109' from "RxNorm", 
+            Code '14720311000001104' from "RxNorm", 
+            Code '14947711000001108' from "RxNorm", 
+            Code '14947911000001105' from "RxNorm", 
+            Code '14948111000001108' from "RxNorm", 
+            Code '14961211000001102' from "RxNorm", 
+            Code '14961411000001103' from "RxNorm", 
+            Code '14961611000001100' from "RxNorm", 
+            Code '14962311000001101' from "RxNorm", 
+            Code '14963311000001106' from "RxNorm", 
+            Code '14963511000001100' from "RxNorm", 
+            Code '14968811000001107' from "RxNorm", 
+            Code '14969111000001107' from "RxNorm", 
+            Code '14969511000001103' from "RxNorm", 
+            Code '15061411000001101' from "RxNorm", 
+            Code '15061611000001103' from "RxNorm", 
+            Code '16497711000001105' from "RxNorm", 
+            Code '16497911000001107' from "RxNorm", 
+            Code '18085111000001101' from "RxNorm", 
+            Code '18085311000001104' from "RxNorm", 
+            Code '18085511000001105' from "RxNorm", 
+            Code '19999111000001108' from "RxNorm", 
+            Code '20190111000001104' from "RxNorm", 
+            Code '20575111000001106' from "RxNorm", 
+            Code '20589211000001109' from "RxNorm", 
+            Code '20912411000001106' from "RxNorm", 
+            Code '20912611000001109' from "RxNorm", 
+            Code '21218511000001100' from "RxNorm", 
+            Code '21805211000001102' from "RxNorm", 
+            Code '21805811000001101' from "RxNorm", 
+            Code '21806111000001102' from "RxNorm", 
+            Code '22623211000001100' from "RxNorm", 
+            Code '22623511000001102' from "RxNorm", 
+            Code '22624111000001108' from "RxNorm", 
+            Code '28092811000001101' from "RxNorm", 
+            Code '28093011000001103' from "RxNorm", 
+            Code '28093211000001108' from "RxNorm", 
+            Code '28489611000001104' from "RxNorm", 
+            Code '28489811000001100' from "RxNorm", 
+            Code '28490011000001102' from "RxNorm", 
+            Code '28492411000001107' from "RxNorm", 
+            Code '28492111000001102' from "RxNorm", 
+            Code '28491811000001100' from "RxNorm", 
+            Code '16734711000001101' from "RxNorm", 
+            Code '15360811000001106' from "RxNorm", 
+            Code '15360711000001103' from "RxNorm", 
+            Code '15360411000001109' from "RxNorm", 
+            Code '15360311000001102' from "RxNorm", 
+            Code '15360111000001104' from "RxNorm", 
+            Code '15359911000001102' from "RxNorm", 
+            Code '11048111000001107' from "RxNorm", 
+            Code '11047411000001101' from "RxNorm", 
+            Code '10368711000001108' from "RxNorm", 
+            Code '10367311000001108' from "RxNorm", 
+            Code '10366811000001101' from "RxNorm", 
+            Code '9565811000001108' from "RxNorm", 
+            Code '9565511000001105' from "RxNorm", 
+            Code '9565211000001107' from "RxNorm", 
+            Code '3449111000001101' from "RxNorm", 
+            Code '3611111000001106' from "RxNorm", 
+            Code '3448311000001105' from "RxNorm", 
+            Code '3446511000001100' from "RxNorm", 
+            Code '1274011000001105' from "RxNorm", 
+            Code '1188211000001101' from "RxNorm", 
+            Code '1187711000001107' from "RxNorm", 
+            Code '1080511000001109' from "RxNorm", 
+            Code '1062911000001100' from "RxNorm", 
+            Code '14719711000001101' from "RxNorm", 
+            Code '14720011000001102' from "RxNorm", 
+            Code '14720411000001106' from "RxNorm", 
+            Code '14947811000001100' from "RxNorm", 
+            Code '14948011000001107' from "RxNorm", 
+            Code '14948211000001102' from "RxNorm", 
+            Code '14961311000001105' from "RxNorm", 
+            Code '14961511000001104' from "RxNorm", 
+            Code '14961711000001109' from "RxNorm", 
+            Code '14962411000001108' from "RxNorm", 
+            Code '14963411000001104' from "RxNorm", 
+            Code '14963611000001101' from "RxNorm", 
+            Code '14968911000001102' from "RxNorm", 
+            Code '14969311000001109' from "RxNorm", 
+            Code '14969711000001108' from "RxNorm", 
+            Code '15061511000001102' from "RxNorm", 
+            Code '15061711000001107' from "RxNorm", 
+            Code '16497811000001102' from "RxNorm", 
+            Code '16498011000001109' from "RxNorm", 
+            Code '18085211000001107' from "RxNorm", 
+            Code '18085611000001109' from "RxNorm", 
+            Code '18085711000001100' from "RxNorm", 
+            Code '19999211000001102' from "RxNorm", 
+            Code '20190211000001105' from "RxNorm", 
+            Code '20190311000001102' from "RxNorm", 
+            Code '20575211000001100' from "RxNorm", 
+            Code '20589411000001108' from "RxNorm", 
+            Code '20912511000001105' from "RxNorm", 
+            Code '20912711000001100' from "RxNorm", 
+            Code '21218611000001101' from "RxNorm", 
+            Code '21805311000001105' from "RxNorm", 
+            Code '21805911000001106' from "RxNorm", 
+            Code '21806211000001108' from "RxNorm", 
+            Code '22623311000001108' from "RxNorm", 
+            Code '22623711000001107' from "RxNorm", 
+            Code '22624211000001102' from "RxNorm", 
+            Code '28092911000001106' from "RxNorm", 
+            Code '28093111000001102' from "RxNorm", 
+            Code '28093311000001100' from "RxNorm", 
+            Code '28489711000001108' from "RxNorm", 
+            Code '28489911000001105' from "RxNorm", 
+            Code '28490111000001101' from "RxNorm", 
+            Code '29504711000001103' from "RxNorm", 
+            Code '29505511000001109' from "RxNorm", 
+            Code '29776311000001103' from "RxNorm", 
+            Code '30027911000001101' from "RxNorm", 
+            Code '30028111000001103' from "RxNorm", 
+            Code '30028311000001101' from "RxNorm", 
+            Code '29504911000001101' from "RxNorm", 
+            Code '323281004' from "RxNorm", 
+            Code '420553009' from "RxNorm", 
+            Code '420826002' from "RxNorm", 
+            Code '87617007' from "RxNorm", 
+            Code '422131008' from "RxNorm", 
+            Code '409461000' from "RxNorm", 
+            Code '409460004' from "RxNorm", 
+            Code '64191009' from "RxNorm", 
+            Code '429838001' from "RxNorm", 
+            Code '431072004' from "RxNorm", 
+            Code '30981511000001103' from "RxNorm", 
+            Code '31240611000001106' from "RxNorm", 
+            Code '32402411000001102' from "RxNorm", 
+            Code '30981611000001104' from "RxNorm", 
+            Code '31240811000001105' from "RxNorm", 
+            Code '32402511000001103' from "RxNorm", 
+            Code '444476007' from "RxNorm", 
+            Code '444477003' from "RxNorm", 
+            Code '444484006' from "RxNorm", 
+            Code '444485007' from "RxNorm", 
+            Code '444490005' from "RxNorm", 
+            Code '444506008' from "RxNorm", 
+            Code '443739002' from "RxNorm", 
+            Code '13807711000001105' from "RxNorm", 
+            Code '20091411000001105' from "RxNorm", 
+            Code '16110111000001108' from "RxNorm", 
+            Code '16110211000001102' from "RxNorm", 
+            Code '16110311000001105' from "RxNorm", 
+            Code '16036611000001103' from "RxNorm", 
+            Code '15148211000001106' from "RxNorm", 
+            Code '14796911000001107' from "RxNorm", 
+            Code '12301011000001105' from "RxNorm", 
+            Code '12301111000001106' from "RxNorm", 
+            Code '12301211000001100' from "RxNorm", 
+            Code '11490411000001101' from "RxNorm", 
+            Code '8822911000001103' from "RxNorm", 
+            Code '8669511000001104' from "RxNorm", 
+            Code '8669611000001100' from "RxNorm", 
+            Code '8637211000001103' from "RxNorm", 
+            Code '8638011000001109' from "RxNorm", 
+            Code '8822411000001106' from "RxNorm", 
+            Code '11480211000001104' from "RxNorm", 
+            Code '12254411000001103' from "RxNorm", 
+            Code '12255111000001107' from "RxNorm", 
+            Code '12255811000001100' from "RxNorm", 
+            Code '14790411000001101' from "RxNorm", 
+            Code '15126111000001101' from "RxNorm", 
+            Code '16015211000001101' from "RxNorm", 
+            Code '16106111000001108' from "RxNorm", 
+            Code '16106411000001103' from "RxNorm", 
+            Code '16106711000001109' from "RxNorm", 
+            Code '20091611000001108' from "RxNorm", 
+            Code '21286711000001109' from "RxNorm", 
+            Code '21817511000001105' from "RxNorm", 
+            Code '24438811000001103' from "RxNorm", 
+            Code '20091511000001109' from "RxNorm", 
+            Code '16106611000001100' from "RxNorm", 
+            Code '16106311000001105' from "RxNorm", 
+            Code '16106011000001107' from "RxNorm", 
+            Code '16015111000001107' from "RxNorm", 
+            Code '15126011000001102' from "RxNorm", 
+            Code '14790311000001108' from "RxNorm", 
+            Code '13799411000001108' from "RxNorm", 
+            Code '13799311000001101' from "RxNorm", 
+            Code '12255611000001104' from "RxNorm", 
+            Code '12255011000001106' from "RxNorm", 
+            Code '12254211000001102' from "RxNorm", 
+            Code '11480111000001105' from "RxNorm", 
+            Code '8822311000001104' from "RxNorm", 
+            Code '8637811000001102' from "RxNorm", 
+            Code '8637011000001108' from "RxNorm", 
+            Code '3649911000001100' from "RxNorm", 
+            Code '8637411000001104' from "RxNorm", 
+            Code '8638411000001100' from "RxNorm", 
+            Code '8822511000001105' from "RxNorm", 
+            Code '11480311000001107' from "RxNorm", 
+            Code '12254611000001100' from "RxNorm", 
+            Code '12255211000001101' from "RxNorm", 
+            Code '12256111000001101' from "RxNorm", 
+            Code '14790511000001102' from "RxNorm", 
+            Code '15126211000001107' from "RxNorm", 
+            Code '16015311000001109' from "RxNorm", 
+            Code '16106211000001102' from "RxNorm", 
+            Code '16106511000001104' from "RxNorm", 
+            Code '433520006' from "RxNorm", 
+            Code '20091711000001104' from "RxNorm", 
+            Code '21286811000001101' from "RxNorm", 
+            Code '21817611000001109' from "RxNorm", 
+            Code '24438911000001108' from "RxNorm", 
+            Code '29928111000001109' from "RxNorm", 
+            Code '29948911000001109' from "RxNorm", 
+            Code '29928211000001103' from "RxNorm", 
+            Code '29949011000001100' from "RxNorm", 
+            Code '16106811000001101' from "RxNorm", 
+            Code '433519000' from "RxNorm", 
+            Code '373546002' from "RxNorm"
+        }
+
+
+
+
+       define "mc_sub_op_mat_rxnorm":
+            	 [MedicationStatement: Code in "mc_sub_op_mat_rxnorm_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mc_sub_op_mat_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_op_mat_terms_terms]
+    });
+                    
+
+
+
+define final mc_sub_op_rx_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_op_rx_terms_terms]
+    });
+                    
+
+
+
+define final mc_sub_op_il_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_op_il_terms_terms]
+    });
+                    
+
+
+
+define final mc_sub_op_oth:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library temporary_retrieve version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+
+        
+
+        context Patient
+
+
+
+
+        define "mc_sub_op_oth_concepts": Concept {
+            Code '3397-7' from "LOINC", 
+            Code '3377-9' from "LOINC"
+        }
+
+
+
+
+       define "mc_sub_op_oth":
+            	 [Observation: Code in "mc_sub_op_oth_concepts"]
+
+
+
+             """
+    });
+
+
+
+define final mc_sub_op_oth_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_op_oth_terms_terms]
+    });
+                    
+
+
+
+define final mc_sub_mj_terms:
+    Clarity.ProviderAssertion({
+      termset: [mc_sub_mj_terms_terms]
+    });
+                    
+
+
+
+define final mc_sub_op_mat_loinc:
+    Clarity.CQLExecutionTask({
+        "task_index": 0,
+        cql: """
+                
+        library temporary_retrieve version '1.0'
+
+        using FHIR version '3.0.0'
+
+        include FHIRHelpers version '3.0.0' called FHIRHelpers
+
+        codesystem "LOINC": 'http://loinc.org'
+        codesystem "SNOMED": '2.16.840.1.113883.6.96'
+        codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
+        codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
+        codesystem "ICD9": '2.16.840.1.113883.6.42'
+        codesystem "ICD10": '2.16.840.1.113883.6.3'
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
+        codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
+
+
+        
+
+        context Patient
+
+
+
+
+        define "mc_sub_op_mat_loinc_concepts": Concept {
+            Code '3773-9' from "LOINC"
+        }
+
+
+
+
+       define "mc_sub_op_mat_loinc":
+            	 [Observation: Code in "mc_sub_op_mat_loinc_concepts"]
+
+
+
+             """
+    });
+
+
+// Operations
+
+
+

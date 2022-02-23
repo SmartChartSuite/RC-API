@@ -71,7 +71,7 @@ cql_vsac_header = '''
 pt_define = '''
 
     define "Pt": [Patient]
-    
+
     '''
 cql_template = '''
         library temporary_retrieve version '1.0'
@@ -86,15 +86,15 @@ cql_template = '''
         codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
         codesystem "ICD9": '2.16.840.1.113883.6.42'
         codesystem "ICD10": '2.16.840.1.113883.6.3'
-        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+        codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
         codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
-        
+
         {}
 
         context Patient
 {}
-  
+
 
 {}
 
@@ -115,7 +115,7 @@ codesystem "RxNorm": 'http://www.nlm.nih.gov/research/umls/rxnorm'
 codesystem "CPT": 'http://www.ama-assn.org/go/cpt'
 codesystem "ICD9": '2.16.840.1.113883.6.42'
 codesystem "ICD10": '2.16.840.1.113883.6.3'
-codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238' 
+codesystem USCoreEthnicitySystem: '2.16.840.1.113883.6.238'
 codesystem RelationshipType: '2.16.840.1.113883.4.642.3.449'
 
 context Patient
@@ -141,7 +141,7 @@ cql_concept_template = '''
 # +
 
 cql_result_template = '''
-       define "{}": 
+       define "{}":
             {}
 '''
 
@@ -197,7 +197,7 @@ def value_set(set_name, final_str, *args):
 
 	val_set = """
     define {}:
-        Clarity.ValueExtraction({});         
+        Clarity.ValueExtraction({});
     """.format(set_name, args_str)
 
 	val_set += final_str
@@ -341,352 +341,6 @@ def write_nlpql_file(output_dir, folder_prefix,
 			op_string = '\n\n'.join(operations)
 			query = nlpql_template2.format(form_name, ts_string, de_string, op_string)
 			f.write(query)
-
-
-def write_questions_file(output_dir, folder_prefix, form_data, groups, evidence_bundles, evidence_count, suffix=''):
-	question_file_name = '{}/{}/questions{}.json'.format(output_dir, folder_prefix, suffix)
-	form_data['groups'] = list(groups.keys())
-	form_data['evidence_bundles'] = list(evidence_bundles.keys())
-	form_data['version'] = get_nlpql_version(question_file_name)
-	form_data['questions_with_evidence_count'] = evidence_count
-
-	with open(question_file_name, 'w') as f:
-		f.write(json.dumps(form_data, indent=4))
-
-	return form_data
-
-
-def write_questions_file_v2(output_dir, folder_prefix, form_data, groups, evidence_bundles, evidence_count,
-                            all_features, all_rows,
-                            suffix='_v2'):
-	question_file_name = '{}/{}/questions{}.json'.format(output_dir, folder_prefix, suffix)
-	# form_data['groups'] = list(groups.keys())
-	# form_data['evidence_bundles'] = list(evidence_bundles.keys())
-	# form_data['version'] = get_nlpql_version(question_file_name)
-	# form_data['questions_with_evidence_count'] = evidence_count
-
-	# group_formatted = '_'.join(grouping.lower().split(' ')).replace(',', '').replace('_/_', '_')
-
-	new_groupings = dict()
-	new_evidences = dict()
-	for q in form_data.get('questions', list()):
-		group = q.get('group', '')
-		group_id = '_'.join(group.lower().split(' ')).replace(',', '').replace('_/_', '_')
-		if group_id not in new_groupings:
-			new_groupings[group_id] = list()
-		new_q = dict()
-		# question type
-		q_type = q.get('question_type')
-
-		# get answers
-		answers = q.get('answers', list())
-		options = list()
-		valid_answers = list()
-		for a in answers:
-			v = a.get('value', '').strip()
-			t = a.get('text', '').strip()
-			options.append({
-				'label': t,
-				'value': v
-			})
-			if len(t) > 0:
-				valid_answers.append(t)
-		new_q['options'] = options
-
-		# get autofill and defaults
-		evidence_bundle = q.get('evidence_bundle', dict())
-		autofill = dict()
-		default_answer = None
-
-		case_values = dict()
-		for evidence in evidence_bundle.keys():
-			features = evidence_bundle[evidence]
-			rows = all_rows.get(q.get('question_number'))
-			if rows:
-				for row in rows:
-					if row:
-						row_feature = row.get('feature', row.get('feature_name', ''))
-						default = row.get('default_answer', row.get('default', '')).strip()
-						autofill_criteria = row.get('autofill', '')
-						autofill_mc = row.get('autofill_mc_answer', row.get('autofill_mc', ''))
-
-						if len(default) > 0 and (
-								default in valid_answers or (q_type != 'RADIO' or q_type != 'CHECKBOX')):
-							formatted_default = format_answer(default)
-							if default and formatted_default and formatted_default != default_answer and \
-									(q_type == 'RADIO' or q_type == 'CHECKBOX'):
-								print('WARNING: duplicate default on Question {}: {} != {}'.format(
-									q.get('question_number', -1000),
-									formatted_default,
-									default_answer))
-							default_answer = formatted_default
-
-						if len(autofill_criteria) and autofill_criteria.upper() != 'EXISTS':
-							print(autofill_criteria)
-							query = dict()
-							fld = "{}.{}.{}".format(evidence, row_feature, autofill_criteria)
-							query['field'] = fld
-							query['operator'] = '$exists'
-							query['criteria'] = True
-
-							case_values[fld] = {
-								'queries': [query],
-								"value": '$$' + fld
-							}
-						elif (autofill_criteria.strip().lower() == 'exists' or len(autofill_criteria) == 0) and len(
-								autofill_mc) > 0:
-							autofill_exist_answer = format_answer(autofill_mc)
-							query = dict()
-							query['field'] = "{}.{}.pipeline_id".format(evidence, row_feature)
-							query['operator'] = '$exists'
-							query['criteria'] = True
-
-							if autofill_exist_answer not in case_values:
-								case_values[autofill_exist_answer] = {
-									'queries': [query],
-									"value": autofill_exist_answer
-								}
-							else:
-								case_values[autofill_exist_answer]['queries'].append(query)
-
-		if default_answer:
-			autofill['default'] = default_answer
-		default_cases = list(case_values.values())
-		cases = list()
-		for default_case in default_cases:
-			case = dict()
-			default_queries = default_case.get('queries', list())
-			if len(default_queries) > 1:
-				# default operator is and - this forces or
-				or_op = dict()
-				or_op['operator'] = '$or'
-				or_op['clauses'] = default_queries
-				case['queries'] = [or_op]
-				case['value'] = default_case.get('value')
-			else:
-				case = default_case
-			cases.append(case)
-
-		autofill['cases'] = cases
-
-		# map to new data structure
-		new_q['id'] = 'question{}'.format(q.get('question_number', -1000))
-		new_q['number'] = int(q.get('question_number', -1000))
-		new_q['name'] = q.get('question_name')
-		new_q['type'] = q_type
-		new_q['value'] = ''
-		q_evidence = q.get('nlpql_grouping', '')
-		if len(q_evidence) > 0:
-			new_q['evidence'] = q_evidence
-
-		if len(cases) > 0:
-			new_q['autofill'] = autofill
-
-		new_groupings[group_id].append(new_q)
-
-		evidence_bundle = q.get('evidence_bundle', dict())
-		for k in evidence_bundle.keys():
-			new_evidences[k] = evidence_bundle[k]
-
-	new_form_data = dict()
-	new_form_data['name'] = form_data['name']
-	new_form_data['slug'] = folder_prefix
-	new_form_data['description'] = form_data['description']
-	new_form_data['allocated_users'] = form_data['allocated_users']
-	new_form_data['groups'] = dict()
-	new_form_data['evidences'] = dict()
-
-	new_form_data['groups']['byId'] = dict()
-	group_evidences = list()
-	question_all_ids = list()
-	group_ids = list()
-	for g in list(groups.keys()):
-		id_name = '_'.join(g.lower().split(' ')).replace(',', '').replace('_/_', '_').replace('.', '')
-		new_grouping_mapping = new_groupings.get(id_name, list())
-		mapped_group = dict()
-		qs = dict()
-
-		id_list = list()
-		evidences = set()
-		for ngm in new_grouping_mapping:
-			the_id = ngm.get('id')
-			evidence = ngm.get('evidence', '')
-			qs[the_id] = ngm
-			id_list.append(the_id)
-
-			if len(evidence) > 0:
-				evidences.add(evidence)
-
-		mapped_group['name'] = g
-		mapped_group['questions'] = dict()
-		mapped_group['questions']['byId'] = qs
-		mapped_group['questions']['allIds'] = list(qs.keys())
-		mapped_group['evidences'] = list(evidences)
-
-		new_form_data['groups']['byId'][id_name] = mapped_group
-		group_ids.append(id_name)
-		question_all_ids.extend(id_list)
-		group_evidences.extend(list(evidences))
-
-	# new_form_data['groups']['evidences'] = group_evidences
-	# new_form_data['groups']['allIds'] = question_all_ids
-	new_form_data['groups']['allIds'] = group_ids
-
-	for k in new_evidences.keys():
-		new_evidence = dict()
-		new_evidence['allIds'] = new_evidences.get(k, list())
-		byid = dict()
-		for l in new_evidence.get('allIds'):
-			byid_item = dict()
-			# TODO display stuff
-
-			feature_info = all_features.get(l, dict())
-			feature_name_display_name = feature_info.get('feature_name', feature_info.get('feature', '')). \
-				replace('_', ' ').strip().title()
-			display_type = feature_info.get('display_type', '')
-			fhir_resource_type = feature_info.get('fhir_resource_type', '')
-			if len(display_type) > 0:
-				byid_item['displayType'] = display_type
-			else:
-				nlp_task_type = feature_info.get('nlp_task_type', '')
-				if 'CQL' in nlp_task_type:
-					if fhir_resource_type == 'Observation':
-						byid_item['displayType'] = 'table'
-						byid_item['cols'] = [
-							{
-								"label": "Date",
-								"value": "r.result_display.date"
-							},
-							{
-								"label": "Name",
-								"value": "r.code_coding_0_display"
-							},
-							{
-								"label": "Val",
-								"value": "`${r.valueQuantity_value} ${r.valueQuantity_code}`"
-							}
-						]
-					elif fhir_resource_type == 'Condition':
-						byid_item['displayType'] = 'table'
-						byid_item['cols'] = [
-							{
-								"label": "Date",
-								"value": "r.result_display.date"
-							},
-							{
-								"label": "Name",
-								"value": "r.code_coding_0_display"
-							},
-							{
-								"label": "Code",
-								"value": "r.code_coding_0_code"
-							}
-						]
-
-					else:
-						byid_item['displayType'] = 'cards'
-				elif 'ValueExtraction' in nlp_task_type:
-					byid_item['displayType'] = 'table'
-					byid_item['cols'] = [
-						{
-							"label": "Date",
-							"value": "r.result_display.date"
-						},
-						{
-							"label": "Name",
-							"value": "r.text"
-						},
-						{
-							"label": "Val",
-							"value": "`${r.value}`"
-						}
-					]
-				else:
-					byid_item['displayType'] = 'cards'
-			display_name = feature_info.get('feature_display_name', '')
-			if len(display_name) > 0:
-				byid_item['title'] = display_name
-			else:
-				if len(fhir_resource_type) > 0:
-					byid_item['title'] = '{} {}'.format(feature_name_display_name, fhir_resource_type).strip()
-				else:
-					byid_item['title'] = '{} Text Mentions'.format(feature_name_display_name).strip()
-
-			byid[l] = byid_item
-		new_evidence['byId'] = byid
-		new_form_data['evidences'][k] = new_evidence
-
-	with open(question_file_name, 'w') as f:
-		f.write(json.dumps(new_form_data, indent=4))
-
-
-def save_question_to_form_data(q_type, answers, name, question_num, group, evidence, grouping, map_qs, form_data):
-	# if not grouping or grouping == '':
-	#     grouping = grouping_alt
-	print('saving question ', question_num, ' ', name)
-	answer_sets = list()
-	if q_type != 'DATE' and q_type != 'TEXT':
-		for a in answers:
-			txt = a.replace('\n', ' ').replace('"', '').strip()
-			val = format_answer(a)
-			if " = " in txt:
-				kv = txt.replace('"', '').split('=')
-				if len(kv) == 2:
-					answer_sets.append({
-						'text': kv[1].strip(),
-						'value': kv[0].strip()
-					})
-				else:
-					answer_sets.append({
-						'text': txt,
-						'value': val
-					})
-			else:
-				answer_sets.append({
-					'text': txt,
-					'value': val
-				})
-	this_evidence = dict()
-	if evidence and len(grouping) > 0:
-		for k in evidence.keys():
-			if k == grouping:
-				this_evidence[k] = list(set(evidence[k]))
-			for v in evidence[k]:
-				if v == grouping:
-					this_evidence[k] = list(set(evidence[k]))
-	new_q = {
-		"question_name": name,
-		"question_type": q_type,
-		"question_number": question_num,
-		"group": group,
-		"answers": answer_sets,
-		"evidence_bundle": this_evidence,
-		"nlpql_grouping": grouping
-	}
-	new_question = True
-	question_num = str(question_num)
-	old_q = dict()
-	for q_ in form_data.get('questions', list()):
-		old_q_num = str(q_.get('question_number', ''))
-		if old_q_num == question_num:
-			new_question = False
-			old_q = q_
-			break
-
-	if new_question:
-		map_qs.append(question_num)
-		form_data['questions'].append(new_q)
-	else:
-		merged_q = merger(old_q, new_q)
-		i = 0
-		for q_ in form_data.get('questions', list()):
-			old_q_num = str(q_.get('question_number', ''))
-			if old_q_num == question_num:
-				form_data['questions'][i] = merged_q
-				break
-			i += 1
-
-	evidence = dict()
 
 
 def get_term_string(_terms):
@@ -995,7 +649,7 @@ def parse_questions_from_feature_csv(folder_prefix='4100r4',
 		last_row = None
 		for r in reader:
 			row = cleanup_row(r)
-			print(row)
+			# print(row)
 			r_evidence_bundle = row.get('evidence_bundle', '')
 			r_num = row.get('#', '')
 			r_group = row.get('group', '')
@@ -1092,9 +746,6 @@ def parse_questions_from_feature_csv(folder_prefix='4100r4',
 			group_formatted = '_'.join(grouping.lower().split(' ')).replace(',', '').replace('_/_', '_')
 
 			last_question = question_num
-			if last_question and str(last_question) != str(r_num):
-				save_question_to_form_data(q_type, answers, name, last_question, group, evidence,
-				                           group_formatted, map_qs, form_data)
 
 			question_num = r_num
 			answers = [x.strip() for x in r_answers.split(',') if len(r_answers) > 0]
@@ -1160,20 +811,6 @@ def parse_questions_from_feature_csv(folder_prefix='4100r4',
 				if len(name.strip()) == 0:
 					continue
 
-				q_type = q_type.upper()
-				if q_type == 'MS' or q_type == 'MULTIPLE_SELECT' or q_type == 'MULTIPLE SELECT' or q_type == 'CHECKBOX':
-					q_type = 'CHECKBOX'
-				elif q_type == 'MC' or q_type == 'MULTIPLE_CHOICE' or q_type == 'MULTIPLE CHOICE' or q_type == 'RADIO':
-					q_type = 'RADIO'
-				elif q_type == 'TEXT+MC' or q_type == 'TEXT_WITH_MULTIPLE_CHOICE' or q_type == \
-						'TEXT WITH MULTIPLE CHOICE':
-					# q_type = 'TEXT_WITH_MULTIPLE_CHOICE'
-					q_type = 'TEXT'
-				elif q_type == "DT" or q_type == "DATETIME" or q_type == 'TIMESTAMP' or q_type == 'DATE':
-					q_type = "DATE"
-				else:
-					q_type = 'TEXT'
-
 				features = list()
 				if len(evidence_bundle) > 0:
 					evidence_bundles[evidence_bundle] = ''
@@ -1211,14 +848,6 @@ def parse_questions_from_feature_csv(folder_prefix='4100r4',
 		nlpql_form_name = (folder_prefix + ' - ' + group_formatted).replace('_', ' ')
 		write_nlpql_file(output_dir, folder_prefix,
 		                 group_formatted, termsets, entities, operations, nlpql_form_name, old_grouping, comment)
-		save_question_to_form_data(q_type, answers, name, question_num, group, evidence, group_formatted,
-		                           map_qs, form_data)
-		write_questions_file(output_dir, folder_prefix, form_data, groups, evidence_bundles, evidence_count,
-		                     suffix='')
-		write_questions_file(output_dir, folder_prefix, form_data, groups, evidence_bundles, evidence_count,
-		                     suffix='_v1')
-		write_questions_file_v2(output_dir, folder_prefix, form_data, groups, evidence_bundles, evidence_count,
-		                        all_features, all_rows, suffix='_v2')
 		print(evidence_count)
 		if temp:
 			remove(file_name)
@@ -1243,7 +872,7 @@ if __name__ == "__main__":
 	final_cql = cql_header_template.format(final_cql)
 	with open(f'{output_dir}/cql/fullCQL.cql', 'w') as f:
 		f.write(final_cql)
-	
+
 
 	# parse_questions_from_feature_csv(folder_prefix='death',
 	#                                  form_name="US Death Certificate",

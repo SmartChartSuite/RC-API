@@ -15,16 +15,17 @@ from fastapi.staticfiles import StaticFiles
 from src.routers.routers import apirouter
 from src.models.functions import make_operation_outcome
 
+from src.util.settings import api_docs
+
 
 #------------------ FastAPI variable ----------------------------------
-if os.environ.get('INCLUDE_SCHEME')=='True':
-    app = FastAPI(title=os.environ["PROJECT"],
-        version=os.environ["VERSION"], include_in_schema=True, docs_url=None, redoc_url=None)
+if api_docs=='True':
+    app = FastAPI(title='SmartPacer Results Combining (RC) API',
+        version='0.5.0', include_in_schema=True, docs_url=None, redoc_url=None)
 else:
-    app = FastAPI(title=os.environ["PROJECT"],
-        version=os.environ["VERSION"], include_in_schema=False, docs_url=None, redoc_url=None)
+    app = FastAPI(title='SmartPacer Results Combining (RC) API',
+        version='0.5.0', include_in_schema=False, docs_url=None, redoc_url=None)
 
-# TODO: check with ellie to see if this should be in production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,13 +48,13 @@ def custom_openapi():
         return app.openapi_schema
     openapi_schema = get_openapi(
         title="SmartPacer Results Combining (RC) API",
-        version="1.0.0",
+        version="0.5.0",
         description="This is a custom Open API Schema to align with SmartPacer's RC API.",
         routes=app.routes,
     )
-    openapi_schema["info"]["x-logo"] = {
-        "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
-    }
+    #openapi_schema["info"]["x-logo"] = {
+        #"url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
+    #}
     openapi_schema["servers"] = [{"url":"https://gt-apps.hdap.gatech.edu/rc-api/"}]
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -61,27 +62,25 @@ def custom_openapi():
 app.openapi = custom_openapi
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# TODO: Switch to env vars
-@app.get("/docs", include_in_schema=False)
-async def custom_swagger_ui_html():
-    return get_swagger_ui_html(
-        openapi_url="/rc-api/"+app.openapi_url,
-        title=app.title + " - Swagger UI",
-        oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
-        swagger_js_url="static/swagger-ui-bundle.js",
-        swagger_css_url="static/swagger-ui.css",
-    )
+if api_docs=='True':
+    @app.get("/docs", include_in_schema=False)
+    async def custom_swagger_ui_html():
+        return get_swagger_ui_html(
+            openapi_url="/rc-api/"+app.openapi_url,
+            title=app.title + " - Swagger UI",
+            oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+            swagger_js_url="static/swagger-ui-bundle.js",
+            swagger_css_url="static/swagger-ui.css",
+        )
 
+    @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)
+    async def swagger_ui_redirect():
+        return get_swagger_ui_oauth2_redirect_html()
 
-@app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)
-async def swagger_ui_redirect():
-    return get_swagger_ui_oauth2_redirect_html()
-
-
-@app.get("/redoc", include_in_schema=False)
-async def redoc_html():
-    return get_redoc_html(
-        openapi_url="/rc-api/"+app.openapi_url,
-        title=app.title + " - ReDoc",
-        redoc_js_url="static/redoc.standalone.js",
-    )
+    @app.get("/redoc", include_in_schema=False)
+    async def redoc_html():
+        return get_redoc_html(
+            openapi_url="/rc-api/"+app.openapi_url,
+            title=app.title + " - ReDoc",
+            redoc_js_url="static/redoc.standalone.js",
+        )

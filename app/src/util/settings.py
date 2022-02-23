@@ -4,5 +4,6 @@ import os
 cqfr4_fhir = os.environ["CQF_RULER_R4"]
 external_fhir_server_url = os.environ["EXTERNAL_FHIR_SERVER_URL"]
 external_fhir_server_auth = os.environ["EXTERNAL_FHIR_SERVER_AUTH"]
-nlpaas_url = os.environ["NLPAAS_URL"]
-log_level = os.environ["LOG_LEVEL"]
+nlpaas_url = os.environ.get("NLPAAS_URL", "False")
+log_level = os.environ.get('LOG_LEVEL', 'info')
+api_docs = os.environ.get("API_DOCS", "True")
