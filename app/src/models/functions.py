@@ -202,7 +202,7 @@ def get_results(futures: list, libraries: list, patientId: str, flags: list):
     results_cql = []
     results_nlpql = []
     # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
-    if flags[0] and flags[1]:
+    if flags[0] and flags[1] and nlpaas_url != 'False':
         for i, future in enumerate(futures[0]):
             pre_result = future.result()
             if pre_result.status_code == 504:
@@ -241,7 +241,7 @@ def get_results(futures: list, libraries: list, patientId: str, flags: list):
             full_result = {'libraryName': libraries[0][i], 'patientId': patientId, 'results': result}
             logger.info(f'Got result for {libraries[0][i]}')
             results_cql.append(full_result)
-    elif not flags[0] and flags[1]:
+    elif not flags[0] and flags[1] and nlpaas_url != 'False':
         for i, future in enumerate(futures[1]):
             pre_result = future.result()
             if pre_result.status_code == 504:

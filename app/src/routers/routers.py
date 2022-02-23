@@ -392,7 +392,7 @@ def start_jobs(post_body: Parameters):
         futures_cql = run_cql(cql_library_server_ids, parameters_post)
         futures.append(futures_cql)
         logger.info('Submitted all CQL jobs')
-    if nlpql_flag:
+    if nlpql_flag and nlpaas_url != 'False':
         logger.info('Start submitting NLPQL jobs')
         futures_nlpql = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)
         if type(futures_nlpql) == dict:
@@ -401,11 +401,11 @@ def start_jobs(post_body: Parameters):
         logger.info('Submitted all NLPQL jobs.')
     logger.info(f'CQL Libraries to Run: {cql_libraries_to_run}')
     logger.info(f'NLPQL Libraries to Run: {nlpql_libraries_to_run}')
-    if cql_flag and nlpql_flag:
+    if cql_flag and nlpql_flag and nlpaas_url != 'False':
         libraries_to_run = [cql_libraries_to_run, nlpql_libraries_to_run]
     elif cql_flag:
         libraries_to_run = [cql_libraries_to_run]
-    elif nlpql_flag:
+    elif nlpql_flag and nlpaas_url != 'False':
         libraries_to_run = [nlpql_libraries_to_run]
 
     # Passes future to get the results from it, will wait until all are processed until returning results
