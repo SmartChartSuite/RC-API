@@ -10,6 +10,7 @@ from fastapi.openapi.docs import (
 )
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from src.util.git import cloneRepoToTempFolder
 
 
 from src.routers.routers import apirouter
@@ -62,6 +63,19 @@ def custom_openapi():
 app.openapi = custom_openapi
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.on_event("startup")
+def startup_event():
+    # Check for private key and known hosts in secrets
+      # Set these (required for both hook clone and startup clone)
+    # setup_keys()
+    # Check for repo ssh env
+      # if present do startup
+      # pre_load_scripts(ssh_url_from_env)
+    print("Checking for initial files to load...")
+    knowledgebase_repo = os.environ.get("KNOWLEDGEBASE_REPO", "")
+    if knowledgebase_repo:
+        cloneRepoToTempFolder(knowledgebase_repo)
+
 if api_docs=='True':
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
@@ -84,3 +98,5 @@ if api_docs=='True':
             title=app.title + " - ReDoc",
             redoc_js_url="static/redoc.standalone.js",
         )
+
+
