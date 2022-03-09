@@ -11,13 +11,24 @@ from fastapi.openapi.docs import (
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from src.util.git import cloneRepoToTempFolder
-
-
 from src.routers.routers import apirouter
 from src.models.functions import make_operation_outcome
 
-from src.util.settings import api_docs
+from src.util.settings import api_docs, knowledgebase_repo_url
+import logging
+from src.models.models import CustomFormatter
+from src.util.settings import log_level
 
+logger = logging.getLogger("rcapi")
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(CustomFormatter())
+logger.addHandler(ch)
+
+if log_level == "DEBUG":
+    logger.setLevel(logging.DEBUG)
+    ch.setLevel(logging.DEBUG)
 
 #------------------ FastAPI variable ----------------------------------
 if api_docs=='True':
@@ -71,10 +82,14 @@ def startup_event():
     # Check for repo ssh env
       # if present do startup
       # pre_load_scripts(ssh_url_from_env)
-    print("Checking for initial files to load...")
-    knowledgebase_repo = os.environ.get("KNOWLEDGEBASE_REPO", "")
-    if knowledgebase_repo:
-        cloneRepoToTempFolder(knowledgebase_repo)
+    if knowledgebase_repo_url:
+        # TODO: Add error handling.
+        logger.info("Knowledgebase Repo configuration detected.")
+        logger.info("Loading libraries from Knowledgebase Repository...")
+        cloneRepoToTempFolder(knowledgebase_repo_url)
+    else:
+        logger.info("Knowledgebase Repo configured not detected.")
+        logger.info("Skipping initial library load.")
 
 if api_docs=='True':
     @app.get("/docs", include_in_schema=False)

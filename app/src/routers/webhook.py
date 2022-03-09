@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Body
 
 from app.src.util.git import cloneRepoToTempFolder
+import logging
+logger = logging.getLogger("rcapi.webhook")
 
 webhook = APIRouter()
 

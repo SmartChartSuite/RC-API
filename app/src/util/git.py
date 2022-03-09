@@ -1,9 +1,13 @@
 import tempfile
 from git import Repo
 import os
+import logging
+
+logger = logging.getLogger("rcapi.git")
 
 # URL can be either HTTPS or Git SSH, the underlying git command does not change. If Git SSH, must provide appropriate keys.
 def cloneRepoToTempFolder(clone_url):
+    logger.info("Attempting to clone repository.")
     with tempfile.TemporaryDirectory() as temp:
         repo: Repo = Repo.clone_from(clone_url, temp)
         print(repo.description)
