@@ -14,8 +14,13 @@ def cloneRepoToTempFolder(clone_url):
         print(temp)
         for filename in os.listdir(temp):
             # TODO: Placeholder to demonstrate functionality, switch to nlpql/cql and handle as needed.
-            if filename.endswith(".md"):
+            if filename.endswith(".cql"):
                 filepath = os.path.join(temp, filename)
-                with open(filepath) as f:
-                    lines = f.readlines()
-                    print(lines)
+                parseLibrary(filepath)
+
+
+def parseLibrary(filepath):
+    logger.info("Parsing library...")
+    with open(filepath) as f:
+        lines = f.readlines()
+        print(lines)
