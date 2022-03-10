@@ -739,6 +739,7 @@ def create_linked_results(results: list, form_name: str):
                         value_name = tuple_str_list[i+2]
                         tuple_dict[key_name] = value_name
 
+                    #TODO: Assert that tuples should have all 4 keys to work
                     temp_answer_obs.focus = [{'reference': f'{external_fhir_server_url}DocumentReference/{result["original_report_id"]}'}]
                     temp_answer_obs.note = [{'text': tuple_dict['sourceNote']}]
                     temp_answer_obs.valueString = tuple_dict['answerValue']
