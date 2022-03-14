@@ -18,7 +18,3 @@ frontend:
     pullPolicy: Always
   envFrom:
     name: smartpacer-rc-api-environment-variables
-  volumes:
-    - name: test
-      mountPath: "/test"
-      readOnly: true
