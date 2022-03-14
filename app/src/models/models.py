@@ -11,7 +11,7 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[31m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    format = '{asctime}   {levelname:8s} {thread} --- {name}: {message}'
+    format = '{asctime}   {levelname:8s} --- {name}: {message}'
 
     FORMATS = {
         logging.DEBUG: grey + format + reset,
