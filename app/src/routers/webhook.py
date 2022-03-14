@@ -7,8 +7,8 @@ logger = logging.getLogger('rcapi.routers.webhook')
 apirouter = APIRouter()
 
 @apirouter.post("/webhook")
-def webhook(request: Request):
-    message = request.json
+async def webhook(request: Request):
+    message = await request.json()
     # TODO: Determine whether to use SSH or HTTPS from config
     clone_url = message['repository']['clone_url']
     ssh_url = message['repository']['ssh_url']
