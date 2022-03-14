@@ -56,6 +56,7 @@ def custom_openapi():
         #"url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
     #}
     openapi_schema["servers"] = [{"url":"https://gt-apps.hdap.gatech.edu/rc-api/"}]
+    openapi_schema["paths"]["/forms/cql"]["post"]["requestBody"]["content"]="text/plain"
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
