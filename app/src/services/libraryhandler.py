@@ -43,14 +43,13 @@ def create_cql(cql):
         logger.error(f'Trying to get library from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
     search_bundle = r.json()
+    put_flag = False
     try:
-        # TODO: Add handling to change to put if this is passed back.
-        cql_library = search_bundle['entry'][0]['resource']
-        logger.info(f'Found CQL Library with name {name} and version {version}')
-        logger.info('Not completing POST operation because a CQL Library with that name and version already exist on this FHIR Server')
-        logger.info('Change library name or version number or use PUT to update this version')
-        return make_operation_outcome('duplicate', f'There is already a library with that name ({name}) and version ({version})')
+        existing_cql_library = search_bundle['entry'][0]['resource']
+        logger.info(f'Found CQL Library with name {name} and version {version}, therefore will be updating the resource with PUT.')
+        put_flag = True
     except KeyError:
+        put_flag = False
         logger.info('CQL Library with that name not found, continuing POST operation')
 
     # Encode CQL as base64Binary
@@ -76,14 +75,19 @@ def create_cql(cql):
     cql_library['content'][0]['data'] = base64_cql
     logger.info('Created Library object')
 
-    # Store Library object in CQF Ruler
-    r = requests.post(cqfr4_fhir+'Library', json=cql_library)
-    if r.status_code != 201:
-        logger.error(f'Posting Library {name} to server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Posting Library {name} to server failed with status code {r.status_code}')
-
-    resource_id = r.json()['id']
-    return resource_id
+    if not put_flag:
+        # Store Library object in CQF Ruler
+        r = requests.post(cqfr4_fhir+'Library', json=cql_library)
+        if r.status_code != 201:
+            logger.error(f'Posting Library {name} to server failed with status code {r.status_code}')
+            return make_operation_outcome('transient', f'Posting Library {name} to server failed with status code {r.status_code}')
+        resource_id = r.json()['id']
+        return resource_id
+    else:
+        cql_library['id'] = existing_cql_library['id']
+        r = requests.put(cqfr4_fhir+f'Library/{existing_cql_library["id"]}', json=cql_library)
+        resource_id = r.json()['id']
+        return resource_id
 
 def create_nlpql(nlpql):
     # Validates NLPQL using NLPaaS before saving to Library
@@ -104,13 +108,13 @@ def create_nlpql(nlpql):
         logger.error(f'Trying to get library from server failed with status code {r.status_code}')
         return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
     search_bundle = r.json()
+    put_flag = False
     try:
-        cql_library = search_bundle['entry'][0]['resource']
-        logger.info(f'Found NLPQL Library with name {name} and version {version}')
-        logger.info('Not completing POST operation because a NLPQL Library with that name and version already exist on this FHIR Server')
-        logger.info('Change library name or version number or use PUT to update this version')
-        return make_operation_outcome('duplicate', f'There is already a library with that name ({name}) and version ({version})')
+        existing_nlpql_library = search_bundle['entry'][0]['resource']
+        put_flag = True
+        logger.info(f'Found NLPQL Library with name {name} and version {version}, therefore will be updating this library with PUT.')
     except KeyError:
+        put_flag = False
         logger.info('NLPQL Library with that name not found, continuing POST operation')
 
     # Encode NLPQL as base64Binary
@@ -135,11 +139,19 @@ def create_nlpql(nlpql):
     nlpql_library = nlpql_library.dict()
     nlpql_library['content'][0]['data'] = base64_nlpql
 
-    # Store Library object in CQF Ruler
-    r = requests.post(cqfr4_fhir+'Library', json=nlpql_library)
-    if r.status_code != 201:
-        logger.error(f'Posting Library {name} to server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Posting Library to server failed with code {r.status_code}')
-
-    resource_id = r.json()['id']
-    return resource_id
+    if not put_flag:
+        # Store Library object in CQF Ruler
+        r = requests.post(cqfr4_fhir+'Library', json=nlpql_library)
+        if r.status_code != 201:
+            logger.error(f'Posting Library {name} to server failed with status code {r.status_code}')
+            return make_operation_outcome('transient', f'Posting Library to server failed with code {r.status_code}')
+        resource_id = r.json()['id']
+        return resource_id
+    else:
+        nlpql_library['id'] = existing_nlpql_library['id']
+        r = requests.put(cqfr4_fhir+f'Library/{existing_nlpql_library["id"]}', json=nlpql_library)
+        if r.status_code != 201:
+            logger.error(f'Putting Library {name} to server failed with status code {r.status_code}')
+            return make_operation_outcome('transient', f'Putting Library to server failed with code {r.status_code}')
+        resource_id = r.json()['id']
+        return resource_id

@@ -441,8 +441,10 @@ def get_job_status(uid: str):
 @apirouter.post("/forms/nlpql")
 def save_nlpql(code: str = Body(...)):
     resource_id = create_nlpql(code)
-    # TODO: Add Error Handling
-    return JSONResponse(content=make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information'), status_code=201)
+    if type(resource_id) == str:
+        return JSONResponse(content=make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information'), status_code=201)
+    elif type(resource_id) == dict:
+        return JSONResponse(content=resource_id, status_code=400)
 
 
 @apirouter.post("/forms/cql")

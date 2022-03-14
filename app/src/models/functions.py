@@ -815,6 +815,7 @@ def validate_cql(code: str):
             }
             combined_oo['issue'].append(oo_item)
         logger.error(f'There were a total of {num_errors} errors. The OperationOutcome will be returned to the client as well as logged below.')
+        logger.error(combined_oo)
         return combined_oo
     else:
         logger.info('CQL successfully validated!')
