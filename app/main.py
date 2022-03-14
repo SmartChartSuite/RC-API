@@ -68,7 +68,10 @@ def custom_openapi():
         #"url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
     #}
     openapi_schema["servers"] = [{"url":"https://gt-apps.hdap.gatech.edu/rc-api/"}]
-    openapi_schema["paths"]["/forms/cql"]["post"]["requestBody"]["content"]="text/plain"
+    openapi_schema["paths"]["/forms/cql"]["post"]["requestBody"]["content"]={"text/plain": {"schema": {}}}
+    openapi_schema["paths"]["/forms/nlpql"]["post"]["requestBody"]["content"]={"text/plain": {"schema": {}}}
+    openapi_schema["paths"]["/forms/cql/{library_name}"]["put"]["requestBody"]["content"]={"text/plain": {"schema": {}}}
+    openapi_schema["paths"]["/forms/nlpql/{library_name}"]["put"]["requestBody"]["content"]={"text/plain": {"schema": {}}}
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
