@@ -10,7 +10,7 @@ from fastapi.openapi.docs import (
 )
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from src.util.git import cloneRepoToTempFolder
+from src.util.git import clone_repo_to_temp_folder
 from src.routers.routers import apirouter
 from src.models.functions import make_operation_outcome
 
@@ -86,7 +86,7 @@ def startup_event():
         # TODO: Add error handling.
         logger.info("Knowledgebase Repo configuration detected.")
         logger.info("Loading libraries from Knowledgebase Repository...")
-        cloneRepoToTempFolder(knowledgebase_repo_url)
+        clone_repo_to_temp_folder(knowledgebase_repo_url)
     else:
         logger.info("Knowledgebase Repo configured not detected.")
         logger.info("Skipping initial library load.")
