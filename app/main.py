@@ -11,8 +11,7 @@ from fastapi.openapi.docs import (
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from src.util.git import clone_repo_to_temp_folder
-from src.routers.routers import apirouter
-from src.routers.webhook import webhook
+from src.routers import routers, webhook
 from src.models.functions import make_operation_outcome
 
 from src.util.settings import api_docs, knowledgebase_repo_url
@@ -48,8 +47,8 @@ app.add_middleware(
 )
 
 # ================= Routers inclusion from src directory ===============
-app.include_router(apirouter)
-app.include_router(webhook)
+app.include_router(routers.apirouter)
+app.include_router(webhook.apirouter)
 
 # ================= Invalid Request Exception Handling =================
 @app.exception_handler(RequestValidationError)
