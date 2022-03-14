@@ -10,13 +10,25 @@ from fastapi.openapi.docs import (
 )
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-
-
+from src.util.git import clone_repo_to_temp_folder
 from src.routers.routers import apirouter
 from src.models.functions import make_operation_outcome
 
-from src.util.settings import api_docs
+from src.util.settings import api_docs, knowledgebase_repo_url
+import logging
+from src.models.models import CustomFormatter
+from src.util.settings import log_level
 
+logger = logging.getLogger('rcapi')
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(CustomFormatter())
+logger.addHandler(ch)
+
+if log_level == "DEBUG":
+    logger.setLevel(logging.DEBUG)
+    ch.setLevel(logging.DEBUG)
 
 #------------------ FastAPI variable ----------------------------------
 if api_docs=='True':
@@ -63,6 +75,23 @@ def custom_openapi():
 app.openapi = custom_openapi
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.on_event("startup")
+def startup_event():
+    # Check for private key and known hosts in secrets
+      # Set these (required for both hook clone and startup clone)
+    # setup_keys()
+    # Check for repo ssh env
+      # if present do startup
+      # pre_load_scripts(ssh_url_from_env)
+    if knowledgebase_repo_url:
+        # TODO: Add error handling.
+        logger.info("Knowledgebase Repo configuration detected.")
+        logger.info("Loading libraries from Knowledgebase Repository...")
+        clone_repo_to_temp_folder(knowledgebase_repo_url)
+    else:
+        logger.info("Knowledgebase Repo configured not detected.")
+        logger.info("Skipping initial library load.")
+
 if api_docs=='True':
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
@@ -85,3 +114,5 @@ if api_docs=='True':
             title=app.title + " - ReDoc",
             redoc_js_url="static/redoc.standalone.js",
         )
+
+

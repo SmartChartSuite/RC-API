@@ -7,3 +7,4 @@ external_fhir_server_auth = os.environ["EXTERNAL_FHIR_SERVER_AUTH"]
 nlpaas_url = os.environ.get("NLPAAS_URL", "False")
 log_level = os.environ.get('LOG_LEVEL', 'info')
 api_docs = os.environ.get("API_DOCS", "True")
+knowledgebase_repo_url = os.environ.get("KNOWLEDGEBASE_REPO_URL", "")

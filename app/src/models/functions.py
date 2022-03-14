@@ -14,7 +14,7 @@ import requests
 import base64
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('rcapi.models.functions')
 logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
@@ -773,6 +773,8 @@ def create_linked_results(results: list, form_name: str):
 
 def validate_cql(code: str):
     escaped_string_code = code.replace('"', '\"')
+    print("valid")
+    print(code)
     cql_operation_data = {
         "resourceType": "Parameters",
         "parameter": [
