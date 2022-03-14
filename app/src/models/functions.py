@@ -14,7 +14,7 @@ import requests
 import base64
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('rcapi.models.functions')
 logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)

@@ -11,7 +11,7 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[31m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    format = '%(levelname)s %(name)s: %(asctime)s - %(message)s'
+    format = '{asctime}   {levelname:8s} --- {name}: {message}'
 
     FORMATS = {
         logging.DEBUG: grey + format + reset,
@@ -23,7 +23,7 @@ class CustomFormatter(logging.Formatter):
 
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt, '%m/%d/%Y %I:%M:%S %p')
+        formatter = logging.Formatter(log_fmt, '%m/%d/%Y %I:%M:%S %p', style='{')
         return formatter.format(record)
 
 class Answer(BaseModel):

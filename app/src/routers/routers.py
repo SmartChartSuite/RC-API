@@ -1,19 +1,16 @@
-import json
 from fastapi import (
-    APIRouter, Body, HTTPException, BackgroundTasks
+    APIRouter, Body, BackgroundTasks
 )
 from fastapi.responses import JSONResponse
 
 from ..services.libraryhandler import (create_cql, create_nlpql)
 
-from ..models.models import (
-    CustomFormatter, ParametersJob
-)
+from ..models.models import ParametersJob
 from ..models.functions import (
     make_operation_outcome, run_cql, run_nlpql, get_results, check_results, create_linked_results, validate_cql, validate_nlpql
 )
 from ..util.settings import (
-    cqfr4_fhir, external_fhir_server_url, external_fhir_server_auth, nlpaas_url, log_level
+    cqfr4_fhir, external_fhir_server_url, external_fhir_server_auth, nlpaas_url
 )
 
 from typing import Union, Dict
@@ -29,27 +26,11 @@ import logging
 import requests
 import uuid
 
-# Formats logging message to include the level of log message
-#logging.basicConfig(format='%(asctime)s %(levelname)s - %(message)s', level=logging.DEBUG, datefmt='%m/%d/%Y %I:%M:%S %p')
-
 # Create logger
-logger = logging.getLogger("RC API")
-logger.setLevel(logging.INFO)
-
-# create console handler with a higher log level
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-ch.setFormatter(CustomFormatter())
-logger.addHandler(ch)
-
-if log_level == "DEBUG":
-    logger.setLevel(logging.DEBUG)
-    ch.setLevel(logging.DEBUG)
+logger = logging.getLogger('rcapi.routers.routers')
 
 apirouter = APIRouter()
 jobs: Dict[str, ParametersJob] = {}
-
-
 
 @apirouter.get("/")
 def root():

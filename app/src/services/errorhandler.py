@@ -1,6 +1,4 @@
-
 from src.models.functions import make_operation_outcome
-
 
 def error_to_operation_outcome(error: ValueError):
     print(error.args)

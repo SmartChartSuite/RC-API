@@ -1,25 +1,18 @@
-from fastapi.responses import JSONResponse
-
 from ..services.errorhandler import error_to_operation_outcome
+
 from ..models.functions import (
     make_operation_outcome, validate_cql, validate_nlpql
 )
+
 from ..util.settings import ( cqfr4_fhir )
 
-from typing import Union, Dict
-from fhir.resources.questionnaire import Questionnaire #TODO: replace to using fhirclient package as well as below imports
 from fhir.resources.library import Library
-from fhir.resources.parameters import Parameters
 
-from pprint import pprint
-
-import os
 import base64
 import logging
 import requests
-import uuid
 
-logger = logging.getLogger("rcapi.libraryhandler")
+logger = logging.getLogger("rcapi.services.libraryhandler")
 
 def create_cql(cql):
     # Validate

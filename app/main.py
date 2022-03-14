@@ -19,7 +19,7 @@ import logging
 from src.models.models import CustomFormatter
 from src.util.settings import log_level
 
-logger = logging.getLogger("rcapi")
+logger = logging.getLogger('rcapi')
 logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)

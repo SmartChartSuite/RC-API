@@ -5,7 +5,7 @@ import logging
 
 from ..services.libraryhandler import (create_cql, create_nlpql)
 
-logger = logging.getLogger("rcapi.git")
+logger = logging.getLogger('rcapi.util.git')
 
 # URL can be either HTTPS or Git SSH, the underlying git command does not change. If Git SSH, must provide appropriate keys.
 def clone_repo_to_temp_folder(clone_url):
