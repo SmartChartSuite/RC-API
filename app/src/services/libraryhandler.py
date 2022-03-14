@@ -150,7 +150,7 @@ def create_nlpql(nlpql):
     else:
         nlpql_library['id'] = existing_nlpql_library['id']
         r = requests.put(cqfr4_fhir+f'Library/{existing_nlpql_library["id"]}', json=nlpql_library)
-        if r.status_code != 201:
+        if r.status_code != 200:
             logger.error(f'Putting Library {name} to server failed with status code {r.status_code}')
             return make_operation_outcome('transient', f'Putting Library to server failed with code {r.status_code}')
         resource_id = r.json()['id']
