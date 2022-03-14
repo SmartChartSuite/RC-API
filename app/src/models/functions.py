@@ -15,15 +15,6 @@ import base64
 
 
 logger = logging.getLogger('rcapi.models.functions')
-logger.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-ch.setFormatter(CustomFormatter())
-logger.addHandler(ch)
-
-if log_level == "DEBUG":
-    logger.setLevel(logging.DEBUG)
-    ch.setLevel(logging.DEBUG)
 
 def make_operation_outcome(code: str, diagnostics: str, severity = 'error'):
     oo_template = {

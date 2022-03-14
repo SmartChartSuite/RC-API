@@ -25,7 +25,6 @@ def create_cql(cql):
         logger.exception(e)
         error_to_operation_outcome(e)
         return e
-
     validation_results = validate_cql(cql)
     if type(validation_results)==dict:
         return validation_results
