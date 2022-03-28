@@ -17,7 +17,7 @@ from src.models.functions import make_operation_outcome
 from src.util.settings import api_docs, knowledgebase_repo_url
 import logging
 from src.models.models import CustomFormatter
-from src.util.settings import log_level
+from src.util.settings import log_level, docs_prepend_url
 
 logger = logging.getLogger('rcapi')
 logger.setLevel(logging.INFO)
@@ -100,7 +100,7 @@ if api_docs=='True':
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
         return get_swagger_ui_html(
-            openapi_url="/rc-api/"+app.openapi_url,
+            openapi_url=docs_prepend_url+app.openapi_url,
             title=app.title + " - Swagger UI",
             oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
             swagger_js_url="static/swagger-ui-bundle.js",
@@ -114,7 +114,7 @@ if api_docs=='True':
     @app.get("/redoc", include_in_schema=False)
     async def redoc_html():
         return get_redoc_html(
-            openapi_url="/rc-api/"+app.openapi_url,
+            openapi_url=docs_prepend_url+app.openapi_url,
             title=app.title + " - ReDoc",
             redoc_js_url="static/redoc.standalone.js",
         )
