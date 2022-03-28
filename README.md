@@ -1,3 +1,3 @@
-# SmartPacer Results Combining API (RC-API)
+# Results Combining API (RC-API)
 
-Please view the Github Wiki page for documentation. https://github.gatech.edu/HDAP/SmartPacer-RC-API/wiki
+The SmartChart Middleware API that manages interaction between FHIR services and clients. Please see the SmartChart-Core repository for deployment.

@@ -12,4 +12,4 @@ EXPOSE 8080
 
 COPY . .
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--root-path", "/rc-api"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
