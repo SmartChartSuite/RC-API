@@ -4,7 +4,7 @@ from ..models.functions import (
     make_operation_outcome, validate_cql, validate_nlpql
 )
 
-from ..util.settings import ( cqfr4_fhir )
+from ..util.settings import ( cqfr4_fhir , nlpaas_url)
 
 from fhir.resources.library import Library
 
@@ -90,6 +90,8 @@ def create_cql(cql):
 
 def create_nlpql(nlpql):
     # Validates NLPQL using NLPaaS before saving to Library
+    if nlpaas_url == False:
+        return make_operation_outcome('invalid', 'Error validating NLPQL, NLPAAS is not configured.')
     validation_results = validate_nlpql(nlpql)
     if type(validation_results)==dict:
         return validation_results
