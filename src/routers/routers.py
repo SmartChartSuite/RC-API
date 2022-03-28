@@ -248,10 +248,13 @@ def start_jobs(post_body: Parameters):
             cql_libraries_to_run.append(extension['valueString'])
         logger.info(f'Going to run the following CQL libraries for this jobPackage: {cql_libraries_to_run}')
 
-        nlpql_libraries_to_run_extension = search_bundle['entry'][0]['resource']['extension'][1]['extension']
-        for extension in nlpql_libraries_to_run_extension:
-            nlpql_libraries_to_run.append(extension['valueString'])
-        logger.info(f'Going to run the following NLPQL libraries for this jobPackage: {nlpql_libraries_to_run}')
+        try:
+            nlpql_libraries_to_run_extension = search_bundle['entry'][0]['resource']['extension'][1]['extension']
+            for extension in nlpql_libraries_to_run_extension:
+                nlpql_libraries_to_run.append(extension['valueString'])
+            logger.info(f'Going to run the following NLPQL libraries for this jobPackage: {nlpql_libraries_to_run}')
+        except IndexError:
+            logger.info('No NLPQL Libraries found, moving on')
 
         libraries_to_run = cql_libraries_to_run + nlpql_libraries_to_run
 
