@@ -484,6 +484,10 @@ def create_linked_results(results: list, form_name: str):
                                 return make_operation_outcome('not-found', f'The fhirField thats being returned in the CQL is not the the supporting resource type, this needs to be updated as more resources are added')
                             value_type = answer_tuple['valueType']
                             temp_uuid = str(uuid.uuid4())
+                            if len(answer_value_split) == 4:
+                                effectiveDateTime = answer_value_split[0]
+                            else:
+                                effectiveDateTime = datetime.now()
                             temp_answer_obs = {
                                 "resourceType": "Observation",
                                 "id": temp_uuid,
@@ -503,6 +507,7 @@ def create_linked_results(results: list, form_name: str):
                                         }
                                     ]
                                 },
+                                "effectiveDateTime": effectiveDateTime,
                                 "subject": {
                                     "reference": f'Patient/{patient_resource_id}'
                                 },
