@@ -740,6 +740,7 @@ def create_linked_results(results: list, form_name: str):
                     temp_answer_obs.focus = [{'reference': f'{external_fhir_server_url}DocumentReference/{result["original_report_id"]}'}]
                     temp_answer_obs.note = [{'text': tuple_dict['sourceNote']}]
                     temp_answer_obs.valueString = tuple_dict['answerValue']
+                    temp_answer_obs.effectiveDateTime = result['report_date']
                     tuple_observations.append(temp_answer_obs.dict())
 
                 for tuple_observation in tuple_observations:
