@@ -1,35 +1,36 @@
+'''Module for handling Libraries'''
+import base64
+import logging
+import requests
+
+from fhir.resources.library import Library
+
 from ..services.errorhandler import error_to_operation_outcome
 
 from ..models.functions import (
     make_operation_outcome, validate_cql, validate_nlpql
 )
 
-from ..util.settings import ( cqfr4_fhir , nlpaas_url)
-
-from fhir.resources.library import Library
-
-import base64
-import logging
-import requests
+from ..util.settings import (cqfr4_fhir, nlpaas_url)
 
 logger = logging.getLogger("rcapi.services.libraryhandler")
 
+
 def create_cql(cql):
+    '''Function to validate and persist CQL as a Library on CQF Ruler'''
     # Validate
     # Handle
     # Return Success
     try:
         if not cql:
             raise ValueError('CQL is empty string.')
-    except ValueError as e:
-        logger.exception(e)
-        error_to_operation_outcome(e)
-        return e
+    except ValueError as error:
+        logger.exception(error)
+        error_to_operation_outcome(error)
+        return error
     validation_results = validate_cql(cql)
-    if type(validation_results)==dict:
+    if isinstance(validation_results, dict):
         return validation_results
-    else:
-        pass
 
     # Get name and version of cql library
     split_cql = cql.split()
@@ -37,11 +38,11 @@ def create_cql(cql):
     version = split_cql[3].strip("'")
 
     # Check to see if library and version of this exists
-    r = requests.get(cqfr4_fhir+f'Library?name={name}&version={version}&content-type=text/cql')
-    if r.status_code != 200:
-        logger.error(f'Trying to get library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
-    search_bundle = r.json()
+    req = requests.get(cqfr4_fhir + f'Library?name={name}&version={version}&content-type=text/cql')
+    if req.status_code != 200:
+        logger.error(f'Trying to get library from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting Library from server failed with status code {req.status_code}')
+    search_bundle = req.json()
     put_flag = False
     try:
         existing_cql_library = search_bundle['entry'][0]['resource']
@@ -63,7 +64,7 @@ def create_cql(cql):
         'version': version,
         'status': 'draft',
         'experimental': True,
-        'type': {'coding':[{'code':'logic-library'}]},
+        'type': {'coding': [{'code': 'logic-library'}]},
         'content': [{
             'contentType': 'text/cql',
             'data': base64_cql
@@ -76,27 +77,26 @@ def create_cql(cql):
 
     if not put_flag:
         # Store Library object in CQF Ruler
-        r = requests.post(cqfr4_fhir+'Library', json=cql_library)
-        if r.status_code != 201:
-            logger.error(f'Posting Library {name} to server failed with status code {r.status_code}')
-            return make_operation_outcome('transient', f'Posting Library {name} to server failed with status code {r.status_code}')
-        resource_id = r.json()['id']
-        return resource_id
-    else:
-        cql_library['id'] = existing_cql_library['id']
-        r = requests.put(cqfr4_fhir+f'Library/{existing_cql_library["id"]}', json=cql_library)
-        resource_id = r.json()['id']
+        req = requests.post(cqfr4_fhir + 'Library', json=cql_library)
+        if req.status_code != 201:
+            logger.error(f'Posting Library {name} to server failed with status code {req.status_code}')
+            return make_operation_outcome('transient', f'Posting Library {name} to server failed with status code {req.status_code}')
+        resource_id = req.json()['id']
         return resource_id
 
+    cql_library['id'] = existing_cql_library['id']
+    req = requests.put(cqfr4_fhir + f'Library/{existing_cql_library["id"]}', json=cql_library)
+    resource_id = req.json()['id']
+    return resource_id
+
+
 def create_nlpql(nlpql):
-    # Validates NLPQL using NLPaaS before saving to Library
-    if nlpaas_url == False:
+    '''Validates NLPQL using NLPaaS before saving as Library Resource on CQF Ruler'''
+    if not nlpaas_url:
         return make_operation_outcome('invalid', 'Error validating NLPQL, NLPAAS is not configured.')
     validation_results = validate_nlpql(nlpql)
-    if type(validation_results)==dict:
+    if isinstance(validation_results, dict):
         return validation_results
-    else:
-        pass
 
     # Get name and version of NLPQL Library
     split_nlpql = nlpql.split()
@@ -104,11 +104,11 @@ def create_nlpql(nlpql):
     name = split_nlpql[5].strip('"')
     version = split_nlpql[7].strip(';').strip('"')
 
-    r = requests.get(cqfr4_fhir+f'Library?name={name}&version={version}&content-type=text/nlpql')
-    if r.status_code != 200:
-        logger.error(f'Trying to get library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Library from server failed with status code {r.status_code}')
-    search_bundle = r.json()
+    req = requests.get(cqfr4_fhir + f'Library?name={name}&version={version}&content-type=text/nlpql')
+    if req.status_code != 200:
+        logger.error(f'Trying to get library from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting Library from server failed with status code {req.status_code}')
+    search_bundle = req.json()
     put_flag = False
     try:
         existing_nlpql_library = search_bundle['entry'][0]['resource']
@@ -130,7 +130,7 @@ def create_nlpql(nlpql):
         'version': version,
         'status': 'draft',
         'experimental': True,
-        'type': {'coding':[{'code':'logic-library'}]},
+        'type': {'coding': [{'code': 'logic-library'}]},
         'content': [{
             'contentType': 'text/nlpql',
             'data': base64_nlpql
@@ -142,17 +142,17 @@ def create_nlpql(nlpql):
 
     if not put_flag:
         # Store Library object in CQF Ruler
-        r = requests.post(cqfr4_fhir+'Library', json=nlpql_library)
-        if r.status_code != 201:
-            logger.error(f'Posting Library {name} to server failed with status code {r.status_code}')
-            return make_operation_outcome('transient', f'Posting Library to server failed with code {r.status_code}')
-        resource_id = r.json()['id']
+        req = requests.post(cqfr4_fhir + 'Library', json=nlpql_library)
+        if req.status_code != 201:
+            logger.error(f'Posting Library {name} to server failed with status code {req.status_code}')
+            return make_operation_outcome('transient', f'Posting Library to server failed with code {req.status_code}')
+        resource_id = req.json()['id']
         return resource_id
     else:
         nlpql_library['id'] = existing_nlpql_library['id']
-        r = requests.put(cqfr4_fhir+f'Library/{existing_nlpql_library["id"]}', json=nlpql_library)
-        if r.status_code != 200:
-            logger.error(f'Putting Library {name} to server failed with status code {r.status_code}')
-            return make_operation_outcome('transient', f'Putting Library to server failed with code {r.status_code}')
-        resource_id = r.json()['id']
+        req = requests.put(cqfr4_fhir + f'Library/{existing_nlpql_library["id"]}', json=nlpql_library)
+        if req.status_code != 200:
+            logger.error(f'Putting Library {name} to server failed with status code {req.status_code}')
+            return make_operation_outcome('transient', f'Putting Library to server failed with code {req.status_code}')
+        resource_id = req.json()['id']
         return resource_id

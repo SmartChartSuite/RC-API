@@ -1,3 +1,4 @@
+'''Settings file for importing environmental variables'''
 import os
 
 # ================= Creating necessary variables from Secrets ========================

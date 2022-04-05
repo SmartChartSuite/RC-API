@@ -1,30 +1,29 @@
+'''Routing module for the API'''
+import os
+import base64
+import logging
+import uuid
+from typing import Union, Dict
+import requests
+
 from fastapi import (
     APIRouter, Body, BackgroundTasks
 )
 from fastapi.responses import JSONResponse
 
+from fhir.resources.questionnaire import Questionnaire  # TODO: replace to using fhirclient package as well as below imports
+from fhir.resources.library import Library
+from fhir.resources.parameters import Parameters
+
 from ..services.libraryhandler import (create_cql, create_nlpql)
 
 from ..models.models import ParametersJob
 from ..models.functions import (
-    make_operation_outcome, run_cql, run_nlpql, get_results, check_results, create_linked_results, validate_cql, validate_nlpql
+    make_operation_outcome, run_cql, run_nlpql, get_results, check_results, create_linked_results, validate_cql
 )
 from ..util.settings import (
     cqfr4_fhir, external_fhir_server_url, external_fhir_server_auth, nlpaas_url
 )
-
-from typing import Union, Dict
-from fhir.resources.questionnaire import Questionnaire #TODO: replace to using fhirclient package as well as below imports
-from fhir.resources.library import Library
-from fhir.resources.parameters import Parameters
-
-from pprint import pprint
-
-import os
-import base64
-import logging
-import requests
-import uuid
 
 # Create logger
 logger = logging.getLogger('rcapi.routers.routers')
@@ -32,60 +31,65 @@ logger = logging.getLogger('rcapi.routers.routers')
 apirouter = APIRouter()
 jobs: Dict[str, ParametersJob] = {}
 
+
 @apirouter.get("/")
 def root():
+    '''Root return function for the API'''
     logger.info('Retrieved root of API')
     return make_operation_outcome('processing', 'This is the base URL of API. Unable to handle this request as it is the root.')
 
+
 @apirouter.get("/forms", response_model=dict)
 def get_list_of_forms():
-    cqfr4_fhir = os.environ["CQF_RULER_R4"]
+    '''Get Bundle of Questionnaires from CQF Ruler'''
+    cqfr4_fhir_url = os.environ["CQF_RULER_R4"]
     # Pull list of forms from CQF Ruler
-    if cqfr4_fhir[-5:]=='fhir/':
+    if cqfr4_fhir_url[-5:] == 'fhir/':
         pass
-    elif cqfr4_fhir[-4:]=='fhir':
-        cqfr4_fhir = cqfr4_fhir + '/'
+    elif cqfr4_fhir_url[-4:] == 'fhir':
+        cqfr4_fhir_url = cqfr4_fhir_url + '/'
     else:
-        return make_operation_outcome('invalid', f'The CQF Ruler url ({cqfr4_fhir}) passed in as an environmental variable is not correct, please check that it ends with fhir or fhir/')# type:ignore
-    r = requests.get(cqfr4_fhir+'Questionnaire')
-    if r.status_code == 200:
-        return r.json()
-    else:
-        logger.error(f'Getting Questionnaires from server failed with code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Questionnaires from server failed with code {r.status_code}.')
+        return make_operation_outcome('invalid', f'The CQF Ruler url ({cqfr4_fhir_url}) passed in as an environmental variable is not correct, please check that it ends with fhir or fhir/')  # type:ignore
+    req = requests.get(cqfr4_fhir_url + 'Questionnaire')
+    if req.status_code == 200:
+        return req.json()
+    logger.error(f'Getting Questionnaires from server failed with code {req.status_code}')
+    return make_operation_outcome('transient', f'Getting Questionnaires from server failed with code {req.status_code}.')
+
 
 @apirouter.get("/forms/cql")
 def get_cql_libraries():
+    '''Pulls list of CQL libraries from CQF Ruler'''
 
-    # Pulls list of CQL libraries from CQF Ruler
-    r = requests.get(cqfr4_fhir+'Library?content-type=text/cql')
-    if r.status_code == 200:
-        return r.json()
-    else:
-        logger.error(f'Getting CQL Libraries from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting CQL Libraries from server failed with code {r.status_code}')
+    req = requests.get(cqfr4_fhir + 'Library?content-type=text/cql')
+    if req.status_code == 200:
+        return req.json()
+
+    logger.error(f'Getting CQL Libraries from server failed with status code {req.status_code}')
+    return make_operation_outcome('transient', f'Getting CQL Libraries from server failed with code {req.status_code}')
+
 
 @apirouter.get("/forms/nlpql")
-def get_cql_libraries():
+def get_nlpql_libraries():
+    '''Pulls list of CQL libraries from CQF Ruler'''
 
-    # Pulls list of CQL libraries from CQF Ruler
-    r = requests.get(cqfr4_fhir+'Library?content-type=text/nlpql')
-    if r.status_code == 200:
-        return r.json()
-    else:
-        logger.error(f'Getting NLPQL Libraries from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting NLPQL Libraries from server failed with code {r.status_code}')
+    req = requests.get(cqfr4_fhir + 'Library?content-type=text/nlpql')
+    if req.status_code == 200:
+        return req.json()
+
+    logger.error(f'Getting NLPQL Libraries from server failed with status code {req.status_code}')
+    return make_operation_outcome('transient', f'Getting NLPQL Libraries from server failed with code {req.status_code}')
+
 
 @apirouter.get("/forms/cql/{library_name}")
 def get_cql(library_name: str):
+    '''Return CQL library based on name'''
+    req = requests.get(cqfr4_fhir + f'Library?name={library_name}&content-type=text%2Fcql')
+    if req.status_code != 200:
+        logger.error(f'Getting library from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting Library from server failed with code {req.status_code}')
 
-    # Return CQL library
-    r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text%2Fcql')
-    if r.status_code != 200:
-        logger.error(f'Getting library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Library from server failed with code {r.status_code}')
-
-    search_bundle = r.json()
+    search_bundle = req.json()
     try:
         cql_library = search_bundle['entry'][0]['resource']
         logger.info(f'Found CQL Library with name {library_name}')
@@ -98,16 +102,17 @@ def get_cql(library_name: str):
     cql_bytes = base64.b64decode(base64_cql)
     decoded_cql = cql_bytes.decode('ascii')
     return decoded_cql
+
 
 @apirouter.get("/forms/nlpql/{library_name}")
 def get_nlpql(library_name: str):
-    # Return NLPQL library
-    r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text%2Fnlpql')
-    if r.status_code != 200:
-        logger.error(f'Getting library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Library from server failed with code {r.status_code}')
+    '''Return NLPQL library by name'''
+    req = requests.get(cqfr4_fhir + f'Library?name={library_name}&content-type=text%2Fnlpql')
+    if req.status_code != 200:
+        logger.error(f'Getting library from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting Library from server failed with code {req.status_code}')
 
-    search_bundle = r.json()
+    search_bundle = req.json()
     try:
         cql_library = search_bundle['entry'][0]['resource']
         logger.info(f'Found CQL Library with name {library_name}')
@@ -121,16 +126,16 @@ def get_nlpql(library_name: str):
     decoded_cql = cql_bytes.decode('ascii')
     return decoded_cql
 
+
 @apirouter.get("/forms/{form_name}", response_model=Union[dict, str])
 def get_form(form_name: str):
+    '''Return Questionnaire from CQF Ruler based on form name'''
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name={form_name}')
+    if req.status_code != 200:
+        logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {req.status_code}')
 
-    # Return Questionnaire from CQF Ruler based on form name
-    r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
-    if r.status_code != 200:
-        logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {r.status_code}')
-
-    search_bundle = r.json()
+    search_bundle = req.json()
     try:
         questionnaire = search_bundle['entry'][0]['resource']
         logger.info(f'Found Questionnaire with name {form_name}')
@@ -139,16 +144,17 @@ def get_form(form_name: str):
         logger.error('Questionnaire with that name not found')
         return make_operation_outcome('not-found', f'Questionnaire named {form_name} not found on the FHIR server.')
 
+
 @apirouter.post("/forms")
 def save_form(questions: Questionnaire):
+    '''Check to see if library and version of this exists'''
 
-    # Check to see if library and version of this exists
-    r = requests.get(cqfr4_fhir+f'Questionnaire?name={questions.name}&version={questions.version}')
-    if r.status_code != 200:
-        logger.error(f'Trying to get Questionnaire from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {r.status_code}')
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name={questions.name}&version={questions.version}')
+    if req.status_code != 200:
+        logger.error(f'Trying to get Questionnaire from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {req.status_code}')
 
-    search_bundle = r.json()
+    search_bundle = req.json()
     try:
         questionnaire_current_id = search_bundle['entry'][0]['resource']['id']
         logger.info(f'Found Questionnaire with name {questions.name} and version {questions.version}')
@@ -159,16 +165,18 @@ def save_form(questions: Questionnaire):
         logger.info('Questionnaire with that name not found, continuing POST operation')
 
     # Create Questionnaire in CQF Ruler
-    r = requests.post(cqfr4_fhir+'Questionnaire', json=questions.dict())
-    if r.status_code != 201:
-        logger.error(f'Posting Questionnaire to server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Posting Questionnaire to server failed with code {r.status_code}')
+    req = requests.post(cqfr4_fhir + 'Questionnaire', json=questions.dict())
+    if req.status_code != 201:
+        logger.error(f'Posting Questionnaire to server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Posting Questionnaire to server failed with code {req.status_code}')
 
-    resource_id = r.json()['id']
-    return make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information')
+    resource_id = req.json()['id']
+    return make_operation_outcome('informational', f'Resource successfully posted with id {resource_id}', severity='information')
+
 
 @apirouter.post("/forms/start")
-def start_jobs_header_function(post_body: Parameters, background_tasks: BackgroundTasks, asyncFlag: bool=False):
+def start_jobs_header_function(post_body: Parameters, background_tasks: BackgroundTasks, asyncFlag: bool = False):  # pylint: disable=invalid-name
+    '''Header function for starting jobs either synchronously or asynchronously'''
     if asyncFlag:
         logger.info('asyncFlag detected, running asynchronously')
         new_job = ParametersJob()
@@ -178,17 +186,20 @@ def start_jobs_header_function(post_body: Parameters, background_tasks: Backgrou
         logger.info('Added to jobs array')
         background_tasks.add_task(start_async_jobs, post_body, new_job.parameter[0].valueString)
         logger.info('Added background task')
-        return JSONResponse(content=new_job.dict(), headers={'Location':f'/forms/status/{new_job.parameter[0].valueString}'})
-    else:
-        return start_jobs(post_body)
+        return JSONResponse(content=new_job.dict(), headers={'Location': f'/forms/status/{new_job.parameter[0].valueString}'})
+
+    return start_jobs(post_body)
+
 
 def start_async_jobs(post_body: Parameters, uid: str):
+    '''Start job asychronously'''
     jobs[uid].parameter[2].resource = start_jobs(post_body)
     jobs[uid].parameter[1].valueString = "complete"
     logger.info(f'Job id {uid} complete and results are available at /forms/status/{uid}')
 
-def start_jobs(post_body: Parameters):
 
+def start_jobs(post_body: Parameters):
+    '''Start jobs for both sync and async'''
     # Make list of parameters
     body_json = post_body.dict()
     parameters = body_json['parameter']
@@ -206,6 +217,8 @@ def start_jobs(post_body: Parameters):
         except ValueError:
             logger.error('patientID or patientIdentifier was not found in parameters posted')
             return make_operation_outcome('required', 'patientID or patientIdentifier was not found in the parameters posted')
+    if not has_patient_identifier:
+        patient_identifier = 1
 
     run_all_jobs = False
     try:
@@ -222,18 +235,18 @@ def start_jobs(post_body: Parameters):
         return make_operation_outcome('required', 'jobPackage was not found in the parameters posted')
 
     # Pull Questionnaire resource ID from CQF Ruler
-    r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
-    if r.status_code != 200:
-        logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {r.status_code}')
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name={form_name}')
+    if req.status_code != 200:
+        logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {req.status_code}')
 
-    search_bundle = r.json()
+    search_bundle = req.json()
     try:
         form_server_id = search_bundle['entry'][0]['resource']['id']
         logger.info(f'Found Questionnaire with name {form_name} and server id {form_server_id}')
     except KeyError:
         logger.error(f'Questionnaire with name {form_name} not found')
-        return make_operation_outcome('not-found',f'Questionnaire with name {form_name} not found')
+        return make_operation_outcome('not-found', f'Questionnaire with name {form_name} not found')
 
     cql_flag = False
     nlpql_flag = False
@@ -263,12 +276,12 @@ def start_jobs(post_body: Parameters):
 
         for library_name_full in libraries_to_run:
             library_name, library_name_ext = library_name_full.split('.')
-            r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text/{library_name_ext}')
-            if r.status_code != 200:
-                logger.error(f'Getting library from server failed with status code {r.status_code}')
-                return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
+            req = requests.get(cqfr4_fhir + f'Library?name={library_name}&content-type=text/{library_name_ext}')
+            if req.status_code != 200:
+                logger.error(f'Getting library from server failed with status code {req.status_code}')
+                return make_operation_outcome('transient', f'Getting library from server failed with status code {req.status_code}')
 
-            search_bundle = r.json()
+            search_bundle = req.json()
             try:
                 library_server_id = search_bundle['entry'][0]['resource']['id']
                 logger.info(f'Found Library with name {library_name} and server id {library_server_id}')
@@ -289,17 +302,16 @@ def start_jobs(post_body: Parameters):
                     return make_operation_outcome('invalid', f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
             except KeyError:
                 logger.error(f'Library with name {library_name} not found')
-                return make_operation_outcome('not-found',f'Library with name {library_name} not found')
-
+                return make_operation_outcome('not-found', f'Library with name {library_name} not found')
 
     if not run_all_jobs:
         # Pull CQL library resource ID from CQF Ruler
-        r = requests.get(cqfr4_fhir+f'Library?name={library}')
-        if r.status_code != 200:
-            logger.error(f'Getting library from server failed with status code {r.status_code}')
-            return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
+        req = requests.get(cqfr4_fhir + f'Library?name={library}')
+        if req.status_code != 200:
+            logger.error(f'Getting library from server failed with status code {req.status_code}')
+            return make_operation_outcome('transient', f'Getting library from server failed with status code {req.status_code}')
 
-        search_bundle = r.json()
+        search_bundle = req.json()
         try:
             library_server_id = search_bundle['entry'][0]['resource']['id']
 
@@ -319,21 +331,21 @@ def start_jobs(post_body: Parameters):
                 return make_operation_outcome('invalid', f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
         except KeyError:
             logger.error(f'Library with name {library} not found')
-            return make_operation_outcome('not-found',f'Library with name {library} not found')
+            return make_operation_outcome('not-found', f'Library with name {library} not found')
 
     if has_patient_identifier:
-        r = requests.get(external_fhir_server_url+f'/Patient?identifier={patient_identifier}', headers={'Authorization': external_fhir_server_auth})
-        if r.status_code != 200:
-            logger.error(f'Getting Patient from server failed with status code {r.status_code}')
-            return make_operation_outcome('transient', f'Getting library from server failed with status code {r.status_code}')
+        req = requests.get(external_fhir_server_url + f'/Patient?identifier={patient_identifier}', headers={'Authorization': external_fhir_server_auth})
+        if req.status_code != 200:
+            logger.error(f'Getting Patient from server failed with status code {req.status_code}')
+            return make_operation_outcome('transient', f'Getting library from server failed with status code {req.status_code}')
 
-        search_bundle = r.json()
+        search_bundle = req.json()
         try:
             patient_id = search_bundle['entry'][0]['resource']['id']
             logger.info(f'Found Patient with identifier {patient_identifier} and server id {patient_id}')
         except KeyError:
             logger.error(f'Patient with identifier {patient_identifier} not found')
-            return make_operation_outcome('not-found',f'Patient with identifier {patient_identifier} not found')
+            return make_operation_outcome('not-found', f'Patient with identifier {patient_identifier} not found')
 
     # Create parameters post body for library evaluation
     parameters_post = {
@@ -365,7 +377,7 @@ def start_jobs(post_body: Parameters):
                     }],
                     "address": external_fhir_server_url,
                     "header": [f'Authorization: {external_fhir_server_auth}']
-			    }
+                }
             }
         ]
     }
@@ -380,7 +392,7 @@ def start_jobs(post_body: Parameters):
     if nlpql_flag and nlpaas_url != 'False':
         logger.info('Start submitting NLPQL jobs')
         futures_nlpql = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)
-        if type(futures_nlpql) == dict:
+        if isinstance(futures_nlpql, dict):
             return futures_nlpql
         futures.append(futures_nlpql)
         logger.info('Submitted all NLPQL jobs.')
@@ -399,12 +411,12 @@ def start_jobs(post_body: Parameters):
     logger.info(f'Retrieved results for jobs {libraries_to_run}')
 
     # Upstream request timeout handling
-    if type(results_cql)==str:
-        return make_operation_outcome('timeout',results_cql)
+    if isinstance(results_cql, str):
+        return make_operation_outcome('timeout', results_cql)
 
     # Checks results for any CQL issues
     results_check_return = check_results(results_cql)
-    if type(results_check_return) == dict:
+    if isinstance(results_check_return, dict):
         logger.error('There were errors in the CQL, see OperationOutcome')
         logger.error(results_check_return)
         return results_check_return
@@ -419,12 +431,16 @@ def start_jobs(post_body: Parameters):
 
     return bundled_results
 
+
 @apirouter.get('/forms/status/all')
 def return_all_jobs():
+    '''Return all job statuses'''
     return jobs
+
 
 @apirouter.get('/forms/status/{uid}')
 def get_job_status(uid: str):
+    '''Return the status of a specific job'''
     try:
         try:
             job_results = jobs[uid].parameter[2].resource
@@ -441,34 +457,37 @@ def get_job_status(uid: str):
     except KeyError:
         return JSONResponse(content=make_operation_outcome('not-found', f'The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id.'), status_code=404)
 
+
 @apirouter.post("/forms/nlpql")
 def save_nlpql(code: str = Body(...)):
+    '''Persist NLPQL as a Library Resource on CQF Ruler'''
     resource_id = create_nlpql(code)
-    if type(resource_id) == str:
-        return JSONResponse(content=make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information'), status_code=201)
-    elif type(resource_id) == dict:
+    if isinstance(resource_id, str):
+        return JSONResponse(content=make_operation_outcome('informational', f'Resource successfully posted with id {resource_id}', severity='information'), status_code=201)
+    elif isinstance(resource_id, dict):
         return JSONResponse(content=resource_id, status_code=400)
 
 
 @apirouter.post("/forms/cql")
 def save_cql(code: str = Body(...)):
+    '''Persist CQL as a Library Resource on CQF Ruler'''
     resource_id = create_cql(code)
     # Empty body is handled by FASTAPI when parsing the request body. This handling is used as a fallback for any other potential ValueErrors.
-    if type(resource_id) == ValueError:
-        return JSONResponse(content=make_operation_outcome('invalid', f'Value Error'), status_code=400)
+    if isinstance(resource_id, ValueError):
+        return JSONResponse(content=make_operation_outcome('invalid', 'Value Error'), status_code=400)
     # TODO: Add additional error handling.
-    return JSONResponse(content=make_operation_outcome('informational',f'Resource successfully posted with id {resource_id}', severity='information'), status_code=201)
+    return JSONResponse(content=make_operation_outcome('informational', f'Resource successfully posted with id {resource_id}', severity='information'), status_code=201)
 
 
 @apirouter.put("/forms/{form_name}")
 def update_form(form_name: str, new_questions: Questionnaire):
+    '''Update Questionnaire using namee'''
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name={form_name}')
+    if req.status_code != 200:
+        logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {req.status_code}')
 
-    r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
-    if r.status_code != 200:
-        logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {r.status_code}')
-
-    search_bundle = r.json()
+    search_bundle = req.json()
     try:
         resource_id = search_bundle['entry'][0]['resource']['id']
         logger.info(f'Found Questionnaire with name {form_name}')
@@ -477,22 +496,23 @@ def update_form(form_name: str, new_questions: Questionnaire):
         return make_operation_outcome('not-found', f'Getting Questionnaire named {form_name} not found on server')
 
     new_questions.id = resource_id
-    r = requests.put(cqfr4_fhir+f'Questionnaire/{resource_id}', json=new_questions.dict())
-    if r.status_code != 200:
-        logger.error(f'Putting Questionnaire from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Putting Questionnaire from server failed with status code {r.status_code}')
+    req = requests.put(cqfr4_fhir + f'Questionnaire/{resource_id}', json=new_questions.dict())
+    if req.status_code != 200:
+        logger.error(f'Putting Questionnaire from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Putting Questionnaire from server failed with status code {req.status_code}')
 
-    return make_operation_outcome('informational',f'Questionnaire {form_name} successfully put on server with resource_id {resource_id}', severity='information')
+    return make_operation_outcome('informational', f'Questionnaire {form_name} successfully put on server with resource_id {resource_id}', severity='information')
+
 
 @apirouter.put("/forms/cql/{library_name}")
 def update_cql(library_name: str, code: str = Body(...)):
+    '''Update CQL Library in CQF Ruler by name'''
+    req = requests.get(cqfr4_fhir + f'Library?name={library_name}&content-type=text/cql')
+    if req.status_code != 200:
+        logger.error(f'Getting Library from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting CQL Library from server failed with status code {req.status_code}')
 
-    r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text/cql')
-    if r.status_code != 200:
-        logger.error(f'Getting Library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting CQL Library from server failed with status code {r.status_code}')
-
-    search_bundle = r.json()
+    search_bundle = req.json()
     try:
         resource_id = search_bundle['entry'][0]['resource']['id']
         logger.info(f'Found CQL Library with name {library_name}')
@@ -502,10 +522,8 @@ def update_cql(library_name: str, code: str = Body(...)):
 
     # Validate the CQL before updating
     validation_results = validate_cql(code)
-    if type(validation_results)==dict:
+    if isinstance(validation_results, dict):
         return validation_results
-    else:
-        pass
 
     # Get name and version of cql library
     split_cql = code.split()
@@ -524,7 +542,7 @@ def update_cql(library_name: str, code: str = Body(...)):
         'version': version,
         'status': 'draft',
         'experimental': True,
-        'type': {'coding':[{'code':'logic-library'}]},
+        'type': {'coding': [{'code': 'logic-library'}]},
         'content': [{
             'contentType': 'text/cql',
             'data': base64_cql
@@ -533,24 +551,26 @@ def update_cql(library_name: str, code: str = Body(...)):
     cql_library = Library(**data)
     cql_library = cql_library.dict()
     cql_library['content'][0]['data'] = base64_cql
-    cql_library['id']=resource_id
+    cql_library['id'] = resource_id
     logger.info('Created Library object')
 
-    r = requests.put(cqfr4_fhir+f'Library/{resource_id}', json=cql_library)
-    if r.status_code != 200:
-        logger.error(f'Putting Library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Putting Library from server failed with status code {r.status_code}')
+    req = requests.put(cqfr4_fhir + f'Library/{resource_id}', json=cql_library)
+    if req.status_code != 200:
+        logger.error(f'Putting Library from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Putting Library from server failed with status code {req.status_code}')
 
-    return JSONResponse(content=make_operation_outcome('informational',f'Library {library_name} successfully put on server', severity='information'), status_code=201)
+    return JSONResponse(content=make_operation_outcome('informational', f'Library {library_name} successfully put on server', severity='information'), status_code=201)
+
 
 @apirouter.put("/forms/nlpql/{library_name}")
 def update_nlpql(library_name: str, code: str = Body(...)):
+    '''Update NLPQL Library on CQF Ruler'''
 
-    r = requests.get(cqfr4_fhir+f'Library?name={library_name}&content-type=text/nlpql')
-    if r.status_code != 200:
-        logger.error(f'Getting NLPQL Library from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting NLPQL Library from server failed with status code {r.status_code}')
-    search_bundle = r.json()
+    req = requests.get(cqfr4_fhir + f'Library?name={library_name}&content-type=text/nlpql')
+    if req.status_code != 200:
+        logger.error(f'Getting NLPQL Library from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting NLPQL Library from server failed with status code {req.status_code}')
+    search_bundle = req.json()
     try:
         resource_id = search_bundle['entry'][0]['resource']['id']
         logger.info(f'Found Library with name {library_name} and resource id {resource_id}')
@@ -574,7 +594,7 @@ def update_nlpql(library_name: str, code: str = Body(...)):
         'version': version,
         'status': 'draft',
         'experimental': True,
-        'type': {'coding':[{'code':'logic-library'}]},
+        'type': {'coding': [{'code': 'logic-library'}]},
         'content': [{
             'contentType': 'text/nlpql',
             'data': base64_nlpql
@@ -585,9 +605,9 @@ def update_nlpql(library_name: str, code: str = Body(...)):
     nlpql_library['content'][0]['data'] = base64_nlpql
     nlpql_library['id'] = resource_id
 
-    r = requests.put(cqfr4_fhir+f'Library/{resource_id}', json=nlpql_library)
-    if r.status_code != 200:
-        logger.error(f'Putting Library to server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Putting Library to server failed with status code {r.status_code}')
+    req = requests.put(cqfr4_fhir + f'Library/{resource_id}', json=nlpql_library)
+    if req.status_code != 200:
+        logger.error(f'Putting Library to server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Putting Library to server failed with status code {req.status_code}')
 
-    return JSONResponse(content=make_operation_outcome('informational',f'Library {library_name} successfully put on server', severity='information'), status_code=201)
+    return JSONResponse(content=make_operation_outcome('informational', f'Library {library_name} successfully put on server', severity='information'), status_code=201)

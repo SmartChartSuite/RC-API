@@ -1,22 +1,22 @@
-from fhir.resources.operationoutcome import OperationOutcome #TODO: replace to using fhirclient package as well as below imports
-from fhir.resources.questionnaire import Questionnaire
-from fhir.resources.observation import Observation
-from requests_futures.sessions import FuturesSession
+'''Functions module for helper functions being called by other files'''
+
 from datetime import datetime
-
-from ..models.models import QuestionsJSON, bundle_template, CustomFormatter
-
-from ..util.settings import cqfr4_fhir, nlpaas_url, log_level, external_fhir_server_url
-
 import logging
 import uuid
-import requests
 import base64
 
+from fhir.resources.operationoutcome import OperationOutcome  # TODO: replace to using fhirclient package as well as below imports
+from fhir.resources.observation import Observation
+from requests_futures.sessions import FuturesSession
+import requests
+
+from ..util.settings import cqfr4_fhir, nlpaas_url, external_fhir_server_url
 
 logger = logging.getLogger('rcapi.models.functions')
 
-def make_operation_outcome(code: str, diagnostics: str, severity = 'error'):
+
+def make_operation_outcome(code: str, diagnostics: str, severity: str = 'error'):
+    '''Returns an OperationOutcome for a given code, diagnostics string, and a severity (Default of error)'''
     oo_template = {
         'issue': [
             {
@@ -28,107 +28,16 @@ def make_operation_outcome(code: str, diagnostics: str, severity = 'error'):
     }
     return OperationOutcome(**oo_template).dict()
 
-def convertToQuestionnaire(questions: QuestionsJSON):
-
-    data = {
-        "meta": {
-            "profile": ["http://sample.com/StructureDefinition/smartchart-form"]
-        },
-        "url": "http://hl7.org/fhir/Questionnaire/TacoExample",
-        "id": str(questions['_id']),
-        "version": questions['version'],
-        "title": questions['name'],
-        "name": questions['name'].replace(' ',''),
-        "status": "draft",
-        "description": questions['description'],
-        "subjectType": ['Patient'],
-        "publisher": questions['owner'],
-        "experimental": "true",
-        "extension": [
-            {
-                "url": "form-evidence-bundle-list",
-                "extension": list(map(lambda x: {"url":"evidence_bundle", "valueString": x}, questions['evidence_bundles']))
-            }
-        ]
-    }
-
-    quest = Questionnaire(**data)
-
-    quest.item = []
-    for i, group in enumerate(questions['groups']):
-        item_data = {'linkId': group, 'type': 'group'}
-        quest.item.append(item_data)
-
-    for question in questions['questions']:
-
-        groupNumber = questions['groups'].index(question['group'])
-
-        if question['question_type']=='TEXT': question_type = 'string'
-        elif question['question_type']=='RADIO': question_type = 'choice'
-        elif question['question_type']=='DESCRIPTION': question_type = 'display'
-
-        if question['answers'] != []:
-            answer_data = []
-            for answer in question['answers']:
-                answer_data.append({'valueString': answer['text']})
-
-        if question['answers'] != []:
-            question_data = {
-                'linkId': question['question_number'],
-                'text': question['question_name'],
-                'type': question_type,
-                'answerOption': answer_data
-            }
-        else:
-            question_data = {
-                'linkId': question['question_number'],
-                'text': question['question_name'],
-                'type': question_type,
-            }
-
-        evidence_bundles_reformat = []
-        nlpql_name = question['nlpql_grouping']
-        try:
-            if question['evidence_bundle'][nlpql_name] is not None:
-                for name in question['evidence_bundle'][nlpql_name]:
-                    new_name = '.'.join([nlpql_name, name])
-                    evidence_bundles_reformat.append(new_name)
-
-                evidence_bundle_ext = [{
-                        "url": "evidenceBundles",
-                        "extension": list(map(lambda x: {"url": "evidence-bundle", "valueString": x}, evidence_bundles_reformat))
-                }]
-
-                question_data['extension'] = evidence_bundle_ext
-        except KeyError:
-            pass
-
-        try:
-            quest.item[groupNumber]['item'].append(question_data)
-        except KeyError:
-            quest.item[groupNumber]['item'] = []
-            quest.item[groupNumber]['item'].append(question_data)
-
-    return quest.dict()
-
-def bundle_forms(forms: list):
-    bundle = bundle_template
-    bundle['entry'] = []
-    for form in forms:
-        bundle["entry"].append({"fullUrl": "Questionnaire/" + form["id"], "resource": form})
-    timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
-    bundle["meta"]["lastUpdated"] = timestamp
-    return bundle
 
 def get_form(form_name: str):
+    '''Returns the Questionnaire from CQF Ruler based on form name'''
 
-    # Return Questionnaire from CQF Ruler based on form name
-    r = requests.get(cqfr4_fhir+f'Questionnaire?name={form_name}')
-    if r.status_code != 200:
-        logger.error(f'Getting Questionnaire from server failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {r.status_code}')
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name={form_name}')
+    if req.status_code != 200:
+        logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {req.status_code}')
 
-    search_bundle = r.json()
+    search_bundle = req.json()
     try:
         questionnaire = search_bundle['entry'][0]['resource']
         logger.info(f'Found Questionnaire with name {form_name}')
@@ -137,26 +46,29 @@ def get_form(form_name: str):
         logger.error('Questionnaire with that name not found')
         return make_operation_outcome('not-found', f'Questionnaire named {form_name} not found on the FHIR server.')
 
-def run_cql(library_ids: list, parameters_post: dict):
 
-    # Create an asynchrounous HTTP Request session
+def run_cql(library_ids: list, parameters_post: dict):
+    '''Create an asynchrounous HTTP Request session for evaluting CQL Libraries'''
+
     session = FuturesSession()
     futures = []
     for library_id in library_ids:
-        url = cqfr4_fhir+f'Library/{library_id}/$evaluate'
+        url = cqfr4_fhir + f'Library/{library_id}/$evaluate'
         future = session.post(url, json=parameters_post)
         futures.append(future)
     return futures
 
-def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url: str, external_fhir_server_auth: str):
-    # Create an asynchrounous HTTP Request session
+
+def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_string: str, external_fhir_server_auth: str):
+    '''Create an asynchrounous HTTP Request session for evaluting NLPQL Libraries'''
+
     session = FuturesSession()
     futures = []
     external_fhir_server_auth_split = external_fhir_server_auth.split(' ')
     nlpql_post_body = {
         "patient_id": patient_id,
         "fhir": {
-            "serviceUrl": external_fhir_server_url,
+            "serviceUrl": external_fhir_server_url_string,
             "auth": {
                 "type": external_fhir_server_auth_split[0],
                 "token": external_fhir_server_auth_split[1]
@@ -165,30 +77,32 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url: str,
     }
     for library_id in library_ids:
         # Get text NLPQL from the Library in CQF Ruler
-        r = requests.get(cqfr4_fhir+f'Library/{library_id}')
+        req = requests.get(cqfr4_fhir + f'Library/{library_id}')
 
-        library_resource = r.json()
+        library_resource = req.json()
         logger.info(f'Submitting Library {library_resource["name"]}')
         base64_nlpql = library_resource['content'][0]['data']
         nlpql_bytes = base64.b64decode(base64_nlpql)
         nlpql_plain_text = nlpql_bytes.decode('utf-8')
 
         # Register NLPQL in NLPAAS
-        r = requests.post(nlpaas_url+'job/register_nlpql', data=nlpql_plain_text)
-        if r.status_code != 200:
-            logger.error(f'Trying to register NLPQL with NLPAAS failed with status code {r.status_code}')
-            logger.error(r.text)
-            return make_operation_outcome('transient', f'Trying to register NLPQL with NLPAAS failed with code {r.status_code}')
-        result = r.json()['message']
+        req = requests.post(nlpaas_url + 'job/register_nlpql', data=nlpql_plain_text)
+        if req.status_code != 200:
+            logger.error(f'Trying to register NLPQL with NLPAAS failed with status code {req.status_code}')
+            logger.error(req.text)
+            return make_operation_outcome('transient', f'Trying to register NLPQL with NLPAAS failed with code {req.status_code}')
+        result = req.json()['message']
         job_url = result.split("'")[1][1:]
         if len(job_url) == 1:
             return make_operation_outcome('invalid', job_url)
         # Start running jobs
-        future = session.post(nlpaas_url+job_url, json=nlpql_post_body)
+        future = session.post(nlpaas_url + job_url, json=nlpql_post_body)
         futures.append(future)
     return futures
 
-def get_results(futures: list, libraries: list, patientId: str, flags: list):
+
+def get_results(futures: list, libraries: list, patient_id: str, flags: list):
+    '''Get results from an async Futures Session'''
 
     results_cql = []
     results_nlpql = []
@@ -203,7 +117,7 @@ def get_results(futures: list, libraries: list, patientId: str, flags: list):
             result = pre_result.json()
 
             # Formats result into format for further processing and linking
-            full_result = {'libraryName': libraries[0][i], 'patientId': patientId, 'results': result}
+            full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
             logger.info(f'Got result for {libraries[0][i]}')
             results_cql.append(full_result)
 
@@ -216,7 +130,7 @@ def get_results(futures: list, libraries: list, patientId: str, flags: list):
             result = pre_result.json()
 
             # Formats result into format for further processing and linking
-            full_result = {'libraryName': libraries[1][i], 'patientId': patientId, 'results': result}
+            full_result = {'libraryName': libraries[1][i], 'patientId': patient_id, 'results': result}
             logger.info(f'Got result for {libraries[1][i]}')
             results_nlpql.append(full_result)
     elif flags[0] and not flags[1]:
@@ -229,7 +143,7 @@ def get_results(futures: list, libraries: list, patientId: str, flags: list):
             result = pre_result.json()
 
             # Formats result into format for further processing and linking
-            full_result = {'libraryName': libraries[0][i], 'patientId': patientId, 'results': result}
+            full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
             logger.info(f'Got result for {libraries[0][i]}')
             results_cql.append(full_result)
     elif not flags[0] and flags[1] and nlpaas_url != 'False':
@@ -242,35 +156,37 @@ def get_results(futures: list, libraries: list, patientId: str, flags: list):
             result = pre_result.json()
 
             # Formats result into format for further processing and linking
-            full_result = {'libraryName': libraries[0][i], 'patientId': patientId, 'results': result}
+            full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
             logger.info(f'Got result for {libraries[0][i]}')
             results_nlpql.append(full_result)
 
     return results_cql, results_nlpql
 
+
 def flatten_results(results):
+    '''Converts results from CQF Ruler and NLPaaS to flat dictionaries for easier downstream processing'''
     flat_results = {}
     keys_to_delete = []
     for i, result in enumerate(results):
         if result['results'] == []:
             keys_to_delete.append(i)
             continue
-        library_name = result['libraryName']
+        # library_name = result['libraryName']
         try:
             # This is trying to see if its a CQL result versus NLPAAS
             for resource_full in result['results']['entry']:
                 job_name = resource_full['fullUrl']
-                value_list = [item for item in resource_full['resource']['parameter'] if item.get('name')=='value']
+                value_list = [item for item in resource_full['resource']['parameter'] if item.get('name') == 'value']
                 value_dict = value_list[0]
                 value_value_list = list(value_dict.values())
                 value = value_value_list[1]
-                flat_results[job_name]=value
+                flat_results[job_name] = value
         except TypeError:
             # This goes through the NLPAAS outputs and "sorts" the result objects based on the nlpql_feature and adds to the flat results dictionary with a key of the
             # feature name and a value of the list of results that have that feature name
             job_names = []
-            for d in result['results']:
-                job_names.append(d['nlpql_feature'])
+            for dictionary in result['results']:
+                job_names.append(dictionary['nlpql_feature'])
             job_names = list(set(job_names))
             for job_name in job_names:
                 temp_list = []
@@ -281,7 +197,9 @@ def flatten_results(results):
 
     return flat_results
 
+
 def check_results(results):
+    '''Checks results for any errors returned from CQF Ruler or NLPaaS'''
     for result in results:
         logger.debug(result)
         try:
@@ -301,7 +219,9 @@ def check_results(results):
             pass
     return None
 
+
 def create_linked_results(results: list, form_name: str):
+    '''Creates the registry bundle from CQL and NLPQL results'''
 
     # Get form (using get_form from this API)
     form = get_form(form_name)
@@ -342,8 +262,8 @@ def create_linked_results(results: list, form_name: str):
             # For each question in the group in the form
             for question in group['item']:
 
-                linkId = question['linkId']
-                logger.info(f'Working on question {linkId}')
+                link_id = question['linkId']
+                logger.info(f'Working on question {link_id}')
                 # If the question has these extensions, get their values, if not, keep going
                 try:
                     for extension in question['extension']:
@@ -378,7 +298,7 @@ def create_linked_results(results: list, form_name: str):
                         "coding": [
                             {
                                 "system": f"urn:gtri:heat:form:{form_name}",
-                                "code": linkId
+                                "code": link_id
                             }
                         ]
                     },
@@ -391,7 +311,7 @@ def create_linked_results(results: list, form_name: str):
                 answer_obs = Observation(**answer_obs)
 
                 # Find the result in the CQL library run that corresponds to what the question has defined in its cqlTask extension
-                target_result = None
+                # target_result = None
                 single_return_value = None
                 supporting_resources = None
                 empty_single_return = False
@@ -403,23 +323,23 @@ def create_linked_results(results: list, form_name: str):
                     logger.error(f'The task {task} was not found in the library results')
                     return make_operation_outcome('not-found', f'The task {task} was not found in the library results')
                 try:
-                    if value_return['resourceType']=='Bundle':
+                    if value_return['resourceType'] == 'Bundle':
                         supporting_resources = value_return['entry']
-                        single_resource_flag = False
+                        # single_resource_flag = False
                         logger.info(f'Found task {task} and supporting resources')
                     else:
-                        resource_type = value_return['resourceType']
-                        single_resource_flag = True
+                        # resource_type = value_return['resourceType']
+                        # single_resource_flag = True
                         logger.info(f'Found task {task} result')
-                except (KeyError, TypeError) as e:
+                except (KeyError, TypeError):
                     single_return_value = value_return
                     logger.debug(f'Found single return value {single_return_value}')
 
                 if single_return_value == '[]':
                     empty_single_return = True
                     logger.info('Empty single return')
-                if type(single_return_value) == str and single_return_value[0:6]=='[Tuple':
-                    tuple_flag=True
+                if isinstance(single_return_value, str) and single_return_value[0:6] == '[Tuple':
+                    tuple_flag = True
                     logger.info('Found Tuple in results')
                 if supporting_resources is not None:
                     for resource in supporting_resources:
@@ -437,10 +357,10 @@ def create_linked_results(results: list, form_name: str):
                     del answer_obs['focus']
 
                 # If cardinality is a series, does the standard return body format
-                if cardinality == 'series' and tuple_flag==False:
+                if cardinality == 'series' and tuple_flag is False:
                     # Construct final answer object bundle before result bundle insertion
                     answer_obs_bundle_item = {
-                        'fullUrl' : 'Observation/'+answer_obs_uuid,
+                        'fullUrl': 'Observation/' + answer_obs_uuid,
                         'resource': answer_obs
                     }
 
@@ -448,17 +368,17 @@ def create_linked_results(results: list, form_name: str):
                 else:
                     single_answer = single_return_value
                     logger.debug(single_answer)
-                    if single_answer == None:
+                    if single_answer is None:
                         continue
 
-                    #value_key = 'value'+single_return_type
-                    if tuple_flag==False:
+                    # value_key = 'value'+single_return_type
+                    if tuple_flag is False:
                         answer_obs['valueString'] = single_answer
                         answer_obs_bundle_item = {
-                            'fullUrl' : 'Observation/'+answer_obs_uuid,
+                            'fullUrl': 'Observation/' + answer_obs_uuid,
                             'resource': answer_obs
                         }
-                    elif tuple_flag==True:
+                    elif tuple_flag:
                         tuple_string = single_answer.strip('[]')
                         tuple_string = tuple_string.split('Tuple ')
                         tuple_string.remove('')
@@ -482,13 +402,13 @@ def create_linked_results(results: list, form_name: str):
                             try:
                                 supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
                             except KeyError:
-                                return make_operation_outcome('not-found', f'The fhirField thats being returned in the CQL is not the the supporting resource type, this needs to be updated as more resources are added')
+                                return make_operation_outcome('not-found', 'The fhirField thats being returned in the CQL is not the the supporting resource type, this needs to be updated as more resources are added')
                             value_type = answer_tuple['valueType']
                             temp_uuid = str(uuid.uuid4())
                             if len(answer_value_split) >= 3:
-                                effectiveDateTime = answer_value_split[0]
+                                effective_datetime = answer_value_split[0]
                             else:
-                                effectiveDateTime = datetime.now()
+                                effective_datetime = datetime.now()
                             temp_answer_obs = {
                                 "resourceType": "Observation",
                                 "id": temp_uuid,
@@ -504,16 +424,16 @@ def create_linked_results(results: list, form_name: str):
                                     "coding": [
                                         {
                                             "system": f"urn:gtri:heat:form:{form_name}",
-                                            "code": linkId
+                                            "code": link_id
                                         }
                                     ]
                                 },
-                                "effectiveDateTime": effectiveDateTime,
+                                "effectiveDateTime": effective_datetime,
                                 "subject": {
                                     "reference": f'Patient/{patient_resource_id}'
                                 },
                                 "focus": [{
-                                    "reference": supporting_resource_type +'/'+answer_tuple['fhirResourceId'].split('/')[-1]
+                                    "reference": supporting_resource_type + '/' + answer_tuple['fhirResourceId'].split('/')[-1]
                                 }],
                                 "note": [{
                                     "text": answer_tuple['sourceNote']
@@ -533,7 +453,7 @@ def create_linked_results(results: list, form_name: str):
                                     "id": answer_tuple['fhirResourceId'].split('/')[-1],
                                     "identifier": [{
                                         "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                        "value": "MedicationStatement/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                        "value": "MedicationStatement/" + answer_tuple['fhirResourceId'].split('/')[-1],
                                     }],
                                     "status": "active",
                                     "medicationCodeableConcept": {
@@ -548,7 +468,7 @@ def create_linked_results(results: list, form_name: str):
                                         "reference": f'Patient/{patient_resource_id}'
                                     },
                                     "dosage": [{
-                                        "doseAndRate":[{
+                                        "doseAndRate": [{
                                             "doseQuantity": {
                                                 "value": answer_value_split[4],
                                                 "unit": answer_value_split[5]
@@ -557,7 +477,7 @@ def create_linked_results(results: list, form_name: str):
                                     }]
                                 }
                                 supporting_resource_bundle_entry = {
-                                    "fullUrl": 'MedicationStatement/'+supporting_resource["id"],
+                                    "fullUrl": 'MedicationStatement/' + supporting_resource["id"],
                                     "resource": supporting_resource
                                 }
                             elif supporting_resource_type == 'Observation':
@@ -566,10 +486,10 @@ def create_linked_results(results: list, form_name: str):
                                     "id": answer_tuple['fhirResourceId'].split('/')[-1],
                                     "identifier": [{
                                         "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                        "value": "Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                        "value": "Observation/" + answer_tuple['fhirResourceId'].split('/')[-1],
                                     }],
                                     "status": "final",
-                                    "code":{
+                                    "code": {
                                         "coding": [{
                                             "system": answer_value_split[1],
                                             "code": answer_value_split[2],
@@ -583,7 +503,7 @@ def create_linked_results(results: list, form_name: str):
                                     "valueString": ' '.join(answer_value_split[4:])
                                 }
                                 supporting_resource_bundle_entry = {
-                                    "fullUrl": 'Observation/'+supporting_resource["id"],
+                                    "fullUrl": 'Observation/' + supporting_resource["id"],
                                     "resource": supporting_resource
                                 }
                             elif supporting_resource_type == 'Condition':
@@ -592,9 +512,9 @@ def create_linked_results(results: list, form_name: str):
                                     "id": answer_tuple['fhirResourceId'].split('/')[-1],
                                     "identifier": [{
                                         "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                        "value": "Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                        "value": "Observation/" + answer_tuple['fhirResourceId'].split('/')[-1],
                                     }],
-                                    "code":{
+                                    "code": {
                                         "coding": [{
                                             "system": answer_value_split[1],
                                             "code": answer_value_split[2],
@@ -607,7 +527,7 @@ def create_linked_results(results: list, form_name: str):
                                     }
                                 }
                                 supporting_resource_bundle_entry = {
-                                    "fullUrl": 'Condition/'+supporting_resource["id"],
+                                    "fullUrl": 'Condition/' + supporting_resource["id"],
                                     "resource": supporting_resource
                                 }
                             tuple_observations.append(supporting_resource_bundle_entry)
@@ -619,8 +539,8 @@ def create_linked_results(results: list, form_name: str):
                         value_test = answer_obs_bundle_item['resource']['valueString']
                     except KeyError:
                         continue
-                #Add items to return bundle entry list
-                if tuple_flag == False:
+                # Add items to return bundle entry list
+                if not tuple_flag:
                     bundle_entries.append(answer_obs_bundle_item)
                 else:
                     bundle_entries.extend(tuple_observations)
@@ -638,7 +558,7 @@ def create_linked_results(results: list, form_name: str):
         delete_list = []
         for i, entry in enumerate(return_bundle['entry']):
             try:
-                if entry['valueString'] == None:
+                if entry['valueString'] is None:
                     delete_list.append(i)
             except KeyError:
                 pass
@@ -666,8 +586,8 @@ def create_linked_results(results: list, form_name: str):
             # For each question in the group in the form
             for question in group['item']:
 
-                linkId = question['linkId']
-                logger.info(f'Working on question {linkId}')
+                link_id = question['linkId']
+                logger.info(f'Working on question {link_id}')
                 library_task = '.'
                 # If the question has these extensions, get their values, if not, keep going
                 try:
@@ -705,7 +625,7 @@ def create_linked_results(results: list, form_name: str):
                         "coding": [
                             {
                                 "system": f"urn:gtri:heat:form:{form_name}",
-                                "code": linkId
+                                "code": link_id
                             }
                         ]
                     },
@@ -733,10 +653,10 @@ def create_linked_results(results: list, form_name: str):
                     tuple_str_list = tuple_str.split('"')[1:-1]
                     for i in range(0, len(tuple_str_list), 4):
                         key_name = tuple_str_list[i]
-                        value_name = tuple_str_list[i+2]
+                        value_name = tuple_str_list[i + 2]
                         tuple_dict[key_name] = value_name
 
-                    #TODO: Assert that tuples should have all 4 keys to work
+                    # TODO: Assert that tuples should have all 4 keys to work
                     temp_answer_obs.focus = [{'reference': f'{external_fhir_server_url}DocumentReference/{result["original_report_id"]}'}]
                     temp_answer_obs.note = [{'text': tuple_dict['sourceNote']}]
                     temp_answer_obs.valueString = tuple_dict['answerValue']
@@ -769,32 +689,34 @@ def create_linked_results(results: list, form_name: str):
         return make_operation_outcome('transient', 'Something went wrong and theres an empty return bundle. This shouldnt happen but this is here just in case.')
     return return_bundle
 
+
 def validate_cql(code: str):
+    '''Validates CQL using CQF Ruler before persisting as a Library resource'''
     escaped_string_code = code.replace('"', '\"')
     cql_operation_data = {
         "resourceType": "Parameters",
         "parameter": [
             {
-            "name": "patientId",
-            "valueString": "1"
-           },
-           {
-            "name": "context",
-            "valueString": "Patient"
-           },
-           {
-            "name": "code",
-            "valueString": escaped_string_code
-           }
-       ]
+                "name": "patientId",
+                "valueString": "1"
+            },
+            {
+                "name": "context",
+                "valueString": "Patient"
+            },
+            {
+                "name": "code",
+                "valueString": escaped_string_code
+            }
+        ]
     }
-    r = requests.post(cqfr4_fhir+'$cql', json=cql_operation_data)
-    if r.status_code != 200:
-        logger.error(f'Trying to validate the CQL before creating library failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Trying to validate the CQL before creating library failed with status code {r.status_code}')
-    validation_results = r.json()
-    first_fullUrl = validation_results['entry'][0]['fullUrl']
-    if first_fullUrl == 'Error':
+    req = requests.post(cqfr4_fhir + '$cql', json=cql_operation_data)
+    if req.status_code != 200:
+        logger.error(f'Trying to validate the CQL before creating library failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Trying to validate the CQL before creating library failed with status code {req.status_code}')
+    validation_results = req.json()
+    first_full_url = validation_results['entry'][0]['fullUrl']
+    if first_full_url == 'Error':
         logger.error('There were errors in CQL validation. Compiling errors into an OperationOutcome')
         num_errors = len(validation_results['entry'])
         diagnostics_list = []
@@ -803,7 +725,7 @@ def validate_cql(code: str):
             'issue': []
         }
         for i in range(0, num_errors):
-            diagnostics = ': '.join([item['name']+' '+item['valueString'] for item in validation_results['entry'][i]['resource']['parameter']])
+            diagnostics = ': '.join([item['name'] + ' ' + item['valueString'] for item in validation_results['entry'][i]['resource']['parameter']])
             diagnostics_list.append(diagnostics)
         for diagnostic in diagnostics_list:
             oo_item = {
@@ -819,13 +741,15 @@ def validate_cql(code: str):
         logger.info('CQL successfully validated!')
         return True
 
+
 def validate_nlpql(code: str):
+    '''Validates NLPQL using NLPaaS before persisting in CQF Ruler as a Library resource'''
     code = code.encode(encoding='utf-8')
-    r = requests.post(nlpaas_url+'job/validate_nlpql', data = code)
-    if r.status_code != 200:
-        logger.error(f'Trying to validate NLPQL against NLPAAS failed with status code {r.status_code}')
-        return make_operation_outcome('transient', f'Trying to validate NLPQL against NLPAAS failed with status code {r.status_code}')
-    validation_results = r.json()
+    req = requests.post(nlpaas_url + 'job/validate_nlpql', data=code)
+    if req.status_code != 200:
+        logger.error(f'Trying to validate NLPQL against NLPAAS failed with status code {req.status_code}')
+        return make_operation_outcome('transient', f'Trying to validate NLPQL against NLPAAS failed with status code {req.status_code}')
+    validation_results = req.json()
     try:
         valid = validation_results['valid']
     except KeyError:

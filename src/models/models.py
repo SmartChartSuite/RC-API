@@ -1,24 +1,25 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+'''Module for defining models and classes for the API'''
 from uuid import UUID, uuid4
 import logging
+from pydantic import BaseModel, Field
+
 
 class CustomFormatter(logging.Formatter):
-
+    '''Custom Formatter object for formatting logging messages throughout the API'''
     grey = "\x1b[38;21m"
     green = "\x1b[32m"
     yellow = "\x1b[33m"
     red = "\x1b[31m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    format = '{asctime}   {levelname:8s} --- {name}: {message}'
+    format_str = '{asctime}   {levelname:8s} --- {name}: {message}'
 
     FORMATS = {
-        logging.DEBUG: grey + format + reset,
-        logging.INFO: green + format + reset,
-        logging.WARNING: yellow + format + reset,
-        logging.ERROR: red + format + reset,
-        logging.CRITICAL: bold_red + format + reset
+        logging.DEBUG: grey + format_str + reset,
+        logging.INFO: green + format_str + reset,
+        logging.WARNING: yellow + format_str + reset,
+        logging.ERROR: red + format_str + reset,
+        logging.CRITICAL: bold_red + format_str + reset
     }
 
     def format(self, record):
@@ -26,66 +27,26 @@ class CustomFormatter(logging.Formatter):
         formatter = logging.Formatter(log_fmt, '%m/%d/%Y %I:%M:%S %p', style='{')
         return formatter.format(record)
 
-class Answer(BaseModel):
-    text: str
-    value: str
-
-class EvidenceBundleObject(BaseModel):
-    information: Optional[List[str]] = None
-
-class Question(BaseModel):
-    question_name: str
-    question_type: str
-    question_number: str
-    group: str
-    answers: List[Answer]
-    evidence_bundle: EvidenceBundleObject
-    nlpql_grouping: str
-
-class QuestionsJSON(BaseModel):
-    name: str
-    owner: str
-    description: str
-    allocated_users: list
-    groups: list
-    questions: List[Question]
-    evidence_bundles: list
-    version: str
-    questions_with_evidence_count: Optional[str] = None
-
-class StartJobPostBody(BaseModel):
-    formId: str
-    evidenceBundles: List[str]
-    patientId: str
-
-class NLPQLDict(BaseModel):
-    name: str
-    content: str
-
-class CQLPost(BaseModel):
-    code: str
 
 class JobIDParameter(BaseModel):
+    '''Job ID Parameter for Job Status support'''
     name: str = "jobId"
     valueString: UUID = Field(default_factory=uuid4)
 
+
 class JobStatusParameter(BaseModel):
+    '''Job Status Parameter for Job Status support'''
     name: str = "jobStatus"
     valueString: str = "inProgress"
 
+
 class ResultParameter(BaseModel):
+    '''Result Parameter for Job Status Support'''
     name: str = "result"
     resource: dict = {"resourceType": "Bundle"}
 
+
 class ParametersJob(BaseModel):
+    '''Parameters Job object for Job Status Support'''
     resourceType: str = "Parameters"
     parameter: list = [JobIDParameter(), JobStatusParameter(), ResultParameter()]
-
-bundle_template = {
-    "resourceType": "Bundle",
-    "meta": {
-        "lastUpdated": ""
-    },
-    "type": "collection",
-    "entry": []
-}

@@ -1,13 +1,18 @@
-from fastapi import APIRouter, Body, Request
+'''Webhook for Knowledge Base Integration'''
+import logging
+
+from fastapi import APIRouter, Request
 
 from ..util.git import clone_repo_to_temp_folder
-import logging
+
 logger = logging.getLogger('rcapi.routers.webhook')
 
 apirouter = APIRouter()
 
+
 @apirouter.post("/webhook")
 async def webhook(request: Request):
+    '''Webhook endpoint function'''
     message = await request.json()
     # TODO: Determine whether to use SSH or HTTPS from config
     clone_url = message['repository']['clone_url']
