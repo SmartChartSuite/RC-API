@@ -205,8 +205,10 @@ def check_results(results):
         try:
             if '_id' in result['results'][0]:  # This checks if the result is from NLPAAS and skips the CQL checking that comes next
                 continue
-        except (IndexError, KeyError):
+        except IndexError:
             continue
+        except KeyError:
+            pass
         if 'issue' in result['results']:
             issue = result['results']['issue']
             return make_operation_outcome(issue[0]['code'], issue[0]['diagnostics'])
