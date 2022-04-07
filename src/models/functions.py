@@ -203,20 +203,13 @@ def check_results(results):
     for result in results:
         logger.debug(result)
         try:
-            # This checks if the result is from NLPAAS and skips the CQL checking that comes next
-            job_id = result['results'][0]['_id']
-            continue
-        except KeyError:
-            pass
+            if '_id' in result['results'][0]:  # This checks if the result is from NLPAAS and skips the CQL checking that comes next
+                continue
         except IndexError:
             continue
-        try:
-            full_list = result['results']['entry']
-        except KeyError:
+        if 'issue' in result['results']:
             issue = result['results']['issue']
             return make_operation_outcome(issue[0]['code'], issue[0]['diagnostics'])
-        except IndexError:
-            pass
     return None
 
 
@@ -532,13 +525,11 @@ def create_linked_results(results: list, form_name: str):
                                 }
                             tuple_observations.append(supporting_resource_bundle_entry)
 
-                try:
-                    focus_test = answer_obs_bundle_item['resource']['focus']
-                except KeyError:
-                    try:
-                        value_test = answer_obs_bundle_item['resource']['valueString']
-                    except KeyError:
-                        continue
+                if all(key in answer_obs_bundle_item['resource'] for key in ['focus', 'valueString']):
+                    pass
+                else:
+                    continue
+
                 # Add items to return bundle entry list
                 if not tuple_flag:
                     bundle_entries.append(answer_obs_bundle_item)
