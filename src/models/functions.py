@@ -205,7 +205,7 @@ def check_results(results):
         try:
             if '_id' in result['results'][0]:  # This checks if the result is from NLPAAS and skips the CQL checking that comes next
                 continue
-        except IndexError:
+        except (IndexError, KeyError):
             continue
         if 'issue' in result['results']:
             issue = result['results']['issue']
