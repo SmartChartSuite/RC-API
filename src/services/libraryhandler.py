@@ -82,11 +82,15 @@ def create_cql(cql):
             logger.error(f'Posting Library {name} to server failed with status code {req.status_code}')
             return make_operation_outcome('transient', f'Posting Library {name} to server failed with status code {req.status_code}')
         resource_id = req.json()['id']
+        if isinstance(resource_id, str | int):
+            logger.info(f'Created Library Object on Server with Resource ID {resource_id}')
         return resource_id
 
     cql_library['id'] = existing_cql_library['id']
     req = requests.put(cqfr4_fhir + f'Library/{existing_cql_library["id"]}', json=cql_library)
     resource_id = req.json()['id']
+    if isinstance(resource_id, str | int):
+        logger.info(f'Created Library Object on Server with Resource ID {resource_id}')
     return resource_id
 
 
