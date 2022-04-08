@@ -641,6 +641,9 @@ def create_linked_results(results: list, form_name: str):
                     'resourceType': 'DocumentReference',
                     'status': 'current',
                     'type': {},
+                    'subject': {
+                        'reference': f'Patient/{patient_resource_id}'
+                    },
                     'content': []
                 }
 
