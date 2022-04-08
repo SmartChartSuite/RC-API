@@ -200,18 +200,20 @@ def flatten_results(results):
 
 def check_results(results):
     '''Checks results for any errors returned from CQF Ruler or NLPaaS'''
+    logger.info('Checking Results for Any Errors Returned by Services')
     for result in results:
         logger.debug(result)
         try:
             # This checks if the result is from NLPAAS and skips the CQL checking that comes next
-            job_id = result['results'][0]['_id']
-            continue
+            if '_id' in result['results'][0]:
+                continue
         except KeyError:
             pass
         except IndexError:
             continue
         try:
-            full_list = result['results']['entry']
+            if 'entry' in result['results']:
+                pass
         except KeyError:
             issue = result['results']['issue']
             return make_operation_outcome(issue[0]['code'], issue[0]['diagnostics'])
@@ -532,13 +534,11 @@ def create_linked_results(results: list, form_name: str):
                                 }
                             tuple_observations.append(supporting_resource_bundle_entry)
 
-                try:
-                    focus_test = answer_obs_bundle_item['resource']['focus']
-                except KeyError:
-                    try:
-                        value_test = answer_obs_bundle_item['resource']['valueString']
-                    except KeyError:
-                        continue
+                if any(key in answer_obs_bundle_item['resource'] for key in ['focus', 'valueString']):
+                    pass
+                else:
+                    continue
+
                 # Add items to return bundle entry list
                 if not tuple_flag:
                     bundle_entries.append(answer_obs_bundle_item)

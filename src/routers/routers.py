@@ -422,7 +422,7 @@ def start_jobs(post_body: Parameters):
         return results_check_return
     else:
         pass
-    logger.info('No CQL result errors, continuing to link results')
+    logger.info('No errors returned from backend services, continuing to link results')
 
     # Creates the registry bundle format
     logger.info('Start linking results')
