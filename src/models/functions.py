@@ -7,6 +7,7 @@ import base64
 
 from fhir.resources.operationoutcome import OperationOutcome  # TODO: replace to using fhirclient package as well as below imports
 from fhir.resources.observation import Observation
+from fhir.resources.documentreference import DocumentReference
 from requests_futures.sessions import FuturesSession
 import requests
 
@@ -242,7 +243,7 @@ def create_linked_results(results: list, form_name: str):
             target_library = result['libraryName']
 
         results = flatten_results(results_cql)
-        logger.info('"Flattened" Results into the dictionary')
+        logger.info('Flattened CQL Results into the dictionary')
         logger.debug(results)
 
         try:
@@ -577,7 +578,7 @@ def create_linked_results(results: list, form_name: str):
             target_library = result['libraryName']
 
         results = flatten_results(results_nlpql)
-        logger.info('"Flattened" Results into the dictionary')
+        logger.info('Flattened NLPQL Results into the dictionary')
         logger.debug(results)
 
         # For each group of questions in the form
@@ -636,7 +637,15 @@ def create_linked_results(results: list, form_name: str):
                 }
                 answer_obs_template = Observation(**answer_obs_template)
 
+                doc_ref_template = {
+                    'resourceType': 'DocumentReference',
+                    'status': 'current',
+                    'type': {},
+                    'content': []
+                }
+
                 tuple_observations = []
+                supporting_doc_refs = []
                 for result in task_result:
                     temp_answer_obs = answer_obs_template
                     temp_answer_obs_uuid = str(uuid.uuid4())
@@ -657,18 +666,84 @@ def create_linked_results(results: list, form_name: str):
                         tuple_dict[key_name] = value_name
 
                     # TODO: Assert that tuples should have all 4 keys to work
-                    temp_answer_obs.focus = [{'reference': f'{external_fhir_server_url}DocumentReference/{result["original_report_id"]}'}]
+                    temp_answer_obs.focus = [{'reference': f'DocumentReference/{result["original_report_id"]}'}]
                     temp_answer_obs.note = [{'text': tuple_dict['sourceNote']}]
                     temp_answer_obs.valueString = tuple_dict['answerValue']
                     temp_answer_obs.effectiveDateTime = result['report_date']
                     tuple_observations.append(temp_answer_obs.dict())
 
-                for tuple_observation in tuple_observations:
+                    # Creating a DocumentReference with data from the NLPaaS Return
+                    temp_doc_ref = doc_ref_template
+                    temp_doc_ref["id"] = result['original_report_id']
+                    temp_doc_ref["date"] = result['report_date']
+                    report_type_map = {
+                        "Radiology Note": {
+                            "system": "http://loinc.org",
+                            "code": "75490-3",
+                            "display": "Radiology Note"
+                        },
+                        "Discharge summary": {
+                            "system": "http://loinc.org",
+                            "code": "18842-5",
+                            "display": "Discharge summary"
+                        },
+                        "Hospital Note": {
+                            "system": "http://loinc.org",
+                            "code": "34112-3",
+                            "display": "Hospital Note"
+                        },
+                        "Pathology consult note": {
+                            "system": "http://loinc.org",
+                            "code": "60570-9",
+                            "display": "Pathology Consult note"
+                        },
+                        "Ancillary eye tests Narrative": {
+                            "system": "http://loinc.org",
+                            "code": "70946-9",
+                            "display": "Ancillary eye tests Narrative"
+                        },
+                        "Nursing notes": {
+                            "system": "http://loinc.org",
+                            "code": "46208-5",
+                            "display": "Nursing notes"
+                        },
+                        "Note": {
+                            "system": "http://loinc.org",
+                            "code": "34109-9",
+                            "display": "Note"
+                        }
+                    }
+                    try:
+                        temp_doc_ref["type"]["coding"] = [report_type_map[result['report_type']]]
+                    except KeyError:
+                        temp_doc_ref["type"]["coding"] = [report_type_map["Note"]]
+
+                    doc_bytes = result['report_text'].encode('utf-8')
+                    base64_bytes = base64.b64encode(doc_bytes)
+                    base64_doc = base64_bytes.decode('utf-8')
+
+                    temp_doc_ref["content"] = [{
+                        "attachment": {
+                            "contentType": "text/plain",
+                            "language": "en-US",
+                            "data": base64_doc
+                        }
+                    }]
+                    temp_doc_ref = DocumentReference(**temp_doc_ref)
+                    supporting_doc_refs.append(temp_doc_ref.dict())
+
+                for i, tuple_observation in enumerate(tuple_observations):
                     tuple_bundle_entry = {
                         'fullUrl': f'Observation/{tuple_observation["id"]}',
                         'resource': tuple_observation
                     }
                     bundle_entries.append(tuple_bundle_entry)
+
+                    doc_bundle_entry = {
+                        'fullUrl': f'DocumentReference/{supporting_doc_refs[i]["id"]}',
+                        'resource': supporting_doc_refs[i]
+                    }
+                    bundle_entries.append(doc_bundle_entry)
 
         return_bundle_nlpql = {
             'resourceType': 'Bundle',
