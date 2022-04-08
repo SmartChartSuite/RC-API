@@ -90,7 +90,7 @@ def create_cql(cql):
     req = requests.put(cqfr4_fhir + f'Library/{existing_cql_library["id"]}', json=cql_library)
     resource_id = req.json()['id']
     if isinstance(resource_id, str | int):
-        logger.info(f'Created Library Object on Server with Resource ID {resource_id}')
+        logger.info(f'Updated Library Object on Server with Resource ID {resource_id}')
     return resource_id
 
 
