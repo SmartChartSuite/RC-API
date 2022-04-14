@@ -319,6 +319,7 @@ def create_linked_results(results: list, form_name: str):
                 supporting_resources = None
                 empty_single_return = False
                 tuple_flag = False
+                tuple_string = ''
 
                 try:
                     value_return = results[task]
@@ -609,7 +610,7 @@ def create_linked_results(results: list, form_name: str):
                 try:
                     task_result = results[task]
                 except KeyError:
-                    logger.info(f'There were no results for task {task}, moving onto next question')
+                    logger.info(f'There were no results for NLPQL task {task}, moving onto next question')
                     continue
 
                 answer_obs_template = {
