@@ -28,7 +28,7 @@ def clone_repo_to_temp_folder(clone_url):
                     logger.info(f"Found NLPQL file at: {filepath}")
                     parse_nlpql_library(filepath)
                 else:
-                    print(dirs)
+                    pass
 
 
 def parse_cql_library(filepath):
