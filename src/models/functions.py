@@ -2,6 +2,7 @@
 
 from datetime import datetime
 import logging
+from time import sleep
 import uuid
 import base64
 
@@ -99,6 +100,7 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
         # Start running jobs
         future = session.post(nlpaas_url + job_url, json=nlpql_post_body)
         futures.append(future)
+        sleep(3)
     return futures
 
 
