@@ -267,6 +267,7 @@ def create_linked_results(results: list, form_name: str):
 
                 link_id = question['linkId']
                 logger.info(f'Working on question {link_id}')
+                library_task = ''
                 # If the question has these extensions, get their values, if not, keep going
                 try:
                     for extension in question['extension']:
@@ -276,8 +277,8 @@ def create_linked_results(results: list, form_name: str):
                             cardinality = extension['valueString']
                     library, task = library_task.split('.')
                     logger.debug(f'CQL Processing: Using library {library} and task {task} for this question')
-                except KeyError:
-                    logger.debug('No CQL Task found for this question, moving onto next question')
+                except (KeyError, ValueError):
+                    logger.info('No CQL Task found for this question, moving onto next question')
                     continue
 
                 if result_length == 1:
