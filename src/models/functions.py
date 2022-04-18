@@ -580,8 +580,9 @@ def create_linked_results(results: list, form_name: str):
 
         return_bundle_cql = return_bundle
 
-    if results_nlpql is not []:
+    if results_nlpql:
         bundle_entries = []
+        logger.debug('NLPQL Results:')
         logger.debug(results_nlpql)
         result_length = len(results_nlpql)
         if result_length == 1:
