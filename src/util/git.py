@@ -6,6 +6,7 @@ from git import Repo
 
 
 from ..services.libraryhandler import (create_cql, create_nlpql)
+from .settings import nlpaas_url
 
 logger = logging.getLogger('rcapi.util.git')
 
@@ -26,7 +27,10 @@ def clone_repo_to_temp_folder(clone_url):
                 elif filename.endswith(".nlpql"):
                     filepath = os.path.join(dirpath, filename)
                     logger.info(f"Found NLPQL file at: {filepath}")
-                    parse_nlpql_library(filepath)
+                    if nlpaas_url != "False":
+                        parse_nlpql_library(filepath)
+                    else:
+                        logger.info('NLPaaS URL not configured, not updating NLPQL Libraries')
                 else:
                     pass
 
