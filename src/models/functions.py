@@ -90,7 +90,7 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
         # Register NLPQL in NLPAAS
         try:
             req = requests.post(nlpaas_url + 'job/register_nlpql', data=nlpql_plain_text)
-        except ConnectionError as error:
+        except requests.exceptions.ConnectionError as error:
             logger.error(f'Trying to connect to NLPaaS failed with ConnectionError {error}')
             return make_operation_outcome('transient', 'There was an issue connecting to NLPaaS, see the logs for the full HTTPS error. Most often, this means that the DNS name cannot be resolved.')
         if req.status_code != 200:
@@ -833,7 +833,7 @@ def validate_nlpql(code: str):
     code = code.encode(encoding='utf-8')
     try:
         req = requests.post(nlpaas_url + 'job/validate_nlpql', data=code)
-    except ConnectionError as error:
+    except requests.exceptions.ConnectionError as error:
         logger.error(f'Error when trying to connect to NLPaaS {error}')
         return make_operation_outcome('transient', 'Error when connecting to NLPaaS, see full error in logs. This normally happens due to a DNS name issue.')
 
