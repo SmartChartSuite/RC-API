@@ -236,7 +236,7 @@ def create_linked_results(results: list, form_name: str):
     form = get_form(form_name)
     results_cql = results[0]
     results_nlpql = results[1]
-    patient_resource_id = results_nlpql[0]['patientId']
+    #
     return_bundle_cql = {}
     return_bundle_nlpql = {}
 
@@ -584,6 +584,8 @@ def create_linked_results(results: list, form_name: str):
         if result_length == 1:
             result = results_nlpql[0]
             target_library = result['libraryName']
+
+        patient_resource_id = results_nlpql[0]['patientId']
 
         results = flatten_results(results_nlpql)
         logger.info('Flattened NLPQL Results into the dictionary')
