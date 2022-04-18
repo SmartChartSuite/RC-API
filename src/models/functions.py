@@ -141,7 +141,7 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
             full_result = {'libraryName': libraries[1][i], 'patientId': patient_id, 'results': result}
             logger.info(f'Got result for {libraries[1][i]}')
             results_nlpql.append(full_result)
-    elif flags[0] and not flags[1]:
+    elif flags[0]:
         logger.debug('CQL Flag only')
         for i, future in enumerate(futures[0]):
             pre_result = future.result()
@@ -155,7 +155,7 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
             full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
             logger.info(f'Got result for {libraries[0][i]}')
             results_cql.append(full_result)
-    elif not flags[0] and flags[1] and nlpaas_url != 'False':
+    elif flags[1] and nlpaas_url != 'False':
         logger.debug('NLPQL Flag and NLPaaS URL is not False')
         for i, future in enumerate(futures[1]):
             pre_result = future.result()
