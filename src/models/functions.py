@@ -12,7 +12,7 @@ from fhir.resources.documentreference import DocumentReference
 from requests_futures.sessions import FuturesSession
 import requests
 
-from ..util.settings import cqfr4_fhir, nlpaas_url, external_fhir_server_url
+from ..util.settings import cqfr4_fhir, nlpaas_url
 
 logger = logging.getLogger('rcapi.models.functions')
 
@@ -88,11 +88,15 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
         nlpql_plain_text = nlpql_bytes.decode('utf-8')
 
         # Register NLPQL in NLPAAS
-        req = requests.post(nlpaas_url + 'job/register_nlpql', data=nlpql_plain_text)
+        try:
+            req = requests.post(nlpaas_url + 'job/register_nlpql', data=nlpql_plain_text)
+        except ConnectionError as error:
+            logger.error(f'Trying to connect to NLPaaS failed with ConnectionError {error}')
+            return make_operation_outcome('transient', 'There was an issue connecting to NLPaaS, see the logs for the full HTTPS error. Most often, this means that the DNS name cannot be resolved.')
         if req.status_code != 200:
-            logger.error(f'Trying to register NLPQL with NLPAAS failed with status code {req.status_code}')
+            logger.error(f'Trying to register NLPQL with NLPaaS failed with status code {req.status_code}')
             logger.error(req.text)
-            return make_operation_outcome('transient', f'Trying to register NLPQL with NLPAAS failed with code {req.status_code}')
+            return make_operation_outcome('transient', f'Trying to register NLPQL with NLPaaS failed with code {req.status_code}')
         result = req.json()['message']
         job_url = result.split("'")[1][1:]
         if len(job_url) == 1:
