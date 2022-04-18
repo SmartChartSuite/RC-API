@@ -769,12 +769,12 @@ def create_linked_results(results: list, form_name: str):
             'entry': bundle_entries
         }
 
-    if return_bundle_cql is not {} and return_bundle_nlpql is not {}:
+    if return_bundle_cql and return_bundle_nlpql:
         return_bundle = return_bundle_cql
         return_bundle['entry'].extend(return_bundle_nlpql['entry'])
-    elif return_bundle_cql is not {} and return_bundle_nlpql is {}:
+    elif return_bundle_cql:
         return_bundle = return_bundle_cql
-    elif return_bundle_cql is {} and return_bundle_nlpql is not {}:
+    elif return_bundle_nlpql:
         return_bundle = return_bundle_nlpql
     else:
         logger.error('Something went wrong! Return bundles were not created.')
