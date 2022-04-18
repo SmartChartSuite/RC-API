@@ -115,6 +115,7 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
     results_nlpql = []
     # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
     if flags[0] and flags[1] and nlpaas_url != 'False':
+        logger.debug('CQL and NLPQL Flag and NLPaaS URL is set')
         for i, future in enumerate(futures[0]):
             pre_result = future.result()
             if pre_result.status_code == 504:
@@ -141,6 +142,7 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
             logger.info(f'Got result for {libraries[1][i]}')
             results_nlpql.append(full_result)
     elif flags[0] and not flags[1]:
+        logger.debug('CQL Flag only')
         for i, future in enumerate(futures[0]):
             pre_result = future.result()
             if pre_result.status_code == 504:
@@ -154,6 +156,7 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
             logger.info(f'Got result for {libraries[0][i]}')
             results_cql.append(full_result)
     elif not flags[0] and flags[1] and nlpaas_url != 'False':
+        logger.debug('NLPQL Flag and NLPaaS URL is not False')
         for i, future in enumerate(futures[1]):
             pre_result = future.result()
             if pre_result.status_code == 504:
