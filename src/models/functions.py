@@ -526,7 +526,7 @@ def create_linked_results(results: list, form_name: str):
                                     "id": answer_tuple['fhirResourceId'].split('/')[-1],
                                     "identifier": [{
                                         "system": "https://gt-apps.hdap.gatech.edu/rc-api",
-                                        "value": "Observation/" + answer_tuple['fhirResourceId'].split('/')[-1],
+                                        "value": "Condition/" + answer_tuple['fhirResourceId'].split('/')[-1],
                                     }],
                                     "code": {
                                         "coding": [{
@@ -693,6 +693,10 @@ def create_linked_results(results: list, form_name: str):
                     temp_doc_ref = doc_ref_template
                     temp_doc_ref["id"] = result['original_report_id']
                     temp_doc_ref["date"] = result['report_date']
+                    temp_doc_ref["identifier"] = [{
+                        "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                        "value": "DocumentReference/" + result['original_report_id'],
+                    }]
                     report_type_map = {
                         "Radiology Note": {
                             "system": "http://loinc.org",
