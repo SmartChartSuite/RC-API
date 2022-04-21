@@ -16,10 +16,9 @@ from src.util.git import clone_repo_to_temp_folder
 from src.routers import routers, webhook
 from src.models.functions import make_operation_outcome
 
-from src.util.settings import api_docs, knowledgebase_repo_url
+from src.util.settings import api_docs, knowledgebase_repo_url, log_level, docs_prepend_url, deploy_url
 
 from src.models.models import CustomFormatter
-from src.util.settings import log_level, docs_prepend_url
 
 logger = logging.getLogger('rcapi')
 logger.setLevel(logging.INFO)
@@ -75,7 +74,7 @@ def custom_openapi():
         routes=app.routes,
     )
     # openapi_schema["info"]["x-logo"] = {"url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"}
-    openapi_schema["servers"] = [{"url": "https://gt-apps.hdap.gatech.edu/rc-api/"}]
+    openapi_schema["servers"] = [{"url": deploy_url}]
     openapi_schema["paths"]["/forms/cql"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
     openapi_schema["paths"]["/forms/nlpql"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
     openapi_schema["paths"]["/forms/cql/{library_name}"]["put"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}

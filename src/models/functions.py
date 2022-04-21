@@ -12,7 +12,7 @@ from fhir.resources.documentreference import DocumentReference
 from requests_futures.sessions import FuturesSession
 import requests
 
-from ..util.settings import cqfr4_fhir, nlpaas_url
+from ..util.settings import cqfr4_fhir, nlpaas_url, deploy_url
 
 logger = logging.getLogger('rcapi.models.functions')
 
@@ -466,7 +466,7 @@ def create_linked_results(results: list, form_name: str):
                                     "resourceType": "MedicationStatement",
                                     "id": answer_tuple['fhirResourceId'].split('/')[-1],
                                     "identifier": [{
-                                        "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                                        "system": deploy_url,
                                         "value": "MedicationStatement/" + answer_tuple['fhirResourceId'].split('/')[-1],
                                     }],
                                     "status": "active",
@@ -499,7 +499,7 @@ def create_linked_results(results: list, form_name: str):
                                     "resourceType": "Observation",
                                     "id": answer_tuple['fhirResourceId'].split('/')[-1],
                                     "identifier": [{
-                                        "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                                        "system": deploy_url,
                                         "value": "Observation/" + answer_tuple['fhirResourceId'].split('/')[-1],
                                     }],
                                     "status": "final",
@@ -525,7 +525,7 @@ def create_linked_results(results: list, form_name: str):
                                     "resourceType": "Condition",
                                     "id": answer_tuple['fhirResourceId'].split('/')[-1],
                                     "identifier": [{
-                                        "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                                        "system": deploy_url,
                                         "value": "Condition/" + answer_tuple['fhirResourceId'].split('/')[-1],
                                     }],
                                     "code": {
@@ -694,7 +694,7 @@ def create_linked_results(results: list, form_name: str):
                     temp_doc_ref["id"] = result['original_report_id']
                     temp_doc_ref["date"] = result['report_date']
                     temp_doc_ref["identifier"] = [{
-                        "system": "https://gt-apps.hdap.gatech.edu/rc-api",
+                        "system": deploy_url,
                         "value": "DocumentReference/" + result['original_report_id'],
                     }]
                     report_type_map = {
