@@ -292,7 +292,6 @@ def create_linked_results(results: list, form_name: str):
 
                 if result_length == 1:
                     if library != target_library:
-                        logger.debug(f'library {library} does not equal target library {target_library}')
                         continue
 
                 # Create answer observation for this question
