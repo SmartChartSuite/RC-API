@@ -404,10 +404,10 @@ def start_jobs(post_body: Parameters):
         logger.info(f'CQL Libraries to Run: {cql_libraries_to_run}')
         logger.info(f'NLPQL Libraries to Run: {nlpql_libraries_to_run}')
     elif cql_flag:
-        libraries_to_run = [cql_libraries_to_run]
+        libraries_to_run = [[cql_libraries_to_run]]
         logger.info(f'CQL Libraries to Run: {cql_libraries_to_run}')
     elif nlpql_flag and nlpaas_url != 'False':
-        libraries_to_run = [nlpql_libraries_to_run]
+        libraries_to_run = [[nlpql_libraries_to_run]]
         logger.info(f'NLPQL Libraries to Run: {nlpql_libraries_to_run}')
 
     # Passes future to get the results from it, will wait until all are processed until returning results

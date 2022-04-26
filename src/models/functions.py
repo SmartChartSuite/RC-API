@@ -292,6 +292,7 @@ def create_linked_results(results: list, form_name: str):
 
                 if result_length == 1:
                     if library != target_library:
+                        logger.debug(f'library {library} does not equal target library {target_library}')
                         continue
 
                 # Create answer observation for this question
@@ -366,9 +367,12 @@ def create_linked_results(results: list, form_name: str):
                     continue
 
                 answer_obs = answer_obs.dict()
-                if answer_obs['focus'] == []:
-                    logger.debug('Answer Observation does not have a focus, deleting field')
-                    del answer_obs['focus']
+                try:
+                    if answer_obs['focus'] == []:
+                        logger.debug('Answer Observation does not have a focus, deleting field')
+                        del answer_obs['focus']
+                except KeyError:
+                    pass
 
                 # If cardinality is a series, does the standard return body format
                 if cardinality == 'series' and tuple_flag is False:
