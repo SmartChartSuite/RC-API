@@ -349,7 +349,7 @@ def create_linked_results(results: list, form_name: str):
                     single_return_value = value_return
                     logger.debug(f'Found single return value {single_return_value}')
 
-                if single_return_value == '[]':
+                if single_return_value == '[]' or single_return_value == 'null':
                     empty_single_return = True
                     logger.info('Empty single return')
                 if isinstance(single_return_value, str) and single_return_value[0:6] == '[Tuple':
