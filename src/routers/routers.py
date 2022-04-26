@@ -323,9 +323,11 @@ def start_jobs(post_body: Parameters):
             if library_type == 'text/nlpql':
                 nlpql_flag = True
                 nlpql_library_server_ids = [library_server_id]
+                nlpql_libraries_to_run = search_bundle['entry'][0]['resource']['name']
             elif library_type == 'text/cql':
                 cql_flag = True
                 cql_library_server_ids = [library_server_id]
+                cql_libraries_to_run = search_bundle['entry'][0]['resource']['name']
             else:
                 logger.error(f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
                 return make_operation_outcome('invalid', f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
