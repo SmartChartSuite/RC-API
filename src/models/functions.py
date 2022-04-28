@@ -455,7 +455,7 @@ def create_linked_results(results: list, form_name: str):
                                 "note": [{
                                     "text": answer_tuple['sourceNote']
                                 }],
-                                f'value{value_type}': answer_tuple['answerValue']
+                                f'value{value_type}': answer_tuple['answerValue'].strip()
                             }
                             temp_answer_obs_entry = {
                                 "fullUrl": f'Observation/{temp_uuid}',
