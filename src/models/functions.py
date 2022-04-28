@@ -221,6 +221,9 @@ def check_results(results):
         except IndexError:
             continue
         try:
+            if result['resourceType'] == 'OperationOutcome':
+                issue = result['results']['issue']
+                return make_operation_outcome(issue[0]['code'], issue[0]['diagnostics'])
             if 'entry' in result['results']:
                 pass
         except KeyError:
