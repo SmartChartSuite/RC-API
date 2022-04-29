@@ -2,11 +2,10 @@
 
 from datetime import datetime
 import logging
-from time import sleep
 import uuid
 import base64
 
-from fhir.resources.operationoutcome import OperationOutcome  # TODO: replace to using fhirclient package as well as below imports
+from fhir.resources.operationoutcome import OperationOutcome
 from fhir.resources.observation import Observation
 from fhir.resources.documentreference import DocumentReference
 from requests_futures.sessions import FuturesSession
@@ -460,7 +459,7 @@ def create_linked_results(results: list, form_name: str):
                                 "note": [{
                                     "text": answer_tuple['sourceNote']
                                 }],
-                                f'value{value_type}': answer_tuple['answerValue'].strip()
+                                'valueString': answer_tuple['answerValue']
                             }
                             temp_answer_obs_entry = {
                                 "fullUrl": f'Observation/{temp_uuid}',
@@ -521,9 +520,27 @@ def create_linked_results(results: list, form_name: str):
                                     "effectiveDateTime": answer_value_split[0],
                                     "subject": {
                                         "reference": f'Patient/{patient_resource_id}'
-                                    },
-                                    "valueString": ' '.join(answer_value_split[4:])
+                                    }
                                 }
+
+                                match value_type:
+                                    case 'Quantity':
+                                        if len(answer_value_split) == 6:
+                                            supporting_resource['valueQuantity'] = {'value': answer_value_split[4], 'unit': answer_value_split[5]}
+                                        else:
+                                            supporting_resource['valueQuantity'] = {'value': answer_value_split[4]}
+                                    case 'String':
+                                        supporting_resource['valueString'] = answer_value_split[4]
+                                    case 'Ratio':
+                                        ratio_numerator, ratio_denominator = answer_value_split[4].split(':')
+                                        supporting_resource['valueRatio'] = {'numerator': {'value': ratio_numerator}, 'denominator': {'value': ratio_denominator}}
+                                    case 'CodeableConcept':
+                                        supporting_resource['valueCodeableConcept'] = {'coding': [{'system': answer_value_split[4], 'code': answer_value_split[5], 'display': answer_value_split[6]}]}
+                                    case 'Integer':
+                                        supporting_resource['valueInteger'] = int(answer_value_split[4])
+                                    case _:
+                                        supporting_resource['valueString'] = f'value[x] type of {value_type} not being handled in RC-API or CQL'
+
                                 supporting_resource_bundle_entry = {
                                     "fullUrl": 'Observation/' + supporting_resource["id"],
                                     "resource": supporting_resource
