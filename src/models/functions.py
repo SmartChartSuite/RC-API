@@ -189,12 +189,12 @@ def flatten_results(results):
                 value_value_list = list(value_dict.values())
                 value = value_value_list[1]
                 flat_results[job_name] = value
-        except (KeyError, TypeError):
+        except TypeError:
             # This goes through the NLPAAS outputs and "sorts" the result objects based on the nlpql_feature and adds to the flat results dictionary with a key of the
             # feature name and a value of the list of results that have that feature name
             job_names = []
-            for dictionary in result['results']:
-                job_names.append(dictionary['nlpql_feature'])
+            for result_dictionary in result['results']:
+                job_names.append(result_dictionary['nlpql_feature'])
             job_names = list(set(job_names))
             for job_name in job_names:
                 temp_list = []
@@ -221,7 +221,7 @@ def check_results(results):
             continue
         try:
             try:
-                if result['resourceType'] == 'OperationOutcome':
+                if result['results']['resourceType'] == 'OperationOutcome':
                     issue = result['results']['issue']
                     return make_operation_outcome(issue[0]['code'], issue[0]['diagnostics'])
             except KeyError:

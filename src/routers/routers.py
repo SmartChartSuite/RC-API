@@ -417,6 +417,7 @@ def start_jobs(post_body: Parameters):
 
     # Checks results for any CQL issues
     results_check_return = check_results(results_cql)
+
     if isinstance(results_check_return, dict):
         logger.error('There were errors in the CQL, see OperationOutcome')
         logger.error(results_check_return)
