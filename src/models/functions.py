@@ -189,7 +189,7 @@ def flatten_results(results):
                 value_value_list = list(value_dict.values())
                 value = value_value_list[1]
                 flat_results[job_name] = value
-        except TypeError:
+        except (KeyError, TypeError):
             # This goes through the NLPAAS outputs and "sorts" the result objects based on the nlpql_feature and adds to the flat results dictionary with a key of the
             # feature name and a value of the list of results that have that feature name
             job_names = []
