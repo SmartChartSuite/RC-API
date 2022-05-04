@@ -419,11 +419,11 @@ def create_linked_results(results: list, form_name: str):
                         for answer_tuple in tuple_dict_list:
                             answer_value_split = answer_tuple['answerValue'].split('^')
                             logger.info(answer_value_split)
-                            supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation', 'onset': 'Condition', 'code': 'Observation'}
+                            supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation', 'onset': 'Condition', 'code': 'Observation', 'Procedure.code': 'Procedure'}
                             try:
                                 supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
                             except KeyError:
-                                return make_operation_outcome('not-found', 'The fhirField thats being returned in the CQL is not the the supporting resource type, this needs to be updated as more resources are added')
+                                return make_operation_outcome('not-found', 'The fhirField thats being returned in the CQL is not a supported the supporting resource type, this needs to be updated as more resources are added')
                             value_type = answer_tuple['valueType']
                             temp_uuid = str(uuid.uuid4())
                             if len(answer_value_split) >= 3:
@@ -569,6 +569,31 @@ def create_linked_results(results: list, form_name: str):
                                     "fullUrl": 'Condition/' + supporting_resource["id"],
                                     "resource": supporting_resource
                                 }
+                            elif supporting_resource_type == 'Procedure':
+                                supporting_resource = {
+                                    "resourceType": "Procedure",
+                                    "id": answer_tuple['fhirResourceId'].split('/')[-1],
+                                    "identifier": [{
+                                        "system": deploy_url,
+                                        "value": "Procedure/" + answer_tuple['fhirResourceId'].split('/')[-1],
+                                    }],
+                                    "code": {
+                                        "coding": [{
+                                            "system": answer_value_split[1],
+                                            "code": answer_value_split[2],
+                                            "display": answer_value_split[3],
+                                        }]
+                                    },
+                                    "performedDateTime": answer_value_split[0],
+                                    "subject": {
+                                        "reference": f'Patient/{patient_resource_id}'
+                                    }
+                                }
+                                supporting_resource_bundle_entry = {
+                                    "fullUrl": 'Procedure/' + supporting_resource["id"],
+                                    "resource": supporting_resource
+                                }
+
                             tuple_observations.append(supporting_resource_bundle_entry)
 
                 if any(key in answer_obs_bundle_item['resource'] for key in ['focus', 'valueString']):
