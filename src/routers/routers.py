@@ -306,7 +306,15 @@ def start_jobs(post_body: Parameters):
 
     if not run_all_jobs:
         # Pull CQL library resource ID from CQF Ruler
-        req = requests.get(cqfr4_fhir + f'Library?name={library}')
+        library_name_ext_split = library.split('.')
+        if len(library_name_ext_split) == 2:
+            library_name = library_name_ext_split[0]
+            library_type = library_name_ext_split[1]
+        else:
+            library_name = library_name_ext_split
+            library_type = 'cql'
+
+        req = requests.get(cqfr4_fhir + f'Library?name={library_name}&content-type=text/{library_type.lower()}')
         if req.status_code != 200:
             logger.error(f'Getting library from server failed with status code {req.status_code}')
             return make_operation_outcome('transient', f'Getting library from server failed with status code {req.status_code}')
@@ -428,7 +436,7 @@ def start_jobs(post_body: Parameters):
 
     # Creates the registry bundle format
     logger.info('Start linking results')
-    bundled_results = create_linked_results([results_cql, results_nlpql], form_name)
+    bundled_results = create_linked_results([results_cql, results_nlpql], form_name, patient_id)
     logger.info('Finished linking results')
 
     return bundled_results

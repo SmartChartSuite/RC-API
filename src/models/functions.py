@@ -11,7 +11,7 @@ from fhir.resources.documentreference import DocumentReference
 from requests_futures.sessions import FuturesSession
 import requests
 
-from ..util.settings import cqfr4_fhir, nlpaas_url, deploy_url
+from ..util.settings import cqfr4_fhir, nlpaas_url, deploy_url, external_fhir_server_url, external_fhir_server_auth
 
 logger = logging.getLogger('rcapi.models.functions')
 
@@ -108,7 +108,6 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
 
 def get_results(futures: list, libraries: list, patient_id: str, flags: list):
     '''Get results from an async Futures Session'''
-
     results_cql = []
     results_nlpql = []
     # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
@@ -124,7 +123,7 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
 
             # Formats result into format for further processing and linking
             full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
-            logger.info(f'Got result for {libraries[0][i]}')
+            logger.info(f'Got result for {libraries[0][i]}.cql')
             results_cql.append(full_result)
 
         for i, future in enumerate(futures[1]):
@@ -137,7 +136,7 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
 
             # Formats result into format for further processing and linking
             full_result = {'libraryName': libraries[1][i], 'patientId': patient_id, 'results': result}
-            logger.info(f'Got result for {libraries[1][i]}')
+            logger.info(f'Got result for {libraries[1][i]}.nlpql')
             results_nlpql.append(full_result)
     elif flags[0]:
         logger.debug('CQL Flag only')
@@ -151,11 +150,11 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
 
             # Formats result into format for further processing and linking
             full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
-            logger.info(f'Got result for {libraries[0][i]}')
+            logger.info(f'Got result for {libraries[0][i]}.cql')
             results_cql.append(full_result)
     elif flags[1] and nlpaas_url != 'False':
         logger.debug('NLPQL Flag and NLPaaS URL is not False')
-        for i, future in enumerate(futures[1]):
+        for i, future in enumerate(futures[0]):
             pre_result = future.result()
             if pre_result.status_code == 504:
                 return 'Upstream request timeout'
@@ -165,7 +164,7 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
 
             # Formats result into format for further processing and linking
             full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
-            logger.info(f'Got result for {libraries[0][i]}')
+            logger.info(f'Got result for {libraries[0][i]}.nlpql')
             results_nlpql.append(full_result)
 
     return results_cql, results_nlpql
@@ -236,18 +235,18 @@ def check_results(results):
     return None
 
 
-def create_linked_results(results: list, form_name: str):
+def create_linked_results(results: list, form_name: str, patient_id: str):
     '''Creates the registry bundle from CQL and NLPQL results'''
 
     # Get form (using get_form from this API)
     form = get_form(form_name)
     results_cql = results[0]
     results_nlpql = results[1]
-    #
+
     return_bundle_cql = {}
     return_bundle_nlpql = {}
 
-    if results_cql is not []:
+    if results_cql:
         bundle_entries = []
         logger.debug(results_cql)
         result_length = len(results_cql)
@@ -261,9 +260,8 @@ def create_linked_results(results: list, form_name: str):
 
         try:
             patient_resource = results['Patient']
-            patient_resource_id = results['Patient']['id']
             patient_bundle_entry = {
-                "fullUrl": f'Patient/{patient_resource_id}',
+                "fullUrl": f'Patient/{patient_id}',
                 "resource": patient_resource
             }
             bundle_entries.append(patient_bundle_entry)
@@ -321,7 +319,7 @@ def create_linked_results(results: list, form_name: str):
                     },
                     "effectiveDateTime": datetime.now(),
                     "subject": {
-                        "reference": f'Patient/{patient_resource_id}'
+                        "reference": f'Patient/{patient_id}'
                     },
                     'focus': []
                 }
@@ -418,7 +416,7 @@ def create_linked_results(results: list, form_name: str):
                         tuple_observations = []
                         for answer_tuple in tuple_dict_list:
                             answer_value_split = answer_tuple['answerValue'].split('^')
-                            logger.info(answer_value_split)
+                            logger.info(f'Tuple found: {answer_value_split}')
                             supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation', 'onset': 'Condition', 'code': 'Observation', 'Procedure.code': 'Procedure'}
                             try:
                                 supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
@@ -451,7 +449,7 @@ def create_linked_results(results: list, form_name: str):
                                 },
                                 "effectiveDateTime": effective_datetime,
                                 "subject": {
-                                    "reference": f'Patient/{patient_resource_id}'
+                                    "reference": f'Patient/{patient_id}'
                                 },
                                 "focus": [{
                                     "reference": supporting_resource_type + '/' + answer_tuple['fhirResourceId'].split('/')[-1]
@@ -486,7 +484,7 @@ def create_linked_results(results: list, form_name: str):
                                     },
                                     "effectiveDateTime": answer_value_split[0],
                                     "subject": {
-                                        "reference": f'Patient/{patient_resource_id}'
+                                        "reference": f'Patient/{patient_id}'
                                     },
                                     "dosage": [{
                                         "doseAndRate": [{
@@ -519,7 +517,7 @@ def create_linked_results(results: list, form_name: str):
                                     },
                                     "effectiveDateTime": answer_value_split[0],
                                     "subject": {
-                                        "reference": f'Patient/{patient_resource_id}'
+                                        "reference": f'Patient/{patient_id}'
                                     }
                                 }
 
@@ -562,7 +560,7 @@ def create_linked_results(results: list, form_name: str):
                                     },
                                     "onsetDateTime": answer_value_split[0],
                                     "subject": {
-                                        "reference": f'Patient/{patient_resource_id}'
+                                        "reference": f'Patient/{patient_id}'
                                     }
                                 }
                                 supporting_resource_bundle_entry = {
@@ -586,7 +584,7 @@ def create_linked_results(results: list, form_name: str):
                                     },
                                     "performedDateTime": answer_value_split[0],
                                     "subject": {
-                                        "reference": f'Patient/{patient_resource_id}'
+                                        "reference": f'Patient/{patient_id}'
                                     }
                                 }
                                 supporting_resource_bundle_entry = {
@@ -595,11 +593,11 @@ def create_linked_results(results: list, form_name: str):
                                 }
 
                             tuple_observations.append(supporting_resource_bundle_entry)
-
-                if any(key in answer_obs_bundle_item['resource'] for key in ['focus', 'valueString']):
-                    pass
-                else:
-                    continue
+                if not tuple_flag:
+                    if any(key in answer_obs_bundle_item['resource'] for key in ['focus', 'valueString']):
+                        pass
+                    else:
+                        continue
 
                 # Add items to return bundle entry list
                 if not tuple_flag:
@@ -644,6 +642,9 @@ def create_linked_results(results: list, form_name: str):
         results = flatten_results(results_nlpql)
         logger.info('Flattened NLPQL Results into the dictionary')
         logger.debug(results)
+
+        patient_resource = requests.get(external_fhir_server_url + f'Patient/{patient_id}', headers={'Authorization': external_fhir_server_auth}).json()
+        bundle_entries.append(patient_resource)
 
         # For each group of questions in the form
         for group in form['item']:

@@ -33,7 +33,7 @@ if log_level == "DEBUG":
 
 # ================= FastAPI variable ===================================
 
-if api_docs == 'True':
+if api_docs.lower() == 'true':
     app = FastAPI(title='SmartPacer Results Combining (RC) API', version='0.5.0', include_in_schema=True, docs_url=None, redoc_url=None)
 else:
     app = FastAPI(title='SmartPacer Results Combining (RC) API', version='0.5.0', include_in_schema=False, docs_url=None, redoc_url=None)
@@ -106,7 +106,7 @@ def startup_event():
         logger.info("Skipping initial library load.")
 
 
-if api_docs == 'True':
+if api_docs.lower() == 'true':
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
         '''Custom Swagger UI HTML'''
