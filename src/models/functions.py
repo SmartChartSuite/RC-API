@@ -186,7 +186,11 @@ def flatten_results(results):
                 value_list = [item for item in resource_full['resource']['parameter'] if item.get('name') == 'value']
                 value_dict = value_list[0]
                 value_value_list = list(value_dict.values())
-                value = value_value_list[1]
+                print('value value list: ', value_value_list)
+                try:
+                    value = value_value_list[1]
+                except IndexError:
+                    value = 'null'
                 flat_results[job_name] = value
         except TypeError:
             # This goes through the NLPAAS outputs and "sorts" the result objects based on the nlpql_feature and adds to the flat results dictionary with a key of the

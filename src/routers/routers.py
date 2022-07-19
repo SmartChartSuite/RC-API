@@ -320,7 +320,7 @@ def start_jobs(post_body: Parameters):
             library_name = library_name_ext_split[0]
             library_type = library_name_ext_split[1]
         else:
-            library_name = library_name_ext_split
+            library_name = library
             library_type = 'cql'
 
         req = requests.get(cqfr4_fhir + f'Library?name={library_name}&content-type=text/{library_type.lower()}')
