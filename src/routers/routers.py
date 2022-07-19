@@ -10,6 +10,7 @@ from fastapi import (
     APIRouter, Body, BackgroundTasks
 )
 from fastapi.responses import JSONResponse
+from fastapi_utils.tasks import repeat_every
 
 from fhir.resources.questionnaire import Questionnaire  # TODO: replace to using fhirclient package as well as below imports
 from fhir.resources.library import Library
@@ -30,6 +31,14 @@ logger = logging.getLogger('rcapi.routers.routers')
 
 apirouter = APIRouter()
 jobs: Dict[str, ParametersJob] = {}
+
+
+@repeat_every(seconds=60 * 60 * 24, logger=logger)
+def clear_jobs_array():
+    logger.info('Clearing jobs array...')
+    del jobs
+    jobs: Dict[str, ParametersJob] = {}
+    logger.info('Finished clearing jobs')
 
 
 @apirouter.get("/")
