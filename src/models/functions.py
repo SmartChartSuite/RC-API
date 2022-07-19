@@ -186,7 +186,6 @@ def flatten_results(results):
                 value_list = [item for item in resource_full['resource']['parameter'] if item.get('name') == 'value']
                 value_dict = value_list[0]
                 value_value_list = list(value_dict.values())
-                print('value value list: ', value_value_list)
                 try:
                     value = value_value_list[1]
                 except IndexError:
