@@ -8,7 +8,7 @@ import base64
 from fhir.resources.operationoutcome import OperationOutcome
 from fhir.resources.observation import Observation
 from fhir.resources.documentreference import DocumentReference
-from regex import P
+
 from requests_futures.sessions import FuturesSession
 import requests
 
