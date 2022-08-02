@@ -8,6 +8,7 @@ import base64
 from fhir.resources.operationoutcome import OperationOutcome
 from fhir.resources.observation import Observation
 from fhir.resources.documentreference import DocumentReference
+from regex import P
 from requests_futures.sessions import FuturesSession
 import requests
 
@@ -646,8 +647,13 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
         logger.info('Flattened NLPQL Results into the dictionary')
         logger.debug(results)
 
-        patient_resource = requests.get(external_fhir_server_url + f'Patient/{patient_id}', headers={'Authorization': external_fhir_server_auth}).json()
-        bundle_entries.append(patient_resource)
+        if not results_cql:  # If there are only NLPQL results, there needs to be a Patient resource in the Bundle
+            patient_resource = requests.get(external_fhir_server_url + f'Patient/{patient_id}', headers={'Authorization': external_fhir_server_auth}).json()
+            patient_bundle_entry = {
+                'fullUrl': f'Patient/{patient_id}',
+                'resource': patient_resource
+            }
+            bundle_entries.append(patient_bundle_entry)
 
         # For each group of questions in the form
         for group in form['item']:
