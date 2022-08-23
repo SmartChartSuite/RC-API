@@ -20,3 +20,6 @@ if external_fhir_server_url[-1] != '/':
 
 if deploy_url[-1] != '/':
     deploy_url += '/'
+
+if nlpaas_url[-1] != '/':
+    nlpaas_url += '/'

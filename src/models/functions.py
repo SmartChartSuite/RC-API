@@ -70,9 +70,9 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
     nlpql_post_body = {
         "patient_id": patient_id,
         "fhir": {
-            "serviceUrl": external_fhir_server_url_string,
+            "service_url": external_fhir_server_url_string,
             "auth": {
-                "type": external_fhir_server_auth_split[0],
+                "auth_type": external_fhir_server_auth_split[0],
                 "token": external_fhir_server_auth_split[1]
             }
         }
@@ -89,18 +89,16 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
 
         # Register NLPQL in NLPAAS
         try:
-            req = requests.post(nlpaas_url + 'job/register_nlpql', data=nlpql_plain_text)
+            req = requests.post(nlpaas_url + 'job/register_nlpql', data=nlpql_plain_text, headers={'Content-Type': 'text/plain'})
         except requests.exceptions.ConnectionError as error:
             logger.error(f'Trying to connect to NLPaaS failed with ConnectionError {error}')
             return make_operation_outcome('transient', 'There was an issue connecting to NLPaaS, see the logs for the full HTTPS error. Most often, this means that the DNS name cannot be resolved.')
-        if req.status_code != 200:
+        if req.status_code not in [200, 201]:
             logger.error(f'Trying to register NLPQL with NLPaaS failed with status code {req.status_code}')
             logger.error(req.text)
             return make_operation_outcome('transient', f'Trying to register NLPQL with NLPaaS failed with code {req.status_code}')
-        result = req.json()['message']
-        job_url = result.split("'")[1][1:]
-        if len(job_url) == 1:
-            return make_operation_outcome('invalid', job_url)
+        result = req.json()
+        job_url = result['location']
         # Start running jobs
         future = session.post(nlpaas_url + job_url, json=nlpql_post_body)
         futures.append(future)
@@ -133,7 +131,10 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
                 return 'Upstream request timeout'
             if pre_result.status_code == 408:
                 return 'stream timeout'
-            result = pre_result.json()
+            if pre_result.status_code in [200, 201]:
+                result = pre_result.json()
+            else:
+                result = []
 
             # Formats result into format for further processing and linking
             full_result = {'libraryName': libraries[1][i], 'patientId': patient_id, 'results': result}
@@ -192,7 +193,7 @@ def flatten_results(results):
                 except IndexError:
                     value = 'null'
                 flat_results[job_name] = value
-        except TypeError:
+        except (TypeError, KeyError):
             # This goes through the NLPAAS outputs and "sorts" the result objects based on the nlpql_feature and adds to the flat results dictionary with a key of the
             # feature name and a value of the list of results that have that feature name
             job_names = []
@@ -218,6 +219,8 @@ def check_results(results):
             # This checks if the result is from NLPAAS and skips the CQL checking that comes next
             if '_id' in result['results'][0]:
                 continue
+            if 'detail' in result['results']:
+                return make_operation_outcome('processing', result['results']['detail'])
         except KeyError:
             pass
         except IndexError:
