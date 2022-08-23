@@ -34,9 +34,9 @@ if log_level == "DEBUG":
 # ================= FastAPI variable ===================================
 
 if api_docs.lower() == 'true':
-    app = FastAPI(title='SmartPacer Results Combining (RC) API', version='0.5.0', include_in_schema=True, docs_url=None, redoc_url=None)
+    app = FastAPI(title='SmartPacer Results Combining (RC) API', version='0.5.4', include_in_schema=True, docs_url=None, redoc_url=None)
 else:
-    app = FastAPI(title='SmartPacer Results Combining (RC) API', version='0.5.0', include_in_schema=False, docs_url=None, redoc_url=None)
+    app = FastAPI(title='SmartPacer Results Combining (RC) API', version='0.5.4', include_in_schema=False, docs_url=None, redoc_url=None)
 
 app.add_middleware(
     CORSMiddleware,

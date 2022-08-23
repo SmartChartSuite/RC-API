@@ -746,7 +746,7 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                         tuple_dict[key_name] = value_name
 
                     # TODO: Assert that tuples should have all 4 keys to work
-                    temp_answer_obs.focus = [{'reference': f'DocumentReference/{result["original_report_id"]}'}]
+                    temp_answer_obs.focus = [{'reference': f'DocumentReference/{result["report_id"]}'}]
                     temp_answer_obs.note = [{'text': tuple_dict['sourceNote']}]
                     temp_answer_obs.valueString = tuple_dict['answerValue']
                     temp_answer_obs.effectiveDateTime = result['report_date']
@@ -754,11 +754,11 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
 
                     # Creating a DocumentReference with data from the NLPaaS Return
                     temp_doc_ref = doc_ref_template
-                    temp_doc_ref["id"] = result['original_report_id']
+                    temp_doc_ref["id"] = result['report_id']
                     temp_doc_ref["date"] = result['report_date']
                     temp_doc_ref["identifier"] = [{
                         "system": deploy_url,
-                        "value": "DocumentReference/" + result['original_report_id'],
+                        "value": "DocumentReference/" + result['report_id'],
                     }]
                     report_type_map = {
                         "Radiology Note": {
