@@ -813,6 +813,10 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                             "data": base64_doc
                         }
                     }]
+
+                    if len(temp_doc_ref['date']) == 10:  # Handles just date and no time for validation
+                        temp_doc_ref['date'] = datetime.strptime(temp_doc_ref['date'], '%Y-%m-%d')
+
                     temp_doc_ref = DocumentReference(**temp_doc_ref)
                     supporting_doc_refs.append(temp_doc_ref.dict())
 
