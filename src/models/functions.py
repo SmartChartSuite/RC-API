@@ -99,6 +99,9 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
             return make_operation_outcome('transient', f'Trying to register NLPQL with NLPaaS failed with code {req.status_code}')
         result = req.json()
         job_url = result['location']
+        if job_url[0] == '/':
+            job_url = job_url[1:]
+
         # Start running jobs
         future = session.post(nlpaas_url + job_url, json=nlpql_post_body)
         futures.append(future)
