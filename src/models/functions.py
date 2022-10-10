@@ -742,10 +742,10 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                     logger.info('Found tuple in NLPQL results')
                     logger.debug(tuple_str)
                     tuple_dict = {}
-                    tuple_str_list = tuple_str.split('"')[1:-1]
-                    for i in range(0, len(tuple_str_list), 4):
+                    tuple_str_list = tuple_str.split('"')
+                    for i in range(3, len(tuple_str_list), 8):
                         key_name = tuple_str_list[i]
-                        value_name = tuple_str_list[i + 2]
+                        value_name = tuple_str_list[i + 4]
                         tuple_dict[key_name] = value_name
 
                     # TODO: Assert that tuples should have all 4 keys to work
