@@ -66,17 +66,21 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
 
     session = FuturesSession()
     futures = []
-    external_fhir_server_auth_split = external_fhir_server_auth.split(' ')
+
     nlpql_post_body = {
         "patient_id": patient_id,
         "fhir": {
-            "service_url": external_fhir_server_url_string,
-            "auth": {
-                "auth_type": external_fhir_server_auth_split[0],
-                "token": external_fhir_server_auth_split[1]
-            }
+            "service_url": external_fhir_server_url_string
         }
     }
+
+    if external_fhir_server_auth:
+        external_fhir_server_auth_split = external_fhir_server_auth.split(' ')
+        nlpql_post_body['fhir']['auth'] = {
+            "auth_type": external_fhir_server_auth_split[0],
+            "token": external_fhir_server_auth_split[1]
+        }
+
     for library_id in library_ids:
         # Get text NLPQL from the Library in CQF Ruler
         req = requests.get(cqfr4_fhir + f'Library/{library_id}')
@@ -654,7 +658,10 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
         logger.debug(results)
 
         if not results_cql:  # If there are only NLPQL results, there needs to be a Patient resource in the Bundle
-            patient_resource = requests.get(external_fhir_server_url + f'Patient/{patient_id}', headers={'Authorization': external_fhir_server_auth}).json()
+            if external_fhir_server_auth:
+                patient_resource = requests.get(external_fhir_server_url + f'Patient/{patient_id}', headers={'Authorization': external_fhir_server_auth}).json()
+            else:
+                patient_resource = requests.get(external_fhir_server_url + f'Patient/{patient_id}').json()
             patient_bundle_entry = {
                 'fullUrl': f'Patient/{patient_id}',
                 'resource': patient_resource

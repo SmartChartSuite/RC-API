@@ -353,7 +353,10 @@ def start_jobs(post_body: Parameters):
             return make_operation_outcome('not-found', f'Library with name {library} not found')
 
     if has_patient_identifier:
-        req = requests.get(external_fhir_server_url + f'/Patient?identifier={patient_identifier}', headers={'Authorization': external_fhir_server_auth})
+        if external_fhir_server_auth:
+            req = requests.get(external_fhir_server_url + f'/Patient?identifier={patient_identifier}', headers={'Authorization': external_fhir_server_auth})
+        else:
+            req = requests.get(external_fhir_server_url + f'/Patient?identifier={patient_identifier}')
         if req.status_code != 200:
             logger.error(f'Getting Patient from server failed with status code {req.status_code}')
             return make_operation_outcome('transient', f'Getting library from server failed with status code {req.status_code}')
@@ -394,12 +397,13 @@ def start_jobs(post_body: Parameters):
                             "code": "any"
                         }]
                     }],
-                    "address": external_fhir_server_url,
-                    "header": [f'Authorization: {external_fhir_server_auth}']
+                    "address": external_fhir_server_url
                 }
             }
         ]
     }
+    if external_fhir_server_auth:
+        parameters_post['parameter'][2]["header"] = [f'Authorization: {external_fhir_server_auth}']
 
     # Pass library id to be evaluated, gets back a future object that represent the pending status of the POST
     futures = []
@@ -439,8 +443,6 @@ def start_jobs(post_body: Parameters):
         logger.error('There were errors in the CQL, see OperationOutcome')
         logger.error(results_check_return)
         return results_check_return
-    else:
-        pass
     logger.info('No errors returned from backend services, continuing to link results')
 
     # Creates the registry bundle format
