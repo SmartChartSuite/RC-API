@@ -306,9 +306,8 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                     logger.info('No CQL Task found for this question, moving onto next question')
                     continue
 
-                if result_length == 1:
-                    if library != target_library:
-                        continue
+                if result_length == 1 and library != target_library:
+                    continue
 
                 # Create answer observation for this question
                 answer_obs_uuid = str(uuid.uuid4())
@@ -365,9 +364,11 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                     single_return_value = value_return
                     logger.debug(f'Found single return value {single_return_value}')
 
-                if single_return_value == '[]' or single_return_value == 'null':
+                if single_return_value in ['[]', 'null']:
                     empty_single_return = True
                     logger.info('Empty single return')
+                if not single_return_value:
+                    empty_single_return = True
                 if isinstance(single_return_value, str) and single_return_value[0:6] == '[Tuple':
                     tuple_flag = True
                     logger.info('Found Tuple in results')
@@ -378,7 +379,7 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                             answer_obs.focus.append(focus_object)
                         except KeyError:
                             pass
-                if empty_single_return:
+                if empty_single_return and not supporting_resources:
                     continue
 
                 answer_obs = answer_obs.dict()
@@ -390,7 +391,7 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                     pass
 
                 # If cardinality is a series, does the standard return body format
-                if cardinality == 'series' and tuple_flag is False:
+                if cardinality == 'series' and not tuple_flag:
                     # Construct final answer object bundle before result bundle insertion
                     answer_obs_bundle_item = {
                         'fullUrl': 'Observation/' + answer_obs_uuid,
@@ -400,9 +401,7 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                 # If cardinality is a single, does a modified return body to have the value in multiple places
                 else:
                     single_answer = single_return_value
-                    logger.debug(single_answer)
-                    if single_answer is None:
-                        continue
+                    logger.debug(f'Single Answer: {single_answer}')
 
                     # value_key = 'value'+single_return_type
                     if tuple_flag is False:
@@ -607,11 +606,9 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                                 }
 
                             tuple_observations.append(supporting_resource_bundle_entry)
-                if not tuple_flag:
-                    if any(key in answer_obs_bundle_item['resource'] for key in ['focus', 'valueString']):
-                        pass
-                    else:
-                        continue
+
+                if not tuple_flag and not any(key in answer_obs_bundle_item['resource'] for key in ['focus', 'valueString']):
+                    continue
 
                 # Add items to return bundle entry list
                 if not tuple_flag:
@@ -632,7 +629,7 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
         delete_list = []
         for i, entry in enumerate(return_bundle['entry']):
             try:
-                if entry['valueString'] is None:
+                if not entry['valueString'] and not entry['focus']:
                     delete_list.append(i)
             except KeyError:
                 pass
