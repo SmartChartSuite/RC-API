@@ -403,7 +403,7 @@ def start_jobs(post_body: Parameters):
         ]
     }
     if external_fhir_server_auth:
-        parameters_post['parameter'][2]["header"] = [f'Authorization: {external_fhir_server_auth}']
+        parameters_post['parameter'][2]['resource']["header"] = [f'Authorization: {external_fhir_server_auth}']
 
     # Pass library id to be evaluated, gets back a future object that represent the pending status of the POST
     futures = []
@@ -423,7 +423,7 @@ def start_jobs(post_body: Parameters):
     if cql_flag and nlpql_flag and nlpaas_url != 'False':
         libraries_to_run = [cql_libraries_to_run, nlpql_libraries_to_run]
     elif cql_flag:
-        libraries_to_run = [[cql_libraries_to_run]]
+        libraries_to_run = [cql_libraries_to_run]
     elif nlpql_flag and nlpaas_url != 'False':
         libraries_to_run = [[nlpql_libraries_to_run]]
 
