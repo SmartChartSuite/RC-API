@@ -158,8 +158,12 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
             result = pre_result.json()
 
             # Formats result into format for further processing and linking
-            full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
-            logger.info(f'Got result for {libraries[0][i]}.cql')
+            if isinstance(libraries[0], list):
+                full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
+                logger.info(f'Got result for {libraries[0][i]}.cql')
+            else:
+                full_result = {'libraryName': libraries[0], 'patientId': patient_id, 'results': result}
+                logger.info(f'Got result for {libraries[0]}.cql')
             results_cql.append(full_result)
     elif flags[1] and nlpaas_url != 'False':
         logger.debug('NLPQL Flag and NLPaaS URL is not False')
