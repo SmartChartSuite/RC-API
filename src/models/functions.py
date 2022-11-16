@@ -612,6 +612,8 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
 
                 # Add items to return bundle entry list
                 if not tuple_flag:
+                    if 'valueString' in answer_obs_bundle_item['resource'] and not answer_obs_bundle_item['resource']['valueString']:
+                        del answer_obs_bundle_item['resource']['valueString']
                     bundle_entries.append(answer_obs_bundle_item)
                 else:
                     bundle_entries.extend(tuple_observations)
