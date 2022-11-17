@@ -139,7 +139,7 @@ def get_nlpql(library_name: str):
 @apirouter.get("/forms/{form_name}", response_model=Union[dict, str])
 def get_form(form_name: str):
     '''Return Questionnaire from CQF Ruler based on form name'''
-    req = requests.get(cqfr4_fhir + f'Questionnaire?name={form_name}')
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name:exact={form_name}')
     if req.status_code != 200:
         logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
         return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {req.status_code}')
@@ -158,7 +158,7 @@ def get_form(form_name: str):
 def save_form(questions: Questionnaire):
     '''Check to see if library and version of this exists'''
 
-    req = requests.get(cqfr4_fhir + f'Questionnaire?name={questions.name}&version={questions.version}')
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name:exact={questions.name}&version={questions.version}')
     if req.status_code != 200:
         logger.error(f'Trying to get Questionnaire from server failed with status code {req.status_code}')
         return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {req.status_code}')
@@ -244,7 +244,7 @@ def start_jobs(post_body: Parameters):
         return make_operation_outcome('required', 'jobPackage was not found in the parameters posted')
 
     # Pull Questionnaire resource ID from CQF Ruler
-    req = requests.get(cqfr4_fhir + f'Questionnaire?name={form_name}')
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name:exact={form_name}')
     if req.status_code != 200:
         logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
         return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {req.status_code}')
@@ -503,7 +503,7 @@ def save_cql(code: str = Body(...)):
 @apirouter.put("/forms/{form_name}")
 def update_form(form_name: str, new_questions: Questionnaire):
     '''Update Questionnaire using namee'''
-    req = requests.get(cqfr4_fhir + f'Questionnaire?name={form_name}')
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name:exact={form_name}')
     if req.status_code != 200:
         logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
         return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {req.status_code}')

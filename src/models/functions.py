@@ -34,7 +34,7 @@ def make_operation_outcome(code: str, diagnostics: str, severity: str = 'error')
 def get_form(form_name: str):
     '''Returns the Questionnaire from CQF Ruler based on form name'''
 
-    req = requests.get(cqfr4_fhir + f'Questionnaire?name={form_name}')
+    req = requests.get(cqfr4_fhir + f'Questionnaire?name:exact={form_name}')
     if req.status_code != 200:
         logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
         return make_operation_outcome('transient', f'Getting Questionnaire from server failed with code {req.status_code}')
