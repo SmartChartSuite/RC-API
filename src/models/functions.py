@@ -922,7 +922,7 @@ def validate_nlpql(code: str):
     '''Validates NLPQL using NLPaaS before persisting in CQF Ruler as a Library resource'''
     code = code.encode(encoding='utf-8')
     try:
-        req = requests.post(nlpaas_url + 'job/validate_nlpql', data=code)
+        req = requests.post(nlpaas_url + 'job/validate_nlpql', data=code, headers={'Content-Type': 'text/plain'})
     except requests.exceptions.ConnectionError as error:
         logger.error(f'Error when trying to connect to NLPaaS {error}')
         return make_operation_outcome('transient', 'Error when connecting to NLPaaS, see full error in logs. This normally happens due to a DNS name issue.')
