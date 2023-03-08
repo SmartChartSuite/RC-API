@@ -20,6 +20,9 @@ from src.util.settings import api_docs, knowledgebase_repo_url, log_level, docs_
 
 from src.models.models import CustomFormatter
 
+title: str = 'SmartPacer Results Combining (RC) API'
+version: str = '0.5.12'
+
 logger = logging.getLogger('rcapi')
 logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
@@ -34,9 +37,9 @@ if log_level == "DEBUG":
 # ================= FastAPI variable ===================================
 
 if api_docs.lower() == 'true':
-    app = FastAPI(title='SmartPacer Results Combining (RC) API', version='0.5.5', include_in_schema=True, docs_url=None, redoc_url=None)
+    app = FastAPI(title=title, version=version, include_in_schema=True, docs_url=None, redoc_url=None)
 else:
-    app = FastAPI(title='SmartPacer Results Combining (RC) API', version='0.5.5', include_in_schema=False, docs_url=None, redoc_url=None)
+    app = FastAPI(title=title, version=version, include_in_schema=False, docs_url=None, redoc_url=None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,12 +71,11 @@ def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
     openapi_schema = get_openapi(
-        title="SmartPacer Results Combining (RC) API",
-        version="0.5.5",
+        title=title,
+        version=version,
         description="This is a custom Open API Schema to align with SmartPacer's RC API.",
         routes=app.routes,
     )
-    # openapi_schema["info"]["x-logo"] = {"url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"}
     openapi_schema["servers"] = [{"url": deploy_url}]
     openapi_schema["paths"]["/forms/cql"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
     openapi_schema["paths"]["/forms/nlpql"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}

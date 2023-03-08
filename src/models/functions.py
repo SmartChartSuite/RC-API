@@ -122,10 +122,13 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
         for i, future in enumerate(futures[0]):
             pre_result = future.result()
             if pre_result.status_code == 504:
-                return 'Upstream request timeout'
-            if pre_result.status_code == 408:
-                return 'stream timeout'
-            result = pre_result.json()
+                logger.error(f'There was an upstream request timeout for library {libraries[0][i]}.cql with status_code 504')
+                result: list = []
+            elif pre_result.status_code == 408:
+                logger.error(f'There was a stream request timeout for library {libraries[0][i]}.cql with status code 408')
+                result: list = []
+            else:
+                result = pre_result.json()
 
             # Formats result into format for further processing and linking
             full_result = {'libraryName': libraries[0][i], 'patientId': patient_id, 'results': result}
@@ -135,12 +138,15 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
         for i, future in enumerate(futures[1]):
             pre_result = future.result()
             if pre_result.status_code == 504:
-                return 'Upstream request timeout'
-            if pre_result.status_code == 408:
-                return 'stream timeout'
-            if pre_result.status_code in [200, 201]:
+                logger.error(f'There was an upstream request timeout for library {libraries[1][i]}.nlpql with status_code 504')
+                result: list = []
+            elif pre_result.status_code == 408:
+                logger.error(f'There was an stream request timeout for library {libraries[1][i]}.nlpql with status_code 408')
+                result: list = []
+            elif pre_result.status_code in [200, 201]:
                 result = pre_result.json()
             else:
+                logger.error(f'There was an error for library {libraries[1][i]}.nlpql with status_code {pre_result.status_code}')
                 result = []
 
             # Formats result into format for further processing and linking
@@ -180,6 +186,7 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
             logger.info(f'Got result for {libraries[0][i]}.nlpql')
             results_nlpql.append(full_result)
 
+    print(1)
     return results_cql, results_nlpql
 
 
@@ -241,7 +248,7 @@ def check_results(results):
                 if result['results']['resourceType'] == 'OperationOutcome':
                     issue = result['results']['issue']
                     return make_operation_outcome(issue[0]['code'], issue[0]['diagnostics'])
-            except KeyError:
+            except (KeyError, TypeError):
                 pass
             if 'entry' in result['results']:
                 pass

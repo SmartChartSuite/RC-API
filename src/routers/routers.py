@@ -429,7 +429,9 @@ def start_jobs(post_body: Parameters):
 
     # Passes future to get the results from it, will wait until all are processed until returning results
     logger.info('Start getting job results')
-    results_cql, results_nlpql = get_results(futures, libraries_to_run, patient_id, [cql_flag, nlpql_flag])
+    results_list = get_results(futures, libraries_to_run, patient_id, [cql_flag, nlpql_flag])
+    results_cql = results_list[0]
+    results_nlpql = results_list[1]
     logger.info(f'Retrieved results for jobs {libraries_to_run}')
 
     # Upstream request timeout handling
