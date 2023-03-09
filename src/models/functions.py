@@ -86,7 +86,6 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
         req = requests.get(cqfr4_fhir + f'Library/{library_id}')
 
         library_resource = req.json()
-        logger.info(f'Submitting Library {library_resource["name"]}')
         base64_nlpql = library_resource['content'][0]['data']
         nlpql_bytes = base64.b64decode(base64_nlpql)
         nlpql_plain_text = nlpql_bytes.decode('utf-8')
@@ -760,6 +759,9 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                     logger.debug(tuple_str)
                     tuple_dict = {}
                     tuple_str_list = tuple_str.split('"')
+                    if len(tuple_str_list) > 32:
+                        tuple_str_list[31] = ''.join(tuple_str_list[31:])
+                        del tuple_str_list[32:]
                     for i in range(3, len(tuple_str_list), 8):
                         key_name = tuple_str_list[i]
                         value_name = tuple_str_list[i + 4]

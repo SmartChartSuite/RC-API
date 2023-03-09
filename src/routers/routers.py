@@ -293,7 +293,7 @@ def start_jobs(post_body: Parameters):
             search_bundle = req.json()
             try:
                 library_server_id = search_bundle['entry'][0]['resource']['id']
-                logger.info(f'Found Library with name {library_name} and server id {library_server_id}')
+                logger.info(f'Found {library_name_ext.upper()} Library with name {library_name} and server id {library_server_id}')
                 try:
                     library_type = search_bundle['entry'][0]['resource']['content'][0]['contentType']
                 except KeyError:
