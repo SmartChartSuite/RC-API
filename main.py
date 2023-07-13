@@ -21,7 +21,7 @@ from src.util.settings import api_docs, knowledgebase_repo_url, log_level, docs_
 from src.models.models import CustomFormatter
 
 title: str = 'SmartPacer Results Combining (RC) API'
-version: str = '0.5.14'
+version: str = '0.6.0'
 
 logger = logging.getLogger('rcapi')
 logger.setLevel(logging.INFO)
@@ -113,14 +113,14 @@ if api_docs.lower() == 'true':
     async def custom_swagger_ui_html():
         '''Custom Swagger UI HTML'''
         return get_swagger_ui_html(
-            openapi_url=docs_prepend_url + app.openapi_url,
+            openapi_url=docs_prepend_url + app.openapi_url, #type: ignore
             title=app.title + " - Swagger UI",
             oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
             swagger_js_url="static/swagger-ui-bundle.js",
             swagger_css_url="static/swagger-ui.css",
         )
 
-    @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)
+    @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False) #type: ignore
     async def swagger_ui_redirect():
         '''Custom Swagger UI Redirect'''
         return get_swagger_ui_oauth2_redirect_html()
@@ -129,7 +129,7 @@ if api_docs.lower() == 'true':
     async def redoc_html():
         '''Custom Redoc HTML'''
         return get_redoc_html(
-            openapi_url=docs_prepend_url + app.openapi_url,
+            openapi_url=docs_prepend_url + app.openapi_url, #type: ignore
             title=app.title + " - ReDoc",
             redoc_js_url="static/redoc.standalone.js",
         )

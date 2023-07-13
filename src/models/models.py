@@ -2,6 +2,7 @@
 from uuid import UUID, uuid4
 import logging
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class CustomFormatter(logging.Formatter):
@@ -46,7 +47,13 @@ class ResultParameter(BaseModel):
     resource: dict = {"resourceType": "Bundle"}
 
 
+class JobStartParameter(BaseModel):
+    '''Job Start Time Parameter for Job Status Support'''
+    name: str = "jobStartDateTime"
+    valueDateTime: str = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 class ParametersJob(BaseModel):
     '''Parameters Job object for Job Status Support'''
     resourceType: str = "Parameters"
-    parameter: list = [JobIDParameter(), JobStatusParameter(), ResultParameter()]
+    parameter: list = [JobIDParameter(), JobStartParameter(), JobStatusParameter(), ResultParameter()]

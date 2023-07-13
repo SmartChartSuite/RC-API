@@ -1,9 +1,8 @@
-python-dotenv==0.19.0
-fastapi==0.70.0
+python-dotenv==1.0.0
+fastapi==0.100.0
 fastapi-utils==0.2.1
 fhir.resources==6.4.0
-GitPython==3.1.30
-pydantic==1.8.2
-requests==2.26.0
-requests_futures==1.0.0
-uvicorn==0.14.0
+GitPython==3.1.32
+requests==2.31.0
+requests_futures==1.0.1
+hypercorn==0.14.3

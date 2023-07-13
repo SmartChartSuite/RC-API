@@ -5,6 +5,7 @@ import logging
 import uuid
 from typing import Union, Dict
 import requests
+from requests import Response
 
 from fastapi import (
     APIRouter, Body, BackgroundTasks
@@ -32,13 +33,14 @@ logger = logging.getLogger('rcapi.routers.routers')
 apirouter = APIRouter()
 jobs: Dict[str, ParametersJob] = {}
 
-
-@repeat_every(seconds=60 * 60 * 24, logger=logger)
+@apirouter.on_event("startup")
+@repeat_every(seconds=60*60*24, logger=logger)
 def clear_jobs_array():
     logger.info('Clearing jobs array...')
+    global jobs
     del jobs
-    jobs: Dict[str, ParametersJob] = {}
-    logger.info('Finished clearing jobs')
+    jobs = {} # noqa: F841
+    logger.info('Finished clearing jobs!')
 
 
 @apirouter.get("/")
@@ -58,7 +60,8 @@ def get_list_of_forms():
     elif cqfr4_fhir_url[-4:] == 'fhir':
         cqfr4_fhir_url = cqfr4_fhir_url + '/'
     else:
-        return make_operation_outcome('invalid', f'The CQF Ruler url ({cqfr4_fhir_url}) passed in as an environmental variable is not correct, please check that it ends with fhir or fhir/')  # type:ignore
+        return make_operation_outcome('invalid',
+                                      f'The CQF Ruler url ({cqfr4_fhir_url}) passed in as an environmental variable is not correct, please check that it ends with fhir or fhir/')  # type:ignore
     req = requests.get(cqfr4_fhir_url + 'Questionnaire')
     if req.status_code == 200:
         return req.json()
@@ -202,8 +205,8 @@ def start_jobs_header_function(post_body: Parameters, background_tasks: Backgrou
 
 def start_async_jobs(post_body: Parameters, uid: str):
     '''Start job asychronously'''
-    jobs[uid].parameter[2].resource = start_jobs(post_body)
-    jobs[uid].parameter[1].valueString = "complete"
+    jobs[uid].parameter[3].resource = start_jobs(post_body)
+    jobs[uid].parameter[2].valueString = "complete"
     logger.info(f'Job id {uid} complete and results are available at /forms/status/{uid}')
 
 
@@ -212,16 +215,16 @@ def start_jobs(post_body: Parameters):
     # Make list of parameters
     body_json = post_body.dict()
     parameters = body_json['parameter']
-    parameter_names = [x['name'] for x in parameters]
+    parameter_names: list[str] = [x['name'] for x in parameters]
     logger.info(f'Recieved parameters {parameter_names}')
 
     try:
-        patient_id = parameters[parameter_names.index('patientId')]['valueString']
+        patient_id: str = parameters[parameter_names.index('patientId')]['valueString']
         has_patient_identifier = False
     except ValueError:
         try:
             logger.info('patientID was not found in the parameters posted, trying looking for patientIdentifier')
-            patient_identifier = parameters[parameter_names.index('patientIdentifier')]['valueString']
+            patient_identifier: str | int = parameters[parameter_names.index('patientIdentifier')]['valueString']
             has_patient_identifier = True
         except ValueError:
             logger.error('patientID or patientIdentifier was not found in parameters posted')
@@ -231,20 +234,20 @@ def start_jobs(post_body: Parameters):
 
     run_all_jobs = False
     try:
-        library = parameters[parameter_names.index('job')]['valueString']
-        libraries_to_run = [library]
+        library: str = parameters[parameter_names.index('job')]['valueString']
+        libraries_to_run: list[str] = [library]
     except ValueError:
         logger.info('job was not found in the parameters posted, will be running all jobs for the jobPackage given')
         run_all_jobs = True
 
     try:
-        form_name = parameters[parameter_names.index('jobPackage')]['valueString']
+        form_name: str = parameters[parameter_names.index('jobPackage')]['valueString']
     except ValueError:
         logger.error('jobPackage was not found in the parameters posted')
         return make_operation_outcome('required', 'jobPackage was not found in the parameters posted')
 
     # Pull Questionnaire resource ID from CQF Ruler
-    req = requests.get(cqfr4_fhir + f'Questionnaire?name:exact={form_name}')
+    req: Response = requests.get(cqfr4_fhir + f'Questionnaire?name:exact={form_name}')
     if req.status_code != 200:
         logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
         return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {req.status_code}')
@@ -260,18 +263,18 @@ def start_jobs(post_body: Parameters):
     cql_flag = False
     nlpql_flag = False
     if run_all_jobs:
-        cql_libraries_to_run = []
-        nlpql_libraries_to_run = []
-        cql_library_server_ids = []
-        nlpql_library_server_ids = []
+        cql_libraries_to_run: list[str] = []
+        nlpql_libraries_to_run: list[str] = []
+        cql_library_server_ids: list[str] = []
+        nlpql_library_server_ids: list[str] = []
 
-        cql_libraries_to_run_extension = search_bundle['entry'][0]['resource']['extension'][0]['extension']
+        cql_libraries_to_run_extension: dict = search_bundle['entry'][0]['resource']['extension'][0]['extension']
         for extension in cql_libraries_to_run_extension:
             cql_libraries_to_run.append(extension['valueString'])
         logger.info(f'Going to run the following CQL libraries for this jobPackage: {cql_libraries_to_run}')
 
         try:
-            nlpql_libraries_to_run_extension = search_bundle['entry'][0]['resource']['extension'][1]['extension']
+            nlpql_libraries_to_run_extension: dict = search_bundle['entry'][0]['resource']['extension'][1]['extension']
             for extension in nlpql_libraries_to_run_extension:
                 nlpql_libraries_to_run.append(extension['valueString'])
             logger.info(f'Going to run the following NLPQL libraries for this jobPackage: {nlpql_libraries_to_run}')
@@ -297,7 +300,9 @@ def start_jobs(post_body: Parameters):
                 try:
                     library_type = search_bundle['entry'][0]['resource']['content'][0]['contentType']
                 except KeyError:
-                    return make_operation_outcome('invalid', f'Library with name {library_name} does not contain a content type in content[0].contentType. Because of this, the API is unable to process the library. Please update the Library to include a content type.')
+                    return make_operation_outcome('invalid',
+                                                  (f'Library with name {library_name} does not contain a content type in content[0].contentType. '
+                                                   'Because of this, the API is unable to process the library. Please update the Library to include a content type.'))
                 if library_type == 'text/nlpql':
                     nlpql_flag = True
                     nlpql_library_server_ids.append(library_server_id)
@@ -315,12 +320,12 @@ def start_jobs(post_body: Parameters):
 
     if not run_all_jobs:
         # Pull CQL library resource ID from CQF Ruler
-        library_name_ext_split = library.split('.')
+        library_name_ext_split = library.split('.') #type: ignore
         if len(library_name_ext_split) == 2:
             library_name = library_name_ext_split[0]
             library_type = library_name_ext_split[1]
         else:
-            library_name = library
+            library_name = library #type: ignore
             library_type = 'cql'
 
         req = requests.get(cqfr4_fhir + f'Library?name={library_name}&content-type=text/{library_type.lower()}')
@@ -332,11 +337,13 @@ def start_jobs(post_body: Parameters):
         try:
             library_server_id = search_bundle['entry'][0]['resource']['id']
 
-            logger.info(f'Found Library with name {library} and server id {library_server_id}')
+            logger.info(f'Found Library with name {library} and server id {library_server_id}') #type: ignore
             try:
                 library_type = search_bundle['entry'][0]['resource']['content'][0]['contentType']
             except KeyError:
-                return make_operation_outcome('invalid', f'Library with name {library_name} does not contain a content type in content[0].contentType. Because of this, the API is unable to process the library. Please update the Library to include a content type.')
+                return make_operation_outcome('invalid',
+                                              (f'Library with name {library_name} does not contain a content type in content[0].contentType. '
+                                               'Because of this, the API is unable to process the library. Please update the Library to include a content type.'))
             if library_type == 'text/nlpql':
                 nlpql_flag = True
                 nlpql_library_server_ids = [library_server_id]
@@ -349,25 +356,25 @@ def start_jobs(post_body: Parameters):
                 logger.error(f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
                 return make_operation_outcome('invalid', f'Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.')
         except KeyError:
-            logger.error(f'Library with name {library} not found')
-            return make_operation_outcome('not-found', f'Library with name {library} not found')
+            logger.error(f'Library with name {library} not found') #type: ignore
+            return make_operation_outcome('not-found', f'Library with name {library} not found') #type: ignore
 
     if has_patient_identifier:
         if external_fhir_server_auth:
-            req = requests.get(external_fhir_server_url + f'/Patient?identifier={patient_identifier}', headers={'Authorization': external_fhir_server_auth})
+            req = requests.get(external_fhir_server_url + f'/Patient?identifier={patient_identifier}', headers={'Authorization': external_fhir_server_auth}) #type: ignore
         else:
-            req = requests.get(external_fhir_server_url + f'/Patient?identifier={patient_identifier}')
+            req = requests.get(external_fhir_server_url + f'/Patient?identifier={patient_identifier}') #type: ignore
         if req.status_code != 200:
             logger.error(f'Getting Patient from server failed with status code {req.status_code}')
-            return make_operation_outcome('transient', f'Getting library from server failed with status code {req.status_code}')
+            return make_operation_outcome('transient', f'Getting Patient from server failed with status code {req.status_code}')
 
         search_bundle = req.json()
         try:
             patient_id = search_bundle['entry'][0]['resource']['id']
-            logger.info(f'Found Patient with identifier {patient_identifier} and server id {patient_id}')
+            logger.info(f'Found Patient with identifier {patient_identifier} and server id {patient_id}') #type: ignore
         except KeyError:
-            logger.error(f'Patient with identifier {patient_identifier} not found')
-            return make_operation_outcome('not-found', f'Patient with identifier {patient_identifier} not found')
+            logger.error(f'Patient with identifier {patient_identifier} not found') #type: ignore
+            return make_operation_outcome('not-found', f'Patient with identifier {patient_identifier} not found') #type: ignore
 
     # Create parameters post body for library evaluation
     parameters_post = {
@@ -375,7 +382,7 @@ def start_jobs(post_body: Parameters):
         'parameter': [
             {
                 'name': 'patientId',
-                'valueString': patient_id
+                'valueString': patient_id #type: ignore
             },
             {
                 'name': 'context',
@@ -409,30 +416,30 @@ def start_jobs(post_body: Parameters):
     futures = []
     if cql_flag:
         logger.info('Start submitting CQL jobs')
-        futures_cql = run_cql(cql_library_server_ids, parameters_post)
+        futures_cql = run_cql(cql_library_server_ids, parameters_post) #type: ignore
         futures.append(futures_cql)
         logger.info('Submitted all CQL jobs')
     if nlpql_flag and nlpaas_url != 'False':
         logger.info('Start submitting NLPQL jobs')
-        futures_nlpql = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)
+        futures_nlpql = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth) #type: ignore
         if isinstance(futures_nlpql, dict):
             return futures_nlpql
         futures.append(futures_nlpql)
         logger.info('Submitted all NLPQL jobs.')
 
     if cql_flag and nlpql_flag and nlpaas_url != 'False':
-        libraries_to_run = [cql_libraries_to_run, nlpql_libraries_to_run]
+        libraries_to_run = [cql_libraries_to_run, nlpql_libraries_to_run] #type: ignore
     elif cql_flag:
-        libraries_to_run = [cql_libraries_to_run]
+        libraries_to_run = [cql_libraries_to_run] #type: ignore
     elif nlpql_flag and nlpaas_url != 'False':
-        libraries_to_run = [[nlpql_libraries_to_run]]
+        libraries_to_run = [[nlpql_libraries_to_run]] #type: ignore
 
     # Passes future to get the results from it, will wait until all are processed until returning results
     logger.info('Start getting job results')
-    results_list = get_results(futures, libraries_to_run, patient_id, [cql_flag, nlpql_flag])
+    results_list = get_results(futures, libraries_to_run, patient_id, [cql_flag, nlpql_flag]) #type: ignore
     results_cql = results_list[0]
     results_nlpql = results_list[1]
-    logger.info(f'Retrieved results for jobs {libraries_to_run}')
+    logger.info(f'Retrieved results for jobs {libraries_to_run}') #type: ignore
 
     # Upstream request timeout handling
     if isinstance(results_cql, str):
@@ -449,7 +456,7 @@ def start_jobs(post_body: Parameters):
 
     # Creates the registry bundle format
     logger.info('Start linking results')
-    bundled_results = create_linked_results([results_cql, results_nlpql], form_name, patient_id)
+    bundled_results = create_linked_results([results_cql, results_nlpql], form_name, patient_id) #type: ignore
     logger.info('Finished linking results')
 
     return bundled_results
@@ -466,7 +473,7 @@ def get_job_status(uid: str):
     '''Return the status of a specific job'''
     try:
         try:
-            job_results = jobs[uid].parameter[2].resource
+            job_results = jobs[uid].parameter[3].resource
             job_results_severity = job_results['issue'][0]['severity']
             job_results_code = job_results['issue'][0]['code']
             if job_results_code == 'not-found':
