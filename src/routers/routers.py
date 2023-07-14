@@ -6,6 +6,7 @@ import uuid
 from typing import Union, Dict
 import requests
 from requests import Response
+from datetime import datetime
 
 from fastapi import (
     APIRouter, Body, BackgroundTasks
@@ -193,6 +194,7 @@ def start_jobs_header_function(post_body: Parameters, background_tasks: Backgrou
         logger.info('asyncFlag detected, running asynchronously')
         new_job = ParametersJob()
         new_job.parameter[0].valueString = str(uuid.uuid4())
+        new_job.parameter[1].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         logger.info(f'Created new job with jobId {new_job.parameter[0].valueString}')
         jobs[new_job.parameter[0].valueString] = new_job
         logger.info('Added to jobs array')
