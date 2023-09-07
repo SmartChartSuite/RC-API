@@ -8,13 +8,14 @@ import base64
 from fhir.resources.operationoutcome import OperationOutcome
 from fhir.resources.observation import Observation
 from fhir.resources.documentreference import DocumentReference
+from fhir.resources.fhirtypes import Id
 
 from requests_futures.sessions import FuturesSession
 import requests
 
 from ..util.settings import cqfr4_fhir, nlpaas_url, deploy_url, external_fhir_server_url, external_fhir_server_auth
 
-logger = logging.getLogger('rcapi.models.functions')
+logger: logging.Logger = logging.getLogger('rcapi.models.functions')
 
 
 def make_operation_outcome(code: str, diagnostics: str, severity: str = 'error'):
@@ -28,7 +29,7 @@ def make_operation_outcome(code: str, diagnostics: str, severity: str = 'error')
             }
         ]
     }
-    return OperationOutcome(**oo_template).dict()
+    return OperationOutcome(**oo_template).dict() #type: ignore
 
 
 def get_form(form_name: str):
@@ -259,16 +260,17 @@ def check_results(results):
     return None
 
 
-def create_linked_results(results: list, form_name: str, patient_id: str):
+def create_linked_results(results_in: list, form_name: str, patient_id: str):
     '''Creates the registry bundle from CQL and NLPQL results'''
 
     # Get form (using get_form from this API)
     form = get_form(form_name)
-    results_cql = results[0]
-    results_nlpql = results[1]
+    results_cql = results_in[0]
+    results_nlpql = results_in[1]
 
     return_bundle_cql = {}
     return_bundle_nlpql = {}
+    target_library: str = ''
 
     if results_cql:
         bundle_entries = []
@@ -302,7 +304,8 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
 
                 link_id = question['linkId']
                 logger.info(f'Working on question {link_id}')
-                library_task = ''
+                library_task: str = ''
+                cardinality: str = ''
                 # If the question has these extensions, get their values, if not, keep going
                 try:
                     for extension in question['extension']:
@@ -386,7 +389,7 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                     for resource in supporting_resources:
                         try:
                             focus_object = {'reference': resource['fullUrl']}
-                            answer_obs.focus.append(focus_object)
+                            answer_obs.focus.append(focus_object) #type: ignore
                         except KeyError:
                             pass
                 if empty_single_return and not supporting_resources:
@@ -420,7 +423,7 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                             'fullUrl': 'Observation/' + answer_obs_uuid,
                             'resource': answer_obs
                         }
-                    elif tuple_flag:
+                    elif tuple_flag and isinstance(single_answer, str):
                         tuple_string = single_answer.strip('[]')
                         tuple_string = tuple_string.split('Tuple ')
                         tuple_string.remove('')
@@ -444,7 +447,9 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                             try:
                                 supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
                             except KeyError:
-                                return make_operation_outcome('not-found', 'The fhirField thats being returned in the CQL is not a supported the supporting resource type, this needs to be updated as more resources are added')
+                                return make_operation_outcome('not-found',
+                                                              ('The fhirField thats being returned in the CQL is not a supported the supporting resource type, '
+                                                               'this needs to be updated as more resources are added'))
                             value_type = answer_tuple['valueType']
                             temp_uuid = str(uuid.uuid4())
                             if len(answer_value_split) >= 3:
@@ -614,19 +619,21 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                                     "fullUrl": 'Procedure/' + supporting_resource["id"],
                                     "resource": supporting_resource
                                 }
+                            else:
+                                supporting_resource_bundle_entry = {}
 
                             tuple_observations.append(supporting_resource_bundle_entry)
 
-                if not tuple_flag and not any(key in answer_obs_bundle_item['resource'] for key in ['focus', 'valueString']):
+                if not tuple_flag and not any(key in answer_obs_bundle_item['resource'] for key in ['focus', 'valueString']): #type: ignore
                     continue
 
                 # Add items to return bundle entry list
                 if not tuple_flag:
-                    if 'valueString' in answer_obs_bundle_item['resource'] and not answer_obs_bundle_item['resource']['valueString']:
-                        del answer_obs_bundle_item['resource']['valueString']
-                    bundle_entries.append(answer_obs_bundle_item)
+                    if 'valueString' in answer_obs_bundle_item['resource'] and not answer_obs_bundle_item['resource']['valueString']: #type: ignore
+                        del answer_obs_bundle_item['resource']['valueString'] #type: ignore
+                    bundle_entries.append(answer_obs_bundle_item) #type: ignore
                 else:
-                    bundle_entries.extend(tuple_observations)
+                    bundle_entries.extend(tuple_observations) #type: ignore
                 if supporting_resources is not None:
                     bundle_entries.extend(supporting_resources)
 
@@ -748,7 +755,7 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                 for result in task_result:
                     temp_answer_obs = answer_obs_template
                     temp_answer_obs_uuid = str(uuid.uuid4())
-                    temp_answer_obs.id = temp_answer_obs_uuid
+                    temp_answer_obs.id = Id(temp_answer_obs_uuid)
                     try:
                         tuple_str = result['tuple']
                     except KeyError:
@@ -768,8 +775,8 @@ def create_linked_results(results: list, form_name: str, patient_id: str):
                         tuple_dict[key_name] = value_name
 
                     # TODO: Assert that tuples should have all 4 keys to work
-                    temp_answer_obs.focus = [{'reference': f'DocumentReference/{result["report_id"]}'}]
-                    temp_answer_obs.note = [{'text': tuple_dict['sourceNote']}]
+                    temp_answer_obs.focus = [{'reference': f'DocumentReference/{result["report_id"]}'}] #type: ignore
+                    temp_answer_obs.note = [{'text': tuple_dict['sourceNote']}] #type: ignore
                     temp_answer_obs.valueString = tuple_dict['answerValue']
                     temp_answer_obs.effectiveDateTime = result['report_date']
                     tuple_observations.append(temp_answer_obs.dict())
@@ -927,9 +934,9 @@ def validate_cql(code: str):
         return True
 
 
-def validate_nlpql(code: str):
+def validate_nlpql(code_in: str):
     '''Validates NLPQL using NLPaaS before persisting in CQF Ruler as a Library resource'''
-    code = code.encode(encoding='utf-8')
+    code = code_in.encode(encoding='utf-8')
     try:
         req = requests.post(nlpaas_url + 'job/validate_nlpql', data=code, headers={'Content-Type': 'text/plain'})
     except requests.exceptions.ConnectionError as error:

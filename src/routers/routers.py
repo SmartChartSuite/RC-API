@@ -14,9 +14,10 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from fastapi_utils.tasks import repeat_every
 
-from fhir.resources.questionnaire import Questionnaire  # TODO: replace to using fhirclient package as well as below imports
+from fhir.resources.questionnaire import Questionnaire
 from fhir.resources.library import Library
 from fhir.resources.parameters import Parameters
+from fhir.resources.operationoutcome import OperationOutcome
 
 from ..services.libraryhandler import (create_cql, create_nlpql)
 
@@ -49,6 +50,70 @@ def root():
     '''Root return function for the API'''
     logger.info('Retrieved root of API')
     return make_operation_outcome('processing', 'This is the base URL of API. Unable to handle this request as it is the root.')
+
+
+@apirouter.get("/health")
+def health_check() -> dict:
+    '''Health check endpoint'''
+    logger.info('Retrieved health check endpoint')
+    cqf_ruler_up: bool = False
+    cqf_ruler_reason: str = ''
+    nlpaas_up: bool = False
+    nlpaas_reason: str = ''
+    rcapi_up: bool = False
+    rcapi_reason: str = ''
+    oo_template = {'issue': []}
+
+    try:
+        cqf_ruler_resp = requests.get(cqfr4_fhir+'metadata')
+        if cqf_ruler_resp.status_code == 200:
+            cqf_ruler_up = True
+            cqf_ruler_reason = 'CQF Ruler is up and running'
+            oo_template['issue'].append({'severity': 'information', 'code': 'informational', 'diagnostics': cqf_ruler_reason})
+        elif cqf_ruler_resp.status_code == 404:
+            cqf_ruler_reason = "CQF Ruler returned a 404, URL not found, ensure you used the correct URL in the environment variable CQF_RULER_R4"
+            oo_template['issue'].append({'severity': 'error', 'code': 'transient', 'diagnostics': cqf_ruler_reason})
+        else:
+            cqf_ruler_reason = cqf_ruler_resp.text
+            oo_template['issue'].append({'severity': 'error', 'code': 'transient', 'diagnostics': cqf_ruler_reason})
+    except requests.exceptions.ConnectionError:
+        logger.error('Could not connect to CQF Ruler, requests will be unable to be completed')
+        cqf_ruler_reason = 'Could not connect to CQF Ruler, ensure the service is running and the correct URL is provided in the environment variable CQF_RULER_R4'
+        oo_template['issue'].append({'severity': 'error', 'code': 'transient', 'diagnostics': cqf_ruler_reason})
+
+    if nlpaas_url:
+        try:
+            nlpaas_resp = requests.get(nlpaas_url)
+            if nlpaas_resp.status_code == 200:
+                nlpaas_up = True
+                nlpaas_reason = 'NLPaaS is up and running'
+                oo_template['issue'].append({'severity': 'information', 'code': 'informational', 'diagnostics': nlpaas_reason})
+            elif nlpaas_resp.status_code == 404:
+                nlpaas_reason = 'NLPaaS returned a 404, URL not found, ensure you used the correct URL in the environment variable NLPAAS_URL'
+                oo_template['issue'].append({'severity': 'warning', 'code': 'transient', 'diagnostics': nlpaas_reason})
+            else:
+                nlpaas_reason = nlpaas_resp.text
+                logger.warning('Could not connect to NLPaaS, NLP requests will be unable to be completed')
+                oo_template['issue'].append({'severity': 'warning', 'code': 'transient', 'diagnostics': nlpaas_reason})
+        except requests.exceptions.ConnectionError:
+            logger.warning('Could not connect to NLPaaS, NLP requests will be unable to be completed')
+            nlpaas_reason = 'Could not connect to NLPaaS, ensure the service is running and the correct URL is provided in the environment variable NLPAAS_URL'
+            oo_template['issue'].append({'severity': 'warning', 'code': 'transient', 'diagnostics': nlpaas_reason})
+    else:
+        nlpaas_up = False
+        nlpaas_reason = 'NLPAAS_URL not defined in environmental variables, no NLP jobs will be completed. Please set this variable if you want to run NLP jobs'
+        logger.warning('Could not connect to NLPaaS, NLP requests will be unable to be completed')
+        oo_template['issue'].append({'severity': 'warning', 'code': 'transient', 'diagnostics': nlpaas_reason})
+
+    if cqf_ruler_up:
+        rcapi_up = True
+        rcapi_reason = 'RC-API is up and running'
+        oo_template['issue'].append({'severity': 'information', 'code': 'informational', 'diagnostics': rcapi_reason})
+    else:
+        rcapi_reason = 'RC-API is not up and running because: ' + cqf_ruler_reason
+        oo_template['issue'].append({'severity': 'error', 'code': 'transient', 'diagnostics': rcapi_reason})
+
+    return OperationOutcome.parse_obj(oo_template).dict()
 
 
 @apirouter.get("/forms", response_model=dict)
@@ -217,6 +282,9 @@ def start_jobs(post_body: Parameters):
     # Make list of parameters
     body_json = post_body.dict()
     parameters = body_json['parameter']
+    if not all([((any([name.startswith('value') for name in param.keys()])) or 'resource' in param or 'part' in param) for param in parameters]):
+        logger.error('Parameters model is invalid, please check that all parameters have a name and value')
+        return make_operation_outcome(code='structure', diagnostics='Parameters.parameters is not correct, ensure it has a name and value')
     parameter_names: list[str] = [x['name'] for x in parameters]
     logger.info(f'Recieved parameters {parameter_names}')
 

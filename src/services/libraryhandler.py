@@ -1,17 +1,13 @@
 '''Module for handling Libraries'''
 import base64
 import logging
-import requests
 
+import requests
 from fhir.resources.library import Library
 
+from ..models.functions import make_operation_outcome, validate_cql, validate_nlpql
 from ..services.errorhandler import error_to_operation_outcome
-
-from ..models.functions import (
-    make_operation_outcome, validate_cql, validate_nlpql
-)
-
-from ..util.settings import (cqfr4_fhir, nlpaas_url)
+from ..util.settings import cqfr4_fhir, nlpaas_url
 
 logger = logging.getLogger("rcapi.services.libraryhandler")
 
@@ -36,6 +32,7 @@ def create_cql(cql):
     split_cql = cql.split()
     name = split_cql[1]
     version = split_cql[3].strip("'")
+    existing_cql_library = {"id": ''}
 
     # Check to see if library and version of this exists
     req = requests.get(cqfr4_fhir + f'Library?name={name}&version={version}&content-type=text/cql')
@@ -96,6 +93,8 @@ def create_cql(cql):
 
 def create_nlpql(nlpql):
     '''Validates NLPQL using NLPaaS before saving as Library Resource on CQF Ruler'''
+
+    existing_nlpql_library = {}
     if not nlpaas_url:
         return make_operation_outcome('invalid', 'Error validating NLPQL, NLPAAS is not configured.')
     validation_results = validate_nlpql(nlpql)
