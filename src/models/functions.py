@@ -443,13 +443,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         for answer_tuple in tuple_dict_list:
                             answer_value_split = answer_tuple['answerValue'].split('^')
                             logger.info(f'Tuple found: {answer_value_split}')
-                            supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation', 'onset': 'Condition', 'code': 'Observation', 'Procedure.code': 'Procedure'}
-                            try:
-                                supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
-                            except KeyError:
-                                return make_operation_outcome('not-found',
-                                                              ('The fhirField thats being returned in the CQL is not a supported the supporting resource type, '
-                                                               'this needs to be updated as more resources are added'))
+                            if '.' in answer_tuple['fhirField']:
+                                supporting_resource_type = answer_tuple['fhirField'].split('.')[0]
+                            else:
+                                supporting_resource_type_map = {'dosage': 'MedicationStatement', 'value': 'Observation', 'onset': 'Condition', 'code': 'Observation', 'Procedure.code': 'Procedure'}
+                                try:
+                                    supporting_resource_type = supporting_resource_type_map[answer_tuple['fhirField']]
+                                except KeyError:
+                                    return make_operation_outcome('not-found',
+                                                                ('The fhirField thats being returned in the CQL is not a supported the supporting resource type, '
+                                                                'this needs to be updated as more resources are added'))
+
                             value_type = answer_tuple['valueType']
                             temp_uuid = str(uuid.uuid4())
                             if len(answer_value_split) >= 3:
@@ -525,6 +529,39 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                 }
                                 supporting_resource_bundle_entry = {
                                     "fullUrl": 'MedicationStatement/' + supporting_resource["id"],
+                                    "resource": supporting_resource
+                                }
+                            elif supporting_resource_type == 'MedicationRequest':
+                                supporting_resource = {
+                                    "resourceType": "MedicationRequest",
+                                    "id": answer_tuple['fhirResourceId'].split('/')[-1],
+                                    "identifier": [{
+                                        "system": deploy_url,
+                                        "value": "MedicationRequest/" + answer_tuple['fhirResourceId'].split('/')[-1],
+                                    }],
+                                    "status": "active",
+                                    "medicationCodeableConcept": {
+                                        "coding": [{
+                                            "system": answer_value_split[1],
+                                            "code": answer_value_split[2],
+                                            "display": answer_value_split[3],
+                                        }]
+                                    },
+                                    "authoredOn": answer_value_split[0],
+                                    "subject": {
+                                        "reference": f'Patient/{patient_id}'
+                                    },
+                                    "dosageInstruction": [{
+                                        "doseAndRate": [{
+                                            "doseQuantity": {
+                                                "value": answer_value_split[4],
+                                                "unit": answer_value_split[5]
+                                            }
+                                        }]
+                                    }]
+                                }
+                                supporting_resource_bundle_entry = {
+                                    "fullUrl": 'MedicationRequest/' + supporting_resource["id"],
                                     "resource": supporting_resource
                                 }
                             elif supporting_resource_type == 'Observation':
