@@ -186,7 +186,6 @@ def get_results(futures: list, libraries: list, patient_id: str, flags: list):
             logger.info(f'Got result for {libraries[0][i]}.nlpql')
             results_nlpql.append(full_result)
 
-    print(1)
     return results_cql, results_nlpql
 
 
@@ -232,7 +231,6 @@ def check_results(results):
     '''Checks results for any errors returned from CQF Ruler or NLPaaS'''
     logger.info('Checking Results for Any Errors Returned by Services')
     for result in results:
-        logger.debug(result)
         try:
             # This checks if the result is from NLPAAS and skips the CQL checking that comes next
             if '_id' in result['results'][0]:
@@ -274,7 +272,6 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
     if results_cql:
         bundle_entries = []
-        logger.debug(results_cql)
         result_length = len(results_cql)
         if result_length == 1:
             result = results_cql[0]
@@ -438,7 +435,6 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                 key, value = new_item.split(': ')
                                 test_dict[key] = value
                             tuple_dict_list.append(test_dict)
-                        logger.debug(tuple_dict_list)
                         tuple_observations = []
                         for answer_tuple in tuple_dict_list:
                             answer_value_split = answer_tuple['answerValue'].split('^')
@@ -752,8 +748,6 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
     if results_nlpql:
         bundle_entries = []
-        logger.debug('NLPQL Results:')
-        logger.debug(results_nlpql)
         result_length = len(results_nlpql)
         if result_length == 1:
             result = results_nlpql[0]
