@@ -283,6 +283,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
         try:
             patient_resource = results['Patient']
+            patient_resource['identifier'] = list([identifier for identifier in patient_resource['identifier'] if 'value' in identifier])
             patient_bundle_entry = {
                 "fullUrl": f'Patient/{patient_id}',
                 "resource": patient_resource
@@ -873,7 +874,9 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     try:
                         if external_fhir_server_auth:
                             supporting_resource_req = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'], headers={'Authorization': external_fhir_server_auth})
-                            supporting_resource = DocumentReference(**supporting_resource_req.json())
+                            supporting_resource_obj = supporting_resource_req.json()
+                            supporting_resource_obj['content'] = [content for content in supporting_resource_obj['content'] if 'contentType' in content['attachment'] and content['attachment']['contentType']=='text/plain']
+                            supporting_resource = DocumentReference(**supporting_resource_obj)
                         else:
                             supporting_resource_req  = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'])
                             supporting_resource = DocumentReference(**supporting_resource_req.json())
