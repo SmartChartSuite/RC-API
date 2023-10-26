@@ -438,7 +438,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         tuple_observations = []
                         for answer_tuple in tuple_dict_list:
                             answer_value_split = answer_tuple['answerValue'].split('^')
-                            logger.info(f'Tuple found: {answer_value_split}')
+                            logger.debug(f'Tuple found: {answer_value_split}')
                             if '.' in answer_tuple['fhirField']:
                                 supporting_resource_type = answer_tuple['fhirField'].split('.')[0]
                             else:
