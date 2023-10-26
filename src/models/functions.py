@@ -865,7 +865,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     temp_answer_obs.note = [{'text': tuple_dict['sourceNote']}] #type: ignore
                     temp_answer_obs.valueString = tuple_dict['answerValue']
                     temp_answer_obs.effectiveDateTime = result['report_date']
-                    tuple_observations.append(temp_answer_obs.dict())
+
+                    # Check if an existing match exists to remove duplicates
+                    for obs in tuple_observations:
+                        if all(key in obs for key in ['focus', 'note', 'valueString', 'effectiveDateTime']) and (obs['focus'] == [{'reference': f'DocumentReference/{result["report_id"]}'}] and
+                            obs['note'] == [{'text': tuple_dict['sourceNote']}] and
+                            obs['valueString'] == tuple_dict['answerValue'] and
+                            obs['effectiveDateTime'] == result['report_date']
+                        ):
+                            continue
+                        else:
+                            tuple_observations.append(temp_answer_obs.dict())
 
                     # Queries for original DocumentReference, adds it to the supporting resources if its not already there or creating a DocumentReference with data from the NLPaaS Return
                     if result['report_id'] in [doc_ref["id"] for doc_ref in supporting_doc_refs]: #Indicates a DocumentReference is already in there
@@ -879,6 +889,8 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                             supporting_resource = DocumentReference(**supporting_resource_obj)
                         else:
                             supporting_resource_req  = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'])
+                            supporting_resource_obj = supporting_resource_req.json()
+                            supporting_resource_obj['content'] = [content for content in supporting_resource_obj['content'] if 'contentType' in content['attachment'] and content['attachment']['contentType']=='text/plain']
                             supporting_resource = DocumentReference(**supporting_resource_req.json())
                     except requests.exceptions.JSONDecodeError:
 
