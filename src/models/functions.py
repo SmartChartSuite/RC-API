@@ -283,7 +283,6 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
         try:
             patient_resource = results['Patient']
-            patient_resource['identifier'] = list([identifier for identifier in patient_resource['identifier'] if 'value' in identifier])
             patient_bundle_entry = {
                 "fullUrl": f'Patient/{patient_id}',
                 "resource": patient_resource
@@ -524,17 +523,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                         }]
                                     }]
                                 }
-                                try:
-                                    if external_fhir_server_auth:
-                                        supporting_resource_req = requests.get(external_fhir_server_url+"MedicationStatement/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                                                                         headers={'Authorization': external_fhir_server_auth})
-                                        supporting_resource = supporting_resource_req.json()
-                                    else:
-                                        supporting_resource_req  = requests.get(external_fhir_server_url+"MedicationStatement/"+answer_tuple['fhirResourceId'].split('/')[-1])
-                                        supporting_resource = supporting_resource_req.json()
-                                except requests.exceptions.JSONDecodeError:
-                                    logger.debug(f'Trying to find supporting resource with id MedicationStatement/{answer_tuple["fhirResourceId"].split("/")[-1]} '
-                                                 f'failed with status code {supporting_resource_req.status_code}') #type: ignore
+                                # try:
+                                #     if external_fhir_server_auth:
+                                #         supporting_resource_req = requests.get(external_fhir_server_url+"MedicationStatement/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                #                                                          headers={'Authorization': external_fhir_server_auth})
+                                #         supporting_resource = supporting_resource_req.json()
+                                #     else:
+                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"MedicationStatement/"+answer_tuple['fhirResourceId'].split('/')[-1])
+                                #         supporting_resource = supporting_resource_req.json()
+                                # except requests.exceptions.JSONDecodeError:
+                                #     logger.debug(f'Trying to find supporting resource with id MedicationStatement/{answer_tuple["fhirResourceId"].split("/")[-1]} '
+                                #                  f'failed with status code {supporting_resource_req.status_code}') #type: ignore
                                 supporting_resource_bundle_entry = {
                                     "fullUrl": 'MedicationStatement/' + supporting_resource["id"],
                                     "resource": supporting_resource
@@ -568,17 +567,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                         }]
                                     }]
                                 }
-                                try:
-                                    if external_fhir_server_auth:
-                                        supporting_resource_req = requests.get(external_fhir_server_url+"MedicationRequest/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                                                                         headers={'Authorization': external_fhir_server_auth})
-                                        supporting_resource = supporting_resource_req.json()
-                                    else:
-                                        supporting_resource_req  = requests.get(external_fhir_server_url+"MedicationRequest/"+answer_tuple['fhirResourceId'].split('/')[-1])
-                                        supporting_resource = supporting_resource_req.json()
-                                except requests.exceptions.JSONDecodeError:
-                                    logger.debug(f'Trying to find supporting resource with id MedicationRequest/{answer_tuple["fhirResourceId"].split("/")[-1]} '
-                                                 f'failed with status code {supporting_resource_req.status_code}') #type: ignore
+                                # try:
+                                #     if external_fhir_server_auth:
+                                #         supporting_resource_req = requests.get(external_fhir_server_url+"MedicationRequest/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                #                                                          headers={'Authorization': external_fhir_server_auth})
+                                #         supporting_resource = supporting_resource_req.json()
+                                #     else:
+                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"MedicationRequest/"+answer_tuple['fhirResourceId'].split('/')[-1])
+                                #         supporting_resource = supporting_resource_req.json()
+                                # except requests.exceptions.JSONDecodeError:
+                                #     logger.debug(f'Trying to find supporting resource with id MedicationRequest/{answer_tuple["fhirResourceId"].split("/")[-1]} '
+                                #                  f'failed with status code {supporting_resource_req.status_code}') #type: ignore
                                 supporting_resource_bundle_entry = {
                                     "fullUrl": 'MedicationRequest/' + supporting_resource["id"],
                                     "resource": supporting_resource
@@ -623,17 +622,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                     case _:
                                         supporting_resource['valueString'] = f'value[x] type of {value_type} not being handled in RC-API or CQL'
 
-                                try:
-                                    if external_fhir_server_auth:
-                                        supporting_resource_req = requests.get(external_fhir_server_url+"Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                                                                         headers={'Authorization': external_fhir_server_auth})
-                                        supporting_resource = supporting_resource_req.json()
-                                    else:
-                                        supporting_resource_req  = requests.get(external_fhir_server_url+"Observation/"+answer_tuple['fhirResourceId'].split('/')[-1])
-                                        supporting_resource = supporting_resource_req.json()
-                                except requests.exceptions.JSONDecodeError:
-                                    logger.debug(f'Trying to find supporting resource with id Observation/{answer_tuple["fhirResourceId"].split("/")[-1]} '
-                                                 f'failed with status code {supporting_resource_req.status_code}') #type: ignore
+                                # try:
+                                #     if external_fhir_server_auth:
+                                #         supporting_resource_req = requests.get(external_fhir_server_url+"Observation/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                #                                                          headers={'Authorization': external_fhir_server_auth})
+                                #         supporting_resource = supporting_resource_req.json()
+                                #     else:
+                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"Observation/"+answer_tuple['fhirResourceId'].split('/')[-1])
+                                #         supporting_resource = supporting_resource_req.json()
+                                # except requests.exceptions.JSONDecodeError:
+                                #     logger.debug(f'Trying to find supporting resource with id Observation/{answer_tuple["fhirResourceId"].split("/")[-1]} '
+                                #                  f'failed with status code {supporting_resource_req.status_code}') #type: ignore
                                 supporting_resource_bundle_entry = {
                                     "fullUrl": 'Observation/' + supporting_resource["id"],
                                     "resource": supporting_resource
@@ -658,17 +657,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                         "reference": f'Patient/{patient_id}'
                                     }
                                 }
-                                try:
-                                    if external_fhir_server_auth:
-                                        supporting_resource_req = requests.get(external_fhir_server_url+"Condition/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                                                                         headers={'Authorization': external_fhir_server_auth})
-                                        supporting_resource = supporting_resource_req.json()
-                                    else:
-                                        supporting_resource_req  = requests.get(external_fhir_server_url+"Condition/"+answer_tuple['fhirResourceId'].split('/')[-1])
-                                        supporting_resource = supporting_resource_req.json()
-                                except requests.exceptions.JSONDecodeError:
-                                    logger.debug(f'Trying to find supporting resource with id Condition/{answer_tuple["fhirResourceId"].split("/")[-1]} '
-                                                 f'failed with status code {supporting_resource_req.status_code}') #type: ignore
+                                # try:
+                                #     if external_fhir_server_auth:
+                                #         supporting_resource_req = requests.get(external_fhir_server_url+"Condition/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                #                                                          headers={'Authorization': external_fhir_server_auth})
+                                #         supporting_resource = supporting_resource_req.json()
+                                #     else:
+                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"Condition/"+answer_tuple['fhirResourceId'].split('/')[-1])
+                                #         supporting_resource = supporting_resource_req.json()
+                                # except requests.exceptions.JSONDecodeError:
+                                #     logger.debug(f'Trying to find supporting resource with id Condition/{answer_tuple["fhirResourceId"].split("/")[-1]} '
+                                #                  f'failed with status code {supporting_resource_req.status_code}') #type: ignore
                                 supporting_resource_bundle_entry = {
                                     "fullUrl": 'Condition/' + supporting_resource["id"],
                                     "resource": supporting_resource
@@ -693,17 +692,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                         "reference": f'Patient/{patient_id}'
                                     }
                                 }
-                                try:
-                                    if external_fhir_server_auth:
-                                        supporting_resource_req = requests.get(external_fhir_server_url+"Procedure/"+answer_tuple['fhirResourceId'].split('/')[-1],
-                                                                                         headers={'Authorization': external_fhir_server_auth})
-                                        supporting_resource = supporting_resource_req.json()
-                                    else:
-                                        supporting_resource_req  = requests.get(external_fhir_server_url+"Procedure/"+answer_tuple['fhirResourceId'].split('/')[-1])
-                                        supporting_resource = supporting_resource_req.json()
-                                except requests.exceptions.JSONDecodeError:
-                                    logger.debug(f'Trying to find supporting resource with id Procedure/{answer_tuple["fhirResourceId"].split("/")[-1]} '
-                                                 f'failed with status code {supporting_resource_req.status_code}') #type: ignore
+                                # try:
+                                #     if external_fhir_server_auth:
+                                #         supporting_resource_req = requests.get(external_fhir_server_url+"Procedure/"+answer_tuple['fhirResourceId'].split('/')[-1],
+                                #                                                          headers={'Authorization': external_fhir_server_auth})
+                                #         supporting_resource = supporting_resource_req.json()
+                                #     else:
+                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"Procedure/"+answer_tuple['fhirResourceId'].split('/')[-1])
+                                #         supporting_resource = supporting_resource_req.json()
+                                # except requests.exceptions.JSONDecodeError:
+                                #     logger.debug(f'Trying to find supporting resource with id Procedure/{answer_tuple["fhirResourceId"].split("/")[-1]} '
+                                #                  f'failed with status code {supporting_resource_req.status_code}') #type: ignore
                                 supporting_resource_bundle_entry = {
                                     "fullUrl": 'Procedure/' + supporting_resource["id"],
                                     "resource": supporting_resource
@@ -881,84 +880,84 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     if result['report_id'] in [doc_ref["id"] for doc_ref in supporting_doc_refs]: #Indicates a DocumentReference is already in there
                         continue
 
-                    try:
-                        if external_fhir_server_auth:
-                            supporting_resource_req = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'], headers={'Authorization': external_fhir_server_auth})
-                        else:
-                            supporting_resource_req  = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'])
-                        supporting_resource_obj = supporting_resource_req.json()
-                        supporting_resource_obj['content'] = [content for content in supporting_resource_obj['content'] if 'contentType' in content['attachment'] and content['attachment']['contentType']=='text/plain']
-                        supporting_resource = DocumentReference(**supporting_resource_req.json())
-                    except requests.exceptions.JSONDecodeError:
+                    # try:
+                    #     if external_fhir_server_auth:
+                    #         supporting_resource_req = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'], headers={'Authorization': external_fhir_server_auth})
+                    #     else:
+                    #         supporting_resource_req  = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'])
+                    #     supporting_resource_obj = supporting_resource_req.json()
+                    #     supporting_resource_obj['content'] = [content for content in supporting_resource_obj['content'] if 'contentType' in content['attachment'] and content['attachment']['contentType']=='text/plain']
+                    #     supporting_resource = DocumentReference(**supporting_resource_req.json())
+                    # except requests.exceptions.JSONDecodeError:
 
-                        logger.debug(f'Trying to find supporting resource with id DocumentReference/{result["report_id"]} '
-                                     f'failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle') #type: ignore
+                        # logger.debug(f'Trying to find supporting resource with id DocumentReference/{result["report_id"]} '
+                        #             f'failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle') #type: ignore
 
-                        temp_doc_ref = doc_ref_template
-                        temp_doc_ref["id"] = result['report_id']
-                        temp_doc_ref["date"] = result['report_date']
-                        temp_doc_ref["identifier"] = [{
-                            "system": deploy_url,
-                            "value": "DocumentReference/" + result['report_id'],
-                        }]
-                        report_type_map = {
-                            "Radiology Note": {
-                                "system": "http://loinc.org",
-                                "code": "75490-3",
-                                "display": "Radiology Note"
-                            },
-                            "Discharge summary": {
-                                "system": "http://loinc.org",
-                                "code": "18842-5",
-                                "display": "Discharge summary"
-                            },
-                            "Hospital Note": {
-                                "system": "http://loinc.org",
-                                "code": "34112-3",
-                                "display": "Hospital Note"
-                            },
-                            "Pathology consult note": {
-                                "system": "http://loinc.org",
-                                "code": "60570-9",
-                                "display": "Pathology Consult note"
-                            },
-                            "Ancillary eye tests Narrative": {
-                                "system": "http://loinc.org",
-                                "code": "70946-9",
-                                "display": "Ancillary eye tests Narrative"
-                            },
-                            "Nursing notes": {
-                                "system": "http://loinc.org",
-                                "code": "46208-5",
-                                "display": "Nursing notes"
-                            },
-                            "Note": {
-                                "system": "http://loinc.org",
-                                "code": "34109-9",
-                                "display": "Note"
-                            }
+                    temp_doc_ref = doc_ref_template
+                    temp_doc_ref["id"] = result['report_id']
+                    temp_doc_ref["date"] = result['report_date']
+                    temp_doc_ref["identifier"] = [{
+                        "system": deploy_url,
+                        "value": "DocumentReference/" + result['report_id'],
+                    }]
+                    report_type_map = {
+                        "Radiology Note": {
+                            "system": "http://loinc.org",
+                            "code": "75490-3",
+                            "display": "Radiology Note"
+                        },
+                        "Discharge summary": {
+                            "system": "http://loinc.org",
+                            "code": "18842-5",
+                            "display": "Discharge summary"
+                        },
+                        "Hospital Note": {
+                            "system": "http://loinc.org",
+                            "code": "34112-3",
+                            "display": "Hospital Note"
+                        },
+                        "Pathology consult note": {
+                            "system": "http://loinc.org",
+                            "code": "60570-9",
+                            "display": "Pathology Consult note"
+                        },
+                        "Ancillary eye tests Narrative": {
+                            "system": "http://loinc.org",
+                            "code": "70946-9",
+                            "display": "Ancillary eye tests Narrative"
+                        },
+                        "Nursing notes": {
+                            "system": "http://loinc.org",
+                            "code": "46208-5",
+                            "display": "Nursing notes"
+                        },
+                        "Note": {
+                            "system": "http://loinc.org",
+                            "code": "34109-9",
+                            "display": "Note"
                         }
+                    }
 
-                        try:
-                            temp_doc_ref["type"]["coding"] = [report_type_map[result['report_type']]]
-                        except KeyError:
-                            temp_doc_ref["type"]["coding"] = [report_type_map["Note"]]
+                    try:
+                        temp_doc_ref["type"]["coding"] = [report_type_map[result['report_type']]]
+                    except KeyError:
+                        temp_doc_ref["type"]["coding"] = [report_type_map["Note"]]
 
-                        doc_bytes = result['report_text'].encode('utf-8')
-                        base64_bytes = base64.b64encode(doc_bytes)
-                        base64_doc = base64_bytes.decode('utf-8')
+                    doc_bytes = result['report_text'].encode('utf-8')
+                    base64_bytes = base64.b64encode(doc_bytes)
+                    base64_doc = base64_bytes.decode('utf-8')
 
-                        temp_doc_ref["content"] = [{
-                            "attachment": {
-                                "contentType": "text/plain",
-                                "language": "en-US",
-                                "data": base64_doc
-                            }
-                        }]
+                    temp_doc_ref["content"] = [{
+                        "attachment": {
+                            "contentType": "text/plain",
+                            "language": "en-US",
+                            "data": base64_doc
+                        }
+                    }]
 
-                        if len(temp_doc_ref['date']) == 10:  # Handles just date and no time for validation
-                            temp_doc_ref['date'] = datetime.strptime(temp_doc_ref['date'], '%Y-%m-%d')
-                        supporting_resource = DocumentReference(**temp_doc_ref)
+                    if len(temp_doc_ref['date']) == 10:  # Handles just date and no time for validation
+                        temp_doc_ref['date'] = datetime.strptime(temp_doc_ref['date'], '%Y-%m-%d')
+                    supporting_resource = DocumentReference(**temp_doc_ref)
 
                     supporting_doc_refs.append(supporting_resource.dict())
 
