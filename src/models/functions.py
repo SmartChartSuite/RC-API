@@ -873,10 +873,10 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     try:
                         if external_fhir_server_auth:
                             supporting_resource_req = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'], headers={'Authorization': external_fhir_server_auth})
-                            supporting_resource = supporting_resource_req.json()
+                            supporting_resource = DocumentReference(**supporting_resource_req.json())
                         else:
                             supporting_resource_req  = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'])
-                            supporting_resource = supporting_resource_req.json()
+                            supporting_resource = DocumentReference(**supporting_resource_req.json())
                     except requests.exceptions.JSONDecodeError:
 
                         logger.debug(f'Trying to find supporting resource with id DocumentReference/{result["report_id"]} '
