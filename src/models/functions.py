@@ -848,7 +848,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         logger.debug('No tuple result in this NLPQL result, moving to next result in list for task')
                         continue
 
-                    logger.info('Found tuple in NLPQL results')
+                    logger.debug('Found tuple in NLPQL results')
                     logger.debug(tuple_str)
                     tuple_dict = {}
                     tuple_str_list = tuple_str.split('"')
