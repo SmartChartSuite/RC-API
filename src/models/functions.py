@@ -324,6 +324,10 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 answer_obs = {
                     "resourceType": "Observation",
                     "id": answer_obs_uuid,
+                    "identifier": [{
+                        "system": deploy_url,
+                        "value": f"Observation/{answer_obs_uuid}"
+                    }],
                     "status": "final",
                     "category": [{
                         "coding": [{
@@ -459,6 +463,10 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                             temp_answer_obs = {
                                 "resourceType": "Observation",
                                 "id": temp_uuid,
+                                "identifier": [{
+                                    "system": deploy_url,
+                                    "value": f"Observation/{answer_obs_uuid}"
+                                }],
                                 "status": "final",
                                 "category": [{
                                     "coding": [{
@@ -804,6 +812,10 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 answer_obs_template = {
                     "resourceType": "Observation",
                     "status": "final",
+                    "identifier": [{
+                        "system": deploy_url,
+                        "value": "Observation/"
+                    }],
                     "category": [{
                         "coding": [{
                             "system": "http://terminology.hl7.org/CodeSystem/observation-category",
@@ -842,6 +854,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     temp_answer_obs = answer_obs_template
                     temp_answer_obs_uuid = str(uuid.uuid4())
                     temp_answer_obs.id = Id(temp_answer_obs_uuid)
+                    temp_answer_obs.identifier[0].value = f"Observation/{temp_answer_obs_uuid}" #type: ignore
                     try:
                         tuple_str = result['tuple']
                     except KeyError:
