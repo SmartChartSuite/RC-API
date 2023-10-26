@@ -848,8 +848,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         logger.debug('No tuple result in this NLPQL result, moving to next result in list for task')
                         continue
 
-                    logger.debug('Found tuple in NLPQL results')
-                    logger.debug(tuple_str)
+                    logger.debug(f'Found tuple in NLPQL results: {tuple_str}')
                     tuple_dict = {}
                     tuple_str_list = tuple_str.split('"')
                     if len(tuple_str_list) > 32:
@@ -867,84 +866,101 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     temp_answer_obs.effectiveDateTime = result['report_date']
                     tuple_observations.append(temp_answer_obs.dict())
 
-                    # Creating a DocumentReference with data from the NLPaaS Return
-                    temp_doc_ref = doc_ref_template
-                    temp_doc_ref["id"] = result['report_id']
-                    temp_doc_ref["date"] = result['report_date']
-                    temp_doc_ref["identifier"] = [{
-                        "system": deploy_url,
-                        "value": "DocumentReference/" + result['report_id'],
-                    }]
-                    report_type_map = {
-                        "Radiology Note": {
-                            "system": "http://loinc.org",
-                            "code": "75490-3",
-                            "display": "Radiology Note"
-                        },
-                        "Discharge summary": {
-                            "system": "http://loinc.org",
-                            "code": "18842-5",
-                            "display": "Discharge summary"
-                        },
-                        "Hospital Note": {
-                            "system": "http://loinc.org",
-                            "code": "34112-3",
-                            "display": "Hospital Note"
-                        },
-                        "Pathology consult note": {
-                            "system": "http://loinc.org",
-                            "code": "60570-9",
-                            "display": "Pathology Consult note"
-                        },
-                        "Ancillary eye tests Narrative": {
-                            "system": "http://loinc.org",
-                            "code": "70946-9",
-                            "display": "Ancillary eye tests Narrative"
-                        },
-                        "Nursing notes": {
-                            "system": "http://loinc.org",
-                            "code": "46208-5",
-                            "display": "Nursing notes"
-                        },
-                        "Note": {
-                            "system": "http://loinc.org",
-                            "code": "34109-9",
-                            "display": "Note"
-                        }
-                    }
+                    # Queries for original DocumentReference, adds it to the supporting resources if its not already there or creating a DocumentReference with data from the NLPaaS Return
+                    if result['report_id'] in [doc_ref["id"] for doc_ref in supporting_doc_refs]: #Indicates a DocumentReference is already in there
+                        continue
+
                     try:
-                        temp_doc_ref["type"]["coding"] = [report_type_map[result['report_type']]]
-                    except KeyError:
-                        temp_doc_ref["type"]["coding"] = [report_type_map["Note"]]
+                        if external_fhir_server_auth:
+                            supporting_resource_req = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'], headers={'Authorization': external_fhir_server_auth})
+                            supporting_resource = supporting_resource_req.json()
+                        else:
+                            supporting_resource_req  = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'])
+                            supporting_resource = supporting_resource_req.json()
+                    except requests.exceptions.JSONDecodeError:
 
-                    doc_bytes = result['report_text'].encode('utf-8')
-                    base64_bytes = base64.b64encode(doc_bytes)
-                    base64_doc = base64_bytes.decode('utf-8')
+                        logger.debug(f'Trying to find supporting resource with id DocumentReference/{result["report_id"]} '
+                                     f'failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle') #type: ignore
 
-                    temp_doc_ref["content"] = [{
-                        "attachment": {
-                            "contentType": "text/plain",
-                            "language": "en-US",
-                            "data": base64_doc
+                        temp_doc_ref = doc_ref_template
+                        temp_doc_ref["id"] = result['report_id']
+                        temp_doc_ref["date"] = result['report_date']
+                        temp_doc_ref["identifier"] = [{
+                            "system": deploy_url,
+                            "value": "DocumentReference/" + result['report_id'],
+                        }]
+                        report_type_map = {
+                            "Radiology Note": {
+                                "system": "http://loinc.org",
+                                "code": "75490-3",
+                                "display": "Radiology Note"
+                            },
+                            "Discharge summary": {
+                                "system": "http://loinc.org",
+                                "code": "18842-5",
+                                "display": "Discharge summary"
+                            },
+                            "Hospital Note": {
+                                "system": "http://loinc.org",
+                                "code": "34112-3",
+                                "display": "Hospital Note"
+                            },
+                            "Pathology consult note": {
+                                "system": "http://loinc.org",
+                                "code": "60570-9",
+                                "display": "Pathology Consult note"
+                            },
+                            "Ancillary eye tests Narrative": {
+                                "system": "http://loinc.org",
+                                "code": "70946-9",
+                                "display": "Ancillary eye tests Narrative"
+                            },
+                            "Nursing notes": {
+                                "system": "http://loinc.org",
+                                "code": "46208-5",
+                                "display": "Nursing notes"
+                            },
+                            "Note": {
+                                "system": "http://loinc.org",
+                                "code": "34109-9",
+                                "display": "Note"
+                            }
                         }
-                    }]
 
-                    if len(temp_doc_ref['date']) == 10:  # Handles just date and no time for validation
-                        temp_doc_ref['date'] = datetime.strptime(temp_doc_ref['date'], '%Y-%m-%d')
+                        try:
+                            temp_doc_ref["type"]["coding"] = [report_type_map[result['report_type']]]
+                        except KeyError:
+                            temp_doc_ref["type"]["coding"] = [report_type_map["Note"]]
 
-                    temp_doc_ref = DocumentReference(**temp_doc_ref)
-                    supporting_doc_refs.append(temp_doc_ref.dict())
+                        doc_bytes = result['report_text'].encode('utf-8')
+                        base64_bytes = base64.b64encode(doc_bytes)
+                        base64_doc = base64_bytes.decode('utf-8')
 
-                for i, tuple_observation in enumerate(tuple_observations):
+                        temp_doc_ref["content"] = [{
+                            "attachment": {
+                                "contentType": "text/plain",
+                                "language": "en-US",
+                                "data": base64_doc
+                            }
+                        }]
+
+                        if len(temp_doc_ref['date']) == 10:  # Handles just date and no time for validation
+                            temp_doc_ref['date'] = datetime.strptime(temp_doc_ref['date'], '%Y-%m-%d')
+                        supporting_resource = DocumentReference(**temp_doc_ref)
+
+                    supporting_doc_refs.append(supporting_resource.dict())
+
+                for tuple_observation in tuple_observations:
                     tuple_bundle_entry = {
                         'fullUrl': f'Observation/{tuple_observation["id"]}',
                         'resource': tuple_observation
                     }
                     bundle_entries.append(tuple_bundle_entry)
 
+                for doc_ref in supporting_doc_refs:
                     doc_bundle_entry = {
-                        'fullUrl': f'DocumentReference/{supporting_doc_refs[i]["id"]}',
-                        'resource': supporting_doc_refs[i]
+                        'fullUrl': f'DocumentReference/{doc_ref["id"]}',
+                        'resource': doc_ref
                     }
                     bundle_entries.append(doc_bundle_entry)
 
