@@ -888,7 +888,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     #     ):
                     #         continue
                     #     else:
-                    #         tuple_observations.append(temp_answer_obs.dict())
+                    tuple_observations.append(temp_answer_obs.dict())
 
                     # Queries for original DocumentReference, adds it to the supporting resources if its not already there or creating a DocumentReference with data from the NLPaaS Return
                     if result['report_id'] in [doc_ref["id"] for doc_ref in supporting_doc_refs]: #Indicates a DocumentReference is already in there
