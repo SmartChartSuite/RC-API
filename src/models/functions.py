@@ -879,16 +879,16 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     temp_answer_obs.effectiveDateTime = result['report_date']
 
                     # Check if an existing match exists to remove duplicates
-                    # TODO: check if this is actually a needed thing
-                    # for obs in tuple_observations:
-                    #     if all(key in obs for key in ['focus', 'note', 'valueString', 'effectiveDateTime']) and (obs['focus'] == [{'reference': f'DocumentReference/{result["report_id"]}'}] and
-                    #         obs['note'] == [{'text': tuple_dict['sourceNote']}] and
-                    #         obs['valueString'] == tuple_dict['answerValue'] and
-                    #         obs['effectiveDateTime'] == result['report_date']
-                    #     ):
-                    #         continue
-                    #     else:
-                    tuple_observations.append(temp_answer_obs.dict())
+                    is_duplicate = False
+                    for obs in tuple_observations:
+                        if all(key in obs for key in ['focus', 'valueString']) and (
+                            obs['focus'] == [{'reference': f'DocumentReference/{result["report_id"]}'}] and
+                            obs['valueString'] == tuple_dict['answerValue']
+                        ):
+                            is_duplicate = True
+
+                    if not is_duplicate:
+                        tuple_observations.append(temp_answer_obs.dict())
 
                     # Queries for original DocumentReference, adds it to the supporting resources if its not already there or creating a DocumentReference with data from the NLPaaS Return
                     if result['report_id'] in [doc_ref["id"] for doc_ref in supporting_doc_refs]: #Indicates a DocumentReference is already in there
