@@ -344,7 +344,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                             }
                         ]
                     },
-                    "effectiveDateTime": datetime.now(),
+                    "effectiveDateTime": datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
                     "subject": {
                         "reference": f'Patient/{patient_id}'
                     },
@@ -459,7 +459,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                             if len(answer_value_split) >= 3:
                                 effective_datetime = answer_value_split[0]
                             else:
-                                effective_datetime = datetime.now()
+                                effective_datetime = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
                             temp_answer_obs = {
                                 "resourceType": "Observation",
                                 "id": temp_uuid,
