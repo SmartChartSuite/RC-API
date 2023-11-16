@@ -397,6 +397,8 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     continue
 
                 answer_obs = answer_obs.dict()
+                if isinstance(answer_obs['effectiveDateTime'], datetime):
+                    answer_obs['effectiveDateTime'] = answer_obs['effectiveDateTime'].strftime('%Y-%m-%dT%H:%M:%SZ')
                 try:
                     if answer_obs['focus'] == []:
                         logger.debug('Answer Observation does not have a focus, deleting field')
@@ -458,6 +460,8 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                             temp_uuid = str(uuid.uuid4())
                             if len(answer_value_split) >= 3:
                                 effective_datetime = answer_value_split[0]
+                                if len(effective_datetime) == 19: #case when UTC but no Z
+                                    effective_datetime += 'Z'
                             else:
                                 effective_datetime = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
                             temp_answer_obs = {
@@ -518,7 +522,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                             "display": answer_value_split[3],
                                         }]
                                     },
-                                    "effectiveDateTime": answer_value_split[0],
+                                    "effectiveDateTime": effective_datetime,
                                     "subject": {
                                         "reference": f'Patient/{patient_id}'
                                     },
@@ -562,7 +566,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                             "display": answer_value_split[3],
                                         }]
                                     },
-                                    "authoredOn": answer_value_split[0],
+                                    "authoredOn": effective_datetime,
                                     "subject": {
                                         "reference": f'Patient/{patient_id}'
                                     },
@@ -606,7 +610,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                             "display": answer_value_split[3],
                                         }]
                                     },
-                                    "effectiveDateTime": answer_value_split[0],
+                                    "effectiveDateTime": effective_datetime,
                                     "subject": {
                                         "reference": f'Patient/{patient_id}'
                                     }
@@ -660,7 +664,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                             "display": answer_value_split[3],
                                         }]
                                     },
-                                    "onsetDateTime": answer_value_split[0],
+                                    "onsetDateTime": effective_datetime,
                                     "subject": {
                                         "reference": f'Patient/{patient_id}'
                                     }
@@ -695,7 +699,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                             "display": answer_value_split[3],
                                         }]
                                     },
-                                    "performedDateTime": answer_value_split[0],
+                                    "performedDateTime": effective_datetime,
                                     "subject": {
                                         "reference": f'Patient/{patient_id}'
                                     }
@@ -876,7 +880,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     temp_answer_obs.focus = [{'reference': f'DocumentReference/{result["report_id"]}'}] #type: ignore
                     temp_answer_obs.note = [{'text': tuple_dict['sourceNote']}] #type: ignore
                     temp_answer_obs.valueString = tuple_dict['answerValue']
-                    temp_answer_obs.effectiveDateTime = result['report_date']
+                    temp_answer_obs.effectiveDateTime = datetime.strptime(result['report_date'], '%Y-%m-%d').strftime('%Y-%m-%dT%H:%M:%SZ') #type: ignore
 
                     # Check if an existing match exists to remove duplicates
                     is_duplicate = False
@@ -888,7 +892,10 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                             is_duplicate = True
 
                     if not is_duplicate:
-                        tuple_observations.append(temp_answer_obs.dict())
+                        temp_answer_obs_dict = temp_answer_obs.dict()
+                        if isinstance(temp_answer_obs_dict['effectiveDateTime'], datetime):
+                            temp_answer_obs_dict['effectiveDateTime'] = temp_answer_obs_dict['effectiveDateTime'].strftime('%Y-%m-%dT%H:%M:%SZ')
+                        tuple_observations.append(temp_answer_obs_dict)
 
                     # Queries for original DocumentReference, adds it to the supporting resources if its not already there or creating a DocumentReference with data from the NLPaaS Return
                     if result['report_id'] in [doc_ref["id"] for doc_ref in supporting_doc_refs]: #Indicates a DocumentReference is already in there
@@ -971,9 +978,15 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
                     if len(temp_doc_ref['date']) == 10:  # Handles just date and no time for validation
                         temp_doc_ref['date'] = datetime.strptime(temp_doc_ref['date'], '%Y-%m-%d').strftime('%Y-%m-%dT%H:%M:%SZ')
+                    else:
+                        temp_doc_ref['date'] = datetime.strptime(temp_doc_ref['date'], '%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%dT%H:%M:%SZ')
                     supporting_resource = DocumentReference(**temp_doc_ref)
 
-                    supporting_doc_refs.append(supporting_resource.dict())
+                    supporting_res_dict = supporting_resource.dict()
+                    if isinstance(supporting_res_dict['date'], datetime):
+                        supporting_res_dict['date'] = supporting_res_dict['date'].strftime('%Y-%m-%dT%H:%M:%SZ')
+
+                    supporting_doc_refs.append(supporting_res_dict)
 
                 for tuple_observation in tuple_observations:
                     tuple_bundle_entry = {
