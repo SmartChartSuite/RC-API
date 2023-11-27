@@ -1019,6 +1019,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
     else:
         logger.error('Something went wrong! Return bundles were not created.')
         return make_operation_outcome('transient', 'Something went wrong and theres an empty return bundle. This shouldnt happen but this is here just in case.')
+    return_bundle["total"] = len(return_bundle["entry"])
     return return_bundle
 
 

@@ -3,7 +3,7 @@ import os
 import base64
 import logging
 import uuid
-from typing import Union, Dict
+from typing import Union, Dict, OrderedDict, Any
 import requests
 from requests import Response
 from datetime import datetime
@@ -14,6 +14,7 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from fastapi_utils.tasks import repeat_every
 
+from fhir.resources.bundle import Bundle
 from fhir.resources.questionnaire import Questionnaire
 from fhir.resources.library import Library
 from fhir.resources.parameters import Parameters
@@ -252,8 +253,8 @@ def save_form(questions: Questionnaire):
     return make_operation_outcome('informational', f'Resource successfully posted with id {resource_id}', severity='information')
 
 
-@apirouter.post("/forms/start")
-def start_jobs_header_function(post_body: Parameters, background_tasks: BackgroundTasks, asyncFlag: bool = False):  # pylint: disable=invalid-name
+@apirouter.post("/forms/start", response_model=None)
+def start_jobs_header_function(post_body: Parameters, background_tasks: BackgroundTasks, asyncFlag: bool = False) -> JSONResponse | OrderedDict[Any, Any]:
     '''Header function for starting jobs either synchronously or asynchronously'''
     if asyncFlag:
         logger.info('asyncFlag detected, running asynchronously')
@@ -270,14 +271,14 @@ def start_jobs_header_function(post_body: Parameters, background_tasks: Backgrou
     return start_jobs(post_body)
 
 
-def start_async_jobs(post_body: Parameters, uid: str):
+def start_async_jobs(post_body: Parameters, uid: str) -> None:
     '''Start job asychronously'''
     jobs[uid].parameter[3].resource = start_jobs(post_body)
     jobs[uid].parameter[2].valueString = "complete"
     logger.info(f'Job id {uid} complete and results are available at /forms/status/{uid}')
 
 
-def start_jobs(post_body: Parameters):
+def start_jobs(post_body: Parameters) -> OrderedDict[Any, Any]:
     '''Start jobs for both sync and async'''
     # Make list of parameters
     body_json = post_body.dict()
@@ -527,9 +528,9 @@ def start_jobs(post_body: Parameters):
     # Creates the registry bundle format
     logger.info('Start linking results')
     bundled_results = create_linked_results([results_cql, results_nlpql], form_name, patient_id) #type: ignore
-    logger.info('Finished linking results')
+    logger.info(f'Finished linking results, returning Bundle with {bundled_results["total"]} entries')
 
-    return bundled_results
+    return Bundle(**bundled_results).dict(exclude_none=True)
 
 
 @apirouter.get('/forms/status/all')
