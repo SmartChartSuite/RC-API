@@ -887,7 +887,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     for obs in tuple_observations:
                         if all(key in obs for key in ['focus', 'valueString']) and (
                             obs['focus'] == [{'reference': f'DocumentReference/{result["report_id"]}'}] and
-                            obs['valueString'] == tuple_dict['answerValue']
+                            obs['valueString'].lower() == tuple_dict['answerValue'].lower()
                         ):
                             is_duplicate = True
 
