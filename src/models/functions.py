@@ -559,6 +559,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                         "value": "MedicationRequest/" + answer_tuple['fhirResourceId'].split('/')[-1],
                                     }],
                                     "status": "active",
+                                    "intent": "order",
                                     "medicationCodeableConcept": {
                                         "coding": [{
                                             "system": answer_value_split[1],

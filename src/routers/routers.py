@@ -254,7 +254,7 @@ def save_form(questions: Questionnaire):
 
 
 @apirouter.post("/forms/start", response_model=None)
-def start_jobs_header_function(post_body: Parameters, background_tasks: BackgroundTasks, asyncFlag: bool = False) -> JSONResponse | OrderedDict[Any, Any]:
+def start_jobs_header_function(post_body: Parameters, background_tasks: BackgroundTasks, asyncFlag: bool = False) -> JSONResponse | dict:
     '''Header function for starting jobs either synchronously or asynchronously'''
     if asyncFlag:
         logger.info('asyncFlag detected, running asynchronously')
@@ -278,7 +278,7 @@ def start_async_jobs(post_body: Parameters, uid: str) -> None:
     logger.info(f'Job id {uid} complete and results are available at /forms/status/{uid}')
 
 
-def start_jobs(post_body: Parameters) -> OrderedDict[Any, Any]:
+def start_jobs(post_body: Parameters) -> dict:
     '''Start jobs for both sync and async'''
     # Make list of parameters
     body_json = post_body.dict()
@@ -530,7 +530,8 @@ def start_jobs(post_body: Parameters) -> OrderedDict[Any, Any]:
     bundled_results = create_linked_results([results_cql, results_nlpql], form_name, patient_id) #type: ignore
     logger.info(f'Finished linking results, returning Bundle with {bundled_results["total"]} entries')
 
-    return Bundle(**bundled_results).dict(exclude_none=True)
+    ##return Bundle(**bundled_results).dict(exclude_none=True)
+    return bundled_results
 
 
 @apirouter.get('/forms/status/all')
