@@ -21,7 +21,7 @@ from src.util.settings import api_docs, knowledgebase_repo_url, log_level, docs_
 from src.models.models import CustomFormatter
 
 title: str = 'SmartPacer Results Combining (RC) API'
-version: str = '0.8.1'
+version: str = '0.8.2'
 
 logger = logging.getLogger('rcapi')
 logger.setLevel(logging.INFO)

@@ -401,7 +401,9 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                             new_item_list.remove("")
                             test_dict = {}
                             for new_item in new_item_list:
-                                key, value = new_item.split(": ")
+                                new_item_split = new_item.split(": ")
+                                key = new_item_split[0]
+                                value = ": ".join(new_item_split[1:])
                                 test_dict[key] = value
                             tuple_dict_list.append(test_dict)
                         tuple_observations = []
