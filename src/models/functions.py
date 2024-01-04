@@ -328,8 +328,8 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 try:
                     value_return = results[task]
                 except KeyError:
-                    logger.error(f"The task {task} was not found in the library results")
-                    return make_operation_outcome("not-found", f"The task {task} was not found in the library results")
+                    logger.error(f"The task {task} was not found in the library results, please ensure your CQL or NLPQL is returning a result for this. Moving onto the next question to handle processsing timeouts.")
+                    continue
                 try:
                     if value_return["resourceType"] == "Bundle":
                         supporting_resources = value_return["entry"]
