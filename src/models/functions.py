@@ -1,19 +1,19 @@
 """Functions module for helper functions being called by other files"""
 
-from datetime import datetime
+import base64
 import logging
 import uuid
-import base64
+from concurrent.futures import Future
+from datetime import datetime
 
-from fhir.resources.operationoutcome import OperationOutcome
-from fhir.resources.observation import Observation
+import requests
 from fhir.resources.documentreference import DocumentReference
 from fhir.resources.fhirtypes import Id
-
+from fhir.resources.observation import Observation
+from fhir.resources.operationoutcome import OperationOutcome
 from requests_futures.sessions import FuturesSession
-import requests
 
-from ..util.settings import cqfr4_fhir, nlpaas_url, deploy_url, external_fhir_server_url, external_fhir_server_auth
+from ..util.settings import cqfr4_fhir, deploy_url, external_fhir_server_auth, external_fhir_server_url, nlpaas_url
 
 logger: logging.Logger = logging.getLogger("rcapi.models.functions")
 
@@ -54,10 +54,10 @@ def run_cql(library_ids: list, parameters_post: dict):
     """Create an asynchrounous HTTP Request session for evaluting CQL Libraries"""
 
     session = FuturesSession()
-    futures = []
+    futures: list[Future] = []
     for library_id in library_ids:
         url = cqfr4_fhir + f"Library/{library_id}/$evaluate"
-        future = session.post(url, json=parameters_post)
+        future: Future = session.post(url, json=parameters_post) #type: ignore
         futures.append(future)
     return futures
 
@@ -66,7 +66,7 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
     """Create an asynchrounous HTTP Request session for evaluting NLPQL Libraries"""
 
     session = FuturesSession()
-    futures = []
+    futures: list[Future] = []
 
     nlpql_post_body = {"patient_id": patient_id, "fhir": {"service_url": external_fhir_server_url_string}}
 
@@ -99,84 +99,80 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
             job_url = job_url[1:]
 
         # Start running jobs
-        future = session.post(nlpaas_url + job_url, json=nlpql_post_body)
+        future: Future = session.post(nlpaas_url + job_url, json=nlpql_post_body) #type: ignore
         futures.append(future)
     return futures
 
 
-def get_results(futures: list, libraries: list, patient_id: str, flags: list):
+def handle_cql_futures(cql_futures: list[Future], library_names: list[str], patient_id: str) -> list[dict]:
+
+    results_cql: list[dict] = []
+    for i, future in enumerate(cql_futures):
+        pre_result: requests.Response = future.result()
+        if pre_result.status_code == 504:
+            logger.error(f"There was an upstream request timeout for library {library_names[i]}.cql with status_code 504")
+            result_cql_tmp: dict = {}
+        elif pre_result.status_code == 408:
+            logger.error(f"There was a stream request timeout for library {library_names[i]}.cql with status code 408")
+            result_cql_tmp = {}
+        else:
+            result_cql_tmp = pre_result.json()
+
+        # Handles if theres an OperationOutcome and logs it, but moves on
+        if result_cql_tmp["resourceType"] == "OperationOutcome":
+            logger.error('There were errors in the CQL, see OperationOutcome below')
+            logger.error(result_cql_tmp)
+            result_cql_tmp = {}
+
+        # Formats result into format for further processing and linking
+        full_result = {"libraryName": library_names[i], "patientId": patient_id, "results": result_cql_tmp}
+        logger.info(f"Got result for {library_names[i]}.cql")
+        results_cql.append(full_result)
+
+    return results_cql
+
+
+def handle_nlpql_futures(nlpql_futures: list[Future], library_names: list[str], patient_id: str)  -> list[dict]:
+
+    results_nlpql: list[dict] = []
+    for i, future in enumerate(nlpql_futures):
+        pre_result: requests.Response = future.result()
+        if pre_result.status_code == 504:
+            logger.error(f"There was an upstream request timeout for library {library_names[i]}.nlpql with status_code 504")
+            result_nlpql_tmp: dict = {}
+        elif pre_result.status_code == 408:
+            logger.error(f"There was an stream request timeout for library {library_names[i]}.nlpql with status_code 408")
+            result_nlpql_tmp = {}
+        elif pre_result.status_code in [200, 201]:
+            result_nlpql_tmp = pre_result.json()
+        else:
+            logger.error(f"There was an error for library {library_names[i]}.nlpql with status_code {pre_result.status_code}")
+            result_nlpql_tmp = {}
+
+        # Formats result into format for further processing and linking
+        full_result = {"libraryName": library_names[i], "patientId": patient_id, "results": result_nlpql_tmp}
+        logger.info(f"Got result for {library_names[i]}.nlpql")
+        results_nlpql.append(full_result)
+
+    return results_nlpql
+
+
+def get_results(futures: list[list[Future]], libraries: list[list[str]], patient_id: str, flags: list) -> tuple[list[dict], list[dict]]:
     """Get results from an async Futures Session"""
-    results_cql = []
-    results_nlpql = []
+    results_cql: list[dict] = []
+    results_nlpql: list[dict] = []
+
     # Get JSON result from the given future object, will wait until request is done to grab result (would be a blocker when passed multiple futures and one result isnt done)
     if flags[0] and flags[1] and nlpaas_url != "False":
         logger.debug("CQL and NLPQL Flag and NLPaaS URL is set")
-        for i, future in enumerate(futures[0]):
-            pre_result = future.result()
-            if pre_result.status_code == 504:
-                logger.error(f"There was an upstream request timeout for library {libraries[0][i]}.cql with status_code 504")
-                result: list = []
-            elif pre_result.status_code == 408:
-                logger.error(f"There was a stream request timeout for library {libraries[0][i]}.cql with status code 408")
-                result: list = []
-            else:
-                result = pre_result.json()
-
-            # Formats result into format for further processing and linking
-            full_result = {"libraryName": libraries[0][i], "patientId": patient_id, "results": result}
-            logger.info(f"Got result for {libraries[0][i]}.cql")
-            results_cql.append(full_result)
-
-        for i, future in enumerate(futures[1]):
-            pre_result = future.result()
-            if pre_result.status_code == 504:
-                logger.error(f"There was an upstream request timeout for library {libraries[1][i]}.nlpql with status_code 504")
-                result: list = []
-            elif pre_result.status_code == 408:
-                logger.error(f"There was an stream request timeout for library {libraries[1][i]}.nlpql with status_code 408")
-                result: list = []
-            elif pre_result.status_code in [200, 201]:
-                result = pre_result.json()
-            else:
-                logger.error(f"There was an error for library {libraries[1][i]}.nlpql with status_code {pre_result.status_code}")
-                result = []
-
-            # Formats result into format for further processing and linking
-            full_result = {"libraryName": libraries[1][i], "patientId": patient_id, "results": result}
-            logger.info(f"Got result for {libraries[1][i]}.nlpql")
-            results_nlpql.append(full_result)
+        results_cql = handle_cql_futures(cql_futures=futures[0], library_names=libraries[0], patient_id=patient_id)
+        results_nlpql = handle_nlpql_futures(nlpql_futures=futures[1], library_names=libraries[1], patient_id=patient_id)
     elif flags[0]:
         logger.debug("CQL Flag only")
-        for i, future in enumerate(futures[0]):
-            pre_result = future.result()
-            if pre_result.status_code == 504:
-                return "Upstream request timeout"
-            if pre_result.status_code == 408:
-                return "stream timeout"
-            result = pre_result.json()
-
-            # Formats result into format for further processing and linking
-            if isinstance(libraries[0], list):
-                full_result = {"libraryName": libraries[0][i], "patientId": patient_id, "results": result}
-                logger.info(f"Got result for {libraries[0][i]}.cql")
-            else:
-                full_result = {"libraryName": libraries[0], "patientId": patient_id, "results": result}
-                logger.info(f"Got result for {libraries[0]}.cql")
-            results_cql.append(full_result)
+        results_cql = handle_cql_futures(cql_futures=futures[0], library_names=(libraries[0] if isinstance(libraries[0], list) else libraries), patient_id=patient_id) #type: ignore
     elif flags[1] and nlpaas_url != "False":
         logger.debug("NLPQL Flag and NLPaaS URL is not False")
-        for i, future in enumerate(futures[0]):
-            pre_result = future.result()
-            if pre_result.status_code == 504:
-                return "Upstream request timeout"
-            if pre_result.status_code == 408:
-                return "stream timeout"
-            result = pre_result.json()
-
-            # Formats result into format for further processing and linking
-            full_result = {"libraryName": libraries[0][i], "patientId": patient_id, "results": result}
-            logger.info(f"Got result for {libraries[0][i]}.nlpql")
-            results_nlpql.append(full_result)
+        results_nlpql = handle_nlpql_futures(nlpql_futures=futures[1], library_names=libraries[0], patient_id=patient_id)
 
     return results_cql, results_nlpql
 
@@ -219,7 +215,7 @@ def flatten_results(results):
     return flat_results
 
 
-def check_results(results):
+def check_results(results: list[dict]):
     """Checks results for any errors returned from CQF Ruler or NLPaaS"""
     logger.info("Checking Results for Any Errors Returned by Services")
     for result in results:

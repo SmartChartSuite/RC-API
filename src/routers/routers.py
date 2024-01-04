@@ -507,9 +507,9 @@ def start_jobs(post_body: Parameters) -> dict:
 
     # Passes future to get the results from it, will wait until all are processed until returning results
     logger.info('Start getting job results')
-    results_list = get_results(futures, libraries_to_run, patient_id, [cql_flag, nlpql_flag]) #type: ignore
-    results_cql = results_list[0]
-    results_nlpql = results_list[1]
+    results_list: tuple[list[dict], list[dict]] = get_results(futures, libraries_to_run, patient_id, [cql_flag, nlpql_flag]) #type: ignore
+    results_cql: list[dict] = results_list[0]
+    results_nlpql: list[dict] = results_list[1]
     logger.info(f'Retrieved results for jobs {libraries_to_run}') #type: ignore
 
     # Upstream request timeout handling
@@ -522,13 +522,16 @@ def start_jobs(post_body: Parameters) -> dict:
     if isinstance(results_check_return, dict):
         logger.error('There were errors in the CQL, see OperationOutcome')
         logger.error(results_check_return)
-        return results_check_return
-    logger.info('No errors returned from backend services, continuing to link results')
+    else:
+        logger.info('No errors returned from backend services, continuing to link results')
 
     # Creates the registry bundle format
     logger.info('Start linking results')
     bundled_results = create_linked_results([results_cql, results_nlpql], form_name, patient_id) #type: ignore
-    logger.info(f'Finished linking results, returning Bundle with {bundled_results["total"]} entries')
+    if bundled_results["resourceType"] == "OperationOutcome":
+        logger.error(bundled_results["issue"][0]["diagnostics"])
+    else:
+        logger.info(f'Finished linking results, returning Bundle with {bundled_results["total"] if "total" in bundled_results else 0} entries')
 
     ##return Bundle(**bundled_results).dict(exclude_none=True)
     return bundled_results
