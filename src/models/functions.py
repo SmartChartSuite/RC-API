@@ -405,6 +405,9 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         tuple_observations = []
                         for answer_tuple in tuple_dict_list:
                             answer_value_split = answer_tuple["answerValue"].split("^")
+                            if answer_value_split[0] == "null":
+                                logger.warning('Found a null in tuple results, please investigate for possible data error')
+                                continue
                             logger.debug(f"Tuple found: {answer_value_split}")
                             if "." in answer_tuple["fhirField"]:
                                 supporting_resource_type = answer_tuple["fhirField"].split(".")[0]
