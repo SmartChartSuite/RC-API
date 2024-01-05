@@ -273,7 +273,13 @@ def start_jobs_header_function(post_body: Parameters, background_tasks: Backgrou
 
 def start_async_jobs(post_body: Parameters, uid: str) -> None:
     '''Start job asychronously'''
-    jobs[uid].parameter[3].resource = start_jobs(post_body)
+    job_result = start_jobs(post_body)
+    if uid not in jobs:
+        new_job = ParametersJob()
+        new_job.parameter[0].valueString = uid
+        new_job.parameter[1].valueDateTime = "9999-12-31T00:00:00Z"
+        jobs[uid] = new_job
+    jobs[uid].parameter[3].resource = job_result
     jobs[uid].parameter[2].valueString = "complete"
     logger.info(f'Job id {uid} complete and results are available at /forms/status/{uid}')
 
