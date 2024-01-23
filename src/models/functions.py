@@ -334,7 +334,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     value_return = results[task]
                 except KeyError:
                     logger.error(
-                        f"The task {task} was not found in the library results, please ensure your CQL or NLPQL is returning a result for this. Moving onto the next question to handle processsing timeouts."
+                        f"The task {task} was not found in the library {library}, please ensure your CQL or NLPQL is returning a result for this. Moving onto the next question to handle processsing timeouts."
                     )
                     continue
                 try:
@@ -650,6 +650,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                 #     logger.debug(f'Trying to find supporting resource with id Procedure/{asupporting_resource_id} '
                                 #                  f'failed with status code {supporting_resource_req.status_code}') #type: ignore
                                 supporting_resource_bundle_entry = {"fullUrl": "Procedure/" + supporting_resource["id"], "resource": supporting_resource}
+
                             else:
                                 supporting_resource_bundle_entry = {}
 
