@@ -32,22 +32,29 @@ def make_operation_outcome(code: str, diagnostics: str, severity: str = "error")
     return OperationOutcome(**oo_template).dict()  # type: ignore
 
 
-def get_form(form_name: str):
+def get_form(form_name: str, form_version: str | None = None):
     """Returns the Questionnaire from CQF Ruler based on form name"""
 
-    req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
-    if req.status_code != 200:
-        logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
-        return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
+    if form_version:
+        req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&version={form_version}")
+        if req.status_code != 200:
+            logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
+            return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
+    else:
+        logger.info(f"No form version given, will be using most recently updated Questionnaire with name {form_name}")
+        req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&_sort=-_lastUpdated")
+        if req.status_code != 200:
+            logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
+            return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
 
     search_bundle = req.json()
     try:
         questionnaire = search_bundle["entry"][0]["resource"]
-        logger.info(f"Found Questionnaire with name {form_name}")
+        logger.info(f"Found Questionnaire with name {form_name}, version {questionnaire['version']}, and form server ID {questionnaire['id']}")
         return questionnaire
     except KeyError:
-        logger.error("Questionnaire with that name not found")
-        return make_operation_outcome("not-found", f"Questionnaire named {form_name} not found on the FHIR server.")
+        logger.error(f"Questionnaire with name {form_name} and version {form_version} not found") if form_version else logger.error(f"Questionnaire with name {form_name} not found")
+        return make_operation_outcome("not-found", f"Questionnaire with name {form_name} and version {form_version} not found") if form_version else make_operation_outcome("not-found", f"Questionnaire with name {form_name} not found on the FHIR server.")
 
 
 def run_cql(library_ids: list, parameters_post: dict):
@@ -57,7 +64,7 @@ def run_cql(library_ids: list, parameters_post: dict):
     futures: list[Future] = []
     for library_id in library_ids:
         url = cqfr4_fhir + f"Library/{library_id}/$evaluate"
-        future: Future = session.post(url, json=parameters_post) #type: ignore
+        future: Future = session.post(url, json=parameters_post)  # type: ignore
         futures.append(future)
     return futures
 
@@ -99,13 +106,12 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
             job_url = job_url[1:]
 
         # Start running jobs
-        future: Future = session.post(nlpaas_url + job_url, json=nlpql_post_body) #type: ignore
+        future: Future = session.post(nlpaas_url + job_url, json=nlpql_post_body)  # type: ignore
         futures.append(future)
     return futures
 
 
 def handle_cql_futures(cql_futures: list[Future], library_names: list[str], patient_id: str) -> list[dict]:
-
     results_cql: list[dict] = []
     for i, future in enumerate(cql_futures):
         pre_result: requests.Response = future.result()
@@ -120,7 +126,7 @@ def handle_cql_futures(cql_futures: list[Future], library_names: list[str], pati
 
         # Handles if theres an OperationOutcome and logs it, but moves on
         if result_cql_tmp["resourceType"] == "OperationOutcome":
-            logger.error('There were errors in the CQL, see OperationOutcome below')
+            logger.error("There were errors in the CQL, see OperationOutcome below")
             logger.error(result_cql_tmp)
             result_cql_tmp = {}
 
@@ -132,8 +138,7 @@ def handle_cql_futures(cql_futures: list[Future], library_names: list[str], pati
     return results_cql
 
 
-def handle_nlpql_futures(nlpql_futures: list[Future], library_names: list[str], patient_id: str)  -> list[dict]:
-
+def handle_nlpql_futures(nlpql_futures: list[Future], library_names: list[str], patient_id: str) -> list[dict]:
     results_nlpql: list[dict] = []
     for i, future in enumerate(nlpql_futures):
         pre_result: requests.Response = future.result()
@@ -169,7 +174,7 @@ def get_results(futures: list[list[Future]], libraries: list[list[str]], patient
         results_nlpql = handle_nlpql_futures(nlpql_futures=futures[1], library_names=libraries[1], patient_id=patient_id)
     elif flags[0]:
         logger.debug("CQL Flag only")
-        results_cql = handle_cql_futures(cql_futures=futures[0], library_names=(libraries[0] if isinstance(libraries[0], list) else libraries), patient_id=patient_id) #type: ignore
+        results_cql = handle_cql_futures(cql_futures=futures[0], library_names=(libraries[0] if isinstance(libraries[0], list) else libraries), patient_id=patient_id)  # type: ignore
     elif flags[1] and nlpaas_url != "False":
         logger.debug("NLPQL Flag and NLPaaS URL is not False")
         results_nlpql = handle_nlpql_futures(nlpql_futures=futures[0], library_names=libraries[0], patient_id=patient_id)
@@ -328,7 +333,9 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 try:
                     value_return = results[task]
                 except KeyError:
-                    logger.error(f"The task {task} was not found in the library results, please ensure your CQL or NLPQL is returning a result for this. Moving onto the next question to handle processsing timeouts.")
+                    logger.error(
+                        f"The task {task} was not found in the library results, please ensure your CQL or NLPQL is returning a result for this. Moving onto the next question to handle processsing timeouts."
+                    )
                     continue
                 try:
                     if value_return["resourceType"] == "Bundle":
@@ -406,7 +413,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         for answer_tuple in tuple_dict_list:
                             answer_value_split = answer_tuple["answerValue"].split("^")
                             if answer_value_split[0] == "null":
-                                logger.warning('Found a null in tuple results, please investigate for possible data error')
+                                logger.warning("Found a null in tuple results, please investigate for possible data error")
                                 continue
                             logger.debug(f"Tuple found: {answer_value_split}")
                             if "." in answer_tuple["fhirField"]:
