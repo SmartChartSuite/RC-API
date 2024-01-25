@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from src.util.git import clone_repo_to_temp_folder
 from src.routers import routers, webhook
+from src.routers import smartchartui
 from src.models.functions import make_operation_outcome
 
 from src.util.settings import api_docs, knowledgebase_repo_url, log_level, docs_prepend_url, deploy_url
@@ -53,6 +54,7 @@ app.add_middleware(
 
 app.include_router(routers.apirouter)
 app.include_router(webhook.apirouter)
+app.include_router(smartchartui.apirouter)
 
 # ================= Invalid Request Exception Handling =================
 
