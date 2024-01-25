@@ -26,28 +26,13 @@ internal_fhir_client = FhirClient(os.getenv('CQF_RULER_R4'))
 apirouter = APIRouter()
 
 '''Read a Patient resource from the external FHIR Server (ex: Epic)'''
-@apirouter.get("/smartchartui/Patient/{patient_id}", response_class=PrettyJSONResponse)
+@apirouter.get("/smartchartui/patient/{patient_id}", response_class=PrettyJSONResponse)
 def readPatient(patient_id: str):
     response = external_fhir_client.readResource("Patient", patient_id)
     return response
 
 '''Search for all Group resources on the internal SmartChart FHIR server (ex: SmartChart Suite CQF Ruler)'''
-@apirouter.get("/smartchartui/Group")
+@apirouter.get("/smartchartui/group")
 def searchGroup():
-    # Read from FHIR Server to get Group
-    # For each member, read patient data.
-    # Assemble list for the UI
-    return {
-        "timestamp": "2024-02-02",
-        "groups": [
-            {
-                "name": "",
-                "members": [
-                    {
-                        "name": "Bob Smith",
-                        "fhirId": "12345"
-                    }
-                ]
-            }
-        ]
-    }
+    response = internal_fhir_client.searchResource("Group", flatten=True)
+    return response
