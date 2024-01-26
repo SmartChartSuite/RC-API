@@ -121,16 +121,7 @@ def health_check() -> dict:
 @apirouter.get("/forms", response_model=dict)
 def get_list_of_forms():
     '''Get Bundle of Questionnaires from CQF Ruler'''
-    cqfr4_fhir_url = os.environ["CQF_RULER_R4"]
-    # Pull list of forms from CQF Ruler
-    if cqfr4_fhir_url[-5:] == 'fhir/':
-        pass
-    elif cqfr4_fhir_url[-4:] == 'fhir':
-        cqfr4_fhir_url = cqfr4_fhir_url + '/'
-    else:
-        return make_operation_outcome('invalid',
-                                      f'The CQF Ruler url ({cqfr4_fhir_url}) passed in as an environmental variable is not correct, please check that it ends with fhir or fhir/')  # type:ignore
-    req = requests.get(cqfr4_fhir_url + 'Questionnaire')
+    req = requests.get(cqfr4_fhir + 'Questionnaire')
     if req.status_code == 200:
         return req.json()
     logger.error(f'Getting Questionnaires from server failed with code {req.status_code}')
