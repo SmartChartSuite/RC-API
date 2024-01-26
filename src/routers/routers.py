@@ -26,6 +26,7 @@ from ..models.models import ParametersJob
 from ..models.functions import (
     make_operation_outcome, run_cql, run_nlpql, get_results, check_results, create_linked_results, validate_cql
 )
+from ..models.functions import get_form as functions_get_form
 from ..util.settings import (
     cqfr4_fhir, external_fhir_server_url, external_fhir_server_auth, nlpaas_url
 )
@@ -323,19 +324,16 @@ def start_jobs(post_body: Parameters) -> dict:
         logger.error('jobPackage was not found in the parameters posted')
         return make_operation_outcome('required', 'jobPackage was not found in the parameters posted')
 
-    # Pull Questionnaire resource ID from CQF Ruler
-    req: Response = requests.get(cqfr4_fhir + f'Questionnaire?name:exact={form_name}')
-    if req.status_code != 200:
-        logger.error(f'Getting Questionnaire from server failed with status code {req.status_code}')
-        return make_operation_outcome('transient', f'Getting Questionnaire from server failed with status code {req.status_code}')
-
-    search_bundle = req.json()
+    form_version: str | None = None
     try:
-        form_server_id = search_bundle['entry'][0]['resource']['id']
-        logger.info(f'Found Questionnaire with name {form_name} and server id {form_server_id}')
-    except KeyError:
-        logger.error(f'Questionnaire with name {form_name} not found')
-        return make_operation_outcome('not-found', f'Questionnaire with name {form_name} not found')
+        form_version = parameters[parameter_names.index('jobPackageVersion')]['valueString']
+    except ValueError:
+        logger.info('No form version given, will be using newest created Questionnaire matching the name')
+
+    # Pull Questionnaire resource ID from CQF Ruler
+    questionnaire = functions_get_form(form_name=form_name, form_version=form_version)
+    if questionnaire["resourceType"] == "OperationOutcome":
+        return questionnaire
 
     cql_flag = False
     nlpql_flag = False
@@ -345,13 +343,13 @@ def start_jobs(post_body: Parameters) -> dict:
         cql_library_server_ids: list[str] = []
         nlpql_library_server_ids: list[str] = []
 
-        cql_libraries_to_run_extension: dict = search_bundle['entry'][0]['resource']['extension'][0]['extension']
+        cql_libraries_to_run_extension: dict = questionnaire['extension'][0]['extension']
         for extension in cql_libraries_to_run_extension:
             cql_libraries_to_run.append(extension['valueString'])
         logger.info(f'Going to run the following CQL libraries for this jobPackage: {cql_libraries_to_run}')
 
         try:
-            nlpql_libraries_to_run_extension: dict = search_bundle['entry'][0]['resource']['extension'][1]['extension']
+            nlpql_libraries_to_run_extension: dict = questionnaire['extension'][1]['extension']
             for extension in nlpql_libraries_to_run_extension:
                 nlpql_libraries_to_run.append(extension['valueString'])
             logger.info(f'Going to run the following NLPQL libraries for this jobPackage: {nlpql_libraries_to_run}')
