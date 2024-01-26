@@ -27,12 +27,17 @@ apirouter = APIRouter()
 
 '''Read a Patient resource from the external FHIR Server (ex: Epic)'''
 @apirouter.get("/smartchartui/patient/{patient_id}", response_class=PrettyJSONResponse)
-def readPatient(patient_id: str):
+def read_patient(patient_id: str):
     response = external_fhir_client.readResource("Patient", patient_id)
     return response
 
 '''Search for all Group resources on the internal SmartChart FHIR server (ex: SmartChart Suite CQF Ruler)'''
 @apirouter.get("/smartchartui/group")
-def searchGroup():
+def search_group():
     response = internal_fhir_client.searchResource("Group", flatten=True)
+    return response
+
+@apirouter.get("/smartchartui/questionnaire")
+def search_questionnaire():
+    response = internal_fhir_client.searchResource("Questionnaire", flatten=True)
     return response
