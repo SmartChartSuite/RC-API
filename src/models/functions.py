@@ -13,7 +13,7 @@ from fhir.resources.observation import Observation
 from fhir.resources.operationoutcome import OperationOutcome
 from requests_futures.sessions import FuturesSession
 
-from ..util.settings import cqfr4_fhir, deploy_url, external_fhir_server_auth, external_fhir_server_url, nlpaas_url
+from src.util.settings import cqfr4_fhir, deploy_url, external_fhir_server_auth, external_fhir_server_url, nlpaas_url
 
 logger: logging.Logger = logging.getLogger("rcapi.models.functions")
 
@@ -54,7 +54,11 @@ def get_form(form_name: str, form_version: str | None = None):
         return questionnaire
     except KeyError:
         logger.error(f"Questionnaire with name {form_name} and version {form_version} not found") if form_version else logger.error(f"Questionnaire with name {form_name} not found")
-        return make_operation_outcome("not-found", f"Questionnaire with name {form_name} and version {form_version} not found") if form_version else make_operation_outcome("not-found", f"Questionnaire with name {form_name} not found on the FHIR server.")
+        return (
+            make_operation_outcome("not-found", f"Questionnaire with name {form_name} and version {form_version} not found")
+            if form_version
+            else make_operation_outcome("not-found", f"Questionnaire with name {form_name} not found on the FHIR server.")
+        )
 
 
 def run_cql(library_ids: list, parameters_post: dict):
