@@ -5,13 +5,14 @@ from src.responsemodels.prettyjson import PrettyJSONResponse
 
 from src.util.fhirclient import FhirClient
 
-
 logger = logging.getLogger('rcapi.routers.smartchartui')
 
 external_fhir_client = FhirClient(os.getenv('EXTERNAL_FHIR_SERVER_URL'))
 internal_fhir_client = FhirClient(os.getenv('CQF_RULER_R4'))
 
 apirouter = APIRouter()
+
+batchJobs: dict = []
 
 '''Read a Patient resource from the external FHIR Server (ex: Epic)'''
 @apirouter.get("/smartchartui/patient/{patient_id}", response_class=PrettyJSONResponse)
@@ -29,3 +30,8 @@ def search_group():
 def search_questionnaire():
     response = internal_fhir_client.searchResource("Questionnaire", flatten=True)
     return response
+
+'''Batch request to run every job in a jobPackage individually'''
+@apirouter.post("/smartchartui/startbatchjob")
+def start_batch_job():
+    pass
