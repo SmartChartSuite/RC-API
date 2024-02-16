@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.models.functions import make_operation_outcome
 from src.models.models import CustomFormatter
-from src.routers import routers, webhook
+from src.routers import routers, smartchartui, webhook
 from src.routers.routers import clear_jobs_array
 from src.util.git import clone_repo_to_temp_folder
 from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url, log_level
