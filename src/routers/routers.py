@@ -9,15 +9,13 @@ from typing import Union
 import requests
 from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import JSONResponse
-from fastapi_utils.tasks import repeat_every
+from fastapi_restful.tasks import repeat_every
 from fhir.resources.library import Library
 from fhir.resources.operationoutcome import OperationOutcome
-from fhir.resources.parameters import Parameters
-from fhir.resources.questionnaire import Questionnaire
 
 from src.models.functions import check_results, create_linked_results, get_results, make_operation_outcome, run_cql, run_nlpql, validate_cql
 from src.models.functions import get_form as functions_get_form
-from src.models.models import ParametersJob
+from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
 from src.services.libraryhandler import create_cql, create_nlpql
 from src.util.settings import cqfr4_fhir, external_fhir_server_auth, external_fhir_server_url, nlpaas_url
 
@@ -215,10 +213,10 @@ def get_form(form_name: str):
 
 
 @apirouter.post("/forms")
-def save_form(questions: Questionnaire):
+def save_form(questions: dict):
     """Check to see if library and version of this exists"""
 
-    req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={questions.name}&version={questions.version}")
+    req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={questions['name']}&version={questions['version']}")
     if req.status_code != 200:
         logger.error(f"Trying to get Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
@@ -226,7 +224,7 @@ def save_form(questions: Questionnaire):
     search_bundle = req.json()
     try:
         questionnaire_current_id = search_bundle["entry"][0]["resource"]["id"]
-        logger.info(f"Found Questionnaire with name {questions.name} and version {questions.version}")
+        logger.info(f"Found Questionnaire with name {questions['name']} and version {questions['version']}")
         logger.info("Not completing POST operation because a Questionnaire with that name and version already exist on this FHIR Server")
         logger.info("Change Questionnaire name or version number or use PUT to update this version")
         return make_operation_outcome("duplicate", f"There is already a Questionnaire with this name with resource id {questionnaire_current_id}")
@@ -234,7 +232,7 @@ def save_form(questions: Questionnaire):
         logger.info("Questionnaire with that name not found, continuing POST operation")
 
     # Create Questionnaire in CQF Ruler
-    req = requests.post(cqfr4_fhir + "Questionnaire", json=questions.dict())
+    req = requests.post(cqfr4_fhir + "Questionnaire", json=questions)
     if req.status_code != 201:
         logger.error(f"Posting Questionnaire to server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Posting Questionnaire to server failed with code {req.status_code}")
@@ -244,7 +242,7 @@ def save_form(questions: Questionnaire):
 
 
 @apirouter.post("/forms/start", response_model=None)
-def start_jobs_header_function(post_body: Parameters, background_tasks: BackgroundTasks, asyncFlag: bool = False) -> JSONResponse | dict:
+def start_jobs_header_function(post_body: StartJobsParameters, background_tasks: BackgroundTasks, asyncFlag: bool = False) -> JSONResponse | dict:
     """Header function for starting jobs either synchronously or asynchronously"""
     if asyncFlag:
         logger.info("asyncFlag detected, running asynchronously")
@@ -253,17 +251,17 @@ def start_jobs_header_function(post_body: Parameters, background_tasks: Backgrou
         starttime_param_index = new_job.parameter.index([param for param in new_job.parameter if param.name == 'jobStartDateTime'][0])
         new_job.parameter[uid_param_index].valueString = str(uuid.uuid4())
         new_job.parameter[starttime_param_index].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-        logger.info(f"Created new job with jobId {new_job.parameter[uid_param_index].valueString}")
-        jobs[new_job.parameter[uid_param_index].valueString] = new_job
+        logger.info(f"Created new job with jobId {new_job.parameter[uid_param_index].valueString}") #type: ignore
+        jobs[new_job.parameter[uid_param_index].valueString] = new_job #type: ignore
         logger.info("Added to jobs array")
-        background_tasks.add_task(start_async_jobs, post_body, new_job.parameter[uid_param_index].valueString)
+        background_tasks.add_task(start_async_jobs, post_body, new_job.parameter[uid_param_index].valueString) #type: ignore
         logger.info("Added background task")
-        return JSONResponse(content=new_job.dict(), headers={"Location": f"/forms/status/{new_job.parameter[uid_param_index].valueString}"})
+        return JSONResponse(content=new_job.model_dump(), headers={"Location": f"/forms/status/{new_job.parameter[uid_param_index].valueString}"}) #type: ignore
 
     return start_jobs(post_body)
 
 
-def start_async_jobs(post_body: Parameters, uid: str) -> None:
+def start_async_jobs(post_body: StartJobsParameters, uid: str) -> None:
     """Start job asychronously"""
     job_result = start_jobs(post_body)
     if uid not in jobs:
@@ -277,17 +275,17 @@ def start_async_jobs(post_body: Parameters, uid: str) -> None:
     tmp_job_obj = jobs[uid]
 
     status_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == 'jobStatus'][0])
-    endtime_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == 'jobCompletedDateTime'][0])
     result_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == 'result'][0])
 
     jobs[uid].parameter[result_param_index].resource = job_result
     jobs[uid].parameter[status_param_index].valueString = "complete"
-    jobs[uid].parameter[endtime_param_index].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    jobs[uid].parameter.append(JobCompletedParameter(valueDateTime=datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")))
 
     logger.info(f"Job id {uid} complete and results are available at /forms/status/{uid}")
 
 
-def start_jobs(post_body: Parameters) -> dict:
+def start_jobs(post_body: StartJobsParameters) -> dict:
     """Start jobs for both sync and async"""
     # Make list of parameters
     body_json = post_body.dict()
@@ -330,7 +328,7 @@ def start_jobs(post_body: Parameters) -> dict:
     try:
         form_version = parameters[parameter_names.index("jobPackageVersion")]["valueString"]
     except ValueError:
-        logger.info("No form version given, will be using newest created Questionnaire matching the name")
+        logger.info(f"No form version given, will be using newest created Questionnaire matching {form_name}")
 
     # Pull Questionnaire resource ID from CQF Ruler
     questionnaire = functions_get_form(form_name=form_name, form_version=form_version)
@@ -553,7 +551,7 @@ def get_job_status(uid: str):
         try:
             job_status_obj = jobs[uid]
             result_param_index: int = job_status_obj.parameter.index([param for param in job_status_obj.parameter if param.name == 'result'][0])
-            job_results = job_status_obj.parameter[result_param_index].resource
+            job_results = job_status_obj.parameter[result_param_index].resource #type: ignore
             job_results_severity = job_results["issue"][0]["severity"]
             job_results_code = job_results["issue"][0]["code"]
             if job_results_code == "not-found":
@@ -590,7 +588,7 @@ def save_cql(code: str = Body(...)):
 
 
 @apirouter.put("/forms/{form_name}")
-def update_form(form_name: str, new_questions: Questionnaire):
+def update_form(form_name: str, new_questions: dict):
     """Update Questionnaire using namee"""
     req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
     if req.status_code != 200:
@@ -605,8 +603,8 @@ def update_form(form_name: str, new_questions: Questionnaire):
         logger.error("Questionnaire with that name not found")
         return make_operation_outcome("not-found", f"Getting Questionnaire named {form_name} not found on server")
 
-    new_questions.id = resource_id
-    req = requests.put(cqfr4_fhir + f"Questionnaire/{resource_id}", json=new_questions.dict())
+    new_questions["id"] = resource_id
+    req = requests.put(cqfr4_fhir + f"Questionnaire/{resource_id}", json=new_questions)
     if req.status_code != 200:
         logger.error(f"Putting Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Putting Questionnaire from server failed with status code {req.status_code}")

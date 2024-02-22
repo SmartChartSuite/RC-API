@@ -41,7 +41,6 @@ def get_form(form_name: str, form_version: str | None = None):
             logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
     else:
-        logger.info(f"No form version given, will be using most recently updated Questionnaire with name {form_name}")
         req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&_sort=-_lastUpdated")
         if req.status_code != 200:
             logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")

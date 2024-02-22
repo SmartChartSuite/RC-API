@@ -1,7 +1,7 @@
 """Module for defining models and classes for the API"""
 import logging
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -35,7 +35,7 @@ class JobIDParameter(BaseModel):
     """Job ID Parameter for Job Status support"""
 
     name: str = "jobId"
-    valueString: UUID = Field(default_factory=uuid4)
+    valueString: str = Field(default_factory=uuid4)
 
 
 class JobStatusParameter(BaseModel):
@@ -70,4 +70,30 @@ class ParametersJob(BaseModel):
     """Parameters Job object for Job Status Support"""
 
     resourceType: str = "Parameters"
-    parameter: list = [JobIDParameter(), JobStartParameter(), JobCompletedParameter(), JobStatusParameter(), ResultParameter()]
+    parameter: list[JobIDParameter | JobStartParameter | JobCompletedParameter | JobStatusParameter | ResultParameter] = [
+        JobIDParameter(),
+        JobStartParameter(),
+        JobStatusParameter(),
+        ResultParameter(),
+    ]
+
+
+class StartJobsParametersParameter(BaseModel):
+    name: str
+    valueString: str
+
+
+class StartJobsParameters(BaseModel):
+    resourceType: str = "Parameters"
+    parameter: list[StartJobsParametersParameter]
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "resourceType": "Parameters",
+                    "parameter": [{"name": "patientId", "valueString": "12345"}, {"name": "jobPackage", "valueString": "SyphilisRegistry"}, {"name": "job", "valueString": "demographics.cql"}],
+                }
+            ]
+        }
+    }
