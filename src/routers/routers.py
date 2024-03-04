@@ -708,3 +708,27 @@ def update_nlpql(library_name: str, code: str = Body(...)):
         return make_operation_outcome("transient", f"Putting Library to server failed with status code {req.status_code}")
 
     return JSONResponse(content=make_operation_outcome("informational", f"Library {library_name} successfully put on server", severity="information"), status_code=201)
+
+'''TODO: Refactor or Delete the following functions, temporary functions to access global'''
+def add_to_jobs(new_job, index) -> bool:
+    if index not in jobs:
+        jobs[index] = new_job
+        logger.info("Added to jobs array")
+        return True
+    else:
+        return False
+
+def index_in_jobs(index) -> bool:
+    return index in jobs
+
+def get_job(index):
+    return jobs[index]
+
+def update_job_to_complete(job_id, job_result):
+    tmp_job_obj = get_job[job_id]
+    status_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == 'jobStatus'][0])
+    endtime_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == 'jobCompletedDateTime'][0])
+    result_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == 'result'][0])
+    jobs[job_id].parameter[result_param_index].resource = job_result
+    jobs[job_id].parameter[status_param_index].valueString = "complete"
+    jobs[job_id].parameter[endtime_param_index].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
