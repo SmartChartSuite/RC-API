@@ -1,6 +1,7 @@
 """Module for handling Libraries"""
 import base64
 import logging
+from typing import Literal, OrderedDict
 
 import requests
 from fhir.resources.library import Library
@@ -146,3 +147,34 @@ def create_nlpql(nlpql):
             return make_operation_outcome("transient", f"Putting Library to server failed with code {req.status_code}")
         resource_id = req.json()["id"]
         return resource_id
+
+
+def get_library(library_name: str, library_type: Literal["cql", "nlpql"]) -> str | OrderedDict:
+    """
+    Get text content of CQL or NLPQL library
+    """
+
+    match library_type:
+        case "cql":
+            content_type = "text%2Fcql"
+        case "nlpql":
+            content_type = "text%2Fnlpql"
+
+    req = requests.get(cqfr4_fhir + f"Library?name={library_name}&content-type={content_type}")
+    if req.status_code != 200:
+        logger.error(f"Getting {library_type.upper()} library from server failed with status code {req.status_code}")
+        return make_operation_outcome("transient", f"Getting {library_type.upper()} library from server failed with status code {req.status_code}")
+
+    search_bundle = req.json()
+    try:
+        library = search_bundle["entry"][0]["resource"]
+        logger.info(f"Found {library_type.upper()} Library with name {library_name}")
+    except KeyError:
+        logger.error(f"{library_type.upper()} Library with that name not found")
+        return make_operation_outcome("not-found", f"{library_type.upper()} Library named {library_name} not found on the FHIR server.")
+
+    # Decode CQL from base64 Library encoding
+    base64_string = library["content"][0]["data"]
+    encoded_bytes = base64.b64decode(base64_string)
+    decoded_string = encoded_bytes.decode("ascii")
+    return decoded_string
