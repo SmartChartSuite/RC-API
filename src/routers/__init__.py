@@ -1,3 +1,4 @@
-'''Intialization file for routers module'''
+"""Intialization file for routers module"""
 import logging
-logger = logging.getLogger('rcapi.routers')
+
+logger = logging.getLogger("rcapi.routers")
