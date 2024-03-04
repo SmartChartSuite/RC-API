@@ -79,11 +79,13 @@ app.add_middleware(
 app.include_router(routers.apirouter)
 app.include_router(webhook.apirouter)
 
+
 # ================= Invalid Request Exception Handling =================
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc) -> JSONResponse:
     """Formats all invalidated requests to return as OperationOutcomes"""
     return JSONResponse(make_operation_outcome("invalid", str(exc)), status_code=400)
+
 
 # ================== Custom OpenAPI ===========================
 
@@ -103,7 +105,7 @@ def custom_openapi():
     openapi_schema["paths"]["/forms/nlpql"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
     openapi_schema["paths"]["/forms/cql/{library_name}"]["put"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
     openapi_schema["paths"]["/forms/nlpql/{library_name}"]["put"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
-    #openapi_schema["paths"]["/formns/start"]["post"]["responses"]["200"] TODO: this is going to be example of the results output when I get there
+    # openapi_schema["paths"]["/formns/start"]["post"]["responses"]["200"] TODO: this is going to be example of the results output when I get there
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 

@@ -13,6 +13,7 @@ from fhir.resources.observation import Observation
 from fhir.resources.operationoutcome import OperationOutcome
 from requests_futures.sessions import FuturesSession
 
+from src.models.models import StartJobsParameters
 from src.util.settings import cqfr4_fhir, deploy_url, external_fhir_server_auth, external_fhir_server_url, nlpaas_url
 
 logger: logging.Logger = logging.getLogger("rcapi.models.functions")
@@ -942,3 +943,317 @@ def validate_nlpql(code_in: str):
             logger.error("NLPQL validation did not succeed but there was no reason given in the response. See dump below of NLPAAS response.")
             logger.error(validation_results)
             return make_operation_outcome("invalid", "Validation results were invalid but the reason was not given, see logs for full dump of NLPAAS response.")
+
+
+def start_jobs(post_body: StartJobsParameters) -> dict:
+    """Start jobs for both sync and async"""
+    # Make list of parameters
+    body_json = post_body.model_dump()
+    parameters = body_json["parameter"]
+    if not all([((any([name.startswith("value") for name in param.keys()])) or "resource" in param or "part" in param) for param in parameters]):
+        logger.error("Parameters model is invalid, please check that all parameters have a name and value")
+        return make_operation_outcome(code="structure", diagnostics="Parameters.parameters is not correct, ensure it has a name and value")
+    parameter_names: list[str] = [x["name"] for x in parameters]
+    logger.info(f"Recieved parameters {parameter_names}")
+
+    try:
+        patient_id: str = parameters[parameter_names.index("patientId")]["valueString"]
+        has_patient_identifier = False
+    except ValueError:
+        try:
+            logger.info("patientID was not found in the parameters posted, trying looking for patientIdentifier")
+            patient_identifier: str | int = parameters[parameter_names.index("patientIdentifier")]["valueString"]
+            has_patient_identifier = True
+        except ValueError:
+            logger.error("patientID or patientIdentifier was not found in parameters posted")
+            return make_operation_outcome("required", "patientID or patientIdentifier was not found in the parameters posted")
+    if not has_patient_identifier:
+        patient_identifier = 1
+
+    run_all_jobs = False
+    try:
+        library: str = parameters[parameter_names.index("job")]["valueString"]
+        libraries_to_run: list[str] = [library]
+    except ValueError:
+        logger.info("job was not found in the parameters posted, will be running all jobs for the jobPackage given")
+        run_all_jobs = True
+
+    try:
+        form_name: str = parameters[parameter_names.index("jobPackage")]["valueString"]
+    except ValueError:
+        logger.error("jobPackage was not found in the parameters posted")
+        return make_operation_outcome("required", "jobPackage was not found in the parameters posted")
+
+    form_version: str | None = None
+    try:
+        form_version = parameters[parameter_names.index("jobPackageVersion")]["valueString"]
+    except ValueError:
+        logger.info(f"No form version given, will be using newest created Questionnaire matching {form_name}")
+
+    # Pull Questionnaire resource ID from CQF Ruler
+    questionnaire = get_form(form_name=form_name, form_version=form_version)
+    if questionnaire["resourceType"] == "OperationOutcome":
+        return questionnaire
+
+    cql_flag = False
+    nlpql_flag = False
+    if run_all_jobs:
+        cql_libraries_to_run: list[str] = []
+        nlpql_libraries_to_run: list[str] = []
+        cql_library_server_ids: list[str] = []
+        nlpql_library_server_ids: list[str] = []
+
+        cql_libraries_to_run_extension: dict = questionnaire["extension"][0]["extension"]
+        for extension in cql_libraries_to_run_extension:
+            cql_libraries_to_run.append(extension["valueString"])
+        logger.info(f"Going to run the following CQL libraries for this jobPackage: {cql_libraries_to_run}")
+
+        try:
+            nlpql_libraries_to_run_extension: dict = questionnaire["extension"][1]["extension"]
+            for extension in nlpql_libraries_to_run_extension:
+                nlpql_libraries_to_run.append(extension["valueString"])
+            logger.info(f"Going to run the following NLPQL libraries for this jobPackage: {nlpql_libraries_to_run}")
+        except IndexError:
+            logger.info("No NLPQL Libraries found, moving on")
+
+        libraries_to_run = cql_libraries_to_run + nlpql_libraries_to_run
+
+        cql_libraries_to_run = []
+        nlpql_libraries_to_run = []
+
+        for library_name_full in libraries_to_run:
+            library_name, library_name_ext = library_name_full.split(".")
+            req = requests.get(cqfr4_fhir + f"Library?name={library_name}&content-type=text/{library_name_ext}")
+            if req.status_code != 200:
+                logger.error(f"Getting library from server failed with status code {req.status_code}")
+                return make_operation_outcome("transient", f"Getting library from server failed with status code {req.status_code}")
+
+            search_bundle = req.json()
+            try:
+                library_server_id = search_bundle["entry"][0]["resource"]["id"]
+                logger.info(f"Found {library_name_ext.upper()} Library with name {library_name} and server id {library_server_id}")
+                try:
+                    library_type = search_bundle["entry"][0]["resource"]["content"][0]["contentType"]
+                except KeyError:
+                    return make_operation_outcome(
+                        "invalid",
+                        (
+                            f"Library with name {library_name} does not contain a content type in content[0].contentType. "
+                            "Because of this, the API is unable to process the library. Please update the Library to include a content type."
+                        ),
+                    )
+                if library_type == "text/nlpql":
+                    nlpql_flag = True
+                    nlpql_library_server_ids.append(library_server_id)
+                    nlpql_libraries_to_run.append(library_name)
+                elif library_type == "text/cql":
+                    cql_flag = True
+                    cql_library_server_ids.append(library_server_id)
+                    cql_libraries_to_run.append(library_name)
+                else:
+                    logger.error(f"Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.")
+                    return make_operation_outcome("invalid", f"Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.")
+            except KeyError:
+                logger.error(f"Library with name {library_name} not found")
+                return make_operation_outcome("not-found", f"Library with name {library_name} not found")
+
+    if not run_all_jobs:
+        # Pull CQL library resource ID from CQF Ruler
+        library_name_ext_split = library.split(".")  # type: ignore
+        if len(library_name_ext_split) == 2:
+            library_name = library_name_ext_split[0]
+            library_type = library_name_ext_split[1]
+        else:
+            library_name = library  # type: ignore
+            library_type = "cql"
+
+        req = requests.get(cqfr4_fhir + f"Library?name={library_name}&content-type=text/{library_type.lower()}")
+        if req.status_code != 200:
+            logger.error(f"Getting library from server failed with status code {req.status_code}")
+            return make_operation_outcome("transient", f"Getting library from server failed with status code {req.status_code}")
+
+        search_bundle = req.json()
+        try:
+            library_server_id = search_bundle["entry"][0]["resource"]["id"]
+
+            logger.info(f"Found Library with name {library} and server id {library_server_id}")  # type: ignore
+            try:
+                library_type = search_bundle["entry"][0]["resource"]["content"][0]["contentType"]
+            except KeyError:
+                return make_operation_outcome(
+                    "invalid",
+                    (
+                        f"Library with name {library_name} does not contain a content type in content[0].contentType. "
+                        "Because of this, the API is unable to process the library. Please update the Library to include a content type."
+                    ),
+                )
+            if library_type == "text/nlpql":
+                nlpql_flag = True
+                nlpql_library_server_ids = [library_server_id]
+                nlpql_libraries_to_run = search_bundle["entry"][0]["resource"]["name"]
+            elif library_type == "text/cql":
+                cql_flag = True
+                cql_library_server_ids = [library_server_id]
+                cql_libraries_to_run = search_bundle["entry"][0]["resource"]["name"]
+            else:
+                logger.error(f"Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.")
+                return make_operation_outcome("invalid", f"Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.")
+        except KeyError:
+            logger.error(f"Library with name {library} not found")  # type: ignore
+            return make_operation_outcome("not-found", f"Library with name {library} not found")  # type: ignore
+
+    if has_patient_identifier:
+        if external_fhir_server_auth:
+            req = requests.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}", headers={"Authorization": external_fhir_server_auth})  # type: ignore
+        else:
+            req = requests.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}")  # type: ignore
+        if req.status_code != 200:
+            logger.error(f"Getting Patient from server failed with status code {req.status_code}")
+            return make_operation_outcome("transient", f"Getting Patient from server failed with status code {req.status_code}")
+
+        search_bundle = req.json()
+        try:
+            patient_id = search_bundle["entry"][0]["resource"]["id"]
+            logger.info(f"Found Patient with identifier {patient_identifier} and server id {patient_id}")  # type: ignore
+        except KeyError:
+            logger.error(f"Patient with identifier {patient_identifier} not found")  # type: ignore
+            return make_operation_outcome("not-found", f"Patient with identifier {patient_identifier} not found")  # type: ignore
+
+    # Create parameters post body for library evaluation
+    parameters_post = {
+        "resourceType": "Parameters",
+        "parameter": [
+            {
+                "name": "patientId",
+                "valueString": patient_id,  # type: ignore
+            },
+            {"name": "context", "valueString": "Patient"},
+            {
+                "name": "dataEndpoint",
+                "resource": {
+                    "resourceType": "Endpoint",
+                    "status": "active",
+                    "connectionType": {"system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type", "code": "hl7-fhir-rest"},
+                    "name": "External FHIR Server",
+                    "payloadType": [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/endpoint-payload-type", "code": "any"}]}],
+                    "address": external_fhir_server_url,
+                },
+            },
+        ],
+    }
+    if external_fhir_server_auth:
+        parameters_post["parameter"][2]["resource"]["header"] = [f"Authorization: {external_fhir_server_auth}"]
+
+    # Pass library id to be evaluated, gets back a future object that represent the pending status of the POST
+    futures = []
+    if cql_flag:
+        logger.info("Start submitting CQL jobs")
+        futures_cql = run_cql(cql_library_server_ids, parameters_post)  # type: ignore
+        futures.append(futures_cql)
+        logger.info("Submitted all CQL jobs")
+    if nlpql_flag and nlpaas_url != "False":
+        logger.info("Start submitting NLPQL jobs")
+        futures_nlpql = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)  # type: ignore
+        if isinstance(futures_nlpql, dict):
+            return futures_nlpql
+        futures.append(futures_nlpql)
+        logger.info("Submitted all NLPQL jobs.")
+
+    if cql_flag and nlpql_flag and nlpaas_url != "False":
+        libraries_to_run = [cql_libraries_to_run, nlpql_libraries_to_run]  # type: ignore
+    elif cql_flag:
+        libraries_to_run = [cql_libraries_to_run]  # type: ignore
+    elif nlpql_flag and nlpaas_url != "False":
+        libraries_to_run = [[nlpql_libraries_to_run]]  # type: ignore
+
+    # Passes future to get the results from it, will wait until all are processed until returning results
+    logger.info("Start getting job results")
+    results_list: tuple[list[dict], list[dict]] = get_results(futures, libraries_to_run, patient_id, [cql_flag, nlpql_flag])  # type: ignore
+    results_cql: list[dict] = results_list[0]
+    results_nlpql: list[dict] = results_list[1]
+    logger.info(f"Retrieved results for jobs {libraries_to_run}")  # type: ignore
+
+    # Upstream request timeout handling
+    if isinstance(results_cql, str):
+        return make_operation_outcome("timeout", results_cql)
+
+    # Checks results for any CQL issues
+    results_check_return = check_results(results_cql)
+
+    if isinstance(results_check_return, dict):
+        logger.error("There were errors in the CQL, see OperationOutcome")
+        logger.error(results_check_return)
+    else:
+        logger.info("No errors returned from backend services, continuing to link results")
+
+    # Creates the registry bundle format
+    logger.info("Start linking results")
+    bundled_results = create_linked_results([results_cql, results_nlpql], form_name, patient_id)  # type: ignore
+    if bundled_results["resourceType"] == "OperationOutcome":
+        logger.error(bundled_results["issue"][0]["diagnostics"])
+    else:
+        logger.info(f'Finished linking results, returning Bundle with {bundled_results["total"] if "total" in bundled_results else 0} entries')
+
+    ##return Bundle(**bundled_results).dict(exclude_none=True)
+    return bundled_results
+
+
+def get_health_of_stack() -> dict:
+    cqf_ruler_up: bool = False
+    cqf_ruler_reason: str = ""
+    nlpaas_up: bool = False
+    nlpaas_reason: str = ""
+    rcapi_up: bool = False
+    rcapi_reason: str = ""
+    oo_template = {"issue": []}
+
+    try:
+        cqf_ruler_resp = requests.get(cqfr4_fhir + "metadata")
+        if cqf_ruler_resp.status_code == 200:
+            cqf_ruler_up = True
+            cqf_ruler_reason = "CQF Ruler is up and running"
+            oo_template["issue"].append({"severity": "information", "code": "informational", "diagnostics": cqf_ruler_reason})
+        elif cqf_ruler_resp.status_code == 404:
+            cqf_ruler_reason = "CQF Ruler returned a 404, URL not found, ensure you used the correct URL in the environment variable CQF_RULER_R4"
+            oo_template["issue"].append({"severity": "error", "code": "transient", "diagnostics": cqf_ruler_reason})
+        else:
+            cqf_ruler_reason = cqf_ruler_resp.text
+            oo_template["issue"].append({"severity": "error", "code": "transient", "diagnostics": cqf_ruler_reason})
+    except requests.exceptions.ConnectionError:
+        logger.error("Could not connect to CQF Ruler, requests will be unable to be completed")
+        cqf_ruler_reason = "Could not connect to CQF Ruler, ensure the service is running and the correct URL is provided in the environment variable CQF_RULER_R4"
+        oo_template["issue"].append({"severity": "error", "code": "transient", "diagnostics": cqf_ruler_reason})
+
+    if nlpaas_url:
+        try:
+            nlpaas_resp = requests.get(nlpaas_url)
+            if nlpaas_resp.status_code == 200:
+                nlpaas_up = True
+                nlpaas_reason = "NLPaaS is up and running"
+                oo_template["issue"].append({"severity": "information", "code": "informational", "diagnostics": nlpaas_reason})
+            elif nlpaas_resp.status_code == 404:
+                nlpaas_reason = "NLPaaS returned a 404, URL not found, ensure you used the correct URL in the environment variable NLPAAS_URL"
+                oo_template["issue"].append({"severity": "warning", "code": "transient", "diagnostics": nlpaas_reason})
+            else:
+                nlpaas_reason = nlpaas_resp.text
+                logger.warning("Could not connect to NLPaaS, NLP requests will be unable to be completed")
+                oo_template["issue"].append({"severity": "warning", "code": "transient", "diagnostics": nlpaas_reason})
+        except requests.exceptions.ConnectionError:
+            logger.warning("Could not connect to NLPaaS, NLP requests will be unable to be completed")
+            nlpaas_reason = "Could not connect to NLPaaS, ensure the service is running and the correct URL is provided in the environment variable NLPAAS_URL"
+            oo_template["issue"].append({"severity": "warning", "code": "transient", "diagnostics": nlpaas_reason})
+    else:
+        nlpaas_up = False  # noqa: F841
+        nlpaas_reason = "NLPAAS_URL not defined in environmental variables, no NLP jobs will be completed. Please set this variable if you want to run NLP jobs"
+        logger.warning("Could not connect to NLPaaS, NLP requests will be unable to be completed")
+        oo_template["issue"].append({"severity": "warning", "code": "transient", "diagnostics": nlpaas_reason})
+
+    if cqf_ruler_up:
+        rcapi_up = True  # noqa: F841
+        rcapi_reason = "RC-API is up and running"
+        oo_template["issue"].append({"severity": "information", "code": "informational", "diagnostics": rcapi_reason})
+    else:
+        rcapi_reason = "RC-API is not up and running because: " + cqf_ruler_reason
+        oo_template["issue"].append({"severity": "error", "code": "transient", "diagnostics": rcapi_reason})
+
+    return OperationOutcome.parse_obj(oo_template).dict()
