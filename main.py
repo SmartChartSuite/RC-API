@@ -78,7 +78,7 @@ app.add_middleware(
 # ================= Routers inclusion from src directory ===============
 app.include_router(routers.apirouter)
 app.include_router(webhook.apirouter)
-app.include_router(smartchartui.apirouter)
+app.include_router(smartchartui.smartchart_router)
 
 
 # ================= Invalid Request Exception Handling =================
