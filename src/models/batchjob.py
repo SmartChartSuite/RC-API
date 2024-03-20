@@ -20,7 +20,7 @@ Models for the BatchJob Response
 class BatchIdParameter(BaseModel):
     '''Batch ID Parameter for Batch Job Status support'''
     name: str = "batchId"
-    valueString: str = Field(default_factory=uuid4)
+    valueString: UUID = Field(default_factory=uuid4)
 
 # TODO: Add support for identifiers instead of ids
 class BatchPatientIdParameter(BaseModel):
@@ -48,43 +48,3 @@ class BatchParametersJob(BaseModel):
     '''Parameters Job object for Batch Job Status Support'''
     resourceType: str = "Parameters"
     parameter: list = [ BatchIdParameter(), BatchPatientIdParameter(), BatchJobPackageParameter(), JobStartParameter(), BatchJobListPararameter()]
-
-
-'''
-{
-    "resourceType": "Parameters",
-    "extension": [
-        {
-                "url": "batch-job-list",
-                "extension": [
-                    {
-                        "url": "jobId",
-                        "valueString": "12345"
-                    },
-                    {
-                        "url": "jobId",
-                        "valueString": "ab123"
-                    },
-                    {
-                        "url": "jobId",
-                        "valueString": "780nm"
-                    }
-                ]
-            }
-    ],
-    "parameter": [
-        {
-            "name": "batchId",
-            "valueString": "67684fdb-a4db-47c8-980b-e8ed308c9cc1"
-        },
-        {
-            "name": "patientId",
-            "valueString": "27280"
-        },
-        {
-            "name": "jobStartDateTime",
-            "valueDateTime": "2024-03-05T16:15:59Z"
-        }
-    ]
-}
-'''

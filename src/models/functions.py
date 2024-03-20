@@ -118,6 +118,7 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
 def handle_cql_futures(cql_futures: list[Future], library_names: list[str], patient_id: str) -> list[dict]:
     results_cql: list[dict] = []
     for i, future in enumerate(cql_futures):
+        #TODO: Handle additional network error types, e.g. 406
         pre_result: requests.Response = future.result()
         if pre_result.status_code == 504:
             logger.error(f"There was an upstream request timeout for library {library_names[i]}.cql with status_code 504")
