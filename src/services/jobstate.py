@@ -94,9 +94,6 @@ def update_job_to_complete(job_id, job_result):
 
     con = sqlite3.connect("batch_jobs.sqlite")
     cur = con.cursor()
-    print("----------------")
-    print(job_result)
-    print("----------------")
     cur.executemany("UPDATE jobs SET job = ? WHERE job_id = ?", [(json.dumps(job, cls=BytesEncoder), job_id)])
     con.commit()
 
