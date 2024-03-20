@@ -1,19 +1,14 @@
 ''' TODO: Potentially Temporary Abstraction of Job Management, separated for use for Batch Jobs testing'''
 from collections import OrderedDict
-import datetime
+from datetime import datetime
 import json
 import logging
 import sqlite3
 from uuid import UUID
 
-from src.models.batchjob import BatchParametersJob
-
 from src.models.models import ParametersJob
 
 logger = logging.getLogger("rcapi.services.jobstate")
-
-jobs: dict[str, ParametersJob] = {}
-batch_jobs: dict[str, BatchParametersJob] = {}
 
 # SQL Lite temporary handling to persist batch jobs.
 # TODO: Change to class
@@ -41,7 +36,6 @@ def add_to_jobs(new_job, index) -> bool:
         print(data)
         cur.executemany("INSERT INTO jobs VALUES(?, ?)", data)
         con.commit()
-        # batch_jobs[index] = new_batch_job
         logger.info("Added to jobs")
         return True
     else:
@@ -62,12 +56,6 @@ def add_to_batch_jobs(new_batch_job: ParametersJob, index: str) -> bool:
         return True
     else:
         return False
-    
-def index_in_jobs(index) -> bool:
-    return index in jobs
-
-def index_in_batch_jobs(index) -> bool:
-    return index in batch_jobs
 
 def get_job(index):
     con = sqlite3.connect("batch_jobs.sqlite")
@@ -92,17 +80,24 @@ def update_job_to_complete(job_id, job_result):
     job = json.loads(get_job(job_id)[0], object_pairs_hook=OrderedDict)
     param_list = job["parameter"]
 
+    #print(type(job_result))
+
     for param in param_list:
         if param["name"] == "jobStatus":
             param["valueString"] = "complete"
-        elif param["name"] == "jobCompletedDateTime":
-            param["valueDateTime"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+        # elif param["name"] == "jobCompletedDateTime":
+        #     param["valueDateTime"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         elif param["name"] == "result":
-            param["resource"] == job_result
-            
+            param["resource"] = job_result
+    
+    job["parameter"].append(OrderedDict({"name": "jobCompletedDateTime", "valueDateTime": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")}))
+
     con = sqlite3.connect("batch_jobs.sqlite")
     cur = con.cursor()
-    cur.executemany("UPDATE jobs SET job = ? WHERE job_id = ?", [(json.dumps(job), job_id)])
+    print("----------------")
+    print(job_result)
+    print("----------------")
+    cur.executemany("UPDATE jobs SET job = ? WHERE job_id = ?", [(json.dumps(job, cls=BytesEncoder), job_id)])
     con.commit()
 
 
@@ -110,4 +105,11 @@ class UUIDEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, UUID):
             return str(obj)
+        return json.JSONEncoder.default(self, obj)
+    
+
+class BytesEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            return obj.decode("utf-8")
         return json.JSONEncoder.default(self, obj)

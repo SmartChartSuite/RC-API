@@ -9,7 +9,7 @@ from fastapi import BackgroundTasks
 from fhir.resources.parameters import Parameters
 from src.models.functions import get_form, start_jobs
 from src.models.models import ParametersJob
-from src.services.jobstate import add_to_jobs, index_in_jobs, update_job_to_complete
+from src.services.jobstate import add_to_jobs, update_job_to_complete
 
 logger = logging.getLogger("rcapi.services.jobhandler")
 
@@ -17,14 +17,15 @@ logger = logging.getLogger("rcapi.services.jobhandler")
 def start_async_jobs(post_body: Parameters, uid: str) -> None:
     """Start job asychronously"""
     job_result = start_jobs(post_body)
-    
-    if not index_in_jobs(uid):
-        new_job = ParametersJob()
-        uid_param_index: int = new_job.parameter.index([param for param in new_job.parameter if param.name == 'jobId'][0])
-        starttime_param_index: int = new_job.parameter.index([param for param in new_job.parameter if param.name == 'jobStartDateTime'][0])
-        new_job.parameter[uid_param_index].valueString = uid
-        new_job.parameter[starttime_param_index].valueDateTime = "9999-12-31T00:00:00Z"
-        add_to_jobs(new_job, uid)
+
+    #TODO: This is the edge case from reset. Not needed in persistence?    
+    # if not index_in_jobs(uid):
+    #     new_job = ParametersJob()
+    #     uid_param_index: int = new_job.parameter.index([param for param in new_job.parameter if param.name == 'jobId'][0])
+    #     starttime_param_index: int = new_job.parameter.index([param for param in new_job.parameter if param.name == 'jobStartDateTime'][0])
+    #     new_job.parameter[uid_param_index].valueString = uid
+    #     new_job.parameter[starttime_param_index].valueDateTime = "9999-12-31T00:00:00Z"
+    #     add_to_jobs(new_job, uid)
 
     update_job_to_complete(uid, job_result)
     logger.info(f"Job id {uid} complete and results are available at /forms/status/{uid}")

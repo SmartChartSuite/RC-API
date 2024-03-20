@@ -5,7 +5,7 @@ import uuid
 import json
 from time import sleep
 from fastapi import APIRouter, BackgroundTasks
-from src.models.functions import start_jobs
+from src.models.functions import make_operation_outcome, start_jobs
 from src.services.jobstate import add_to_batch_jobs, add_to_jobs, get_all_batch_jobs, get_batch_job, get_job, update_job_to_complete
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
 from src.routers.routers import get_form
@@ -44,7 +44,10 @@ def search_questionnaire():
 @smartchart_router.get("/smartchartui/job/{id}")
 def get_job_request(id: str, response_class=PrettyJSONResponse):
     requested_job = get_job(id)
-    return json.loads(requested_job[0])
+    if requested_job is None:
+        return PrettyJSONResponse(content=make_operation_outcome("not-found", f"The {id} job id was not found. If this is an error, please try running the jobPackage again with a new job id."), status_code=404)
+    else:
+        return PrettyJSONResponse(content=json.loads(requested_job[0]))
 
 @smartchart_router.get("/smartchartui/batchjob")
 def get_all_batch_jobs_request(response_class=PrettyJSONResponse):
@@ -89,12 +92,7 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks):
     start_bodies = [temp_start_job_body(patient_id, form_name, job) for job in job_list]
     
     # Temporary holder for the list of responses to include in the batch job response
-    # child_job_ids = [start_child_job_task(start_body, background_tasks) for start_body in start_bodies]
-    child_job_ids = []
-    for start_body in start_bodies:
-        sleep(1)
-        id = start_child_job_task(start_body, background_tasks)
-        child_job_ids.append(id)
+    child_job_ids = [start_child_job_task(start_body, background_tasks) for start_body in start_bodies]
 
     print(child_job_ids)
     list_resource = create_list_resource(child_job_ids)
@@ -107,6 +105,11 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks):
 def start_child_job_task(start_body,  background_tasks: BackgroundTasks):
     new_job = ParametersJob()
     uid_param_index = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobId"][0])
+
+    #TODO: Temporary fix to new_job creating duplicate UUIDs
+    new_uuid = uuid.uuid4()
+    new_job.parameter[uid_param_index].valueString = new_uuid
+
     job_id = str(new_job.parameter[uid_param_index].valueString)
     background_tasks.add_task(run_child_job, new_job, job_id, start_body)
     return job_id
@@ -123,13 +126,7 @@ def run_child_job(new_job: ParametersJob, job_id: str, start_body):
     print(start_body)
     job_result = start_jobs(start_body)
     update_job_to_complete(job_id, job_result)
-    # status_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == "jobStatus"][0])
-    # result_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == "result"][0])
-    # new_job.parameter[result_param_index].resource = job_result
-    # new_job.parameter[status_param_index].valueString = "complete"
-    # new_job.parameter.append(JobCompletedParameter(valueDateTime=datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")))
-    # logger.info(f"Job id {job_id} complete and results are available at /smartchartui/job/{job_id}")
-
+    
 
 def temp_start_job_body(patient_id: str, job_package: str, job: str):
     start_job_parameters = StartJobsParameters.model_validate(
