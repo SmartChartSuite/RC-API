@@ -9,9 +9,11 @@ from src.models.functions import make_operation_outcome, start_jobs
 from src.services.jobstate import add_to_batch_jobs, add_to_jobs, get_all_batch_jobs, get_batch_job, get_job, update_job_to_complete
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
 from src.routers.routers import get_form
-from src.services.jobhandler import get_job_list_from_form, get_value_from_parameter
+from src.services.jobhandler import get_job_list_from_form, get_value_from_parameter, update_patient_resource_in_parameters
 from src.models.batchjob import BatchParametersJob, StartBatchJobsParameters
 from src.responsemodels.prettyjson import PrettyJSONResponse
+from fhir.resources.parameters import Parameters
+from fhir.resources.patient import Patient
 
 from src.util.fhirclient import FhirClient
 
@@ -25,9 +27,16 @@ smartchart_router = APIRouter()
 '''Read a Patient resource from the external FHIR Server (e.g. Epic)'''
 @smartchart_router.get("/smartchartui/patient/{patient_id}", response_class=PrettyJSONResponse)
 def read_patient(patient_id: str):
+    # TODO: Is there a better way to check of an id is a URL?
+    if "/" in patient_id:
+        patient_id = extract_patient_id(patient_id)
     print(external_fhir_client.server_base)
+    print(patient_id)
     response = external_fhir_client.readResource("Patient", patient_id)
     return response
+
+def extract_patient_id(patient_id: str):
+    return patient_id.split("/")[-1]
 
 '''Search for all Group resources on the internal SmartChart FHIR server (ex: SmartChart Suite CQF Ruler)'''
 @smartchart_router.get("/smartchartui/group")
@@ -50,10 +59,21 @@ def get_job_request(id: str, response_class=PrettyJSONResponse):
         return PrettyJSONResponse(content=json.loads(requested_job[0]))
 
 @smartchart_router.get("/smartchartui/batchjob")
-def get_all_batch_jobs_request(response_class=PrettyJSONResponse):
+def get_all_batch_jobs_request(include_patient: bool = False):
     requested_batch_jobs = get_all_batch_jobs() # TODO: Change this to not return tuple
     requested_batch_jobs = [json.loads(x[0]) for x in requested_batch_jobs]
-    return {"jobs": requested_batch_jobs}
+    batch_jobs_as_resources = []
+    print(f"Include Bool: {include_patient}")
+    if include_patient:
+        for batch_job in requested_batch_jobs:
+            batch_job_resource = Parameters(**batch_job)
+            patient_id = get_value_from_parameter(batch_job_resource, "patientId", use_iteration_strategy=True, value_key="valueString")
+            patient_resource = Patient(**read_patient(patient_id))
+            batch_job_resource = update_patient_resource_in_parameters(batch_job_resource, patient_resource)
+            batch_jobs_as_resources.append(batch_job_resource.dict())
+    else:
+        batch_jobs_as_resources = requested_batch_jobs
+    return batch_jobs_as_resources
 
 @smartchart_router.get("/smartchartui/batchjob/{id}")
 def get_batch_job_request(id: str, response_class=PrettyJSONResponse):
@@ -126,7 +146,7 @@ def run_child_job(new_job: ParametersJob, job_id: str, start_body):
     print(start_body)
     job_result = start_jobs(start_body)
     update_job_to_complete(job_id, job_result)
-    
+
 
 def temp_start_job_body(patient_id: str, job_package: str, job: str):
     start_job_parameters = StartJobsParameters.model_validate(
@@ -158,5 +178,5 @@ def create_list_resource(job_id_list: list[str]):
         "entry": []
     }
     for job_id in job_id_list:
-        list_resource["entry"].append({"display": job_id})
+        list_resource["entry"].append({"item": {"display": job_id}})
     return list_resource

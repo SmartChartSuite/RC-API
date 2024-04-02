@@ -42,9 +42,21 @@ class BatchJobListPararameter(BaseModel):
     '''Batch JobPackage Parameter for Batch Job Status support'''
     name: str = "childJobs"
     resource: dict = {"resourceType": "List"}
+
+class BatchJobPatientIncludedParameter(BaseModel):
+    '''Batch JobPackage Parameter for When request is flagged to include'''
+    name: str = "patientResource"
+    resource: dict = {"resourceType": "Patient"}
     
 # TODO: Add back in type parameter once implemented.
 class BatchParametersJob(BaseModel):
     '''Parameters Job object for Batch Job Status Support'''
     resourceType: str = "Parameters"
-    parameter: list = [ BatchIdParameter(), BatchPatientIdParameter(), BatchJobPackageParameter(), JobStartParameter(), BatchJobListPararameter()]
+    parameter: list = [
+        BatchIdParameter(),
+        BatchPatientIdParameter(),
+        BatchJobPackageParameter(),
+        JobStartParameter(),
+        BatchJobListPararameter(),
+        BatchJobPatientIncludedParameter()
+        ]
