@@ -51,7 +51,7 @@ def search_questionnaire():
     return response
 
 @smartchart_router.get("/smartchartui/job/{id}")
-def get_job_request(id: str, response_class=PrettyJSONResponse):
+def get_job_request(id: str, include_patient: bool = False, response_class=PrettyJSONResponse):
     requested_job = get_job(id)
     if requested_job is None:
         return PrettyJSONResponse(content=make_operation_outcome("not-found", f"The {id} job id was not found. If this is an error, please try running the jobPackage again with a new job id."), status_code=404)
@@ -63,7 +63,6 @@ def get_all_batch_jobs_request(include_patient: bool = False):
     requested_batch_jobs = get_all_batch_jobs() # TODO: Change this to not return tuple
     requested_batch_jobs = [json.loads(x[0]) for x in requested_batch_jobs]
     batch_jobs_as_resources = []
-    print(f"Include Bool: {include_patient}")
     if include_patient:
         for batch_job in requested_batch_jobs:
             batch_job_resource = Parameters(**batch_job)
@@ -76,9 +75,16 @@ def get_all_batch_jobs_request(include_patient: bool = False):
     return batch_jobs_as_resources
 
 @smartchart_router.get("/smartchartui/batchjob/{id}")
-def get_batch_job_request(id: str, response_class=PrettyJSONResponse):
-    requested_batch_job = get_batch_job(id)
-    return json.loads(requested_batch_job[0])
+def get_batch_job_request(id: str, include_patient: bool = False, response_class=PrettyJSONResponse):
+    requested_batch_job = get_batch_job(id)[0] # TODO: Change this to not return tuple
+    requested_batch_job = json.loads(requested_batch_job)
+    if include_patient:
+        batch_job_resource = Parameters(**requested_batch_job)
+        patient_id = get_value_from_parameter(batch_job_resource, "patientId", use_iteration_strategy=True, value_key="valueString")
+        patient_resource = Patient(**read_patient(patient_id))
+        batch_job_resource = update_patient_resource_in_parameters(batch_job_resource, patient_resource)
+        requested_batch_job = batch_job_resource.dict()
+    return requested_batch_job
 
 '''Batch request to run every job in a jobPackage individually'''
 @smartchart_router.post("/smartchartui/batchjob")
@@ -143,7 +149,6 @@ def run_child_job(new_job: ParametersJob, job_id: str, start_body):
         logger.info(f"Created new job with jobId {job_id}")  # type: ignore
     else:
         logger.error(f"Error creating job with jobId {job_id}")
-    print(start_body)
     job_result = start_jobs(start_body)
     update_job_to_complete(job_id, job_result)
 

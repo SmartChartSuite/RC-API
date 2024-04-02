@@ -74,7 +74,6 @@ def update_patient_resource_in_parameters(parameters_resource: Parameters, patie
     patient_resource_obj: OrderedDict = patient_resource.dict()
     for param in parameters_resource_obj['parameter']:
         if param["name"] == "patientResource":
-            print(param)
             param["resource"] = patient_resource_obj
     return Parameters(**parameters_resource_obj)
 
