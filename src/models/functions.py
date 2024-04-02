@@ -289,11 +289,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
             return make_operation_outcome("not-found", "Patient resource not found in results from CQF Ruler, see logs for more details")
 
         # For each group of questions in the form
+        total_item_count = 0
+        for group in form["item"]:
+            total_item_count += len(group["item"])
+        current_item_count = 0
+
         for group in form["item"]:
             # For each question in the group in the form
             for question in group["item"]:
+                current_item_count += 1
                 link_id = question["linkId"]
-                logger.info(f"Working on question {link_id}")
+                logger.info(f"Working on question {link_id} - {current_item_count}/{total_item_count} ({current_item_count / total_item_count * 100:0.2f}%)")
                 library_task: str = ""
                 cardinality: str = ""
                 # If the question has these extensions, get their values, if not, keep going
@@ -712,11 +718,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
             bundle_entries.append(patient_bundle_entry)
 
         # For each group of questions in the form
+        total_item_count = 0
+        for group in form["item"]:
+            total_item_count += len(group["item"])
+        
+        current_item_count = 0
         for group in form["item"]:
             # For each question in the group in the form
             for question in group["item"]:
+                current_item_count += 1
                 link_id = question["linkId"]
-                logger.info(f"Working on question {link_id}")
+                logger.info(f"Working on question {link_id} - {current_item_count}/{total_item_count} ({current_item_count / total_item_count * 100:0.2f}%)")
                 library_task = "."
                 # If the question has these extensions, get their values, if not, keep going
                 try:
