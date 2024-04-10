@@ -3,7 +3,7 @@ import logging
 import os
 import uuid
 import json
-from time import sleep
+from copy import deepcopy
 from fastapi import APIRouter, BackgroundTasks
 from src.models.functions import make_operation_outcome, start_jobs
 from src.services.jobstate import add_to_batch_jobs, add_to_jobs, get_all_batch_jobs, get_batch_job, get_job, update_job_to_complete
@@ -30,19 +30,25 @@ def read_patient(patient_id: str):
     # TODO: Is there a better way to check of an id is a URL?
     if "/" in patient_id:
         patient_id = extract_patient_id(patient_id)
-    print(external_fhir_client.server_base)
-    print(patient_id)
     response = external_fhir_client.readResource("Patient", patient_id)
     return response
 
 def extract_patient_id(patient_id: str):
     return patient_id.split("/")[-1]
 
-'''Search for all Group resources on the internal SmartChart FHIR server (ex: SmartChart Suite CQF Ruler)'''
+'''
+Search for all Group resources on the internal SmartChart FHIR server (ex: SmartChart Suite CQF Ruler) with an implicit include. The include
+is handled in this API due to that the Patient resources which are members of the Group exist on a second server.
+'''
 @smartchart_router.get("/smartchartui/group")
 def search_group():
-    response = internal_fhir_client.searchResource("Group", flatten=True)
-    return response
+    resource_list = internal_fhir_client.searchResource("Group", flatten=True)
+    group_list = deepcopy(resource_list)
+    for group in group_list:
+        for member in group["member"]:
+            print(member["entity"]["reference"].startswith(external_fhir_client.server_base))
+            print(external_fhir_client.server_base)
+    return resource_list
 
 # TODO: Does this need to exist? Duplciates get form from routers.py. Need to consider if there is another way data may be returned.
 @smartchart_router.get("/smartchartui/questionnaire")
@@ -87,6 +93,7 @@ def get_batch_job_request(id: str, include_patient: bool = False, response_class
     return requested_batch_job
 
 '''Batch request to run every job in a jobPackage individually'''
+# TODO: Support include_patient parameter
 @smartchart_router.post("/smartchartui/batchjob")
 def post_batch_job(post_body: StartBatchJobsParameters,  background_tasks: BackgroundTasks, response_class=PrettyJSONResponse):
     return start_batch_job(post_body, background_tasks)
