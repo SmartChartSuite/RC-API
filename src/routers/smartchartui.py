@@ -95,11 +95,11 @@ def get_batch_job_request(id: str, include_patient: bool = False, response_class
 '''Batch request to run every job in a jobPackage individually'''
 # TODO: Support include_patient parameter
 @smartchart_router.post("/smartchartui/batchjob")
-def post_batch_job(post_body: StartBatchJobsParameters,  background_tasks: BackgroundTasks, response_class=PrettyJSONResponse):
-    return start_batch_job(post_body, background_tasks)
+def post_batch_job(post_body: StartBatchJobsParameters, background_tasks: BackgroundTasks, include_patient: bool = False, response_class=PrettyJSONResponse):
+    return start_batch_job(post_body, background_tasks, include_patient)
 
 # TODO: Remove after refactoring more into the jobhandler and jobstate files?
-def start_batch_job(post_body, background_tasks: BackgroundTasks):
+def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patient: bool):
     # Pull "metadata" from the post_body sent by the client.
     form_name = get_value_from_parameter(post_body, "jobPackage")
     patient_id = get_value_from_parameter(post_body, "patientId")
@@ -127,13 +127,22 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks):
     # Temporary holder for the list of responses to include in the batch job response
     child_job_ids = [start_child_job_task(start_body, background_tasks) for start_body in start_bodies]
 
-    print(child_job_ids)
     list_resource = create_list_resource(child_job_ids)
     new_batch_job.parameter[child_jobs_param_index].resource = list_resource
 
     added: bool = add_to_batch_jobs(new_batch_job, new_batch_job.parameter[batch_id_param_index].valueString)
+    
+    batch_job_resource = Parameters(**new_batch_job.model_dump())
 
-    return PrettyJSONResponse(content=new_batch_job.model_dump(), headers={"Location": f"/smartchartui/batchjob/{new_batch_job.parameter[batch_id_param_index].valueString}"})
+    if include_patient:
+        patient_id = get_value_from_parameter(batch_job_resource, "patientId", use_iteration_strategy=True, value_key="valueString")
+        patient_resource = Patient(**read_patient(patient_id))
+        batch_job_resource = update_patient_resource_in_parameters(batch_job_resource, patient_resource)
+        batch_job_resource = batch_job_resource.dict()
+    
+    # TODO: Fix issue dumping JSON to content to include complete header info
+    # return PrettyJSONResponse(batch_job_resource, headers={"Location": f"/smartchartui/batchjob/{new_batch_job.parameter[batch_id_param_index].valueString}"})
+    return batch_job_resource
 
 def start_child_job_task(start_body,  background_tasks: BackgroundTasks):
     new_job = ParametersJob()
