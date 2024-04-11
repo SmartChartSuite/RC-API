@@ -1,4 +1,5 @@
 """Git module for knowledge base integration support"""
+
 import logging
 import os
 import tempfile

@@ -1,4 +1,5 @@
 """Error handling module"""
+
 from src.models.functions import make_operation_outcome
 
 

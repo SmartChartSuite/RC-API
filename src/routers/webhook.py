@@ -1,4 +1,5 @@
 """Webhook for Knowledge Base Integration"""
+
 import logging
 
 from fastapi import APIRouter, Request

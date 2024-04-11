@@ -1,36 +1,39 @@
-import requests
-from requests.auth import HTTPBasicAuth
 import base64
 
-class FhirClient():
-    server_base: str
-    basic_auth: HTTPBasicAuth
-    content_type_header: any
+import requests
+from requests.auth import HTTPBasicAuth
 
-    def __init__(self, server_base, basic_auth = None):
+
+class FhirClient:
+    server_base: str
+    basic_auth: HTTPBasicAuth | None
+    content_type_header: dict[str, str]
+
+    def __init__(self, server_base, basic_auth=None):
         self.server_base = server_base
         self.basic_auth = basic_auth
-        self.content_type_header = {'Content-type': 'application/fhir+json'}
+        self.content_type_header = {"Content-type": "application/fhir+json"}
 
-    def createResource(self, resource_type, resource):
-        response = requests.post(f'{self.server_base}/{resource_type}', resource, auth=self.basic_auth, headers=self.content_type_header).json()
+    def createResource(self, resource_type: str, resource):
+        response = requests.post(f"{self.server_base}/{resource_type}", resource, auth=self.basic_auth, headers=self.content_type_header).json()
         return response
 
     def updateResource(self, resource_type, id, resource):
         return {}
 
-    def readResource(self, resource_type, id):
+    def readResource(self, resource_type: str, id: str):
         headers = {}
-        if self.basic_auth is not None:
-            headers["Authorization"] = f"Basic {base64.encode(self.basic_auth)}"
-        response = requests.get(f'{self.server_base}/{resource_type}/{id}', headers=headers).json()
+        if self.basic_auth:
+            basic_auth_str = self.basic_auth.username + ":" + self.basic_auth.password  # type: ignore
+            headers["Authorization"] = f"Basic {base64.b64encode(basic_auth_str)}"
+        response = requests.get(f"{self.server_base}/{resource_type}/{id}", headers=headers).json()
         return response
 
-    def searchResource(self, resource_type, parameters = None, flatten = False):
-        searchset = requests.get(f'{self.server_base}/{resource_type}', auth=self.basic_auth).json()
+    def searchResource(self, resource_type: str, parameters=None, flatten=False):
+        searchset = requests.get(f"{self.server_base}/{resource_type}", auth=self.basic_auth).json()
         if flatten:
             resource_list = []
-            for entry in searchset['entry']:
+            for entry in searchset["entry"]:
                 resource_list.append(entry["resource"])
             return resource_list
         return searchset

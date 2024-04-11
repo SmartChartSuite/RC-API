@@ -1,17 +1,20 @@
-''' TODO: Potentially Temporary Abstraction of Job Management, separated for use for Batch Jobs testing'''
-from collections import OrderedDict
-from datetime import datetime
+"""TODO: Potentially Temporary Abstraction of Job Management, separated for use for Batch Jobs testing"""
+
 import json
 import logging
 import sqlite3
+from collections import OrderedDict
+from datetime import datetime
 from uuid import UUID
 
+from src.models.batchjob import BatchParametersJob
 from src.models.models import ParametersJob
 
 logger = logging.getLogger("rcapi.services.jobstate")
 
 # SQL Lite temporary handling to persist batch jobs.
 # TODO: Change to class
+
 
 def create_database():
     con = sqlite3.connect("batch_jobs.sqlite")
@@ -20,9 +23,12 @@ def create_database():
     cur.execute("CREATE TABLE if not exists jobs(job_id text, job blob)")
     con.commit()
 
+
 create_database()
 
-'''TODO: Refactor or Delete the following functions, temporary functions to access global'''
+"""TODO: Refactor or Delete the following functions, temporary functions to access global"""
+
+
 def add_to_jobs(new_job, index) -> bool:
     con = sqlite3.connect("batch_jobs.sqlite")
     cur = con.cursor()
@@ -41,7 +47,8 @@ def add_to_jobs(new_job, index) -> bool:
     else:
         return False
 
-def add_to_batch_jobs(new_batch_job: ParametersJob, index: str) -> bool:
+
+def add_to_batch_jobs(new_batch_job: ParametersJob | BatchParametersJob, index: str) -> bool:
     con = sqlite3.connect("batch_jobs.sqlite")
     cur = con.cursor()
     res = cur.execute("SELECT batch_job_id FROM batch_jobs")
@@ -49,7 +56,7 @@ def add_to_batch_jobs(new_batch_job: ParametersJob, index: str) -> bool:
     print(new_batch_job)
     if index not in current_job_id_list:
         data = [(index, json.dumps(new_batch_job.model_dump(), cls=UUIDEncoder))]
-        #TODO: Make adding child jobs part of a single atomic transaction.
+        # TODO: Make adding child jobs part of a single atomic transaction.
         cur.executemany("INSERT INTO batch_jobs VALUES(?, ?)", data)
         con.commit()
         logger.info("Added to batch jobs")
@@ -57,11 +64,13 @@ def add_to_batch_jobs(new_batch_job: ParametersJob, index: str) -> bool:
     else:
         return False
 
+
 def get_job(index):
     con = sqlite3.connect("batch_jobs.sqlite")
     cur = con.cursor()
     res = cur.execute("SELECT job FROM jobs WHERE job_id=:index", {"index": index})
     return res.fetchone()
+
 
 def get_all_batch_jobs():
     con = sqlite3.connect("batch_jobs.sqlite")
@@ -69,18 +78,20 @@ def get_all_batch_jobs():
     res = cur.execute("SELECT batch_job FROM batch_jobs")
     return res.fetchall()
 
+
 def get_batch_job(index: str):
     con = sqlite3.connect("batch_jobs.sqlite")
     cur = con.cursor()
     res = cur.execute("SELECT batch_job FROM batch_jobs WHERE batch_job_id=:index", {"index": index})
     return res.fetchone()
 
+
 def update_job_to_complete(job_id, job_result):
     # TODO: Why is this returning from sqllite as a tuple?
     job = json.loads(get_job(job_id)[0], object_pairs_hook=OrderedDict)
     param_list = job["parameter"]
 
-    #print(type(job_result))
+    # print(type(job_result))
 
     for param in param_list:
         if param["name"] == "jobStatus":
@@ -89,7 +100,7 @@ def update_job_to_complete(job_id, job_result):
         #     param["valueDateTime"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         elif param["name"] == "result":
             param["resource"] = job_result
-    
+
     job["parameter"].append(OrderedDict({"name": "jobCompletedDateTime", "valueDateTime": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")}))
 
     con = sqlite3.connect("batch_jobs.sqlite")
@@ -103,7 +114,7 @@ class UUIDEncoder(json.JSONEncoder):
         if isinstance(obj, UUID):
             return str(obj)
         return json.JSONEncoder.default(self, obj)
-    
+
 
 class BytesEncoder(json.JSONEncoder):
     def default(self, obj):

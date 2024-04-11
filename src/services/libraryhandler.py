@@ -1,10 +1,11 @@
 """Module for handling Libraries"""
+
 import base64
 import logging
 from typing import Literal, OrderedDict
 
 import requests
-from fhir.resources.library import Library
+from fhir.resources.R4B.library import Library
 
 from src.models.functions import make_operation_outcome, validate_cql, validate_nlpql
 from src.services.errorhandler import error_to_operation_outcome
