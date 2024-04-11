@@ -53,7 +53,7 @@ def search_group():
 # TODO: Does this need to exist? Duplciates get form from routers.py. Need to consider if there is another way data may be returned.
 @smartchart_router.get("/smartchartui/questionnaire")
 def search_questionnaire():
-    response = internal_fhir_client.searchResource("Questionnaire", flatten=True)
+    response = internal_fhir_client.searchResource("Questionnaire?context=smartchartui", flatten=True)
     return response
 
 @smartchart_router.get("/smartchartui/job/{id}")
