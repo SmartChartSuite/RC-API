@@ -9,6 +9,9 @@ import requests
 from fastapi import APIRouter, BackgroundTasks
 from fhir.resources.R4B.parameters import Parameters
 from fhir.resources.R4B.patient import Patient
+from fhir.resources.R4B.list import List
+from fhir.resources.R4B.bundle import Bundle, BundleEntry
+from fhir.resources.R4B.resource import Resource
 
 from src.models.batchjob import BatchParametersJob, StartBatchJobsParameters
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
@@ -111,8 +114,49 @@ def get_batch_job_request(id: str, include_patient: bool = False, response_class
         requested_batch_job = batch_job_resource.dict()
     return requested_batch_job
 
+'''Fetches compiled results as a FHIR Bundle for a given job.'''
+@smartchart_router.get("/smartchartui/results/{id}")
+def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
+    requested_batch_job = get_batch_job(id)[0]  # TODO: Change this to not return tuple
+    requested_batch_job = json.loads(requested_batch_job)
+    batch_job_resource = Parameters(**requested_batch_job)
 
-"""Batch request to run every job in a jobPackage individually"""
+    # TODO: Swap the list structure in batch jobs to a parameters.parts structure with name = job, and use it to tie together things here to generate the components properly.
+    # TODO: Per above, temp handling given an all statuses complete.
+    # 1. Get child job IDs.
+    child_job_list_resource: List = get_value_from_parameter(batch_job_resource, "childJobs", use_iteration_strategy=True, value_key="resource")
+    child_job_list_dict = child_job_list_resource.dict()
+    child_job_list_dict_entries = child_job_list_dict["entry"]
+    child_job_ids: list = [entry["item"]["display"] for entry in child_job_list_dict_entries]
+
+    # 2. For each child job ID
+    #   a. read from DB.
+    #   b. extract status parameter
+    #   c. Add status parameter along with job
+    #   b. extract results parameter (results bundle)
+    #   c. compile results bundle into single list, removing duplicates.
+    status_list: list = []
+    result_list: list = []
+    for job_id in child_job_ids:
+        job = get_job(job_id)[0]
+        job = json.loads(job)
+        job_parameters_resource = Parameters(**job)
+        status_list.append(get_value_from_parameter(job_parameters_resource, "jobStatus", use_iteration_strategy=True, value_key="valueString"))
+        result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
+        for entry in result.entry:
+            result_list.append(entry.resource.json())
+    result_list = list(dict.fromkeys(result_list))
+    print(status_list)
+    print(result_list)
+
+
+    # 3. Create collection bundle wrapper.
+    # 4. Create status observation based on TODOs above
+    #   a. Set Observation.status per condotions of all child job.
+    #   b. Once TODOs addressed, add components with job/status pairs for individual handling.
+    # 5. Insert status observation into first entry of collection bundle wrapper.
+    # 6. Insert all other resources into the entries of collection bundle wrapper.
+    # 7. Return bundle to user.
 
 
 # TODO: Support include_patient parameter
