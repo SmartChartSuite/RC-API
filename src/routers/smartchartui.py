@@ -138,25 +138,38 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
     status_list: list = []
     result_list: list = []
     for job_id in child_job_ids:
-        job = get_job(job_id)[0]
-        job = json.loads(job)
-        job_parameters_resource = Parameters(**job)
-        status_list.append(get_value_from_parameter(job_parameters_resource, "jobStatus", use_iteration_strategy=True, value_key="valueString"))
-        result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
-        for entry in result.entry:
-            result_list.append(entry.resource.json())
-    result_list = list(dict.fromkeys(result_list))
-    print(status_list)
-    print(result_list)
+        job = get_job(job_id)
+        if job is not None:
+            job = json.loads(job[0])
+            job_parameters_resource = Parameters(**job)
+            status_list.append(get_value_from_parameter(job_parameters_resource, "jobStatus", use_iteration_strategy=True, value_key="valueString"))
+            result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
+            for entry in result.entry:
+                result_list.append(entry.resource.json())
+        result_list = list(dict.fromkeys(result_list))
 
-
-    # 3. Create collection bundle wrapper.
-    # 4. Create status observation based on TODOs above
+    # 3. Create status observation based on TODOs above
     #   a. Set Observation.status per condotions of all child job.
     #   b. Once TODOs addressed, add components with job/status pairs for individual handling.
-    # 5. Insert status observation into first entry of collection bundle wrapper.
-    # 6. Insert all other resources into the entries of collection bundle wrapper.
-    # 7. Return bundle to user.
+
+    status_list_bool = [status == "complete" for status in status_list]
+    overall_status_bool = all(status_list_bool)
+    overall_status: str = ""
+    if overall_status_bool:
+        overall_status = "complete"
+    else:
+        overall_status = "preliminary"
+    status_counter = f"{len([status for status in status_list if status == 'complete'])}/{len(status_list)}"
+    status_observation = create_results_status_observation(overall_status, status_counter)
+
+    # 4. Create collection bundle wrapper.
+    #   a. Insert status observation into first entry of collection bundle wrapper.
+    #   b. Insert all other resources into the entries of collection bundle wrapper.
+    bundle = Bundle(**create_results_bundle(status_observation, result_list))
+    
+    # 5. Return bundle to user.
+    # TODO: Add response class, removed because of ORJSON date time issue temp.
+    return bundle.dict()
 
 
 # TODO: Support include_patient parameter
@@ -254,3 +267,43 @@ def create_list_resource(job_id_list: list[str]):
     for job_id in job_id_list:
         list_resource["entry"].append({"item": {"display": job_id}})
     return list_resource
+
+def create_results_status_observation(status: str, status_count: str):
+    status_code = "in-progress"
+    if status == "complete":
+        status_code = status
+    return {
+        "resourceType": "Observation",
+        "id": "status-observation",
+        "status": status,
+        "code": {
+            "coding": [{
+                "code": "result-status"
+            }]
+        },
+        "valueCodeableConcept": {
+            "coding": [
+                {
+                    "code": status_code
+                }
+            ],
+            "text": f"Jobs completed: {status_count}"
+        }
+    }
+
+def create_results_bundle(status_observation, results_list: list):
+    results_list.insert(0, status_observation)
+    return {
+        "resourceType": "Bundle",
+        "type": "collection",
+        "total": len(results_list) + 1,
+        "entry": [create_bundle_entry(resource) for resource in results_list]
+    }
+
+def create_bundle_entry(resource):
+    if isinstance(resource, str):
+        resource = json.loads(resource)
+    return {
+        "fullUrl": f"{resource['resourceType']}/{resource['id']}",
+        "resource": resource
+    }
