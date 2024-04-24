@@ -36,13 +36,11 @@ def add_to_jobs(new_job, index) -> bool:
     current_job_id_list = res.fetchall()
 
     if index not in current_job_id_list:
-        print(new_job)
-        print("-----------------")
+        # TODO: Shift this away from try block, this is temp solution
         data = [(index, json.dumps(new_job.model_dump(), cls=UUIDEncoder))]
-        print(data)
         cur.executemany("INSERT INTO jobs VALUES(?, ?)", data)
         con.commit()
-        logger.info("Added to jobs")
+        logger.info(f"Crated job {index} in jobs table.")
         return True
     else:
         return False

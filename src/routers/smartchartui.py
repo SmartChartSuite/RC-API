@@ -138,14 +138,19 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
     status_list: list = []
     result_list: list = []
     for job_id in child_job_ids:
+        logger.info(f"Reading job {job_id} from Database.")
         job = get_job(job_id)
         if job is not None:
-            job = json.loads(job[0])
-            job_parameters_resource = Parameters(**job)
-            status_list.append(get_value_from_parameter(job_parameters_resource, "jobStatus", use_iteration_strategy=True, value_key="valueString"))
-            result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
-            for entry in result.entry:
-                result_list.append(entry.resource.json())
+            try:
+                job = json.loads(job[0])
+                job_parameters_resource = Parameters(**job)
+                status_list.append(get_value_from_parameter(job_parameters_resource, "jobStatus", use_iteration_strategy=True, value_key="valueString"))
+                result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
+                for entry in result.entry:
+                    result_list.append(entry.resource.json())
+            except BaseException as e:
+                logger.error(e)
+                logger.error(f"Error parsing job: {job_id}")
         result_list = list(dict.fromkeys(result_list))
 
     # 3. Create status observation based on TODOs above
