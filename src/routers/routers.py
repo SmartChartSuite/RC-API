@@ -1,4 +1,5 @@
 """Routing module for the API"""
+
 import logging
 import os
 import uuid
@@ -9,7 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import JSONResponse
 from fastapi_restful.tasks import repeat_every
 
-from src.models.functions import get_health_of_stack, make_operation_outcome, start_jobs
+from src.models.functions import get_health_of_stack, make_operation_outcome, start_jobs, get_param_index
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
 from src.services.libraryhandler import create_cql, create_nlpql, get_library
 from src.util.settings import cqfr4_fhir
@@ -87,13 +88,13 @@ def get_nlpql_libraries():
 @apirouter.get("/forms/cql/{library_name}")
 def get_cql(library_name: str) -> str | dict:
     """Return CQL library based on name"""
-    return get_library(library_name=library_name, library_type='cql')
+    return get_library(library_name=library_name, library_type="cql")
 
 
 @apirouter.get("/forms/nlpql/{library_name}")
 def get_nlpql(library_name: str) -> str | dict:
     """Return NLPQL library by name"""
-    return get_library(library_name=library_name, library_type='nlpql')
+    return get_library(library_name=library_name, library_type="nlpql")
 
 
 @apirouter.get("/forms/{form_name}")
@@ -149,8 +150,8 @@ def start_jobs_header_function(post_body: StartJobsParameters, background_tasks:
     if asyncFlag:
         logger.info("asyncFlag detected, running asynchronously")
         new_job = ParametersJob()
-        uid_param_index = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobId"][0])
-        starttime_param_index = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobStartDateTime"][0])
+        uid_param_index = get_param_index(parameter_list=new_job.parameter, param_name="jobId")
+        starttime_param_index = get_param_index(parameter_list=new_job.parameter, param_name="jobStartDateTime")
         new_job.parameter[uid_param_index].valueString = str(uuid.uuid4())
         new_job.parameter[starttime_param_index].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         logger.info(f"Created new job with jobId {new_job.parameter[uid_param_index].valueString}")  # type: ignore
@@ -168,16 +169,16 @@ def start_async_jobs(post_body: StartJobsParameters, uid: str) -> None:
     job_result = start_jobs(post_body)
     if uid not in jobs:
         new_job = ParametersJob()
-        uid_param_index: int = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobId"][0])
-        starttime_param_index: int = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobStartDateTime"][0])
+        uid_param_index: int = get_param_index(parameter_list=new_job.parameter, param_name="jobId")
+        starttime_param_index: int = get_param_index(parameter_list=new_job.parameter, param_name="jobStartDateTime")
         new_job.parameter[uid_param_index].valueString = uid
         new_job.parameter[starttime_param_index].valueDateTime = "9999-12-31T00:00:00Z"
         jobs[uid] = new_job
 
     tmp_job_obj = jobs[uid]
 
-    status_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == "jobStatus"][0])
-    result_param_index: int = tmp_job_obj.parameter.index([param for param in tmp_job_obj.parameter if param.name == "result"][0])
+    status_param_index: int = get_param_index(parameter_list=tmp_job_obj.parameter, param_name="jobStatus")
+    result_param_index: int = get_param_index(parameter_list=tmp_job_obj.parameter, param_name="result")
 
     jobs[uid].parameter[result_param_index].resource = job_result
     jobs[uid].parameter[status_param_index].valueString = "complete"
@@ -199,7 +200,7 @@ def get_job_status(uid: str):
     try:
         try:
             job_status_obj = jobs[uid]
-            result_param_index: int = job_status_obj.parameter.index([param for param in job_status_obj.parameter if param.name == "result"][0])
+            result_param_index: int = get_param_index(parameter_list=job_status_obj.parameter, param_name="result")
             job_results = job_status_obj.parameter[result_param_index].resource  # type: ignore
             job_results_severity = job_results["issue"][0]["severity"]
             job_results_code = job_results["issue"][0]["code"]

@@ -1,4 +1,5 @@
 """Module for defining models and classes for the API"""
+
 import logging
 from datetime import datetime
 from uuid import uuid4

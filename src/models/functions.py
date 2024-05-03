@@ -7,10 +7,10 @@ from concurrent.futures import Future
 from datetime import datetime
 
 import requests
-from fhir.resources.documentreference import DocumentReference
-from fhir.resources.fhirtypes import Id
-from fhir.resources.observation import Observation
-from fhir.resources.operationoutcome import OperationOutcome
+from fhir.resources.R4B.documentreference import DocumentReference
+from fhir.resources.R4B.fhirtypes import Id
+from fhir.resources.R4B.observation import Observation
+from fhir.resources.R4B.operationoutcome import OperationOutcome
 from requests_futures.sessions import FuturesSession
 
 from src.models.models import StartJobsParameters
@@ -118,6 +118,7 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
 def handle_cql_futures(cql_futures: list[Future], library_names: list[str], patient_id: str) -> list[dict]:
     results_cql: list[dict] = []
     for i, future in enumerate(cql_futures):
+        # TODO: Handle additional network error types, e.g. 406
         pre_result: requests.Response = future.result()
         if pre_result.status_code == 504:
             logger.error(f"There was an upstream request timeout for library {library_names[i]}.cql with status_code 504")
@@ -288,11 +289,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
             return make_operation_outcome("not-found", "Patient resource not found in results from CQF Ruler, see logs for more details")
 
         # For each group of questions in the form
+        total_item_count = 0
+        for group in form["item"]:
+            total_item_count += len(group["item"])
+        current_item_count = 0
+
         for group in form["item"]:
             # For each question in the group in the form
             for question in group["item"]:
+                current_item_count += 1
                 link_id = question["linkId"]
-                logger.info(f"Working on question {link_id}")
+                logger.info(f"Working on question {link_id} - {current_item_count}/{total_item_count} ({current_item_count / total_item_count * 100:0.2f}%)")
                 library_task: str = ""
                 cardinality: str = ""
                 # If the question has these extensions, get their values, if not, keep going
@@ -711,11 +718,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
             bundle_entries.append(patient_bundle_entry)
 
         # For each group of questions in the form
+        total_item_count = 0
+        for group in form["item"]:
+            total_item_count += len(group["item"])
+
+        current_item_count = 0
         for group in form["item"]:
             # For each question in the group in the form
             for question in group["item"]:
+                current_item_count += 1
                 link_id = question["linkId"]
-                logger.info(f"Working on question {link_id}")
+                logger.info(f"Working on question {link_id} - {current_item_count}/{total_item_count} ({current_item_count / total_item_count * 100:0.2f}%)")
                 library_task = "."
                 # If the question has these extensions, get their values, if not, keep going
                 try:
@@ -1257,3 +1270,7 @@ def get_health_of_stack() -> dict:
         oo_template["issue"].append({"severity": "error", "code": "transient", "diagnostics": rcapi_reason})
 
     return OperationOutcome.parse_obj(oo_template).dict()
+
+
+def get_param_index(parameter_list: list, param_name: str) -> int:
+    return parameter_list.index([param for param in parameter_list if param.name == param_name][0])
