@@ -14,6 +14,7 @@ from fastapi.openapi.docs import (
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 from src.models.functions import make_operation_outcome
 from src.models.models import CustomFormatter
@@ -76,13 +77,14 @@ app.add_middleware(
 )
 
 # ================= Routers inclusion from src directory ===============
-app.include_router(routers.apirouter)
-app.include_router(webhook.apirouter)
-app.include_router(smartchartui.smartchart_router)
+app.include_router(routers.apirouter, tags=["Main API"])
+app.include_router(webhook.apirouter, tags=["Webhook"])
+app.include_router(smartchartui.smartchart_router, tags=["SmartChart UI"])
 
 
 # ================= Invalid Request Exception Handling =================
 @app.exception_handler(RequestValidationError)
+@app.exception_handler(ValidationError)
 async def validation_exception_handler(request, exc) -> JSONResponse:
     """Formats all invalidated requests to return as OperationOutcomes"""
     return JSONResponse(make_operation_outcome("invalid", str(exc)), status_code=400)

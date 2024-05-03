@@ -1,3 +1,5 @@
-'''Intialization file for models module'''
+"""Intialization file for models module"""
+
 import logging
-logger = logging.getLogger('rcapi.models')
+
+logger = logging.getLogger("rcapi.models")

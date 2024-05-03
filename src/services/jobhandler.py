@@ -3,6 +3,7 @@
 
 import logging
 from collections import OrderedDict
+from typing import Any
 
 from fhir.resources.R4B.parameters import Parameters
 from fhir.resources.R4B.patient import Patient
@@ -55,7 +56,7 @@ def get_job_list(form_name, form_version=None):
 # post bodies with a quick return and a more intensive iterative approach for the Parameters FHIR.resources interim models in other
 # cases. When use_iteration_strategy is True, value_key to match on must be included as assumptions cannot be made. There may be a slight
 # simplification by checking for key value pairs where in the value is not None (and key is not name), but this did not work on testing.
-def get_value_from_parameter(parameters_resource: Parameters, parameter_name, use_iteration_strategy: bool = False, value_key: str | None = None):  # type: ignore
+def get_value_from_parameter(parameters_resource: Parameters, parameter_name, use_iteration_strategy: bool = False, value_key: str | None = None) -> Any:  # type: ignore
     for param in parameters_resource.parameter:
         key_value_pairs: list[str] = [x for x in param]
         if not use_iteration_strategy and key_value_pairs[0][1] == parameter_name:

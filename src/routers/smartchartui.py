@@ -10,8 +10,7 @@ from fastapi import APIRouter, BackgroundTasks
 from fhir.resources.R4B.parameters import Parameters
 from fhir.resources.R4B.patient import Patient
 from fhir.resources.R4B.list import List
-from fhir.resources.R4B.bundle import Bundle, BundleEntry
-from fhir.resources.R4B.resource import Resource
+from fhir.resources.R4B.bundle import Bundle
 
 from src.models.batchjob import BatchParametersJob, StartBatchJobsParameters
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
@@ -94,6 +93,8 @@ def get_all_batch_jobs_request(include_patient: bool = False):
         for batch_job in requested_batch_jobs:
             batch_job_resource = Parameters(**batch_job)
             patient_id = get_value_from_parameter(batch_job_resource, "patientId", use_iteration_strategy=True, value_key="valueString")
+            if not patient_id:
+                continue
             patient_resource = Patient(**read_patient(patient_id))
             batch_job_resource = update_patient_resource_in_parameters(batch_job_resource, patient_resource)
             batch_jobs_as_resources.append(batch_job_resource.dict())
@@ -109,12 +110,17 @@ def get_batch_job_request(id: str, include_patient: bool = False, response_class
     if include_patient:
         batch_job_resource = Parameters(**requested_batch_job)
         patient_id = get_value_from_parameter(batch_job_resource, "patientId", use_iteration_strategy=True, value_key="valueString")
+        if not patient_id:
+            return {}
         patient_resource = Patient(**read_patient(patient_id))
         batch_job_resource = update_patient_resource_in_parameters(batch_job_resource, patient_resource)
         requested_batch_job = batch_job_resource.dict()
     return requested_batch_job
 
-'''Fetches compiled results as a FHIR Bundle for a given job.'''
+
+"""Fetches compiled results as a FHIR Bundle for a given job."""
+
+
 @smartchart_router.get("/smartchartui/results/{id}")
 def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
     requested_batch_job = get_batch_job(id)[0]  # TODO: Change this to not return tuple
@@ -147,7 +153,7 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
                 status_list.append(get_value_from_parameter(job_parameters_resource, "jobStatus", use_iteration_strategy=True, value_key="valueString"))
                 result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
                 for entry in result.entry:
-                    result_list.append(entry.resource.json())
+                    result_list.append(entry.resource.json()) #type: ignore
             except BaseException as e:
                 logger.error(e)
                 logger.error(f"Error parsing job: {job_id}")
@@ -171,7 +177,7 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
     #   a. Insert status observation into first entry of collection bundle wrapper.
     #   b. Insert all other resources into the entries of collection bundle wrapper.
     bundle = Bundle(**create_results_bundle(status_observation, result_list))
-    
+
     # 5. Return bundle to user.
     # TODO: Add response class, removed because of ORJSON date time issue temp.
     return bundle.dict()
@@ -273,6 +279,7 @@ def create_list_resource(job_id_list: list[str]):
         list_resource["entry"].append({"item": {"display": job_id}})
     return list_resource
 
+
 def create_results_status_observation(status: str, status_count: str):
     status_code = "in-progress"
     if status == "complete":
@@ -281,34 +288,17 @@ def create_results_status_observation(status: str, status_count: str):
         "resourceType": "Observation",
         "id": "status-observation",
         "status": status,
-        "code": {
-            "coding": [{
-                "code": "result-status"
-            }]
-        },
-        "valueCodeableConcept": {
-            "coding": [
-                {
-                    "code": status_code
-                }
-            ],
-            "text": f"Jobs completed: {status_count}"
-        }
+        "code": {"coding": [{"code": "result-status"}]},
+        "valueCodeableConcept": {"coding": [{"code": status_code}], "text": f"Jobs completed: {status_count}"},
     }
+
 
 def create_results_bundle(status_observation, results_list: list):
     results_list.insert(0, status_observation)
-    return {
-        "resourceType": "Bundle",
-        "type": "collection",
-        "total": len(results_list) + 1,
-        "entry": [create_bundle_entry(resource) for resource in results_list]
-    }
+    return {"resourceType": "Bundle", "type": "collection", "total": len(results_list) + 1, "entry": [create_bundle_entry(resource) for resource in results_list]}
+
 
 def create_bundle_entry(resource):
     if isinstance(resource, str):
         resource = json.loads(resource)
-    return {
-        "fullUrl": f"{resource['resourceType']}/{resource['id']}",
-        "resource": resource
-    }
+    return {"fullUrl": f"{resource['resourceType']}/{resource['id']}", "resource": resource}
