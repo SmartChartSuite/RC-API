@@ -40,7 +40,7 @@ def add_to_jobs(new_job, index) -> bool:
         data = [(index, json.dumps(new_job.model_dump(), cls=UUIDEncoder))]
         cur.executemany("INSERT INTO jobs VALUES(?, ?)", data)
         con.commit()
-        logger.info(f"Crated job {index} in jobs table.")
+        logger.info(f"Created job {index} in jobs table.")
         return True
     else:
         return False

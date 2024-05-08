@@ -153,7 +153,7 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
                 status_list.append(get_value_from_parameter(job_parameters_resource, "jobStatus", use_iteration_strategy=True, value_key="valueString"))
                 result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
                 for entry in result.entry:
-                    result_list.append(entry.resource.json()) #type: ignore
+                    result_list.append(entry.resource.json())  # type: ignore
             except BaseException as e:
                 logger.error(e)
                 logger.error(f"Error parsing job: {job_id}")
@@ -184,8 +184,8 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
 
 
 # TODO: Support include_patient parameter
-@smartchart_router.post("/smartchartui/batchjob")
-def post_batch_job(post_body: StartBatchJobsParameters, background_tasks: BackgroundTasks, include_patient: bool = False, response_class=PrettyJSONResponse):
+@smartchart_router.post("/smartchartui/batchjob", response_class=PrettyJSONResponse)
+def post_batch_job(post_body: StartBatchJobsParameters, background_tasks: BackgroundTasks, include_patient: bool = False):
     return start_batch_job(post_body, background_tasks, include_patient)
 
 

@@ -10,10 +10,11 @@ from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import JSONResponse
 from fastapi_restful.tasks import repeat_every
 
-from src.models.functions import get_health_of_stack, make_operation_outcome, start_jobs, get_param_index
+from src.models.functions import get_health_of_stack, get_param_index, make_operation_outcome, start_jobs
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
 from src.services.libraryhandler import create_cql, create_nlpql, get_library
 from src.util.settings import cqfr4_fhir
+from static.diagnostic_questionnaire import diagnostic_questionnaire
 
 # Create logger
 logger = logging.getLogger("rcapi.routers.routers")
@@ -100,6 +101,8 @@ def get_nlpql(library_name: str) -> str | dict:
 @apirouter.get("/forms/{form_name}")
 def get_form(form_name: str) -> dict | str:
     """Return Questionnaire from CQF Ruler based on form name"""
+    if form_name == "diagnostic":
+        return diagnostic_questionnaire
     req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
     if req.status_code != 200:
         logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
@@ -239,7 +242,7 @@ def save_cql(code: str = Body(...)):
 
 @apirouter.put("/forms/{form_name}")
 def update_form(form_name: str, new_questions: dict):
-    """Update Questionnaire using namee"""
+    """Update Questionnaire using name"""
     req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
     if req.status_code != 200:
         logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")

@@ -81,7 +81,8 @@ def update_patient_resource_in_parameters(parameters_resource: Parameters, patie
 def get_job_list_from_form(form) -> list[str]:
     cql_url = "http://gtri.gatech.edu/fakeFormIg/cql-form-job-list"
     nlpql_url = "http://gtri.gatech.edu/fakeFormIg/nlpql-form-job-list"
-    # TODO: Add handling if a type of job does not exist. Return a default empty list?
-    cql_jobs = next(i for i in form["extension"] if i["url"] == cql_url)
-    nlpql_jobs = next(i for i in form["extension"] if i["url"] == nlpql_url)
-    return [x["valueString"] for x in cql_jobs["extension"] + nlpql_jobs["extension"] if "valueString" in x]
+    cql_jobs: dict = next((i for i in form["extension"] if i["url"] == cql_url), {})
+    nlpql_jobs: dict = next((i for i in form["extension"] if i["url"] == nlpql_url), {})
+    cql_job_list = [x["valueString"] for x in cql_jobs["extension"] if cql_jobs and "valueString" in x]
+    nlpql_job_list = [x["valueString"] for x in cql_jobs["extension"] if nlpql_jobs and "valueString" in x]
+    return cql_job_list + nlpql_job_list
