@@ -180,7 +180,7 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
 
     # 5. Return bundle to user.
     # TODO: Add response class, removed because of ORJSON date time issue temp.
-    return bundle.dict()
+    return bundle.dict(exclude_none=True)
 
 
 # TODO: Support include_patient parameter
@@ -234,7 +234,7 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patien
 
     # TODO: Fix issue dumping JSON to content to include complete header info
     # return PrettyJSONResponse(batch_job_resource, headers={"Location": f"/smartchartui/batchjob/{new_batch_job.parameter[batch_id_param_index].valueString}"})
-    return batch_job_resource
+    return batch_job_resource.dict(exclude_none=True) if isinstance(batch_job_resource, Parameters) else batch_job_resource
 
 
 def start_child_job_task(start_body, background_tasks: BackgroundTasks):
