@@ -7,21 +7,21 @@ from datetime import datetime
 
 import requests
 from fastapi import APIRouter, BackgroundTasks
+from fhir.resources.R4B.bundle import Bundle
+from fhir.resources.R4B.list import List
 from fhir.resources.R4B.parameters import Parameters
 from fhir.resources.R4B.patient import Patient
-from fhir.resources.R4B.list import List
-from fhir.resources.R4B.bundle import Bundle
 
 from src.models.batchjob import BatchParametersJob, StartBatchJobsParameters
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import ParametersJob, StartJobsParameters
 from src.responsemodels.prettyjson import PrettyJSONResponse
-from src.routers.routers import get_form
+from src.routers.forms_router import get_form
 from src.services.jobhandler import get_job_list_from_form, get_value_from_parameter, update_patient_resource_in_parameters
 from src.services.jobstate import add_to_batch_jobs, add_to_jobs, get_all_batch_jobs, get_batch_job, get_job, update_job_to_complete
 from src.util.fhirclient import FhirClient
 
-logger = logging.getLogger("rcapi.routers.smartchartui")
+logger: logging.Logger = logging.getLogger("rcapi.routers.smartchartui")
 
 external_fhir_client = FhirClient(os.getenv("EXTERNAL_FHIR_SERVER_URL"))
 internal_fhir_client = FhirClient(os.getenv("CQF_RULER_R4"))

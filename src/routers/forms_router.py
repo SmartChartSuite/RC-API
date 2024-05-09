@@ -1,4 +1,4 @@
-"""Routing module for the API"""
+"""Routing file for form-related operations"""
 
 import logging
 import os
@@ -6,20 +6,19 @@ import uuid
 from datetime import datetime
 
 import requests
-from fastapi import APIRouter, BackgroundTasks, Body
+from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi_restful.tasks import repeat_every
 
-from src.models.functions import get_health_of_stack, get_param_index, make_operation_outcome, start_jobs
+from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
-from src.services.libraryhandler import create_cql, create_nlpql, get_library
 from src.util.settings import cqfr4_fhir
 from static.diagnostic_questionnaire import diagnostic_questionnaire
 
-# Create logger
-logger = logging.getLogger("rcapi.routers.routers")
+logger: logging.Logger = logging.getLogger("rcapi.routers.forms_router")
 
-apirouter = APIRouter()
+router = APIRouter()
+
 jobs: dict[str, ParametersJob] = {}
 
 
@@ -32,19 +31,7 @@ def clear_jobs_array():
     logger.info("Finished clearing jobs!")
 
 
-@apirouter.get("/")
-def root():
-    """Root return function for the API"""
-    return make_operation_outcome("processing", "This is the base URL of API. Unable to handle this request as it is the root.")
-
-
-@apirouter.get("/health")
-def health_check() -> dict:
-    """Health check endpoint"""
-    return get_health_of_stack()
-
-
-@apirouter.get("/forms", response_model=dict)
+@router.get("/forms", response_model=dict)
 def get_list_of_forms():
     """Get Bundle of Questionnaires from CQF Ruler"""
     cqfr4_fhir_url = os.environ["CQF_RULER_R4"]
@@ -62,43 +49,7 @@ def get_list_of_forms():
     return make_operation_outcome("transient", f"Getting Questionnaires from server failed with code {req.status_code}.")
 
 
-@apirouter.get("/forms/cql")
-def get_cql_libraries():
-    """Pulls list of CQL libraries from CQF Ruler"""
-
-    req = requests.get(cqfr4_fhir + "Library?content-type=text/cql")
-    if req.status_code == 200:
-        return req.json()
-
-    logger.error(f"Getting CQL Libraries from server failed with status code {req.status_code}")
-    return make_operation_outcome("transient", f"Getting CQL Libraries from server failed with code {req.status_code}")
-
-
-@apirouter.get("/forms/nlpql")
-def get_nlpql_libraries():
-    """Pulls list of CQL libraries from CQF Ruler"""
-
-    req = requests.get(cqfr4_fhir + "Library?content-type=text/nlpql")
-    if req.status_code == 200:
-        return req.json()
-
-    logger.error(f"Getting NLPQL Libraries from server failed with status code {req.status_code}")
-    return make_operation_outcome("transient", f"Getting NLPQL Libraries from server failed with code {req.status_code}")
-
-
-@apirouter.get("/forms/cql/{library_name}")
-def get_cql(library_name: str) -> str | dict:
-    """Return CQL library based on name"""
-    return get_library(library_name=library_name, library_type="cql")
-
-
-@apirouter.get("/forms/nlpql/{library_name}")
-def get_nlpql(library_name: str) -> str | dict:
-    """Return NLPQL library by name"""
-    return get_library(library_name=library_name, library_type="nlpql")
-
-
-@apirouter.get("/forms/{form_name}")
+@router.get("/forms/{form_name}")
 def get_form(form_name: str) -> dict | str:
     """Return Questionnaire from CQF Ruler based on form name"""
     if form_name == "diagnostic":
@@ -118,7 +69,7 @@ def get_form(form_name: str) -> dict | str:
         return make_operation_outcome("not-found", f"Questionnaire named {form_name} not found on the FHIR server.")
 
 
-@apirouter.post("/forms")
+@router.post("/forms")
 def save_form(questions: dict):
     """Check to see if library and version of this exists"""
 
@@ -147,7 +98,7 @@ def save_form(questions: dict):
     return make_operation_outcome("informational", f"Resource successfully posted with id {resource_id}", severity="information")
 
 
-@apirouter.post("/forms/start", response_model=None)
+@router.post("/forms/start", response_model=None)
 def start_jobs_header_function(post_body: StartJobsParameters, background_tasks: BackgroundTasks, asyncFlag: bool = False) -> JSONResponse | dict:
     """Header function for starting jobs either synchronously or asynchronously"""
     if asyncFlag:
@@ -191,13 +142,13 @@ def start_async_jobs(post_body: StartJobsParameters, uid: str) -> None:
     logger.info(f"Job id {uid} complete and results are available at /forms/status/{uid}")
 
 
-@apirouter.get("/forms/status/all")
+@router.get("/forms/status/all")
 def return_all_jobs():
     """Return all job statuses"""
     return jobs
 
 
-@apirouter.get("/forms/status/{uid}")
+@router.get("/forms/status/{uid}")
 def get_job_status(uid: str):
     """Return the status of a specific job"""
     try:
@@ -219,28 +170,7 @@ def get_job_status(uid: str):
         return JSONResponse(content=make_operation_outcome("not-found", f"The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id."), status_code=404)
 
 
-@apirouter.post("/forms/nlpql")
-def save_nlpql(code: str = Body(...)):
-    """Persist NLPQL as a Library Resource on CQF Ruler"""
-    resource_id = create_nlpql(code)
-    if isinstance(resource_id, str):
-        return JSONResponse(content=make_operation_outcome("informational", f"Resource successfully posted with id {resource_id}", severity="information"), status_code=201)
-    elif isinstance(resource_id, dict):
-        return JSONResponse(content=resource_id, status_code=400)
-
-
-@apirouter.post("/forms/cql")
-def save_cql(code: str = Body(...)):
-    """Persist CQL as a Library Resource on CQF Ruler"""
-    resource_id = create_cql(code)
-    # Empty body is handled by FASTAPI when parsing the request body. This handling is used as a fallback for any other potential ValueErrors.
-    if isinstance(resource_id, ValueError):
-        return JSONResponse(content=make_operation_outcome("invalid", "Value Error"), status_code=400)
-    # TODO: Add additional error handling.
-    return JSONResponse(content=make_operation_outcome("informational", f"Resource successfully posted with id {resource_id}", severity="information"), status_code=201)
-
-
-@apirouter.put("/forms/{form_name}")
+@router.put("/forms/{form_name}")
 def update_form(form_name: str, new_questions: dict):
     """Update Questionnaire using name"""
     req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
@@ -263,23 +193,3 @@ def update_form(form_name: str, new_questions: dict):
         return make_operation_outcome("transient", f"Putting Questionnaire from server failed with status code {req.status_code}")
 
     return make_operation_outcome("informational", f"Questionnaire {form_name} successfully put on server with resource_id {resource_id}", severity="information")
-
-
-@apirouter.put("/forms/cql/{library_name}")
-def update_cql(library_name: str, code: str = Body(...)):
-    """Update CQL Library in CQF Ruler by name"""
-    resource_id = create_cql(code)
-    # Empty body is handled by FASTAPI when parsing the request body. This handling is used as a fallback for any other potential ValueErrors.
-    if isinstance(resource_id, ValueError):
-        return JSONResponse(content=make_operation_outcome("invalid", "Value Error"), status_code=400)
-    return JSONResponse(content=make_operation_outcome("informational", f"Resource successfully PUT with id {resource_id}", severity="information"), status_code=201)
-
-
-@apirouter.put("/forms/nlpql/{library_name}")
-def update_nlpql(library_name: str, code: str = Body(...)):
-    """Update NLPQL Library on CQF Ruler"""
-    resource_id = create_nlpql(code)
-    if isinstance(resource_id, str):
-        return JSONResponse(content=make_operation_outcome("informational", f"Resource successfully PUT with id {resource_id}", severity="information"), status_code=201)
-    elif isinstance(resource_id, dict):
-        return JSONResponse(content=resource_id, status_code=400)

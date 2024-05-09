@@ -18,8 +18,8 @@ from pydantic import ValidationError
 
 from src.models.functions import make_operation_outcome
 from src.models.models import CustomFormatter
-from src.routers import routers, smartchartui, webhook
-from src.routers.routers import clear_jobs_array
+from src.routers import cql_router, forms_router, main_router, nlpql_router, smartchartui, webhook
+from src.routers.forms_router import clear_jobs_array
 from src.util.git import clone_repo_to_temp_folder
 from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url, log_level
 
@@ -77,8 +77,11 @@ app.add_middleware(
 )
 
 # ================= Routers inclusion from src directory ===============
-app.include_router(routers.apirouter, tags=["Main API"])
-app.include_router(webhook.apirouter, tags=["Webhook"])
+app.include_router(main_router.router, tags=["Main API"])
+app.include_router(forms_router.router, tags=["Forms APIs"])
+app.include_router(cql_router.router, tags=["CQL APIs"])
+app.include_router(nlpql_router.router, tags=["NLPQL APIs"])
+app.include_router(webhook.router, tags=["Webhook"])
 app.include_router(smartchartui.smartchart_router, tags=["SmartChart UI"])
 
 

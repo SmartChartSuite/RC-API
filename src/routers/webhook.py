@@ -6,12 +6,12 @@ from fastapi import APIRouter, Request
 
 from src.util.git import clone_repo_to_temp_folder
 
-logger = logging.getLogger("rcapi.routers.webhook")
+logger: logging.Logger = logging.getLogger("rcapi.routers.webhook")
 
-apirouter = APIRouter()
+router = APIRouter()
 
 
-@apirouter.post("/webhook")
+@router.post("/webhook")
 async def webhook(request: Request):
     """Webhook endpoint function"""
     message = await request.json()
