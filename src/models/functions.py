@@ -1287,7 +1287,7 @@ def get_param_index(parameter_list: list, param_name: str) -> int:
 
 def run_diagnostic_questionnaire(run_all_jobs: bool, libs_to_run: list, form: dict) -> dict:
     return_bundle = {"resourceType": "Bundle", "id": str(uuid.uuid4()), "type": "collection", "entry": []}
-    return_bundle["entry"].append({"fullUrl": "Patient/0", "resource": {"resourceType": "Patient"}})
+    return_bundle["entry"].append({"fullUrl": "Patient/0", "resource": {"resourceType": "Patient", "id": "0"}})
     if run_all_jobs:
         logger.warning("The diagnostic Questionnaire is not supported for running every job, this will return a Bundle with only a minimal Patient and nothing else")
         return_bundle["total"] = "1"
