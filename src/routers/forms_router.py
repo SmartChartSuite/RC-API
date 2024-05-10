@@ -5,14 +5,13 @@ import os
 import uuid
 from datetime import datetime
 
-import requests
 from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi_restful.tasks import repeat_every
 
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
-from src.util.settings import cqfr4_fhir
+from src.util.settings import cqfr4_fhir, session
 from static.diagnostic_questionnaire import diagnostic_questionnaire
 
 logger: logging.Logger = logging.getLogger("rcapi.routers.forms_router")
@@ -42,7 +41,7 @@ def get_list_of_forms():
         cqfr4_fhir_url = cqfr4_fhir_url + "/"
     else:
         return make_operation_outcome("invalid", f"The CQF Ruler url ({cqfr4_fhir_url}) passed in as an environmental variable is not correct, please check that it ends with fhir or fhir/")  # type:ignore
-    req = requests.get(cqfr4_fhir_url + "Questionnaire")
+    req = session.get(cqfr4_fhir_url + "Questionnaire")
     if req.status_code == 200:
         return req.json()
     logger.error(f"Getting Questionnaires from server failed with code {req.status_code}")
@@ -54,7 +53,7 @@ def get_form(form_name: str) -> dict | str:
     """Return Questionnaire from CQF Ruler based on form name"""
     if form_name == "diagnostic":
         return diagnostic_questionnaire
-    req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
+    req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
     if req.status_code != 200:
         logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
@@ -73,7 +72,7 @@ def get_form(form_name: str) -> dict | str:
 def save_form(questions: dict):
     """Check to see if library and version of this exists"""
 
-    req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={questions['name']}&version={questions['version']}")
+    req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={questions['name']}&version={questions['version']}")
     if req.status_code != 200:
         logger.error(f"Trying to get Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
@@ -89,7 +88,7 @@ def save_form(questions: dict):
         logger.info("Questionnaire with that name not found, continuing POST operation")
 
     # Create Questionnaire in CQF Ruler
-    req = requests.post(cqfr4_fhir + "Questionnaire", json=questions)
+    req = session.post(cqfr4_fhir + "Questionnaire", json=questions)
     if req.status_code != 201:
         logger.error(f"Posting Questionnaire to server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Posting Questionnaire to server failed with code {req.status_code}")
@@ -173,7 +172,7 @@ def get_job_status(uid: str):
 @router.put("/forms/{form_name}")
 def update_form(form_name: str, new_questions: dict):
     """Update Questionnaire using name"""
-    req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
+    req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
     if req.status_code != 200:
         logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Getting Questionnaire from server failed with status code {req.status_code}")
@@ -187,7 +186,7 @@ def update_form(form_name: str, new_questions: dict):
         return make_operation_outcome("not-found", f"Getting Questionnaire named {form_name} not found on server")
 
     new_questions["id"] = resource_id
-    req = requests.put(cqfr4_fhir + f"Questionnaire/{resource_id}", json=new_questions)
+    req = session.put(cqfr4_fhir + f"Questionnaire/{resource_id}", json=new_questions)
     if req.status_code != 200:
         logger.error(f"Putting Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Putting Questionnaire from server failed with status code {req.status_code}")

@@ -2,6 +2,10 @@
 
 import os
 
+from requests import Session
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
+
 # ================= Creating necessary variables from Secrets ========================
 cqfr4_fhir = os.environ["CQF_RULER_R4"]
 external_fhir_server_url = os.environ["EXTERNAL_FHIR_SERVER_URL"]
@@ -24,3 +28,8 @@ if deploy_url[-1] != "/":
 
 if nlpaas_url[-1] != "/":
     nlpaas_url += "/"
+
+session: Session = Session()
+retries: Retry = Retry(total=5, allowed_methods={"GET", "POST", "PUT", "DELETE"}, status_forcelist=[500])
+session.mount("https://", HTTPAdapter(max_retries=retries))
+session.mount("http://", HTTPAdapter(max_retries=retries))

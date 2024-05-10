@@ -7,15 +7,16 @@ import uuid
 from concurrent.futures import Future
 from datetime import datetime
 
-import requests
 from fhir.resources.R4B.documentreference import DocumentReference
 from fhir.resources.R4B.fhirtypes import Id
 from fhir.resources.R4B.observation import Observation
 from fhir.resources.R4B.operationoutcome import OperationOutcome
+from requests import Response
+from requests.exceptions import ConnectionError
 from requests_futures.sessions import FuturesSession
 
 from src.models.models import StartJobsParameters
-from src.util.settings import cqfr4_fhir, deploy_url, external_fhir_server_auth, external_fhir_server_url, nlpaas_url
+from src.util.settings import cqfr4_fhir, deploy_url, external_fhir_server_auth, external_fhir_server_url, nlpaas_url, session
 from static.diagnostic_questionnaire import diagnostic_questionnaire
 
 logger: logging.Logger = logging.getLogger("rcapi.models.functions")
@@ -42,12 +43,12 @@ def get_form(form_name: str, form_version: str | None = None):
         return diagnostic_questionnaire
 
     if form_version:
-        req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&version={form_version}")
+        req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&version={form_version}")
         if req.status_code != 200:
             logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
     else:
-        req = requests.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&_sort=-_lastUpdated")
+        req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&_sort=-_lastUpdated")
         if req.status_code != 200:
             logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
@@ -69,11 +70,11 @@ def get_form(form_name: str, form_version: str | None = None):
 def run_cql(library_ids: list, parameters_post: dict):
     """Create an asynchrounous HTTP Request session for evaluting CQL Libraries"""
 
-    session = FuturesSession()
+    futures_session = FuturesSession()
     futures: list[Future] = []
     for library_id in library_ids:
         url = cqfr4_fhir + f"Library/{library_id}/$evaluate"
-        future: Future = session.post(url, json=parameters_post)  # type: ignore
+        future: Future = futures_session.post(url, json=parameters_post)  # type: ignore
         futures.append(future)
     return futures
 
@@ -81,7 +82,7 @@ def run_cql(library_ids: list, parameters_post: dict):
 def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_string: str, external_fhir_server_auth: str):
     """Create an asynchrounous HTTP Request session for evaluting NLPQL Libraries"""
 
-    session = FuturesSession()
+    futures_session = FuturesSession()
     futures: list[Future] = []
 
     nlpql_post_body = {"patient_id": patient_id, "fhir": {"service_url": external_fhir_server_url_string}}
@@ -92,7 +93,7 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
 
     for library_id in library_ids:
         # Get text NLPQL from the Library in CQF Ruler
-        req = requests.get(cqfr4_fhir + f"Library/{library_id}")
+        req = session.get(cqfr4_fhir + f"Library/{library_id}")
 
         library_resource = req.json()
         base64_nlpql = library_resource["content"][0]["data"]
@@ -101,8 +102,8 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
 
         # Register NLPQL in NLPAAS
         try:
-            req = requests.post(nlpaas_url + "job/register_nlpql", data=nlpql_plain_text, headers={"Content-Type": "text/plain"})
-        except requests.exceptions.ConnectionError as error:
+            req = session.post(nlpaas_url + "job/register_nlpql", data=nlpql_plain_text, headers={"Content-Type": "text/plain"})
+        except ConnectionError as error:
             logger.error(f"Trying to connect to NLPaaS failed with ConnectionError {error}")
             return make_operation_outcome("transient", "There was an issue connecting to NLPaaS, see the logs for the full HTTPS error. Most often, this means that the DNS name cannot be resolved.")
         if req.status_code not in [200, 201]:
@@ -115,7 +116,7 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
             job_url = job_url[1:]
 
         # Start running jobs
-        future: Future = session.post(nlpaas_url + job_url, json=nlpql_post_body)  # type: ignore
+        future: Future = futures_session.post(nlpaas_url + job_url, json=nlpql_post_body)  # type: ignore
         futures.append(future)
     return futures
 
@@ -124,7 +125,7 @@ def handle_cql_futures(cql_futures: list[Future], library_names: list[str], pati
     results_cql: list[dict] = []
     for i, future in enumerate(cql_futures):
         # TODO: Handle additional network error types, e.g. 406
-        pre_result: requests.Response = future.result()
+        pre_result: Response = future.result()
         if pre_result.status_code == 504:
             logger.error(f"There was an upstream request timeout for library {library_names[i]}.cql with status_code 504")
             result_cql_tmp: dict = {}
@@ -151,7 +152,7 @@ def handle_cql_futures(cql_futures: list[Future], library_names: list[str], pati
 def handle_nlpql_futures(nlpql_futures: list[Future], library_names: list[str], patient_id: str) -> list[dict]:
     results_nlpql: list[dict] = []
     for i, future in enumerate(nlpql_futures):
-        pre_result: requests.Response = future.result()
+        pre_result: Response = future.result()
         if pre_result.status_code == 504:
             logger.error(f"There was an upstream request timeout for library {library_names[i]}.nlpql with status_code 504")
             result_nlpql_tmp: dict = {}
@@ -497,11 +498,11 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                 }
                                 # try:
                                 #     if external_fhir_server_auth:
-                                #         supporting_resource_req = requests.get(external_fhir_server_url+"MedicationStatement/"+supporting_resource_id,
+                                #         supporting_resource_req = session.get(external_fhir_server_url+"MedicationStatement/"+supporting_resource_id,
                                 #                                                          headers={'Authorization': external_fhir_server_auth})
                                 #         supporting_resource = supporting_resource_req.json()
                                 #     else:
-                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"MedicationStatement/"+supporting_resource_id)
+                                #         supporting_resource_req  = session.get(external_fhir_server_url+"MedicationStatement/"+supporting_resource_id)
                                 #         supporting_resource = supporting_resource_req.json()
                                 # except requests.exceptions.JSONDecodeError:
                                 #     logger.debug(f'Trying to find supporting resource with id MedicationStatement/{supporting_resource_id} '
@@ -534,11 +535,11 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                 }
                                 # try:
                                 #     if external_fhir_server_auth:
-                                #         supporting_resource_req = requests.get(external_fhir_server_url+"MedicationRequest/"+supporting_resource_id,
+                                #         supporting_resource_req = session.get(external_fhir_server_url+"MedicationRequest/"+supporting_resource_id,
                                 #                                                          headers={'Authorization': external_fhir_server_auth})
                                 #         supporting_resource = supporting_resource_req.json()
                                 #     else:
-                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"MedicationRequest/"+supporting_resource_id)
+                                #         supporting_resource_req  = session.get(external_fhir_server_url+"MedicationRequest/"+supporting_resource_id)
                                 #         supporting_resource = supporting_resource_req.json()
                                 # except requests.exceptions.JSONDecodeError:
                                 #     logger.debug(f'Trying to find supporting resource with id MedicationRequest/{supporting_resource_id} '
@@ -588,11 +589,11 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
                                 # try:
                                 #     if external_fhir_server_auth:
-                                #         supporting_resource_req = requests.get(external_fhir_server_url+"Observation/"+supporting_resource_id,
+                                #         supporting_resource_req = session.get(external_fhir_server_url+"Observation/"+supporting_resource_id,
                                 #                                                          headers={'Authorization': external_fhir_server_auth})
                                 #         supporting_resource = supporting_resource_req.json()
                                 #     else:
-                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"Observation/"+supporting_resource_id)
+                                #         supporting_resource_req  = session.get(external_fhir_server_url+"Observation/"+supporting_resource_id)
                                 #         supporting_resource = supporting_resource_req.json()
                                 # except requests.exceptions.JSONDecodeError:
                                 #     logger.debug(f'Trying to find supporting resource with id Observation/{supporting_resource_id} '
@@ -622,11 +623,11 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                 }
                                 # try:
                                 #     if external_fhir_server_auth:
-                                #         supporting_resource_req = requests.get(external_fhir_server_url+"Condition/"+supporting_resource_id,
+                                #         supporting_resource_req = session.get(external_fhir_server_url+"Condition/"+supporting_resource_id,
                                 #                                                          headers={'Authorization': external_fhir_server_auth})
                                 #         supporting_resource = supporting_resource_req.json()
                                 #     else:
-                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"Condition/"+supporting_resource_id)
+                                #         supporting_resource_req  = session.get(external_fhir_server_url+"Condition/"+supporting_resource_id)
                                 #         supporting_resource = supporting_resource_req.json()
                                 # except requests.exceptions.JSONDecodeError:
                                 #     logger.debug(f'Trying to find supporting resource with id Condition/{supporting_resource_id} '
@@ -656,11 +657,11 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                                 }
                                 # try:
                                 #     if external_fhir_server_auth:
-                                #         supporting_resource_req = requests.get(external_fhir_server_url+"Procedure/"+supporting_resource_id,
+                                #         supporting_resource_req = session.get(external_fhir_server_url+"Procedure/"+supporting_resource_id,
                                 #                                                          headers={'Authorization': external_fhir_server_auth})
                                 #         supporting_resource = supporting_resource_req.json()
                                 #     else:
-                                #         supporting_resource_req  = requests.get(external_fhir_server_url+"Procedure/"+supporting_resource_id)
+                                #         supporting_resource_req  = session.get(external_fhir_server_url+"Procedure/"+supporting_resource_id)
                                 #         supporting_resource = supporting_resource_req.json()
                                 # except requests.exceptions.JSONDecodeError:
                                 #     logger.debug(f'Trying to find supporting resource with id Procedure/{asupporting_resource_id} '
@@ -679,11 +680,13 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 if not tuple_flag:
                     if "valueString" in answer_obs_bundle_item["resource"] and not answer_obs_bundle_item["resource"]["valueString"]:  # type: ignore
                         del answer_obs_bundle_item["resource"]["valueString"]  # type: ignore
-                    bundle_entries.append(answer_obs_bundle_item)  # type: ignore
+                    if answer_obs_bundle_item["fullUrl"] not in [item["fullUrl"] for item in bundle_entries]:
+                        bundle_entries.append(answer_obs_bundle_item)  # type: ignore
                 else:
                     bundle_entries.extend(tuple_observations)  # type: ignore
                 if supporting_resources is not None:
-                    bundle_entries.extend(supporting_resources)
+                    existing_bundle_urls: list[str] = [item["fullUrl"] for item in bundle_entries]
+                    bundle_entries.extend([res for res in supporting_resources if res["fullUrl"] not in existing_bundle_urls])
 
         return_bundle_id = str(uuid.uuid4())
         return_bundle = {"resourceType": "Bundle", "id": return_bundle_id, "type": "collection", "entry": bundle_entries}
@@ -716,9 +719,9 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
         if not results_cql:  # If there are only NLPQL results, there needs to be a Patient resource in the Bundle
             if external_fhir_server_auth:
-                patient_resource = requests.get(external_fhir_server_url + f"Patient/{patient_id}", headers={"Authorization": external_fhir_server_auth}).json()
+                patient_resource = session.get(external_fhir_server_url + f"Patient/{patient_id}", headers={"Authorization": external_fhir_server_auth}).json()
             else:
-                patient_resource = requests.get(external_fhir_server_url + f"Patient/{patient_id}").json()
+                patient_resource = session.get(external_fhir_server_url + f"Patient/{patient_id}").json()
             patient_bundle_entry = {"fullUrl": f"Patient/{patient_id}", "resource": patient_resource}
             bundle_entries.append(patient_bundle_entry)
 
@@ -728,6 +731,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
             total_item_count += len(group["item"])
 
         current_item_count = 0
+        supporting_nlp_resource_ids = []
         for group in form["item"]:
             # For each question in the group in the form
             for question in group["item"]:
@@ -815,14 +819,14 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         tuple_observations.append(temp_answer_obs_dict)
 
                     # Queries for original DocumentReference, adds it to the supporting resources if its not already there or creating a DocumentReference with data from the NLPaaS Return
-                    if result["report_id"] in [doc_ref["id"] for doc_ref in supporting_doc_refs]:  # Indicates a DocumentReference is already in there
+                    if result["report_id"] in supporting_nlp_resource_ids:  # Indicates a DocumentReference is already in there
                         continue
 
                     # try:
                     #     if external_fhir_server_auth:
-                    #         supporting_resource_req = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'], headers={'Authorization': external_fhir_server_auth})
+                    #         supporting_resource_req = session.get(external_fhir_server_url+"DocumentReference/"+result['report_id'], headers={'Authorization': external_fhir_server_auth})
                     #     else:
-                    #         supporting_resource_req  = requests.get(external_fhir_server_url+"DocumentReference/"+result['report_id'])
+                    #         supporting_resource_req  = session.get(external_fhir_server_url+"DocumentReference/"+result['report_id'])
                     #     supporting_resource_obj = supporting_resource_req.json()
                     #     supporting_resource_obj['content'] = [content for content in supporting_resource_obj['content'] if 'contentType' in content['attachment'] and content['attachment']['contentType']=='text/plain']
                     #     supporting_resource = DocumentReference(**supporting_resource_req.json())
@@ -872,6 +876,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         supporting_res_dict["date"] = supporting_res_dict["date"].strftime("%Y-%m-%dT%H:%M:%SZ")
 
                     supporting_doc_refs.append(supporting_res_dict)
+                    supporting_nlp_resource_ids.append(temp_doc_ref["id"])
 
                 for tuple_observation in tuple_observations:
                     tuple_bundle_entry = {"fullUrl": f'Observation/{tuple_observation["id"]}', "resource": tuple_observation}
@@ -893,6 +898,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
     else:
         logger.error("Something went wrong! Return bundles were not created.")
         return make_operation_outcome("transient", "Something went wrong and theres an empty return bundle. This shouldnt happen but this is here just in case.")
+
     return_bundle["total"] = len(return_bundle["entry"])
     return return_bundle
 
@@ -904,7 +910,7 @@ def validate_cql(code: str):
         "resourceType": "Parameters",
         "parameter": [{"name": "patientId", "valueString": "1"}, {"name": "context", "valueString": "Patient"}, {"name": "code", "valueString": escaped_string_code}],
     }
-    req = requests.post(cqfr4_fhir + "$cql", json=cql_operation_data)
+    req = session.post(cqfr4_fhir + "$cql", json=cql_operation_data)
     if req.status_code != 200:
         logger.error(f"Trying to validate the CQL before creating library failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Trying to validate the CQL before creating library failed with status code {req.status_code}")
@@ -937,8 +943,8 @@ def validate_nlpql(code_in: str):
     """Validates NLPQL using NLPaaS before persisting in CQF Ruler as a Library resource"""
     code = code_in.encode(encoding="utf-8")
     try:
-        req = requests.post(nlpaas_url + "job/validate_nlpql", data=code, headers={"Content-Type": "text/plain"})
-    except requests.exceptions.ConnectionError as error:
+        req = session.post(nlpaas_url + "job/validate_nlpql", data=code, headers={"Content-Type": "text/plain"})
+    except ConnectionError as error:
         logger.error(f"Error when trying to connect to NLPaaS {error}")
         return make_operation_outcome("transient", "Error when connecting to NLPaaS, see full error in logs. This normally happens due to a DNS name issue.")
 
@@ -972,7 +978,7 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
         logger.error("Parameters model is invalid, please check that all parameters have a name and value")
         return make_operation_outcome(code="structure", diagnostics="Parameters.parameters is not correct, ensure it has a name and value")
     parameter_names: list[str] = [x["name"] for x in parameters]
-    logger.info(f"Recieved parameters {parameter_names}")
+    logger.info(f"Received parameters {parameter_names}")
     libraries_to_run = []
 
     try:
@@ -1045,7 +1051,7 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
 
         for library_name_full in libraries_to_run:
             library_name, library_name_ext = library_name_full.split(".")
-            req = requests.get(cqfr4_fhir + f"Library?name={library_name}&content-type=text/{library_name_ext}")
+            req = session.get(cqfr4_fhir + f"Library?name={library_name}&content-type=text/{library_name_ext}")
             if req.status_code != 200:
                 logger.error(f"Getting library from server failed with status code {req.status_code}")
                 return make_operation_outcome("transient", f"Getting library from server failed with status code {req.status_code}")
@@ -1089,7 +1095,7 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
             library_name = library  # type: ignore
             library_type = "cql"
 
-        req = requests.get(cqfr4_fhir + f"Library?name={library_name}&content-type=text/{library_type.lower()}")
+        req = session.get(cqfr4_fhir + f"Library?name={library_name}&content-type=text/{library_type.lower()}")
         if req.status_code != 200:
             logger.error(f"Getting library from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting library from server failed with status code {req.status_code}")
@@ -1126,9 +1132,9 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
 
     if has_patient_identifier:
         if external_fhir_server_auth:
-            req = requests.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}", headers={"Authorization": external_fhir_server_auth})  # type: ignore
+            req = session.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}", headers={"Authorization": external_fhir_server_auth})  # type: ignore
         else:
-            req = requests.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}")  # type: ignore
+            req = session.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}")  # type: ignore
         if req.status_code != 200:
             logger.error(f"Getting Patient from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting Patient from server failed with status code {req.status_code}")
@@ -1230,7 +1236,7 @@ def get_health_of_stack() -> dict:
     oo_template = {"issue": []}
 
     try:
-        cqf_ruler_resp = requests.get(cqfr4_fhir + "metadata")
+        cqf_ruler_resp = session.get(cqfr4_fhir + "metadata")
         if cqf_ruler_resp.status_code == 200:
             cqf_ruler_up = True
             cqf_ruler_reason = "CQF Ruler is up and running"
@@ -1241,14 +1247,14 @@ def get_health_of_stack() -> dict:
         else:
             cqf_ruler_reason = cqf_ruler_resp.text
             oo_template["issue"].append({"severity": "error", "code": "transient", "diagnostics": cqf_ruler_reason})
-    except requests.exceptions.ConnectionError:
+    except ConnectionError:
         logger.error("Could not connect to CQF Ruler, requests will be unable to be completed")
         cqf_ruler_reason = "Could not connect to CQF Ruler, ensure the service is running and the correct URL is provided in the environment variable CQF_RULER_R4"
         oo_template["issue"].append({"severity": "error", "code": "transient", "diagnostics": cqf_ruler_reason})
 
     if nlpaas_url:
         try:
-            nlpaas_resp = requests.get(nlpaas_url)
+            nlpaas_resp = session.get(nlpaas_url)
             if nlpaas_resp.status_code == 200:
                 nlpaas_up = True
                 nlpaas_reason = "NLPaaS is up and running"
@@ -1260,7 +1266,7 @@ def get_health_of_stack() -> dict:
                 nlpaas_reason = nlpaas_resp.text
                 logger.warning("Could not connect to NLPaaS, NLP requests will be unable to be completed")
                 oo_template["issue"].append({"severity": "warning", "code": "transient", "diagnostics": nlpaas_reason})
-        except requests.exceptions.ConnectionError:
+        except ConnectionError:
             logger.warning("Could not connect to NLPaaS, NLP requests will be unable to be completed")
             nlpaas_reason = "Could not connect to NLPaaS, ensure the service is running and the correct URL is provided in the environment variable NLPAAS_URL"
             oo_template["issue"].append({"severity": "warning", "code": "transient", "diagnostics": nlpaas_reason})

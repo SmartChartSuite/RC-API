@@ -5,7 +5,6 @@ import uuid
 from copy import deepcopy
 from datetime import datetime
 
-import requests
 from fastapi import APIRouter, BackgroundTasks
 from fhir.resources.R4B.bundle import Bundle
 from fhir.resources.R4B.list import List
@@ -20,6 +19,7 @@ from src.routers.forms_router import get_form
 from src.services.jobhandler import get_job_list_from_form, get_value_from_parameter, update_patient_resource_in_parameters
 from src.services.jobstate import add_to_batch_jobs, add_to_jobs, get_all_batch_jobs, get_batch_job, get_job, update_job_to_complete
 from src.util.fhirclient import FhirClient
+from src.util.settings import session
 
 logger: logging.Logger = logging.getLogger("rcapi.routers.smartchartui")
 
@@ -58,7 +58,7 @@ def search_group():
         for member in group["member"]:
             patient_reference: str = member["entity"]["reference"]
             try:
-                patient_resource = requests.get(patient_reference).json()
+                patient_resource = session.get(patient_reference).json()
                 output_list.append(patient_resource)
             except Exception:
                 logger.error(f"There was an issue collecting the Patient resource from the following URL: {patient_reference}")
@@ -295,7 +295,7 @@ def create_results_status_observation(status: str, status_count: str):
 
 def create_results_bundle(status_observation, results_list: list):
     results_list.insert(0, status_observation)
-    return {"resourceType": "Bundle", "type": "collection", "total": len(results_list) + 1, "entry": [create_bundle_entry(resource) for resource in results_list]}
+    return {"resourceType": "Bundle", "type": "collection", "total": len(results_list), "entry": [create_bundle_entry(resource) for resource in results_list]}
 
 
 def create_bundle_entry(resource):
