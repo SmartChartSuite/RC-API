@@ -2,15 +2,19 @@
 
 import base64
 import logging
+import re
 import time
 import uuid
 from concurrent.futures import Future
 from datetime import datetime
+from typing import Literal, overload
 
 from fhir.resources.R4B.documentreference import DocumentReference
 from fhir.resources.R4B.fhirtypes import Id
 from fhir.resources.R4B.observation import Observation
 from fhir.resources.R4B.operationoutcome import OperationOutcome
+from fhir.resources.R4B.questionnaire import Questionnaire
+from pydantic import BaseModel
 from requests import Response
 from requests.exceptions import ConnectionError
 from requests_futures.sessions import FuturesSession
@@ -22,9 +26,67 @@ from static.diagnostic_questionnaire import diagnostic_questionnaire
 logger: logging.Logger = logging.getLogger("rcapi.models.functions")
 
 
-def make_operation_outcome(code: str, diagnostics: str, severity: str = "error"):
+class FlatNLPQLResultDisplayObject(BaseModel):
+    date: str | None = None
+    result_content: str | None = None
+    sentence: str | None = None
+    highlights: list[str] | None = None
+    start: list[int] | None = None
+    end: list[int] | None = None
+
+
+class FlatNLPQLResult(BaseModel):
+    _id: str | None = None
+    _ids_1: str | None = None
+    batch: str | None = None
+    concept_code: str | None = None
+    concept_code_system: str | None = None
+    context_type: str | None = None
+    display_name: str | None = None
+    education_level: str | None = None
+    employment_status: str | None = None
+    end: int | None = None
+    experiencer: str | None = None
+    housing: str | None = None
+    immigration_status: str | None = None
+    inserted_date: str | None = None
+    job_date: str | None = None
+    job_id: int | None = None
+    languages: str | None = None
+    negation: str | None = None
+    nlpql_feature: str | None = None
+    nlpql_features_1: str | None = None
+    owner: str | None = None
+    phenotype_final: str | None = None
+    phenotype_id: int | None = None
+    pipeline_id: int | None = None
+    pipeline_type: str | None = None
+    raw_definition_text: str | None = None
+    religion: str | None = None
+    report_date: str | None = None
+    report_id: str | None = None
+    report_type: str | None = None
+    report_text: str | None = None
+    result_display: FlatNLPQLResultDisplayObject
+    section: str | None = None
+    section_header: str | None = None
+    section_text: str | None = None
+    sentence: str | None = None
+    sexual_orientation: str | None = None
+    solr_id: str | None = None
+    source: str | None = None
+    start: str | None = None
+    subject: str | None = None
+    temporality: str | None = None
+    term: str | None = None
+    text: str | None = None
+    tuple: str | None = None
+    value: str | None = None
+
+
+def make_operation_outcome(code: str, diagnostics: str, severity: str = "error") -> dict:
     """Returns an OperationOutcome for a given code, diagnostics string, and a severity (Default of error)"""
-    oo_template = {
+    oo_template: dict[str, list[dict[str, str]]] = {
         "issue": [
             {
                 "severity": severity,
@@ -36,7 +98,17 @@ def make_operation_outcome(code: str, diagnostics: str, severity: str = "error")
     return OperationOutcome(**oo_template).dict()  # type: ignore
 
 
-def get_form(form_name: str, form_version: str | None = None):
+@overload
+def get_form(form_name: str, form_version: str | None, return_Questionnaire_class_obj: Literal[False]) -> dict:
+    pass
+
+
+@overload
+def get_form(form_name: str, form_version: str | None, return_Questionnaire_class_obj: Literal[True]) -> Questionnaire:
+    pass
+
+
+def get_form(form_name: str, form_version: str | None = None, return_Questionnaire_class_obj: bool = False) -> dict | Questionnaire:
     """Returns the Questionnaire from CQF Ruler based on form name"""
 
     if form_name.lower() == "diagnostic":
@@ -57,7 +129,7 @@ def get_form(form_name: str, form_version: str | None = None):
     try:
         questionnaire = search_bundle["entry"][0]["resource"]
         logger.info(f"Found Questionnaire with name {form_name}, version {questionnaire['version']}, and form server ID {questionnaire['id']}")
-        return questionnaire
+        return questionnaire if not return_Questionnaire_class_obj else Questionnaire.parse_obj(questionnaire)
     except KeyError:
         logger.error(f"Questionnaire with name {form_name} and version {form_version} not found") if form_version else logger.error(f"Questionnaire with name {form_name} not found")
         return (
@@ -193,7 +265,17 @@ def get_results(futures: list[list[Future]], libraries: list[list[str]], patient
     return results_cql, results_nlpql
 
 
-def flatten_results(results):
+@overload
+def flatten_results(results: list, result_type: Literal["cql"]) -> dict[str, str | dict]:
+    pass
+
+
+@overload
+def flatten_results(results: list, result_type: Literal["nlpql"]) -> dict[str, list[FlatNLPQLResult]]:
+    pass
+
+
+def flatten_results(results: list, result_type: Literal["cql", "nlpql"]) -> dict[str, str | dict] | dict[str, list[FlatNLPQLResult]]:
     """Converts results from CQF Ruler and NLPaaS to flat dictionaries for easier downstream processing"""
     flat_results = {}
     keys_to_delete = []
@@ -222,10 +304,10 @@ def flatten_results(results):
                 job_names.append(result_dictionary["nlpql_feature"])
             job_names = list(set(job_names))
             for job_name in job_names:
-                temp_list = []
+                temp_list: list[FlatNLPQLResult] = []
                 for result_obj in result["results"]:
                     if result_obj["nlpql_feature"] == job_name:
-                        temp_list.append(result_obj)
+                        temp_list.append(FlatNLPQLResult(**result_obj))
                 flat_results[job_name] = temp_list
 
     return flat_results
@@ -266,7 +348,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
     """Creates the registry bundle from CQL and NLPQL results"""
 
     # Get form (using get_form from this API)
-    form = get_form(form_name)
+    form = get_form(form_name=form_name, form_version=None, return_Questionnaire_class_obj=False)
     results_cql = results_in[0]
     results_nlpql = results_in[1]
 
@@ -281,7 +363,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
             result = results_cql[0]
             target_library = result["libraryName"]
 
-        results = flatten_results(results_cql)
+        results: dict[str, str | dict] = flatten_results(results_cql, result_type="cql")
         logger.info("Flattened CQL Results into the dictionary")
         logger.debug(results)
 
@@ -342,7 +424,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 # Find the result in the CQL library run that corresponds to what the question has defined in its cqlTask extension
                 # target_result = None
                 single_return_value = None
-                supporting_resources = None
+                supporting_resources: list[dict] = []
                 empty_single_return = False
                 tuple_flag = False
                 tuple_string = ""
@@ -355,17 +437,21 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     )
                     continue
                 try:
-                    if value_return["resourceType"] == "Bundle":
+                    if isinstance(value_return, dict) and value_return["resourceType"] == "Bundle":
                         supporting_resources = value_return["entry"]
                         # single_resource_flag = False
                         logger.info(f"Found task {task} and supporting resources")
                     else:
                         # resource_type = value_return['resourceType']
                         # single_resource_flag = True
+                        single_return_value = value_return
                         logger.info(f"Found task {task} result")
                 except (KeyError, TypeError):
                     single_return_value = value_return
                     logger.debug(f"Found single return value {single_return_value}")
+
+                if task + "_evidence" in results:  # Support for if theres a string response as well as supporting resources
+                    supporting_resources = results[task + "_evidence"]["entry"] if isinstance(results[task + "_evidence"], dict) else None  # type: ignore
 
                 if single_return_value in ["[]", "null"]:
                     empty_single_return = True
@@ -375,7 +461,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 if isinstance(single_return_value, str) and single_return_value[0:6] == "[Tuple":
                     tuple_flag = True
                     logger.info("Found Tuple in results")
-                if supporting_resources is not None:
+                if supporting_resources:
                     for resource in supporting_resources:
                         try:
                             focus_object = {"reference": resource["fullUrl"]}
@@ -713,9 +799,9 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
         patient_resource_id = results_nlpql[0]["patientId"]
 
-        results = flatten_results(results_nlpql)
+        flat_nlp_results: dict[str, list[FlatNLPQLResult]] = flatten_results(results_nlpql, result_type="nlpql")
         logger.info("Flattened NLPQL Results into the dictionary")
-        logger.debug(results)
+        logger.debug(flat_nlp_results)
 
         if not results_cql:  # If there are only NLPQL results, there needs to be a Patient resource in the Bundle
             if external_fhir_server_auth:
@@ -756,7 +842,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 logger.debug(f"NLPQL Processing: Using library {library} and task {task} for this question")
 
                 try:
-                    task_result = results[task]
+                    task_result: list[FlatNLPQLResult] = flat_nlp_results[task]
                 except KeyError:
                     logger.info(f"There were no results for NLPQL task {task}, moving onto next question")
                     continue
@@ -777,17 +863,19 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 tuple_observations = []
                 supporting_doc_refs = []
                 for result in task_result:
+                    if result.sentence and result.report_text and result.sentence.lower() not in re.sub(r"\n+", " ", result.report_text.lower()):
+                        continue
                     temp_answer_obs = answer_obs_template
                     temp_answer_obs_uuid = str(uuid.uuid4())
                     temp_answer_obs.id = Id(temp_answer_obs_uuid)
                     temp_answer_obs.identifier[0].value = f"Observation/{temp_answer_obs_uuid}"  # type: ignore
-                    try:
-                        tuple_str = result["tuple"]
-                    except KeyError:
+
+                    tuple_str: str | None = result.tuple
+                    if not tuple_str:
                         logger.debug("No tuple result in this NLPQL result, moving to next result in list for task")
                         continue
-
                     logger.debug(f"Found tuple in NLPQL results: {tuple_str}")
+
                     tuple_dict = {}
                     tuple_str_list = tuple_str.split('"')
                     if len(tuple_str_list) > 32:
@@ -799,16 +887,16 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         tuple_dict[key_name] = value_name
 
                     # TODO: Assert that tuples should have all 4 keys to work
-                    temp_answer_obs.focus = [{"reference": f'DocumentReference/{result["report_id"]}'}]  # type: ignore
+                    temp_answer_obs.focus = [{"reference": f"DocumentReference/{result.report_id}"}]  # type: ignore
                     temp_answer_obs.note = [{"text": tuple_dict["sourceNote"]}]  # type: ignore
                     temp_answer_obs.valueString = tuple_dict["answerValue"]
-                    temp_answer_obs.effectiveDateTime = datetime.strptime(result["report_date"], "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")  # type: ignore
+                    temp_answer_obs.effectiveDateTime = datetime.strptime(result.report_date, "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")  # type: ignore
 
                     # Check if an existing match exists to remove duplicates
                     is_duplicate = False
                     for obs in tuple_observations:
                         if all(key in obs for key in ["focus", "valueString"]) and (
-                            obs["focus"] == [{"reference": f'DocumentReference/{result["report_id"]}'}] and obs["valueString"].lower() == tuple_dict["answerValue"].lower()
+                            obs["focus"] == [{"reference": f"DocumentReference/{result.report_id}"}] and obs["valueString"].lower() == tuple_dict["answerValue"].lower()
                         ):
                             is_duplicate = True
 
@@ -819,7 +907,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         tuple_observations.append(temp_answer_obs_dict)
 
                     # Queries for original DocumentReference, adds it to the supporting resources if its not already there or creating a DocumentReference with data from the NLPaaS Return
-                    if result["report_id"] in supporting_nlp_resource_ids:  # Indicates a DocumentReference is already in there
+                    if result.report_id in supporting_nlp_resource_ids:  # Indicates a DocumentReference is already in there
                         continue
 
                     # try:
@@ -836,12 +924,12 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     #             f'failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle') #type: ignore
 
                     temp_doc_ref = doc_ref_template
-                    temp_doc_ref["id"] = result["report_id"]
-                    temp_doc_ref["date"] = result["report_date"]
+                    temp_doc_ref["id"] = result.report_id
+                    temp_doc_ref["date"] = result.report_date if result.report_date else datetime.now().isoformat()
                     temp_doc_ref["identifier"] = [
                         {
                             "system": deploy_url,
-                            "value": "DocumentReference/" + result["report_id"],
+                            "value": "DocumentReference/" + result.report_id if result.report_id else "0",
                         }
                     ]
                     report_type_map = {
@@ -854,12 +942,9 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         "Note": {"system": "http://loinc.org", "code": "34109-9", "display": "Note"},
                     }
 
-                    try:
-                        temp_doc_ref["type"]["coding"] = [report_type_map[result["report_type"]]]
-                    except KeyError:
-                        temp_doc_ref["type"]["coding"] = [report_type_map["Note"]]
+                    temp_doc_ref["type"]["coding"] = [report_type_map[result.report_type] if result.report_type and result.report_type in report_type_map else report_type_map["Note"]]
 
-                    doc_bytes = result["report_text"].encode("utf-8")
+                    doc_bytes = result.report_text.encode("utf-8") if result.report_text else "No Document Text Available".encode("utf-8")
                     base64_bytes = base64.b64encode(doc_bytes)
                     base64_doc = base64_bytes.decode("utf-8")
 
@@ -1016,7 +1101,7 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
         logger.info(f"No form version given, will be using newest created Questionnaire matching {form_name}")
 
     # Pull Questionnaire resource ID from CQF Ruler
-    questionnaire = get_form(form_name=form_name, form_version=form_version)
+    questionnaire = get_form(form_name=form_name, form_version=form_version, return_Questionnaire_class_obj=False)
     if questionnaire["resourceType"] == "OperationOutcome":
         return questionnaire
 

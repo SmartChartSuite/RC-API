@@ -31,18 +31,17 @@ def start_async_jobs(post_body: Parameters, uid: str) -> None:
     logger.info(f"Job id {uid} complete and results are available at /forms/status/{uid}")
 
 
-# TODO: Support version
 def get_job_list(form_name, form_version=None):
-    questionnaire = get_form(form_name)
+    questionnaire: dict = get_form(form_name=form_name, form_version=form_version, return_Questionnaire_class_obj=False)
     cql_libraries: list[str] = []
     nlpql_libraries: list[str] = []
 
-    cql_libraries_to_run_extension: dict = questionnaire["extension"][0]["extension"]
+    cql_libraries_to_run_extension: dict = [ext["extension"] for ext in questionnaire["extension"] if ext["url"] == "http://gtri.gatech.edu/fakeFormIg/cql-form-job-list"][0]
     for extension in cql_libraries_to_run_extension:
         cql_libraries.append(extension["valueString"])
 
     try:
-        nlpql_libraries_to_run_extension: dict = questionnaire["extension"][1]["extension"]
+        nlpql_libraries_to_run_extension: dict = [ext["extension"] for ext in questionnaire["extension"] if ext["url"] == "http://gtri.gatech.edu/fakeFormIg/nlpql-form-job-list"][0]
         for extension in nlpql_libraries_to_run_extension:
             nlpql_libraries.append(extension["valueString"])
     except IndexError:

@@ -2,7 +2,7 @@
 
 import base64
 import logging
-from typing import Literal, OrderedDict
+from typing import Literal
 
 from fhir.resources.R4B.library import Library
 
@@ -149,7 +149,7 @@ def create_nlpql(nlpql):
         return resource_id
 
 
-def get_library(library_name: str, library_type: Literal["cql", "nlpql"]) -> str | OrderedDict:
+def get_library(library_name: str, library_type: Literal["cql", "nlpql"]) -> str | dict:
     """
     Get text content of CQL or NLPQL library
     """
