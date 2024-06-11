@@ -82,6 +82,6 @@ def get_job_list_from_form(form) -> list[str]:
     nlpql_url = "http://gtri.gatech.edu/fakeFormIg/nlpql-form-job-list"
     cql_jobs: dict = next((i for i in form["extension"] if i["url"] == cql_url), {})
     nlpql_jobs: dict = next((i for i in form["extension"] if i["url"] == nlpql_url), {})
-    cql_job_list = [x["valueString"] for x in cql_jobs["extension"] if cql_jobs and "valueString" in x]
-    nlpql_job_list = [x["valueString"] for x in nlpql_jobs["extension"] if nlpql_jobs and "valueString" in x]
+    cql_job_list = [x["valueString"] for x in cql_jobs.get("extension", []) if cql_jobs and "valueString" in x]
+    nlpql_job_list = [x["valueString"] for x in nlpql_jobs.get("extension", []) if nlpql_jobs and "valueString" in x]
     return cql_job_list + nlpql_job_list
