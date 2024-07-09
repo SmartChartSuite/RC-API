@@ -3,7 +3,6 @@
 import base64
 import logging
 import re
-import time
 import uuid
 from concurrent.futures import Future
 from datetime import datetime
@@ -13,15 +12,15 @@ from fhir.resources.R4B.documentreference import DocumentReference
 from fhir.resources.R4B.fhirtypes import Id
 from fhir.resources.R4B.observation import Observation
 from fhir.resources.R4B.operationoutcome import OperationOutcome
-from fhir.resources.R4B.questionnaire import Questionnaire
 from pydantic import BaseModel
 from requests import Response
 from requests.exceptions import ConnectionError
 from requests_futures.sessions import FuturesSession
 
+from src.models.forms import get_form, run_diagnostic_questionnaire
 from src.models.models import StartJobsParameters
+from src.services.errorhandler import make_operation_outcome
 from src.util.settings import cqfr4_fhir, deploy_url, external_fhir_server_auth, external_fhir_server_url, nlpaas_url, session
-from static.diagnostic_questionnaire import diagnostic_questionnaire
 
 logger: logging.Logger = logging.getLogger("rcapi.models.functions")
 
@@ -82,61 +81,6 @@ class FlatNLPQLResult(BaseModel):
     text: str | None = None
     tuple: str | None = None
     value: str | None = None
-
-
-def make_operation_outcome(code: str, diagnostics: str, severity: str = "error") -> dict:
-    """Returns an OperationOutcome for a given code, diagnostics string, and a severity (Default of error)"""
-    oo_template: dict[str, list[dict[str, str]]] = {
-        "issue": [
-            {
-                "severity": severity,
-                "code": code,
-                "diagnostics": diagnostics,
-            }
-        ]
-    }
-    return OperationOutcome(**oo_template).dict()  # type: ignore
-
-
-@overload
-def get_form(form_name: str, form_version: str | None, return_Questionnaire_class_obj: Literal[False]) -> dict:
-    pass
-
-
-@overload
-def get_form(form_name: str, form_version: str | None, return_Questionnaire_class_obj: Literal[True]) -> Questionnaire:
-    pass
-
-
-def get_form(form_name: str, form_version: str | None = None, return_Questionnaire_class_obj: bool = False) -> dict | Questionnaire:
-    """Returns the Questionnaire from CQF Ruler based on form name"""
-
-    if form_name.lower() == "diagnostic":
-        return diagnostic_questionnaire
-
-    if form_version:
-        req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&version={form_version}")
-        if req.status_code != 200:
-            logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
-            return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
-    else:
-        req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&_sort=-_lastUpdated")
-        if req.status_code != 200:
-            logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
-            return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
-
-    search_bundle = req.json()
-    try:
-        questionnaire = search_bundle["entry"][0]["resource"]
-        logger.info(f"Found Questionnaire with name {form_name}, version {questionnaire['version']}, and form server ID {questionnaire['id']}")
-        return questionnaire if not return_Questionnaire_class_obj else Questionnaire.parse_obj(questionnaire)
-    except KeyError:
-        logger.error(f"Questionnaire with name {form_name} and version {form_version} not found") if form_version else logger.error(f"Questionnaire with name {form_name} not found")
-        return (
-            make_operation_outcome("not-found", f"Questionnaire with name {form_name} and version {form_version} not found")
-            if form_version
-            else make_operation_outcome("not-found", f"Questionnaire with name {form_name} not found on the FHIR server.")
-        )
 
 
 def run_cql(library_ids: list, parameters_post: dict):
@@ -1374,37 +1318,3 @@ def get_health_of_stack() -> dict:
 
 def get_param_index(parameter_list: list, param_name: str) -> int:
     return parameter_list.index([param for param in parameter_list if param.name == param_name][0])
-
-
-def run_diagnostic_questionnaire(run_all_jobs: bool, libs_to_run: list, form: dict) -> dict:
-    return_bundle = {"resourceType": "Bundle", "id": str(uuid.uuid4()), "type": "collection", "entry": []}
-    return_bundle["entry"].append({"fullUrl": "Patient/0", "resource": {"resourceType": "Patient", "id": "0"}})
-    if run_all_jobs:
-        logger.warning("The diagnostic Questionnaire is not supported for running every job, this will return a Bundle with only a minimal Patient and nothing else")
-        return_bundle["total"] = "1"
-        return return_bundle
-
-    library = libs_to_run[0]
-    full_job_list = [item["valueString"] for item in form["extension"][0]["extension"]]
-    library_index = full_job_list.index(library)
-    sleep_time = 30  # (library_index + 1) * 30 this is commented out due to blocking method making things go sequentially when this happens
-    logger.info(f"Running {library.strip('.cql')} and will be sleeping for {sleep_time} seconds")
-    time.sleep(sleep_time)
-
-    obs_id = str(uuid.uuid4())
-
-    test_obs = {
-        "resourceType": "Observation",
-        "id": obs_id,
-        "identifier": [{"system": "https://smartchartsuite.dev.heat.icl.gtri.org/rc-api/", "value": f"Observation/{obs_id}"}],
-        "status": "final",
-        "category": [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "survey", "display": "Survey"}]}],
-        "code": {"coding": [{"system": "urn:gtri:heat:form:Diagnostic", "code": str(library_index + 1)}]},
-        "subject": {"reference": "Patient/0"},
-        "effectiveDateTime": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "valueString": f"Test String Output for Job {str(library_index+1)}",
-    }
-
-    return_bundle["entry"].append({"fullUrl": f"Observation/{obs_id}", "resource": test_obs})
-    return_bundle["total"] = len(return_bundle["entry"])
-    return return_bundle

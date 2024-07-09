@@ -25,8 +25,8 @@ class FhirClient:
     def readResource(self, resource_type: str, id: str):
         headers = {}
         if self.basic_auth:
-            basic_auth_str = self.basic_auth.username + ":" + self.basic_auth.password  # type: ignore
-            headers["Authorization"] = f"Basic {base64.b64encode(basic_auth_str)}"
+            basic_auth_str: str = self.basic_auth.username + ":" + self.basic_auth.password  # type: ignore
+            headers["Authorization"] = f"Basic {base64.b64encode(basic_auth_str)}"  # type: ignore
         response = session.get(f"{self.server_base}/{resource_type}/{id}", headers=headers).json()
         return response
 

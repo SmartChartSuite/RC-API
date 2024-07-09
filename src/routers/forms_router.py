@@ -5,14 +5,14 @@ import os
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import JSONResponse
 from fastapi_restful.tasks import repeat_every
 
+from src.models.forms import get_form, convert_jobpackage_csv_to_questionnaire
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
 from src.util.settings import cqfr4_fhir, session
-from static.diagnostic_questionnaire import diagnostic_questionnaire
 
 logger: logging.Logger = logging.getLogger("rcapi.routers.forms_router")
 
@@ -49,23 +49,8 @@ def get_list_of_forms():
 
 
 @router.get("/forms/{form_name}")
-def get_form(form_name: str) -> dict | str:
-    """Return Questionnaire from CQF Ruler based on form name"""
-    if form_name == "diagnostic":
-        return diagnostic_questionnaire
-    req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
-    if req.status_code != 200:
-        logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
-        return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
-
-    search_bundle = req.json()
-    try:
-        questionnaire = search_bundle["entry"][0]["resource"]
-        logger.info(f"Found Questionnaire with name {form_name}")
-        return questionnaire
-    except KeyError:
-        logger.error("Questionnaire with that name not found")
-        return make_operation_outcome("not-found", f"Questionnaire named {form_name} not found on the FHIR server.")
+def get_form_endpoint(form_name: str) -> dict:
+    return get_form(form_name=form_name, form_version=None, return_Questionnaire_class_obj=False)
 
 
 @router.post("/forms")
@@ -166,7 +151,9 @@ def get_job_status(uid: str):
         except KeyError:
             return jobs[uid]
     except KeyError:
-        return JSONResponse(content=make_operation_outcome("code-invalid", f"The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id."), status_code=404)
+        return JSONResponse(
+            content=make_operation_outcome("code-invalid", f"The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id."), status_code=404
+        )
 
 
 @router.put("/forms/{form_name}")
@@ -192,3 +179,8 @@ def update_form(form_name: str, new_questions: dict):
         return make_operation_outcome("transient", f"Putting Questionnaire from server failed with status code {req.status_code}")
 
     return make_operation_outcome("informational", f"Questionnaire {form_name} successfully put on server with resource_id {resource_id}", severity="information")
+
+
+@router.post("/forms/jobPackageToQuestionnaire")
+def convert_jobpackage_to_questionnaire(cql_only: bool = False, csv_string: str = Body(...)):
+    return convert_jobpackage_csv_to_questionnaire(jobpackage_csv=csv_string, cql_only=cql_only)

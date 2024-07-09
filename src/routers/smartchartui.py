@@ -15,7 +15,7 @@ from src.models.batchjob import BatchParametersJob, StartBatchJobsParameters
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import ParametersJob, StartJobsParameters
 from src.responsemodels.prettyjson import PrettyJSONResponse
-from src.routers.forms_router import get_form
+from src.models.forms import get_form
 from src.services.jobhandler import get_job_list_from_form, get_value_from_parameter, update_patient_resource_in_parameters
 from src.services.jobstate import add_to_batch_jobs, add_to_jobs, get_all_batch_jobs, get_batch_job, get_job, update_job_to_complete
 from src.util.fhirclient import FhirClient
@@ -192,7 +192,7 @@ def post_batch_job(post_body: StartBatchJobsParameters, background_tasks: Backgr
 # TODO: Remove after refactoring more into the jobhandler and jobstate files?
 def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patient: bool):
     # Pull "metadata" from the post_body sent by the client.
-    form_name = get_value_from_parameter(post_body, "jobPackage")
+    form_name: str = get_value_from_parameter(post_body, "jobPackage")
     patient_id = get_value_from_parameter(post_body, "patientId")
 
     # Setup base for the new batch job model. (Without jobs added yet.)
@@ -208,7 +208,7 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patien
     new_batch_job.parameter[job_package_param_index].valueString = form_name
 
     # Get the form based on the form_name in the post-body jobPackage parameter, then extract a list of all jobs.
-    form = get_form(form_name)
+    form = get_form(form_name=form_name, form_version=None, return_Questionnaire_class_obj=False)
     job_list: list[str] = get_job_list_from_form(form)
 
     # Build a temporary list of start job post bodies, one for each job from the job_list identified.
