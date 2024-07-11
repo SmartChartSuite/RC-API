@@ -182,5 +182,5 @@ def update_form(form_name: str, new_questions: dict):
 
 
 @router.post("/forms/jobPackageToQuestionnaire")
-def convert_jobpackage_to_questionnaire(cql_only: bool = False, csv_string: str = Body(...)):
-    return convert_jobpackage_csv_to_questionnaire(jobpackage_csv=csv_string, cql_only=cql_only)
+def convert_jobpackage_to_questionnaire(cql_only: bool = False, smartchart: bool = False, csv_string: str = Body(...)):
+    return convert_jobpackage_csv_to_questionnaire(jobpackage_csv=csv_string, cql_only=cql_only, smartchart=smartchart)

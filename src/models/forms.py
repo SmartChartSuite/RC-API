@@ -137,7 +137,6 @@ def remove_nlpql_task_from_questionnaire_item(question: dict):
 
 
 def return_cql_only_questionnaire(questionnaire: dict) -> dict:
-
     logger.info("Returning CQL Only Questionnaire")
 
     questionnaire["id"] += "CQLOnly"
@@ -151,7 +150,7 @@ def return_cql_only_questionnaire(questionnaire: dict) -> dict:
     return questionnaire
 
 
-def convert_jobpackage_csv_to_questionnaire(jobpackage_csv: str, cql_only: bool):
+def convert_jobpackage_csv_to_questionnaire(jobpackage_csv: str, cql_only: bool, smartchart: bool):
     logger.info("Converting Job Package CSV to Questionnaire...")
     csvfile = jobpackage_csv.split("\n")
     csvFile = csv.reader(csvfile)
@@ -173,6 +172,14 @@ def convert_jobpackage_csv_to_questionnaire(jobpackage_csv: str, cql_only: bool)
     questionnaire["title"] = title_row[1]
     questionnaire["version"] = version_row[1]
     questionnaire["description"] = description_row[1]
+
+    if smartchart:
+        questionnaire["useContext"] = [
+            {
+                "code": {"system": "http://terminology.hl7.org/CodeSystem/usage-context-type", "code": "workflow", "display": "Workflow Setting"},
+                "valueCodeableConcept": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/CodeSystem/custom", "code": "smartchartui", "display": "SmartChart UI"}]},
+            }
+        ]
 
     ## The csv table header row that isn't actually parsed.
     next(csvFile)
