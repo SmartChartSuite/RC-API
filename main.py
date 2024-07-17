@@ -111,6 +111,7 @@ def custom_openapi():
     openapi_schema["paths"]["/forms/nlpql"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
     openapi_schema["paths"]["/forms/cql/{library_name}"]["put"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
     openapi_schema["paths"]["/forms/nlpql/{library_name}"]["put"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
+    openapi_schema["paths"]["/forms/jobPackageToQuestionnaire"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
     # openapi_schema["paths"]["/formns/start"]["post"]["responses"]["200"] TODO: this is going to be example of the results output when I get there
     app.openapi_schema = openapi_schema
     return app.openapi_schema
