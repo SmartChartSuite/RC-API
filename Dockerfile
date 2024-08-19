@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
-RUN apt-get -y update
-RUN apt-get -y install git
+RUN apt-get -y update && \
+    apt-get -y install git libpq-dev gcc
 
 WORKDIR /app
 
