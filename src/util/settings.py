@@ -1,10 +1,14 @@
 """Settings file for importing environmental variables"""
 
 import os
+import logging
 
 from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
+
+
+logger: logging.Logger = logging.getLogger("rcapi.util.settings")
 
 # ================= Creating necessary variables from Secrets ========================
 cqfr4_fhir = os.environ["CQF_RULER_R4"]
@@ -16,6 +20,8 @@ api_docs = os.environ.get("API_DOCS", "true")
 knowledgebase_repo_url = os.environ.get("KNOWLEDGEBASE_REPO_URL", "")
 docs_prepend_url = os.environ.get("DOCS_PREPEND_URL", "")
 deploy_url = os.environ.get("DEPLOY_URL", "http://example.org/")
+db_connection_string = os.environ.get("DB_CONNECTION_STRING", "sqlite+pysqlite:///rcapi_jobs.sqlite")
+db_schema = os.environ.get("DB_SCHEMA", "rcapi")
 
 if cqfr4_fhir[-1] != "/":
     cqfr4_fhir += "/"

@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import JSONResponse
 from fastapi_restful.tasks import repeat_every
 
-from src.models.forms import get_form, convert_jobpackage_csv_to_questionnaire
+from src.models.forms import convert_jobpackage_csv_to_questionnaire, get_form
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
 from src.util.settings import cqfr4_fhir, session
@@ -21,8 +21,15 @@ router = APIRouter()
 jobs: dict[str, ParametersJob] = {}
 
 
+def init_jobs_array() -> None:
+    global jobs
+    del jobs
+    jobs = {}  # noqa: F841
+    logger.info("Initialized jobs array")
+
+
 @repeat_every(seconds=60 * 60 * 24, logger=logger)
-def clear_jobs_array():
+def clear_jobs_array() -> None:
     logger.info("Clearing jobs array...")
     global jobs
     del jobs
@@ -139,9 +146,9 @@ def get_job_status(uid: str):
         try:
             job_status_obj = jobs[uid]
             result_param_index: int = get_param_index(parameter_list=job_status_obj.parameter, param_name="result")
-            job_results = job_status_obj.parameter[result_param_index].resource  # type: ignore
-            job_results_severity = job_results["issue"][0]["severity"]
-            job_results_code = job_results["issue"][0]["code"]
+            job_results = job_status_obj.parameter[result_param_index].resource
+            job_results_severity = job_results["issue"][0]["severity"] if job_results else "unknown"
+            job_results_code = job_results["issue"][0]["code"] if job_results else "unknown"
             if job_results_code == "not-found":
                 return JSONResponse(status_code=404, content=job_results)
             if job_results_severity == "error":

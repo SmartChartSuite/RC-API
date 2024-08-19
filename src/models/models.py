@@ -6,6 +6,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+logger: logging.Logger = logging.getLogger("rcapi.models.models")
+
 
 class CustomFormatter(logging.Formatter):
     """Custom Formatter object for formatting logging messages throughout the API"""
@@ -32,35 +34,44 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-class JobIDParameter(BaseModel):
+class JobParameter(BaseModel):
+    """Base Job Parameter model"""
+
+    name: str
+    valueString: str | None = None
+    valueDateTime: str | None = None
+    resource: dict | None = None
+
+
+class JobIDParameter(JobParameter):
     """Job ID Parameter for Job Status support"""
 
     name: str = "jobId"
     valueString: str = Field(default_factory=uuid4)
 
 
-class JobStatusParameter(BaseModel):
+class JobStatusParameter(JobParameter):
     """Job Status Parameter for Job Status support"""
 
     name: str = "jobStatus"
     valueString: str = "inProgress"
 
 
-class ResultParameter(BaseModel):
+class ResultParameter(JobParameter):
     """Result Parameter for Job Status Support"""
 
     name: str = "result"
     resource: dict = {"resourceType": "Bundle"}
 
 
-class JobStartParameter(BaseModel):
+class JobStartParameter(JobParameter):
     """Job Start Time Parameter for Job Status Support"""
 
     name: str = "jobStartDateTime"
     valueDateTime: str = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-class JobCompletedParameter(BaseModel):
+class JobCompletedParameter(JobParameter):
     """Job Completed Time Parameter for Job Status Support"""
 
     name: str = "jobCompletedDateTime"
@@ -71,7 +82,7 @@ class ParametersJob(BaseModel):
     """Parameters Job object for Job Status Support"""
 
     resourceType: str = "Parameters"
-    parameter: list[JobIDParameter | JobStartParameter | JobCompletedParameter | JobStatusParameter | ResultParameter] = [
+    parameter: list[JobParameter] = [
         JobIDParameter(),
         JobStartParameter(),
         JobStatusParameter(),

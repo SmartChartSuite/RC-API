@@ -6,18 +6,19 @@ from copy import deepcopy
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks
+from fastapi.responses import JSONResponse
 from fhir.resources.R4B.bundle import Bundle
 from fhir.resources.R4B.list import List
 from fhir.resources.R4B.parameters import Parameters
 from fhir.resources.R4B.patient import Patient
 
 from src.models.batchjob import BatchParametersJob, StartBatchJobsParameters
+from src.models.forms import get_form
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import ParametersJob, StartJobsParameters
 from src.responsemodels.prettyjson import PrettyJSONResponse
-from src.models.forms import get_form
 from src.services.jobhandler import get_job_list_from_form, get_value_from_parameter, update_patient_resource_in_parameters
-from src.services.jobstate import add_to_batch_jobs, add_to_jobs, get_all_batch_jobs, get_batch_job, get_job, update_job_to_complete
+from src.services.jobstate import add_to_batch_jobs, add_to_jobs, delete_batch_job, get_all_batch_jobs, get_batch_job, get_job, update_job_to_complete
 from src.util.fhirclient import FhirClient
 from src.util.settings import session
 
@@ -32,7 +33,6 @@ smartchart_router = APIRouter()
 @smartchart_router.get("/smartchartui/patient/{patient_id}", response_class=PrettyJSONResponse)
 def read_patient(patient_id: str):
     """Read a Patient resource from the external FHIR Server (e.g. Epic)"""
-    # TODO: Is there a better way to check of an id is a URL?
     if "/" in patient_id:
         patient_id = extract_patient_id(patient_id)
     response = external_fhir_client.readResource("Patient", patient_id)
@@ -81,13 +81,12 @@ def get_job_request(id: str, include_patient: bool = False, response_class=Prett
             content=make_operation_outcome("not-found", f"The {id} job id was not found. If this is an error, please try running the jobPackage again with a new job id."), status_code=404
         )
     else:
-        return PrettyJSONResponse(content=json.loads(requested_job[0]))
+        return PrettyJSONResponse(content=requested_job)
 
 
 @smartchart_router.get("/smartchartui/batchjob")
 def get_all_batch_jobs_request(include_patient: bool = False):
-    requested_batch_jobs = get_all_batch_jobs()  # TODO: Change this to not return tuple
-    requested_batch_jobs = [json.loads(x[0]) for x in requested_batch_jobs]
+    requested_batch_jobs = get_all_batch_jobs()
     batch_jobs_as_resources = []
     if include_patient:
         for batch_job in requested_batch_jobs:
@@ -105,8 +104,9 @@ def get_all_batch_jobs_request(include_patient: bool = False):
 
 @smartchart_router.get("/smartchartui/batchjob/{id}")
 def get_batch_job_request(id: str, include_patient: bool = False, response_class=PrettyJSONResponse):
-    requested_batch_job = get_batch_job(id)[0]  # TODO: Change this to not return tuple
-    requested_batch_job = json.loads(requested_batch_job)
+    requested_batch_job: dict | None = get_batch_job(id)
+    if not requested_batch_job:
+        return JSONResponse(make_operation_outcome("not-found", f"Batch Job ID {id} was not found in the database"), 404)
     if include_patient:
         batch_job_resource = Parameters(**requested_batch_job)
         patient_id = get_value_from_parameter(batch_job_resource, "patientId", use_iteration_strategy=True, value_key="valueString")
@@ -118,13 +118,19 @@ def get_batch_job_request(id: str, include_patient: bool = False, response_class
     return requested_batch_job
 
 
-"""Fetches compiled results as a FHIR Bundle for a given job."""
+@smartchart_router.delete("/smartchartui/batchjob/{id}")
+def delete_batch_job_endpoint(id: str):
+    return delete_batch_job(id)
 
 
 @smartchart_router.get("/smartchartui/results/{id}")
-def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
-    requested_batch_job = get_batch_job(id)[0]  # TODO: Change this to not return tuple
-    requested_batch_job = json.loads(requested_batch_job)
+def get_batch_job_results(id: str):
+    """Fetches compiled results as a FHIR Bundle for a given job."""
+
+    requested_batch_job = get_batch_job(id)
+    if not requested_batch_job:
+        return JSONResponse(make_operation_outcome("not-found", f"Batch Job ID {id} was not found in the database"), 404)
+
     batch_job_resource = Parameters(**requested_batch_job)
 
     # TODO: Swap the list structure in batch jobs to a parameters.parts structure with name = job, and use it to tie together things here to generate the components properly.
@@ -148,7 +154,6 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
         job = get_job(job_id)
         if job is not None:
             try:
-                job = json.loads(job[0])
                 job_parameters_resource = Parameters(**job)
                 status_list.append(get_value_from_parameter(job_parameters_resource, "jobStatus", use_iteration_strategy=True, value_key="valueString"))
                 result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
@@ -157,6 +162,8 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
             except BaseException as e:
                 logger.error(e)
                 logger.error(f"Error parsing job: {job_id}")
+        else:
+            status_list.append("inProgress")
         result_list = list(dict.fromkeys(result_list))
 
     # 3. Create status observation based on TODOs above
@@ -170,7 +177,7 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
         overall_status = "complete"
     else:
         overall_status = "preliminary"
-    status_counter = f"{len([status for status in status_list if status == 'complete'])}/{len(status_list)}"
+    status_counter = f"{len([status for status in status_list if status == 'complete'])}/{len(child_job_ids)}"
     status_observation = create_results_status_observation(overall_status, status_counter)
 
     # 4. Create collection bundle wrapper.
@@ -179,11 +186,9 @@ def get_batch_job_results(id: str, response_class=PrettyJSONResponse):
     bundle = Bundle(**create_results_bundle(status_observation, result_list))
 
     # 5. Return bundle to user.
-    # TODO: Add response class, removed because of ORJSON date time issue temp.
-    return bundle.dict(exclude_none=True)
+    return PrettyJSONResponse(bundle.dict(exclude_none=True))
 
 
-# TODO: Support include_patient parameter
 @smartchart_router.post("/smartchartui/batchjob", response_class=PrettyJSONResponse)
 def post_batch_job(post_body: StartBatchJobsParameters, background_tasks: BackgroundTasks, include_patient: bool = False):
     return start_batch_job(post_body, background_tasks, include_patient)
@@ -202,7 +207,9 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patien
     patient_id_param_index = get_param_index(new_batch_job.parameter, "patientId")
     job_package_param_index = get_param_index(new_batch_job.parameter, "jobPackage")
     child_jobs_param_index = get_param_index(new_batch_job.parameter, "childJobs")
-    new_batch_job.parameter[batch_id_param_index].valueString = str(uuid.uuid4())
+
+    new_batch_job_batch_id = str(uuid.uuid4())
+    new_batch_job.parameter[batch_id_param_index].valueString = new_batch_job_batch_id
     new_batch_job.parameter[starttime_param_index].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
     new_batch_job.parameter[patient_id_param_index].valueString = patient_id  # TODO: Add fully qualified URL
     new_batch_job.parameter[job_package_param_index].valueString = form_name
@@ -216,13 +223,22 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patien
     start_bodies = [temp_start_job_body(patient_id, form_name, job) for job in job_list]
 
     # Temporary holder for the list of responses to include in the batch job response
-    child_job_ids = [start_child_job_task(start_body, background_tasks) for start_body in start_bodies]
+    child_job_ids = [start_child_job_task(start_body=start_body, parent_batch_job_id=new_batch_job_batch_id, background_tasks=background_tasks) for start_body in start_bodies]
 
     list_resource = create_list_resource(child_job_ids)
     new_batch_job.parameter[child_jobs_param_index].resource = list_resource
 
-    # TODO: handle if this doesnt work
     added: bool = add_to_batch_jobs(new_batch_job, new_batch_job.parameter[batch_id_param_index].valueString)
+
+    if not added:
+        return JSONResponse(
+            make_operation_outcome(
+                "processing",
+                "The Batch Job was unable to be added to the database. This would most likely occur if a new UUID was generated that matches one already existing in the database. "
+                "This shouldn't happen, but is here for error handling. Please see logs for further information and debugging.",
+            ),
+            500,
+        )
 
     batch_job_resource = Parameters(**new_batch_job.model_dump())
 
@@ -230,14 +246,18 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patien
         patient_id = get_value_from_parameter(batch_job_resource, "patientId", use_iteration_strategy=True, value_key="valueString")
         patient_resource = Patient(**read_patient(patient_id))
         batch_job_resource = update_patient_resource_in_parameters(batch_job_resource, patient_resource)
-        batch_job_resource = batch_job_resource.dict()
+        batch_job_resource = batch_job_resource.dict(exclude_none=True)
 
-    # TODO: Fix issue dumping JSON to content to include complete header info
-    # return PrettyJSONResponse(batch_job_resource, headers={"Location": f"/smartchartui/batchjob/{new_batch_job.parameter[batch_id_param_index].valueString}"})
-    return batch_job_resource.dict(exclude_none=True) if isinstance(batch_job_resource, Parameters) else batch_job_resource
+    if isinstance(batch_job_resource, Parameters):
+        batch_job_resource = batch_job_resource.dict(exclude_none=True)
+
+    return PrettyJSONResponse(
+        batch_job_resource,
+        headers={"Location": f"/smartchartui/batchjob/{new_batch_job.parameter[batch_id_param_index].valueString}"},
+    )
 
 
-def start_child_job_task(start_body, background_tasks: BackgroundTasks):
+def start_child_job_task(start_body: StartJobsParameters, parent_batch_job_id, background_tasks: BackgroundTasks):
     new_job = ParametersJob()
     uid_param_index = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobId"][0])
 
@@ -246,17 +266,30 @@ def start_child_job_task(start_body, background_tasks: BackgroundTasks):
     new_job.parameter[uid_param_index].valueString = str(new_uuid)
 
     job_id = str(new_job.parameter[uid_param_index].valueString)  # type: ignore
-    background_tasks.add_task(run_child_job, new_job, job_id, start_body)
+    background_tasks.add_task(run_child_job, new_job, job_id, parent_batch_job_id, start_body)
     return job_id
 
 
-def run_child_job(new_job: ParametersJob, job_id: str, start_body):
+def run_child_job(new_job: ParametersJob, job_id: str, parent_batch_job_id: str, start_body: StartJobsParameters):
     tmp_job_obj = new_job
     starttime_param_index = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobStartDateTime"][0])
     tmp_job_obj.parameter[starttime_param_index].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-    job_added_bool = add_to_jobs(new_job, job_id)
+    start_body_dump = start_body.model_dump()
+    patient_id_key = [item["name"] for item in start_body_dump["parameter"] if item["name"].startswith("patient")][0]
+    patient_id = [item["valueString"] for item in start_body_dump["parameter"] if item["name"] == patient_id_key][0]
+    job_package = [item["valueString"] for item in start_body_dump["parameter"] if item["name"] == "jobPackage"][0]
+    job_added_bool = add_to_jobs(
+        new_job_body=new_job,
+        job_id=job_id,
+        patient_id_type=patient_id_key,
+        patient_id=patient_id,
+        job_package=job_package,
+        parent_batch_job_id=parent_batch_job_id,
+        job_start_datetime=tmp_job_obj.parameter[starttime_param_index].valueDateTime,
+        job_status="inProgress",
+    )
     if job_added_bool:
-        logger.info(f"Created new job with jobId {job_id}")  # type: ignore
+        logger.info(f"Created new job with jobId {job_id}")
     else:
         logger.error(f"Error creating job with jobId {job_id}")
     job_result = start_jobs(start_body)
