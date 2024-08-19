@@ -18,7 +18,7 @@ from src.models.functions import get_param_index, make_operation_outcome, start_
 from src.models.models import ParametersJob, StartJobsParameters
 from src.responsemodels.prettyjson import PrettyJSONResponse
 from src.services.jobhandler import get_job_list_from_form, get_value_from_parameter, update_patient_resource_in_parameters
-from src.services.jobstate import add_to_batch_jobs, add_to_jobs, delete_batch_job, get_all_batch_jobs, get_batch_job, get_job, update_job_to_complete
+from src.services.jobstate import add_to_batch_jobs, add_to_jobs, delete_batch_job, get_all_batch_jobs, get_batch_job, get_child_job_statuses, get_job, update_job_to_complete
 from src.util.fhirclient import FhirClient
 from src.util.settings import session
 
@@ -99,7 +99,7 @@ def get_all_batch_jobs_request(include_patient: bool = False):
             batch_jobs_as_resources.append(batch_job_resource.dict())
     else:
         batch_jobs_as_resources = requested_batch_jobs
-    return batch_jobs_as_resources
+    return [add_status_to_batch_job(batch_job) for batch_job in batch_jobs_as_resources]
 
 
 @smartchart_router.get("/smartchartui/batchjob/{id}")
@@ -335,3 +335,16 @@ def create_bundle_entry(resource):
     if isinstance(resource, str):
         resource = json.loads(resource)
     return {"fullUrl": f"{resource['resourceType']}/{resource['id']}", "resource": resource}
+
+
+def add_status_to_batch_job(batch_job: dict) -> dict:
+
+    new_params: list[dict] = batch_job["parameter"]
+    batch_job_id= new_params[get_param_index(new_params, "batchId")]["valueString"]
+
+    child_job_statuses = get_child_job_statuses(batch_job_id=batch_job_id)
+    complete_bool = all([value == "complete" for value in child_job_statuses.values()])
+    new_params.insert(4, {"name": "batchJobStatus", "valueString": "complete" if complete_bool else "inProgress"})
+    batch_job["parameter"] = new_params
+
+    return batch_job

@@ -1315,4 +1315,6 @@ def get_health_of_stack() -> dict:
 
 
 def get_param_index(parameter_list: list, param_name: str) -> int:
+    if isinstance(parameter_list[0], dict):
+        return parameter_list.index([param for param in parameter_list if param["name"] == param_name][0])
     return parameter_list.index([param for param in parameter_list if param.name == param_name][0])

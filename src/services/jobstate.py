@@ -114,6 +114,13 @@ def update_job_to_complete(job_id: str, job_result) -> None:
         logger.info(f"Updated job {job_id} in jobs table.")
 
 
+def get_child_job_statuses(batch_job_id: str) -> dict:
+
+    child_job_statuses: list[Jobs] = execute_orm_query(db_engine, select(Jobs).where(Jobs.parent_batch_job_id == batch_job_id))
+
+    return {item.job_id: item.job_status for item in child_job_statuses}
+
+
 class UUIDEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, UUID):
