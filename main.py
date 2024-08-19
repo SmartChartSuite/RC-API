@@ -19,7 +19,8 @@ from pydantic import ValidationError
 from src.models.functions import make_operation_outcome
 from src.models.models import CustomFormatter
 from src.routers import cql_router, forms_router, main_router, nlpql_router, smartchartui, webhook
-from src.routers.forms_router import clear_jobs_array
+from src.routers.forms_router import init_jobs_array
+from src.util.databaseclient import startup_connect
 from src.util.git import clone_repo_to_temp_folder
 from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url, log_level
 
@@ -41,7 +42,7 @@ if log_level == "DEBUG":
 # ========================== Lifespan Function ===========================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """On startup, check for knowledgebase repo variables and if found, update the libraries on CQF Ruler"""
+    """On startup, check for knowledgebase repo variables and if found, update the libraries on CQF Ruler, and check that database contains required tables"""
     # Check for private key and known hosts in secrets
     # Set these (required for both hook clone and startup clone)
     # setup_keys()
@@ -57,7 +58,13 @@ async def lifespan(app: FastAPI):
         logger.info("Knowledgebase Repo configuration not detected.")
         logger.info("Skipping initial library load.")
 
-    await clear_jobs_array()
+    try:
+        startup_connect()
+    except Exception as error:
+        logger.error("There was an issue with your database connection, see below for error:")
+        raise ValueError(error)
+
+    init_jobs_array()
 
     yield
 

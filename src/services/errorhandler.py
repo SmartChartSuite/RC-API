@@ -2,6 +2,7 @@
 
 from fhir.resources.R4B.operationoutcome import OperationOutcome
 
+
 def error_to_operation_outcome(error: ValueError):
     """Converting error to OperationOutcome"""
     print(error.args)

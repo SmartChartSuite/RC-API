@@ -8,7 +8,6 @@ from concurrent.futures import Future
 from datetime import datetime
 from typing import Literal, overload
 
-from fhir.resources.R4B.documentreference import DocumentReference
 from fhir.resources.R4B.fhirtypes import Id
 from fhir.resources.R4B.observation import Observation
 from fhir.resources.R4B.operationoutcome import OperationOutcome
@@ -898,9 +897,8 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         temp_doc_ref["date"] = datetime.strptime(temp_doc_ref["date"], "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")
                     else:
                         temp_doc_ref["date"] = datetime.strptime(temp_doc_ref["date"], "%Y-%m-%dT%H:%M:%S").strftime("%Y-%m-%dT%H:%M:%SZ")
-                    supporting_resource = DocumentReference(**temp_doc_ref)
 
-                    supporting_res_dict = supporting_resource.dict()
+                    supporting_res_dict = temp_doc_ref
                     if isinstance(supporting_res_dict["date"], datetime):
                         supporting_res_dict["date"] = supporting_res_dict["date"].strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -1251,7 +1249,7 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
     else:
         logger.info(f'Finished linking results, returning Bundle with {bundled_results["total"] if "total" in bundled_results else 0} entries')
 
-    ##return Bundle(**bundled_results).dict(exclude_none=True)
+    # return Bundle(**bundled_results).dict(exclude_none=True)
     return bundled_results
 
 

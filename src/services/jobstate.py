@@ -2,94 +2,98 @@
 
 import json
 import logging
-import sqlite3
 from collections import OrderedDict
 from datetime import datetime
 from uuid import UUID
 
+from fastapi.responses import JSONResponse
+from sqlalchemy import delete, select, update
+
 from src.models.batchjob import BatchParametersJob
 from src.models.models import ParametersJob
+from src.services.errorhandler import make_operation_outcome
+from src.util.databaseclient import BatchJobs, Jobs, db_engine, execute_orm_no_return, execute_orm_query, save_object
 
-logger = logging.getLogger("rcapi.services.jobstate")
-
-# SQL Lite temporary handling to persist batch jobs.
-# TODO: Change to class
-
-
-def create_database():
-    con = sqlite3.connect("batch_jobs.sqlite")
-    cur = con.cursor()
-    cur.execute("CREATE TABLE if not exists batch_jobs(batch_job_id text, batch_job blob)")
-    cur.execute("CREATE TABLE if not exists jobs(job_id text, job blob)")
-    con.commit()
+logger: logging.Logger = logging.getLogger("rcapi.util.jobstate")
 
 
-create_database()
+def add_to_jobs(new_job_body: ParametersJob, job_id, patient_id_type, patient_id, job_package, parent_batch_job_id, job_start_datetime, job_status) -> bool:
+    current_job_id_list: list[str] = execute_orm_query(db_engine, select(Jobs.job_id))
 
-"""TODO: Refactor or Delete the following functions, temporary functions to access global"""
-
-
-def add_to_jobs(new_job, index) -> bool:
-    con = sqlite3.connect("batch_jobs.sqlite")
-    cur = con.cursor()
-    res = cur.execute("SELECT job_id FROM jobs")
-    current_job_id_list = res.fetchall()
-
-    if index not in current_job_id_list:
-        # TODO: Shift this away from try block, this is temp solution
-        data = [(index, json.dumps(new_job.model_dump(), cls=UUIDEncoder))]
-        cur.executemany("INSERT INTO jobs VALUES(?, ?)", data)
-        con.commit()
-        logger.info(f"Created job {index} in jobs table.")
+    if job_id not in current_job_id_list:
+        new_job_instance = Jobs(
+            job_id=job_id,
+            job=new_job_body.model_dump(exclude_none=True),
+            patient_id_type=patient_id_type,
+            patient_id=patient_id,
+            job_package=job_package,
+            parent_batch_job_id=parent_batch_job_id,
+            job_start_datetime=job_start_datetime,
+            job_status=job_status,
+        )
+        insert: str | None = save_object(db_engine, new_job_instance)
+        if insert:
+            logger.error("There was an issue inserting a new job into the database")
+            logger.error(insert)
+            return False
+        logger.info(f"Created job {job_id} in jobs table.")
         return True
     else:
         return False
 
 
 def add_to_batch_jobs(new_batch_job: ParametersJob | BatchParametersJob, index: str) -> bool:
-    con = sqlite3.connect("batch_jobs.sqlite")
-    cur = con.cursor()
-    res = cur.execute("SELECT batch_job_id FROM batch_jobs")
-    current_job_id_list = res.fetchall()
-    print(new_batch_job)
+    current_job_id_list: list[str] = execute_orm_query(db_engine, select(BatchJobs.batch_job_id))
+
     if index not in current_job_id_list:
-        data = [(index, json.dumps(new_batch_job.model_dump(), cls=UUIDEncoder))]
-        # TODO: Make adding child jobs part of a single atomic transaction.
-        cur.executemany("INSERT INTO batch_jobs VALUES(?, ?)", data)
-        con.commit()
-        logger.info("Added to batch jobs")
+        new_batch_job_instance = BatchJobs(batch_job_id=index, batch_job=new_batch_job.model_dump(exclude_none=True))
+        insert: str | None = save_object(db_engine, new_batch_job_instance)
+        if insert:
+            logger.error("There was an issue inserting a new batch job into the database")
+            logger.error(insert)
+            return False
+        logger.info(f"Created batch job {index} in jobs table.")
         return True
     else:
         return False
 
 
-def get_job(index):
-    con = sqlite3.connect("batch_jobs.sqlite")
-    cur = con.cursor()
-    res = cur.execute("SELECT job FROM jobs WHERE job_id=:index", {"index": index})
-    return res.fetchone()
+def get_job(index: str) -> dict | None:
+    result: list[dict] = execute_orm_query(db_engine, select(Jobs.job).where(Jobs.job_id == index))
+    return result[0] if result else None
 
 
-def get_all_batch_jobs():
-    con = sqlite3.connect("batch_jobs.sqlite")
-    cur = con.cursor()
-    res = cur.execute("SELECT batch_job FROM batch_jobs")
-    return res.fetchall()
+def get_all_batch_jobs() -> list[dict]:
+    return execute_orm_query(db_engine, select(BatchJobs.batch_job))
 
 
-def get_batch_job(index: str):
-    con = sqlite3.connect("batch_jobs.sqlite")
-    cur = con.cursor()
-    res = cur.execute("SELECT batch_job FROM batch_jobs WHERE batch_job_id=:index", {"index": index})
-    return res.fetchone()
+def get_batch_job(index: str) -> dict | None:
+    result: list[dict] = execute_orm_query(db_engine, select(BatchJobs.batch_job).where(BatchJobs.batch_job_id == index))
+    return result[0] if result else None
 
 
-def update_job_to_complete(job_id, job_result):
-    # TODO: Why is this returning from sqllite as a tuple?
-    job = json.loads(get_job(job_id)[0], object_pairs_hook=OrderedDict)
+def delete_batch_job(job_id: str) -> JSONResponse:
+    existing_batch_job: dict | None = get_batch_job(job_id)
+    if not existing_batch_job:
+        return JSONResponse(make_operation_outcome("not-found", f"Batch Job ID {job_id} was not found in the database"), 404)
+
+    del_batch_job: dict | None = execute_orm_no_return(db_engine, delete(BatchJobs).where(BatchJobs.batch_job_id == job_id))
+
+    if del_batch_job:
+        logger.error("There was an issue deleting this relationship in the DB")
+        logger.error(del_batch_job["detail"])
+        return JSONResponse(make_operation_outcome("exception", del_batch_job["detail"]), 500)
+
+    return JSONResponse(make_operation_outcome("deleted", f"Batch Job ID {job_id} has been successfully deleted from the database", "information"))
+
+
+def update_job_to_complete(job_id: str, job_result) -> None:
+    job = get_job(job_id)
+    if not job:
+        logger.error(f"Job {job_id} was not found in the database, this should not occur but is here for error handling.")
+        return None
+
     param_list = job["parameter"]
-
-    # print(type(job_result))
 
     for param in param_list:
         if param["name"] == "jobStatus":
@@ -101,10 +105,13 @@ def update_job_to_complete(job_id, job_result):
 
     job["parameter"].append(OrderedDict({"name": "jobCompletedDateTime", "valueDateTime": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")}))
 
-    con = sqlite3.connect("batch_jobs.sqlite")
-    cur = con.cursor()
-    cur.executemany("UPDATE jobs SET job = ? WHERE job_id = ?", [(json.dumps(job, cls=BytesEncoder), job_id)])
-    con.commit()
+    update_out = execute_orm_no_return(db_engine, update(Jobs).where(Jobs.job_id == job_id).values(job_id=job_id, job=job, job_status="complete"))
+
+    if update_out:
+        logger.error("There was an issue updating the job in the database")
+        logger.error(update_out)
+    else:
+        logger.info(f"Updated job {job_id} in jobs table.")
 
 
 class UUIDEncoder(json.JSONEncoder):
