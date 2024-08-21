@@ -1,14 +1,24 @@
 """Settings file for importing environmental variables"""
 
-import os
 import logging
+import os
 
+from pydantic import BaseModel
 from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
-
 logger: logging.Logger = logging.getLogger("rcapi.util.settings")
+
+
+class ConfigEndpointPrimaryIdentifier(BaseModel):
+    label: str | None = None
+    system: str | None = None
+
+
+class ConfigEndpointModel(BaseModel):
+    primaryIdentifier: ConfigEndpointPrimaryIdentifier | None = None
+
 
 # ================= Creating necessary variables from Secrets ========================
 cqfr4_fhir = os.environ["CQF_RULER_R4"]
@@ -22,6 +32,9 @@ docs_prepend_url = os.environ.get("DOCS_PREPEND_URL", "")
 deploy_url = os.environ.get("DEPLOY_URL", "http://example.org/")
 db_connection_string = os.environ.get("DB_CONNECTION_STRING", "sqlite+pysqlite:///rcapi_jobs.sqlite")
 db_schema = os.environ.get("DB_SCHEMA", "rcapi")
+
+primary_identifier_system = os.environ.get("PRIMARYIDENTIFIER_SYSTEM")
+primary_identifier_label = os.environ.get("PRIMARYIDENTIFIER_LABEL")
 
 if cqfr4_fhir[-1] != "/":
     cqfr4_fhir += "/"
@@ -39,3 +52,5 @@ session: Session = Session()
 retries: Retry = Retry(total=5, allowed_methods={"GET", "POST", "PUT", "DELETE"}, status_forcelist=[500])
 session.mount("https://", HTTPAdapter(max_retries=retries))
 session.mount("http://", HTTPAdapter(max_retries=retries))
+
+config_endpoint: ConfigEndpointModel | dict = ConfigEndpointModel.model_validate({"primaryIdentifier": {"system": primary_identifier_system, "label": primary_identifier_label}}) if primary_identifier_system else {}
