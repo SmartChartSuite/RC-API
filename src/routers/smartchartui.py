@@ -183,10 +183,11 @@ def get_batch_job_results(id: str):
     # 4. Create collection bundle wrapper.
     #   a. Insert status observation into first entry of collection bundle wrapper.
     #   b. Insert all other resources into the entries of collection bundle wrapper.
-    bundle = Bundle(**create_results_bundle(status_observation, result_list))
+    # bundle = Bundle(**create_results_bundle(status_observation, result_list))
+    bundle = create_results_bundle(status_observation, result_list)
 
     # 5. Return bundle to user.
-    return PrettyJSONResponse(bundle.dict(exclude_none=True))
+    return PrettyJSONResponse(bundle)
 
 
 @smartchart_router.post("/smartchartui/batchjob", response_class=PrettyJSONResponse)
