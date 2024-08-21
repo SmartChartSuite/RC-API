@@ -30,7 +30,7 @@ internal_fhir_client = FhirClient(os.getenv("CQF_RULER_R4"))
 smartchart_router = APIRouter()
 
 
-@smartchart_router.get("/smartchartui/patient/{patient_id}", response_class=PrettyJSONResponse)
+@smartchart_router.get("/smartchartui/Patient/{patient_id}", response_class=PrettyJSONResponse)
 def read_patient(patient_id: str):
     """Read a Patient resource from the external FHIR Server (e.g. Epic)"""
     if "/" in patient_id:
@@ -41,6 +41,22 @@ def read_patient(patient_id: str):
 
 def extract_patient_id(patient_id: str):
     return patient_id.split("/")[-1]
+
+
+@smartchart_router.get("/smartchartui/Patient", response_class=PrettyJSONResponse)
+def search_patient(identifier: str | None = None, name: str | None = None, birthdate: str | None = None, _id: str | None = None):
+    if _id:
+        return external_fhir_client.searchResource("Patient", parameters={"_id": _id})
+    if identifier:
+        return external_fhir_client.searchResource("Patient", parameters={"identifier": identifier})
+    if name and birthdate:
+        return external_fhir_client.searchResource("Patient", parameters={"name": name, "birthdate": birthdate})
+    if name:
+        return external_fhir_client.searchResource("Patient", parameters={"name": name})
+    if birthdate:
+        return external_fhir_client.searchResource("Patient", parameters={"birthdate": birthdate})
+
+    return external_fhir_client.searchResource("Patient")
 
 
 @smartchart_router.get("/smartchartui/group")
@@ -339,9 +355,8 @@ def create_bundle_entry(resource):
 
 
 def add_status_to_batch_job(batch_job: dict) -> dict:
-
     new_params: list[dict] = batch_job["parameter"]
-    batch_job_id= new_params[get_param_index(new_params, "batchId")]["valueString"]
+    batch_job_id = new_params[get_param_index(new_params, "batchId")]["valueString"]
 
     child_job_statuses = get_child_job_statuses(batch_job_id=batch_job_id)
     complete_bool = all([value == "complete" for value in child_job_statuses.values()])
