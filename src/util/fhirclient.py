@@ -30,8 +30,8 @@ class FhirClient:
         response = session.get(f"{self.server_base}/{resource_type}/{id}", headers=headers).json()
         return response
 
-    def searchResource(self, resource_type: str, parameters=None, flatten=False):
-        searchset = session.get(f"{self.server_base}/{resource_type}", auth=self.basic_auth).json()
+    def searchResource(self, resource_type: str, parameters: dict | None = None, flatten=False):
+        searchset = session.get(f"{self.server_base}/{resource_type}", auth=self.basic_auth, params=parameters).json()
         if flatten:
             resource_list = []
             for entry in searchset["entry"]:
