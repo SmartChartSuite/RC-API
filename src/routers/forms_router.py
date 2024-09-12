@@ -104,7 +104,7 @@ def start_jobs_header_function(post_body: StartJobsParameters, background_tasks:
         logger.info("Added to jobs array")
         background_tasks.add_task(start_async_jobs, post_body, new_job.parameter[uid_param_index].valueString)  # type: ignore
         logger.info("Added background task")
-        return JSONResponse(content=new_job.model_dump(), headers={"Location": f"/forms/status/{new_job.parameter[uid_param_index].valueString}"})  # type: ignore
+        return JSONResponse(content=new_job.model_dump(exclude_none=True), headers={"Location": f"/forms/status/{new_job.parameter[uid_param_index].valueString}"})  # type: ignore
 
     return start_jobs(post_body)
 
