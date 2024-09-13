@@ -40,6 +40,8 @@ def save_cql(code: str = Body(...)):
     if isinstance(resource_id, ValueError):
         return JSONResponse(content=make_operation_outcome("invalid", "Value Error"), status_code=400)
     # TODO: Add additional error handling.
+    if isinstance(resource_id, dict) and "resourceType" in resource_id and resource_id["resourceType"] == "OperationOutcome":
+        return JSONResponse(content=resource_id, status_code=500)
     return JSONResponse(content=make_operation_outcome("informational", f"Resource successfully posted with id {resource_id}", severity="information"), status_code=201)
 
 

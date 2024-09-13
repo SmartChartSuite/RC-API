@@ -156,7 +156,7 @@ def get_job_status(uid: str):
             else:
                 return jobs[uid]
         except KeyError:
-            return jobs[uid]
+            return jobs[uid].model_dump(exclude_none=True)
     except KeyError:
         return JSONResponse(
             content=make_operation_outcome("code-invalid", f"The {uid} job id was not found as an async job. Please try running the jobPackage again with a new job id."), status_code=404
