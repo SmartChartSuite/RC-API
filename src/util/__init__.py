@@ -1,3 +1,5 @@
-'''Intialization file for util module'''
+"""Intialization file for util module"""
+
 import logging
-logger = logging.getLogger('rcapi.util')
+
+logger = logging.getLogger("rcapi.util")
