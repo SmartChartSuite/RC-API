@@ -11,6 +11,7 @@ from fhir.resources.R4B.bundle import Bundle
 from fhir.resources.R4B.list import List
 from fhir.resources.R4B.parameters import Parameters
 from fhir.resources.R4B.patient import Patient
+from fhir.resources.R4B.operationoutcome import OperationOutcome
 
 from src.models.batchjob import BatchParametersJob, StartBatchJobsParameters
 from src.models.forms import get_form
@@ -176,7 +177,12 @@ def get_batch_job_results(id: str):
                 for entry in result.entry:
                     result_list.append(entry.resource.json())  # type: ignore
             except BaseException as e:
-                logger.error(e)
+                if isinstance(result, OperationOutcome):
+                    logger.error("OperationOutcome found in job results, reporting diagnostics strings:")
+                    for issue in result.issue:
+                        logger.error("    " + issue.diagnostics) # type: ignore
+                else:
+                    logger.error(e)
                 logger.error(f"Error parsing job: {job_id}")
         else:
             status_list.append("inProgress")
@@ -353,13 +359,14 @@ def create_results_bundle(status_observation, results_list: list):
             patient_id = res["id"]
     if patient_id:
         true_patient = external_fhir_client.readResource("Patient", patient_id)
-        results_list.insert(0, status_observation)
-        results_list.insert(1, true_patient)
+        return_entries = [create_bundle_entry(resource) for resource in results_list if not create_bundle_entry(resource)["fullUrl"].startswith("Patient")]
+        return_entries.insert(0, create_bundle_entry(status_observation))
+        return_entries.insert(1, create_bundle_entry(true_patient))
         return {
             "resourceType": "Bundle",
             "type": "collection",
             "total": len(results_list),
-            "entry": [create_bundle_entry(resource) for resource in results_list if not create_bundle_entry(resource)["fullUrl"].startswith("Patient")],
+            "entry": return_entries,
         }
     else:
         results_list.insert(0, status_observation)
