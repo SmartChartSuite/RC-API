@@ -851,7 +851,9 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
                     # Queries for original DocumentReference, adds it to the supporting resources if its not already there or creating a DocumentReference with data from the NLPaaS Return
                     if result.report_id in supporting_nlp_resource_ids:  # Indicates a DocumentReference is already in there
+                        logger.debug(f"Report id {result.report_id} already in supporting references, moving on")
                         continue
+                    logger.debug(f"Report id {result.report_id} not in supporting resources yet")
 
                     # try:
                     #     if external_fhir_server_auth:
@@ -866,7 +868,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     # logger.debug(f'Trying to find supporting resource with id DocumentReference/{result["report_id"]} '
                     #             f'failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle') #type: ignore
 
-                    temp_doc_ref = doc_ref_template
+                    temp_doc_ref = dict(doc_ref_template)
                     temp_doc_ref["id"] = result.report_id
                     temp_doc_ref["date"] = result.report_date if result.report_date else datetime.now().isoformat()
                     temp_doc_ref["identifier"] = [
@@ -898,11 +900,10 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     else:
                         temp_doc_ref["date"] = datetime.strptime(temp_doc_ref["date"], "%Y-%m-%dT%H:%M:%S").strftime("%Y-%m-%dT%H:%M:%SZ")
 
-                    supporting_res_dict = temp_doc_ref
-                    if isinstance(supporting_res_dict["date"], datetime):
-                        supporting_res_dict["date"] = supporting_res_dict["date"].strftime("%Y-%m-%dT%H:%M:%SZ")
+                    if isinstance(temp_doc_ref["date"], datetime):
+                        temp_doc_ref["date"] = temp_doc_ref["date"].strftime("%Y-%m-%dT%H:%M:%SZ")
 
-                    supporting_doc_refs.append(supporting_res_dict)
+                    supporting_doc_refs.append(temp_doc_ref)
                     supporting_nlp_resource_ids.append(temp_doc_ref["id"])
 
                 for tuple_observation in tuple_observations:
