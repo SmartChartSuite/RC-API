@@ -198,7 +198,8 @@ def get_batch_job_results(id: str):
 
     # 4. Create collection bundle wrapper.
     #   a. Insert status observation into first entry of collection bundle wrapper.
-    #   b. Insert all other resources into the entries of collection bundle wrapper.
+    #   b. Call data source and get Patinet and insert into entries of collection bundle wrapper.
+    #   c. Insert all other resources not of type Patient into the entries of collection bundle wrapper.
     # bundle = Bundle(**create_results_bundle(status_observation, result_list))
     bundle = create_results_bundle(status_observation, result_list)
 
@@ -344,8 +345,25 @@ def create_results_status_observation(status: str, status_count: str):
 
 
 def create_results_bundle(status_observation, results_list: list):
-    results_list.insert(0, status_observation)
-    return {"resourceType": "Bundle", "type": "collection", "total": len(results_list), "entry": [create_bundle_entry(resource) for resource in results_list]}
+    patient_id: str = ""
+    for res in results_list:
+        if isinstance(res, str):
+            res = json.loads(res)
+        if res["resourceType"] == "Patient":
+            patient_id = res["id"]
+    if patient_id:
+        true_patient = external_fhir_client.readResource("Patient", patient_id)
+        results_list.insert(0, status_observation)
+        results_list.insert(1, true_patient)
+        return {
+            "resourceType": "Bundle",
+            "type": "collection",
+            "total": len(results_list),
+            "entry": [create_bundle_entry(resource) for resource in results_list if not create_bundle_entry(resource)["fullUrl"].startswith("Patient")],
+        }
+    else:
+        results_list.insert(0, status_observation)
+        return {"resourceType": "Bundle", "type": "collection", "total": len(results_list), "entry": [create_bundle_entry(resource) for resource in results_list]}
 
 
 def create_bundle_entry(resource):
