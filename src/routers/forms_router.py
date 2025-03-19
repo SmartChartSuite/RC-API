@@ -99,12 +99,14 @@ def start_jobs_header_function(post_body: StartJobsParameters, background_tasks:
         starttime_param_index = get_param_index(parameter_list=new_job.parameter, param_name="jobStartDateTime")
         new_job.parameter[uid_param_index].valueString = str(uuid.uuid4())
         new_job.parameter[starttime_param_index].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-        logger.info(f"Created new job with jobId {new_job.parameter[uid_param_index].valueString}")  # type: ignore
-        jobs[new_job.parameter[uid_param_index].valueString] = new_job  # type: ignore
+        tmp_job_id = new_job.parameter[uid_param_index].valueString
+        assert tmp_job_id
+        logger.info(f"Created new job with jobId {tmp_job_id}")
+        jobs[tmp_job_id] = new_job
         logger.info("Added to jobs array")
-        background_tasks.add_task(start_async_jobs, post_body, new_job.parameter[uid_param_index].valueString)  # type: ignore
+        background_tasks.add_task(start_async_jobs, post_body, tmp_job_id)
         logger.info("Added background task")
-        return JSONResponse(content=new_job.model_dump(exclude_none=True), headers={"Location": f"/forms/status/{new_job.parameter[uid_param_index].valueString}"})  # type: ignore
+        return JSONResponse(content=new_job.model_dump(exclude_none=True), headers={"Location": f"/forms/status/{tmp_job_id}"})
 
     return start_jobs(post_body)
 

@@ -75,7 +75,7 @@ def create_cql(cql):
         return resource_id
 
     cql_library["id"] = existing_cql_library["id"]
-    req = session.put(cqfr4_fhir + f'Library/{existing_cql_library["id"]}', json=cql_library)
+    req = session.put(cqfr4_fhir + f"Library/{existing_cql_library['id']}", json=cql_library)
     resource_id = req.json()["id"]
     if isinstance(resource_id, str | int):
         logger.info(f"Updated Library Object on Server with Resource ID {resource_id}")
@@ -141,7 +141,7 @@ def create_nlpql(nlpql):
         return resource_id
     else:
         nlpql_library["id"] = existing_nlpql_library["id"]
-        req = session.put(cqfr4_fhir + f'Library/{existing_nlpql_library["id"]}', json=nlpql_library)
+        req = session.put(cqfr4_fhir + f"Library/{existing_nlpql_library['id']}", json=nlpql_library)
         if req.status_code != 200:
             logger.error(f"Putting Library {name} to server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Putting Library to server failed with code {req.status_code}")

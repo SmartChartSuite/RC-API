@@ -8,88 +8,28 @@ from concurrent.futures import Future
 from datetime import datetime
 from typing import Literal, overload
 
-from fhir.resources.R4B.fhirtypes import Id
 from fhir.resources.R4B.observation import Observation
 from fhir.resources.R4B.operationoutcome import OperationOutcome
-from pydantic import BaseModel
 from requests import Response
 from requests.exceptions import ConnectionError
 from requests_futures.sessions import FuturesSession
 
 from src.models.forms import get_form, run_diagnostic_questionnaire
-from src.models.models import StartJobsParameters
+from src.models.models import StartJobsParameters, FlatNLPQLResult, NLPQLTupleResult
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import cqfr4_fhir, deploy_url, external_fhir_server_auth, external_fhir_server_url, nlpaas_url, session
 
 logger: logging.Logger = logging.getLogger("rcapi.models.functions")
 
 
-class FlatNLPQLResultDisplayObject(BaseModel):
-    date: str | None = None
-    result_content: str | None = None
-    sentence: str | None = None
-    highlights: list[str] | None = None
-    start: list[int] | None = None
-    end: list[int] | None = None
-
-
-class FlatNLPQLResult(BaseModel):
-    _id: str | None = None
-    _ids_1: str | None = None
-    batch: str | None = None
-    concept_code: str | None = None
-    concept_code_system: str | None = None
-    context_type: str | None = None
-    display_name: str | None = None
-    education_level: str | None = None
-    employment_status: str | None = None
-    end: int | None = None
-    experiencer: str | None = None
-    housing: str | None = None
-    immigration_status: str | None = None
-    inserted_date: str | None = None
-    job_date: str | None = None
-    job_id: int | None = None
-    languages: str | None = None
-    negation: str | None = None
-    nlpql_feature: str | None = None
-    nlpql_features_1: str | None = None
-    owner: str | None = None
-    phenotype_final: str | None = None
-    phenotype_id: int | None = None
-    pipeline_id: int | None = None
-    pipeline_type: str | None = None
-    raw_definition_text: str | None = None
-    religion: str | None = None
-    report_date: str | None = None
-    report_id: str | None = None
-    report_type: str | None = None
-    report_text: str | None = None
-    result_display: FlatNLPQLResultDisplayObject
-    section: str | None = None
-    section_header: str | None = None
-    section_text: str | None = None
-    sentence: str | None = None
-    sexual_orientation: str | None = None
-    solr_id: str | None = None
-    source: str | None = None
-    start: str | None = None
-    subject: str | None = None
-    temporality: str | None = None
-    term: str | None = None
-    text: str | None = None
-    tuple: str | None = None
-    value: str | None = None
-
-
 def run_cql(library_ids: list, parameters_post: dict):
     """Create an asynchrounous HTTP Request session for evaluting CQL Libraries"""
 
     futures_session = FuturesSession()
-    futures: list[Future] = []
+    futures: list[Response] = []
     for library_id in library_ids:
         url = cqfr4_fhir + f"Library/{library_id}/$evaluate"
-        future: Future = futures_session.post(url, json=parameters_post)  # type: ignore
+        future: Response = futures_session.post(url, json=parameters_post)
         futures.append(future)
     return futures
 
@@ -98,7 +38,7 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
     """Create an asynchrounous HTTP Request session for evaluting NLPQL Libraries"""
 
     futures_session = FuturesSession()
-    futures: list[Future] = []
+    futures: list[Response] = []
 
     nlpql_post_body = {"patient_id": patient_id, "fhir": {"service_url": external_fhir_server_url_string}}
 
@@ -131,7 +71,7 @@ def run_nlpql(library_ids: list, patient_id: str, external_fhir_server_url_strin
             job_url = job_url[1:]
 
         # Start running jobs
-        future: Future = futures_session.post(nlpaas_url + job_url, json=nlpql_post_body)  # type: ignore
+        future: Response = futures_session.post(nlpaas_url + job_url, json=nlpql_post_body)
         futures.append(future)
     return futures
 
@@ -200,7 +140,7 @@ def get_results(futures: list[list[Future]], libraries: list[list[str]], patient
         results_nlpql = handle_nlpql_futures(nlpql_futures=futures[1], library_names=libraries[1], patient_id=patient_id)
     elif flags[0]:
         logger.debug("CQL Flag only")
-        results_cql = handle_cql_futures(cql_futures=futures[0], library_names=(libraries[0] if isinstance(libraries[0], list) else libraries), patient_id=patient_id)  # type: ignore
+        results_cql = handle_cql_futures(cql_futures=futures[0], library_names=(libraries[0] if isinstance(libraries[0], list) else libraries), patient_id=patient_id) #type: ignore
     elif flags[1] and nlpaas_url != "False":
         logger.debug("NLPQL Flag and NLPaaS URL is not False")
         results_nlpql = handle_nlpql_futures(nlpql_futures=futures[0], library_names=libraries[0], patient_id=patient_id)
@@ -702,17 +642,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
                             tuple_observations.append(supporting_resource_bundle_entry)
 
-                if not tuple_flag and not any(key in answer_obs_bundle_item["resource"] for key in ["focus", "valueString"]):  # type: ignore
+                if not tuple_flag and not any(key in answer_obs_bundle_item["resource"] for key in ["focus", "valueString"]):
                     continue
 
                 # Add items to return bundle entry list
                 if not tuple_flag:
-                    if "valueString" in answer_obs_bundle_item["resource"] and not answer_obs_bundle_item["resource"]["valueString"]:  # type: ignore
-                        del answer_obs_bundle_item["resource"]["valueString"]  # type: ignore
+                    if "valueString" in answer_obs_bundle_item["resource"] and not answer_obs_bundle_item["resource"]["valueString"]:
+                        del answer_obs_bundle_item["resource"]["valueString"]
                     if answer_obs_bundle_item["fullUrl"] not in [item["fullUrl"] for item in bundle_entries]:
-                        bundle_entries.append(answer_obs_bundle_item)  # type: ignore
+                        bundle_entries.append(answer_obs_bundle_item)
                 else:
-                    bundle_entries.extend(tuple_observations)  # type: ignore
+                    bundle_entries.extend(tuple_observations)
                 if supporting_resources is not None:
                     existing_bundle_urls: list[str] = [item["fullUrl"] for item in bundle_entries]
                     bundle_entries.extend([res for res in supporting_resources if res["fullUrl"] not in existing_bundle_urls])
@@ -810,7 +750,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         continue
                     temp_answer_obs = answer_obs_template
                     temp_answer_obs_uuid = str(uuid.uuid4())
-                    temp_answer_obs.id = Id(temp_answer_obs_uuid)
+                    temp_answer_obs.id = temp_answer_obs_uuid
                     temp_answer_obs.identifier[0].value = f"Observation/{temp_answer_obs_uuid}"  # type: ignore
 
                     tuple_str: str | None = result.tuple
@@ -829,11 +769,13 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         value_name = tuple_str_list[i + 4]
                         tuple_dict[key_name] = value_name
 
-                    # TODO: Assert that tuples should have all 4 keys to work
-                    temp_answer_obs.focus = [{"reference": f"DocumentReference/{result.report_id}"}]  # type: ignore
-                    temp_answer_obs.note = [{"text": tuple_dict["sourceNote"]}]  # type: ignore
-                    temp_answer_obs.valueString = tuple_dict["answerValue"]
-                    temp_answer_obs.effectiveDateTime = datetime.strptime(result.report_date, "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")  # type: ignore
+                    tuple_result = NLPQLTupleResult(**tuple_dict)
+                    tuple_result.sourceNote = tuple_result.sourceNote.strip()
+                    temp_answer_obs.focus = [{"reference": f"DocumentReference/{result.report_id}"}]
+                    report_date = result.report_date if result.report_date else datetime.today().strftime("%Y-%m-%d")
+                    temp_answer_obs.effectiveDateTime = datetime.strptime(report_date, "%Y-%m-%d")
+
+                    temp_answer_obs.component = make_obs_component_for_nlp_result(tuple_result=tuple_result, result_type=tuple_result.answerType)
 
                     # Check if an existing match exists to remove duplicates
                     is_duplicate = False
@@ -907,11 +849,11 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     supporting_nlp_resource_ids.append(temp_doc_ref["id"])
 
                 for tuple_observation in tuple_observations:
-                    tuple_bundle_entry = {"fullUrl": f'Observation/{tuple_observation["id"]}', "resource": tuple_observation}
+                    tuple_bundle_entry = {"fullUrl": f"Observation/{tuple_observation['id']}", "resource": tuple_observation}
                     bundle_entries.append(tuple_bundle_entry)
 
                 for doc_ref in supporting_doc_refs:
-                    doc_bundle_entry = {"fullUrl": f'DocumentReference/{doc_ref["id"]}', "resource": doc_ref}
+                    doc_bundle_entry = {"fullUrl": f"DocumentReference/{doc_ref['id']}", "resource": doc_ref}
                     bundle_entries.append(doc_bundle_entry)
 
         return_bundle_nlpql = {"resourceType": "Bundle", "id": str(uuid.uuid4()), "type": "collection", "entry": bundle_entries}
@@ -1115,12 +1057,12 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
 
     if not run_all_jobs:
         # Pull CQL library resource ID from CQF Ruler
-        library_name_ext_split = library.split(".")  # type: ignore
+        library_name_ext_split = library.split(".")
         if len(library_name_ext_split) == 2:
             library_name = library_name_ext_split[0]
             library_type = library_name_ext_split[1]
         else:
-            library_name = library  # type: ignore
+            library_name = library
             library_type = "cql"
 
         req = session.get(cqfr4_fhir + f"Library?name={library_name}&content-type=text/{library_type.lower()}")
@@ -1132,7 +1074,7 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
         try:
             library_server_id = search_bundle["entry"][0]["resource"]["id"]
 
-            logger.info(f"Found Library with name {library} and server id {library_server_id}")  # type: ignore
+            logger.info(f"Found Library with name {library} and server id {library_server_id}")
             try:
                 library_type = search_bundle["entry"][0]["resource"]["content"][0]["contentType"]
             except KeyError:
@@ -1155,14 +1097,14 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
                 logger.error(f"Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.")
                 return make_operation_outcome("invalid", f"Library with name {library_name} was found but content[0].contentType was not found to be text/cql or text/nlpql.")
         except KeyError:
-            logger.error(f"Library with name {library} not found")  # type: ignore
-            return make_operation_outcome("not-found", f"Library with name {library} not found")  # type: ignore
+            logger.error(f"Library with name {library} not found")
+            return make_operation_outcome("not-found", f"Library with name {library} not found")
 
     if has_patient_identifier:
         if external_fhir_server_auth:
-            req = session.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}", headers={"Authorization": external_fhir_server_auth})  # type: ignore
+            req = session.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}", headers={"Authorization": external_fhir_server_auth})
         else:
-            req = session.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}")  # type: ignore
+            req = session.get(external_fhir_server_url + f"/Patient?identifier={patient_identifier}")
         if req.status_code != 200:
             logger.error(f"Getting Patient from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting Patient from server failed with status code {req.status_code}")
@@ -1170,10 +1112,10 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
         search_bundle = req.json()
         try:
             patient_id = search_bundle["entry"][0]["resource"]["id"]
-            logger.info(f"Found Patient with identifier {patient_identifier} and server id {patient_id}")  # type: ignore
+            logger.info(f"Found Patient with identifier {patient_identifier} and server id {patient_id}")
         except KeyError:
-            logger.error(f"Patient with identifier {patient_identifier} not found")  # type: ignore
-            return make_operation_outcome("not-found", f"Patient with identifier {patient_identifier} not found")  # type: ignore
+            logger.error(f"Patient with identifier {patient_identifier} not found")
+            return make_operation_outcome("not-found", f"Patient with identifier {patient_identifier} not found")
 
     # Create parameters post body for library evaluation
     parameters_post = {
@@ -1181,7 +1123,7 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
         "parameter": [
             {
                 "name": "patientId",
-                "valueString": patient_id,  # type: ignore
+                "valueString": patient_id,
             },
             {"name": "context", "valueString": "Patient"},
             {
@@ -1204,12 +1146,12 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
     futures = []
     if cql_flag:
         logger.info("Start submitting CQL jobs")
-        futures_cql = run_cql(cql_library_server_ids, parameters_post)  # type: ignore
+        futures_cql = run_cql(cql_library_server_ids, parameters_post)
         futures.append(futures_cql)
         logger.info("Submitted all CQL jobs")
     if nlpql_flag and nlpaas_url != "False":
         logger.info("Start submitting NLPQL jobs")
-        futures_nlpql = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)  # type: ignore
+        futures_nlpql = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)
         if isinstance(futures_nlpql, dict):
             return futures_nlpql
         futures.append(futures_nlpql)
@@ -1227,7 +1169,7 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
     results_list: tuple[list[dict], list[dict]] = get_results(futures, libraries_to_run, patient_id, [cql_flag, nlpql_flag])  # type: ignore
     results_cql: list[dict] = results_list[0]
     results_nlpql: list[dict] = results_list[1]
-    logger.info(f"Retrieved results for jobs {libraries_to_run}")  # type: ignore
+    logger.info(f"Retrieved results for jobs {libraries_to_run}")
 
     # Upstream request timeout handling
     if isinstance(results_cql, str):
@@ -1244,11 +1186,11 @@ def start_jobs(post_body: StartJobsParameters) -> dict:
 
     # Creates the registry bundle format
     logger.info("Start linking results")
-    bundled_results = create_linked_results([results_cql, results_nlpql], form_name, patient_id)  # type: ignore
+    bundled_results = create_linked_results([results_cql, results_nlpql], form_name, patient_id)
     if bundled_results["resourceType"] == "OperationOutcome":
         logger.error(bundled_results["issue"][0]["diagnostics"])
     else:
-        logger.info(f'Finished linking results, returning Bundle with {bundled_results["total"] if "total" in bundled_results else 0} entries')
+        logger.info(f"Finished linking results, returning Bundle with {bundled_results['total'] if 'total' in bundled_results else 0} entries")
 
     # return Bundle(**bundled_results).dict(exclude_none=True)
     return bundled_results
@@ -1319,3 +1261,44 @@ def get_param_index(parameter_list: list, param_name: str) -> int:
     if isinstance(parameter_list[0], dict):
         return parameter_list.index([param for param in parameter_list if param["name"] == param_name][0])
     return parameter_list.index([param for param in parameter_list if param.name == param_name][0])
+
+
+def make_obs_component_for_nlp_result(tuple_result: NLPQLTupleResult, result_type: str) -> list:
+    component_map = {
+        "generic": [
+            {
+                "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "generic-answer", "display": "Generic Answer"}]},
+                "valueString": tuple_result.answerValue,
+            },
+            {
+                "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "generic-source", "display": "Generic Source"}]},
+                "valueString": tuple_result.sourceNote,
+            },
+        ],
+        "providerassertion": [
+            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "term", "display": "Term"}]}, "valueString": tuple_result.answerValue},
+            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "text-fragment", "display": "Text Fragment"}]}, "valueString": tuple_result.sourceNote},
+        ],
+        "sectionfindertask": [
+            {
+                "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "section-header", "display": "Section Header"}]},
+                "valueString": tuple_result.answerValue,
+            },
+            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "section-text", "display": "Section Text"}]}, "valueString": tuple_result.sourceNote},
+        ],
+        "openaitask": [
+            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "llm-prompt", "display": "LLM Prompt"}]}, "valueString": tuple_result.answerValue},
+            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "llm-answer", "display": "LLM Answer"}]}, "valueString": tuple_result.sourceNote},
+        ],
+    }
+
+    if result_type.lower() not in component_map:
+        logger.warning(f"Received NLP result type of {result_type}, this type is currently not specifically handled in the Answer Observation component making, please add this type to support.")
+        result_type = "Generic"
+
+    output_component = [
+        {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "nlp-answer-type", "display": "NLP Answer Type"}]}, "valueString": result_type},
+    ]
+
+    output_component.extend(component_map[result_type.lower()])
+    return output_component

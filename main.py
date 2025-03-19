@@ -25,7 +25,7 @@ from src.util.git import clone_repo_to_temp_folder
 from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url, log_level
 
 title: str = "SmartChart Suite Results Combining (RC) API"
-version: str = "0.11.0"
+version: str = "0.12.0"
 
 logger: logging.Logger = logging.getLogger("rcapi")
 logger.setLevel(logging.INFO)

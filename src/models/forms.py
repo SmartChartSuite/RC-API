@@ -103,7 +103,7 @@ def run_diagnostic_questionnaire(run_all_jobs: bool, libs_to_run: list, form: di
         "code": {"coding": [{"system": "urn:gtri:heat:form:Diagnostic", "code": str(library_index + 1)}]},
         "subject": {"reference": "Patient/0"},
         "effectiveDateTime": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "valueString": f"Test String Output for Job {str(library_index+1)}",
+        "valueString": f"Test String Output for Job {str(library_index + 1)}",
     }
 
     return_bundle["entry"].append({"fullUrl": f"Observation/{obs_id}", "resource": test_obs})

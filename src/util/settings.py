@@ -53,4 +53,6 @@ retries: Retry = Retry(total=5, allowed_methods={"GET", "POST", "PUT", "DELETE"}
 session.mount("https://", HTTPAdapter(max_retries=retries))
 session.mount("http://", HTTPAdapter(max_retries=retries))
 
-config_endpoint: ConfigEndpointModel | dict = ConfigEndpointModel.model_validate({"primaryIdentifier": {"system": primary_identifier_system, "label": primary_identifier_label}}) if primary_identifier_system else {}
+config_endpoint: ConfigEndpointModel | dict = (
+    ConfigEndpointModel.model_validate({"primaryIdentifier": {"system": primary_identifier_system, "label": primary_identifier_label}}) if primary_identifier_system else {}
+)
