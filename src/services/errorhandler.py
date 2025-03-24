@@ -22,4 +22,4 @@ def make_operation_outcome(code: str, diagnostics: str, severity: str = "error")
             }
         ]
     }
-    return OperationOutcome(**oo_template).model_dump() #type: ignore
+    return OperationOutcome(**oo_template).model_dump()  # type: ignore

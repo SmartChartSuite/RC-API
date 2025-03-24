@@ -140,7 +140,7 @@ def get_results(futures: list[list[Future]], libraries: list[list[str]], patient
         results_nlpql = handle_nlpql_futures(nlpql_futures=futures[1], library_names=libraries[1], patient_id=patient_id)
     elif flags[0]:
         logger.debug("CQL Flag only")
-        results_cql = handle_cql_futures(cql_futures=futures[0], library_names=(libraries[0] if isinstance(libraries[0], list) else libraries), patient_id=patient_id) #type: ignore
+        results_cql = handle_cql_futures(cql_futures=futures[0], library_names=(libraries[0] if isinstance(libraries[0], list) else libraries), patient_id=patient_id)  # type: ignore
     elif flags[1] and nlpaas_url != "False":
         logger.debug("NLPQL Flag and NLPaaS URL is not False")
         results_nlpql = handle_nlpql_futures(nlpql_futures=futures[0], library_names=libraries[0], patient_id=patient_id)
