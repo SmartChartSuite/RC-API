@@ -270,6 +270,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
             for question in group["item"]:
                 current_item_count += 1
                 link_id = question["linkId"]
+                question_text = question["text"]
                 logger.info(f"Working on question {link_id} - {current_item_count}/{total_item_count} ({current_item_count / total_item_count * 100:0.2f}%)")
                 library_task: str = ""
                 cardinality: str = ""
@@ -297,7 +298,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     "identifier": [{"system": deploy_url, "value": f"Observation/{answer_obs_uuid}"}],
                     "status": "final",
                     "category": [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "survey", "display": "Survey"}]}],
-                    "code": {"coding": [{"system": f"urn:gtri:heat:form:{form_name}", "code": link_id}]},
+                    "code": {"coding": [{"system": f"urn:gtri:heat:form:{form_name}", "code": link_id, "display": question_text}]},
                     "effectiveDateTime": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
                     "subject": {"reference": f"Patient/{patient_id}"},
                     "focus": [],
@@ -759,15 +760,16 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         continue
                     logger.debug(f"Found tuple in NLPQL results: {tuple_str}")
 
-                    tuple_dict = {}
-                    tuple_str_list = tuple_str.split('"')
-                    if len(tuple_str_list) > 32:
-                        tuple_str_list[31] = "".join(tuple_str_list[31:])
-                        del tuple_str_list[32:]
-                    for i in range(3, len(tuple_str_list), 8):
-                        key_name = tuple_str_list[i]
-                        value_name = tuple_str_list[i + 4]
-                        tuple_dict[key_name] = value_name
+                    tuple_dict = eval(f'{{{tuple_str}}}')
+                    # Commenting out below to try eval method
+                    # tuple_str_list = tuple_str.split('"')
+                    # if len(tuple_str_list) > 32:
+                    #     tuple_str_list[31] = "".join(tuple_str_list[31:])
+                    #     del tuple_str_list[32:]
+                    # for i in range(3, len(tuple_str_list), 8):
+                    #     key_name = tuple_str_list[i]
+                    #     value_name = tuple_str_list[i + 4]
+                    #     tuple_dict[key_name] = value_name
 
                     tuple_result = NLPQLTupleResult(**tuple_dict)
                     tuple_result.sourceNote = tuple_result.sourceNote.strip()
@@ -1287,8 +1289,8 @@ def make_obs_component_for_nlp_result(tuple_result: NLPQLTupleResult, result_typ
             {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "section-text", "display": "Section Text"}]}, "valueString": tuple_result.sourceNote},
         ],
         "openaitask": [
-            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "llm-prompt", "display": "LLM Prompt"}]}, "valueString": tuple_result.answerValue},
-            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "llm-answer", "display": "LLM Answer"}]}, "valueString": tuple_result.sourceNote},
+            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "llm-prompt", "display": "LLM Prompt"}]}, "valueString": tuple_result.sourceNote},
+            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "llm-answer", "display": "LLM Answer"}]}, "valueString": tuple_result.answerValue},
         ],
     }
 
