@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 
-from psycopg2 import DataError
+from psycopg import DataError
 from sqlalchemy import JSON, Connection, Executable, ForeignKey, Inspector, MetaData, Row, create_engine, inspect, text
 from sqlalchemy.engine import Compiled, Engine
 from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError

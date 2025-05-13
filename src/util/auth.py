@@ -25,7 +25,7 @@ class VerifyToken:
         }
         # This gets the JWKS from a given URL and does processing so you can
         # use any of the keys available
-        jwks_url = f'https://{self.config["DOMAIN"]}/.well-known/jwks.json'
+        jwks_url = f"https://{self.config['DOMAIN']}/.well-known/jwks.json"
         self.jwks_client = jwt.PyJWKClient(jwks_url)
 
     def verify(self):
@@ -41,7 +41,7 @@ class VerifyToken:
             payload = jwt.decode(
                 self.token,
                 self.signing_key,
-                algorithms=self.config["ALGORITHMS"],  # type: ignore
+                algorithms=self.config["ALGORITHMS"],
                 audience=self.config["API_AUDIENCE"],
                 issuer=self.config["ISSUER"],
             )

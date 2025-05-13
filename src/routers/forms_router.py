@@ -1,4 +1,4 @@
-"""Routing file for form-related operations"""
+"""Routing file for form-related operations."""
 
 import logging
 import os
@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import JSONResponse
 from fastapi_restful.tasks import repeat_every
 
-from src.models.forms import convert_jobpackage_csv_to_questionnaire, get_form
+from src.models.forms import convert_jobpackage_csv_to_questionnaire, get_form, save_form_questionnaire
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
 from src.util.settings import cqfr4_fhir, session
@@ -62,31 +62,7 @@ def get_form_endpoint(form_name: str) -> dict:
 
 @router.post("/forms")
 def save_form(questions: dict):
-    """Check to see if library and version of this exists"""
-
-    req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={questions['name']}&version={questions['version']}")
-    if req.status_code != 200:
-        logger.error(f"Trying to get Questionnaire from server failed with status code {req.status_code}")
-        return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
-
-    search_bundle = req.json()
-    try:
-        questionnaire_current_id = search_bundle["entry"][0]["resource"]["id"]
-        logger.info(f"Found Questionnaire with name {questions['name']} and version {questions['version']}")
-        logger.info("Not completing POST operation because a Questionnaire with that name and version already exist on this FHIR Server")
-        logger.info("Change Questionnaire name or version number or use PUT to update this version")
-        return make_operation_outcome("duplicate", f"There is already a Questionnaire with this name with resource id {questionnaire_current_id}")
-    except KeyError:
-        logger.info("Questionnaire with that name not found, continuing POST operation")
-
-    # Create Questionnaire in CQF Ruler
-    req = session.post(cqfr4_fhir + "Questionnaire", json=questions)
-    if req.status_code != 201:
-        logger.error(f"Posting Questionnaire to server failed with status code {req.status_code}")
-        return make_operation_outcome("transient", f"Posting Questionnaire to server failed with code {req.status_code}")
-
-    resource_id = req.json()["id"]
-    return make_operation_outcome("informational", f"Resource successfully posted with id {resource_id}", severity="information")
+    return save_form_questionnaire(questionnaire_dict=questions)
 
 
 @router.post("/forms/start", response_model=None)
@@ -99,12 +75,14 @@ def start_jobs_header_function(post_body: StartJobsParameters, background_tasks:
         starttime_param_index = get_param_index(parameter_list=new_job.parameter, param_name="jobStartDateTime")
         new_job.parameter[uid_param_index].valueString = str(uuid.uuid4())
         new_job.parameter[starttime_param_index].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-        logger.info(f"Created new job with jobId {new_job.parameter[uid_param_index].valueString}")  # type: ignore
-        jobs[new_job.parameter[uid_param_index].valueString] = new_job  # type: ignore
+        tmp_job_id = new_job.parameter[uid_param_index].valueString
+        assert tmp_job_id
+        logger.info(f"Created new job with jobId {tmp_job_id}")
+        jobs[tmp_job_id] = new_job
         logger.info("Added to jobs array")
-        background_tasks.add_task(start_async_jobs, post_body, new_job.parameter[uid_param_index].valueString)  # type: ignore
+        background_tasks.add_task(start_async_jobs, post_body, tmp_job_id)
         logger.info("Added background task")
-        return JSONResponse(content=new_job.model_dump(exclude_none=True), headers={"Location": f"/forms/status/{new_job.parameter[uid_param_index].valueString}"})  # type: ignore
+        return JSONResponse(content=new_job.model_dump(exclude_none=True), headers={"Location": f"/forms/status/{tmp_job_id}"})
 
     return start_jobs(post_body)
 
@@ -189,5 +167,17 @@ def update_form(form_name: str, new_questions: dict):
 
 
 @router.post("/forms/jobPackageToQuestionnaire")
-def convert_jobpackage_to_questionnaire(cql_only: bool = False, smartchart: bool = False, csv_string: str = Body(...)):
-    return convert_jobpackage_csv_to_questionnaire(jobpackage_csv=csv_string, cql_only=cql_only, smartchart=smartchart)
+def convert_jobpackage_to_questionnaire(cql_only: bool = False, smartchart: bool = False, commit: bool = False, csv_string: str = Body(...)):
+    """Converts a Job Package CSV to a FHIR Questionnaire and optionally commits it to the knowledge FHIR server.
+
+    Args:
+        cql_only: A boolean describing if the outputted Questionnaire should only contain CQL logic for questions.
+        smartchart: A boolean to determine if Questionnaire.useContext is filled out to indicate its a SmartChart Questionnaire.
+        commit: A boolean to determine if the converted Questionnaire is commited to the knowledge FHIR server.
+
+    Returns:
+        If commit is True, returns an OperationOutcome about whether or not the commit was successful.
+        If commit is False, returns the Questionnaire generated by the Job Package.
+        Please see the FHIR specification for the format of the OperationOutcome and the Questionnaire.
+    """
+    return convert_jobpackage_csv_to_questionnaire(jobpackage_csv=csv_string, cql_only=cql_only, smartchart=smartchart, commit=commit)

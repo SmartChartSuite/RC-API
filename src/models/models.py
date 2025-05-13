@@ -47,7 +47,7 @@ class JobIDParameter(JobParameter):
     """Job ID Parameter for Job Status support"""
 
     name: str = "jobId"
-    valueString: str = Field(default_factory=uuid4)
+    valueString: str = Field(default_factory=uuid4)  # type: ignore
 
 
 class JobStatusParameter(JobParameter):
@@ -109,3 +109,67 @@ class StartJobsParameters(BaseModel):
             ]
         }
     }
+
+
+class FlatNLPQLResultDisplayObject(BaseModel):
+    date: str | None = None
+    result_content: str | None = None
+    sentence: str | None = None
+    highlights: list[str] | None = None
+    start: list[int] | None = None
+    end: list[int] | None = None
+
+
+class FlatNLPQLResult(BaseModel):
+    _id: str | None = None
+    _ids_1: str | None = None
+    batch: str | None = None
+    concept_code: str | None = None
+    concept_code_system: str | None = None
+    context_type: str | None = None
+    display_name: str | None = None
+    education_level: str | None = None
+    employment_status: str | None = None
+    end: int | None = None
+    experiencer: str | None = None
+    housing: str | None = None
+    immigration_status: str | None = None
+    inserted_date: str | None = None
+    job_date: str | None = None
+    job_id: int | None = None
+    languages: str | None = None
+    negation: str | None = None
+    nlpql_feature: str | None = None
+    nlpql_features_1: str | None = None
+    owner: str | None = None
+    phenotype_final: str | None = None
+    phenotype_id: int | None = None
+    pipeline_id: int | None = None
+    pipeline_type: str | None = None
+    raw_definition_text: str | None = None
+    religion: str | None = None
+    report_date: str | None = None
+    report_id: str | None = None
+    report_type: str | None = None
+    report_text: str | None = None
+    result_display: FlatNLPQLResultDisplayObject
+    section: str | None = None
+    section_header: str | None = None
+    section_text: str | None = None
+    sentence: str | None = None
+    sexual_orientation: str | None = None
+    solr_id: str | None = None
+    source: str | None = None
+    start: str | None = None
+    subject: str | None = None
+    temporality: str | None = None
+    term: str | None = None
+    text: str | None = None
+    tuple: str | None = None
+    value: str | None = None
+
+
+class NLPQLTupleResult(BaseModel):
+    sourceNote: str
+    answerValue: str
+    answerType: str

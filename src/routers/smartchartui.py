@@ -174,13 +174,16 @@ def get_batch_job_results(id: str):
                 job_parameters_resource = Parameters(**job)
                 status_list.append(get_value_from_parameter(job_parameters_resource, "jobStatus", use_iteration_strategy=True, value_key="valueString"))
                 result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
-                for entry in result.entry:
-                    result_list.append(entry.resource.json())  # type: ignore
+                if result.entry:
+                    for entry in result.entry:
+                        result_list.append(entry.resource.json())
+                else:
+                    result_list = []
             except BaseException as e:
                 if isinstance(result, OperationOutcome):
                     logger.error("OperationOutcome found in job results, reporting diagnostics strings:")
                     for issue in result.issue:
-                        logger.error("    " + issue.diagnostics) # type: ignore
+                        logger.error("    " + issue.diagnostics)
                 else:
                     logger.error(e)
                 logger.error(f"Error parsing job: {job_id}")
@@ -289,7 +292,7 @@ def start_child_job_task(start_body: StartJobsParameters, parent_batch_job_id, b
     new_uuid = uuid.uuid4()
     new_job.parameter[uid_param_index].valueString = str(new_uuid)
 
-    job_id = str(new_job.parameter[uid_param_index].valueString)  # type: ignore
+    job_id = str(new_job.parameter[uid_param_index].valueString)
     background_tasks.add_task(run_child_job, new_job, job_id, parent_batch_job_id, start_body)
     return job_id
 
