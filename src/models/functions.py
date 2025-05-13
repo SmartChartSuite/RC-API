@@ -10,6 +10,7 @@ from typing import Literal, overload
 
 from fhir.resources.R4B.observation import Observation
 from fhir.resources.R4B.operationoutcome import OperationOutcome
+from fhir.resources.R4B.documentreference import DocumentReference
 from requests import Response
 from requests.exceptions import ConnectionError
 from requests_futures.sessions import FuturesSession
@@ -799,56 +800,60 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         continue
                     logger.debug(f"Report id {result.report_id} not in supporting resources yet")
 
-                    # try:
-                    #     if external_fhir_server_auth:
-                    #         supporting_resource_req = session.get(external_fhir_server_url+"DocumentReference/"+result['report_id'], headers={'Authorization': external_fhir_server_auth})
-                    #     else:
-                    #         supporting_resource_req  = session.get(external_fhir_server_url+"DocumentReference/"+result['report_id'])
-                    #     supporting_resource_obj = supporting_resource_req.json()
-                    #     supporting_resource_obj['content'] = [content for content in supporting_resource_obj['content'] if 'contentType' in content['attachment'] and content['attachment']['contentType']=='text/plain']
-                    #     supporting_resource = DocumentReference(**supporting_resource_req.json())
-                    # except requests.exceptions.JSONDecodeError:
+                    try:
+                        if external_fhir_server_auth and result.report_id:
+                            supporting_resource_req = session.get(external_fhir_server_url+"DocumentReference/"+result.report_id, headers={'Authorization': external_fhir_server_auth})
+                        elif result.report_id:
+                            supporting_resource_req  = session.get(external_fhir_server_url+"DocumentReference/"+result.report_id)
+                        else:
+                            raise Exception
+                        supporting_resource_obj = supporting_resource_req.json()
+                        supporting_resource_obj['content'] = [content for content in supporting_resource_obj['content'] if 'contentType' in content['attachment'] and content['attachment']['contentType']=='text/plain']
+                        supporting_resource: dict = supporting_resource_req.json()
+                    except Exception as exc:
+                        logger.debug(f"Ran into exception {exc}")
+                        logger.debug(f'Trying to find supporting resource with id DocumentReference/{result.report_id} '
+                            f'failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle')
 
-                    # logger.debug(f'Trying to find supporting resource with id DocumentReference/{result["report_id"]} '
-                    #             f'failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle') #type: ignore
-
-                    temp_doc_ref = dict(doc_ref_template)
-                    temp_doc_ref["id"] = result.report_id
-                    temp_doc_ref["date"] = result.report_date if result.report_date else datetime.now().isoformat()
-                    temp_doc_ref["identifier"] = [
-                        {
-                            "system": deploy_url,
-                            "value": "DocumentReference/" + result.report_id if result.report_id else "0",
+                        temp_doc_ref = dict(doc_ref_template)
+                        temp_doc_ref["id"] = result.report_id
+                        temp_doc_ref["date"] = result.report_date if result.report_date else datetime.now().isoformat()
+                        temp_doc_ref["identifier"] = [
+                            {
+                                "system": deploy_url,
+                                "value": "DocumentReference/" + result.report_id if result.report_id else "0",
+                            }
+                        ]
+                        report_type_map = {
+                            "Radiology Note": {"system": "http://loinc.org", "code": "75490-3", "display": "Radiology Note"},
+                            "Discharge summary": {"system": "http://loinc.org", "code": "18842-5", "display": "Discharge summary"},
+                            "Hospital Note": {"system": "http://loinc.org", "code": "34112-3", "display": "Hospital Note"},
+                            "Pathology consult note": {"system": "http://loinc.org", "code": "60570-9", "display": "Pathology Consult note"},
+                            "Ancillary eye tests Narrative": {"system": "http://loinc.org", "code": "70946-9", "display": "Ancillary eye tests Narrative"},
+                            "Nursing notes": {"system": "http://loinc.org", "code": "46208-5", "display": "Nursing notes"},
+                            "Note": {"system": "http://loinc.org", "code": "34109-9", "display": "Note"},
                         }
-                    ]
-                    report_type_map = {
-                        "Radiology Note": {"system": "http://loinc.org", "code": "75490-3", "display": "Radiology Note"},
-                        "Discharge summary": {"system": "http://loinc.org", "code": "18842-5", "display": "Discharge summary"},
-                        "Hospital Note": {"system": "http://loinc.org", "code": "34112-3", "display": "Hospital Note"},
-                        "Pathology consult note": {"system": "http://loinc.org", "code": "60570-9", "display": "Pathology Consult note"},
-                        "Ancillary eye tests Narrative": {"system": "http://loinc.org", "code": "70946-9", "display": "Ancillary eye tests Narrative"},
-                        "Nursing notes": {"system": "http://loinc.org", "code": "46208-5", "display": "Nursing notes"},
-                        "Note": {"system": "http://loinc.org", "code": "34109-9", "display": "Note"},
-                    }
 
-                    temp_doc_ref["type"]["coding"] = [report_type_map[result.report_type] if result.report_type and result.report_type in report_type_map else report_type_map["Note"]]
+                        temp_doc_ref["type"]["coding"] = [report_type_map[result.report_type] if result.report_type and result.report_type in report_type_map else report_type_map["Note"]]
 
-                    doc_bytes = result.report_text.encode("utf-8") if result.report_text else "No Document Text Available".encode("utf-8")
-                    base64_bytes = base64.b64encode(doc_bytes)
-                    base64_doc = base64_bytes.decode("utf-8")
+                        doc_bytes = result.report_text.encode("utf-8") if result.report_text else "No Document Text Available".encode("utf-8")
+                        base64_bytes = base64.b64encode(doc_bytes)
+                        base64_doc = base64_bytes.decode("utf-8")
 
-                    temp_doc_ref["content"] = [{"attachment": {"contentType": "text/plain", "language": "en-US", "data": base64_doc}}]
+                        temp_doc_ref["content"] = [{"attachment": {"contentType": "text/plain", "language": "en-US", "data": base64_doc}}]
 
-                    if len(temp_doc_ref["date"]) == 10:  # Handles just date and no time for validation
-                        temp_doc_ref["date"] = datetime.strptime(temp_doc_ref["date"], "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")
-                    else:
-                        temp_doc_ref["date"] = datetime.strptime(temp_doc_ref["date"], "%Y-%m-%dT%H:%M:%S").strftime("%Y-%m-%dT%H:%M:%SZ")
+                        if len(temp_doc_ref["date"]) == 10:  # Handles just date and no time for validation
+                            temp_doc_ref["date"] = datetime.strptime(temp_doc_ref["date"], "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")
+                        else:
+                            temp_doc_ref["date"] = datetime.strptime(temp_doc_ref["date"], "%Y-%m-%dT%H:%M:%S").strftime("%Y-%m-%dT%H:%M:%SZ")
 
-                    if isinstance(temp_doc_ref["date"], datetime):
-                        temp_doc_ref["date"] = temp_doc_ref["date"].strftime("%Y-%m-%dT%H:%M:%SZ")
+                        if isinstance(temp_doc_ref["date"], datetime):
+                            temp_doc_ref["date"] = temp_doc_ref["date"].strftime("%Y-%m-%dT%H:%M:%SZ")
 
-                    supporting_doc_refs.append(temp_doc_ref)
-                    supporting_nlp_resource_ids.append(temp_doc_ref["id"])
+                        supporting_resource = temp_doc_ref
+
+                    supporting_doc_refs.append(supporting_resource)
+                    supporting_nlp_resource_ids.append(supporting_resource["id"])
 
                 for tuple_observation in tuple_observations:
                     tuple_bundle_entry = {"fullUrl": f"Observation/{tuple_observation['id']}", "resource": tuple_observation}
