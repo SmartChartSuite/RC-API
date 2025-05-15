@@ -708,6 +708,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
             for question in group["item"]:
                 current_item_count += 1
                 link_id = question["linkId"]
+                question_text  = question["text"]
                 logger.info(f"Working on question {link_id} - {current_item_count}/{total_item_count} ({current_item_count / total_item_count * 100:0.2f}%)")
                 library_task = "."
                 # If the question has these extensions, get their values, if not, keep going
@@ -737,7 +738,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     "status": "final",
                     "identifier": [{"system": deploy_url, "value": "Observation/"}],
                     "category": [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "survey", "display": "Survey"}]}],
-                    "code": {"coding": [{"system": f"urn:gtri:heat:form:{form_name}", "code": link_id}]},
+                    "code": {"coding": [{"system": f"urn:gtri:heat:form:{form_name}", "code": link_id, "display": question_text}]},
                     "focus": [],
                     "subject": {"reference": f"Patient/{patient_resource_id}"},
                 }
