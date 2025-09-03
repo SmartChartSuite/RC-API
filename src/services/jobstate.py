@@ -17,7 +17,7 @@ from src.util.databaseclient import BatchJobs, Jobs, db_engine, execute_orm_no_r
 logger: logging.Logger = logging.getLogger("rcapi.util.jobstate")
 
 
-def add_to_jobs(new_job_body: ParametersJob, job_id, patient_id_type, patient_id, job_package, parent_batch_job_id, job_start_datetime, job_status) -> bool:
+def add_to_jobs(new_job_body: ParametersJob, job_id, patient_id_type, patient_id, job_package, job_package_job, parent_batch_job_id, job_start_datetime, job_status) -> bool:
     current_job_id_list: list[str] = execute_orm_query(db_engine, select(Jobs.job_id))
 
     if job_id not in current_job_id_list:
@@ -27,6 +27,7 @@ def add_to_jobs(new_job_body: ParametersJob, job_id, patient_id_type, patient_id
             patient_id_type=patient_id_type,
             patient_id=patient_id,
             job_package=job_package,
+            job_package_job=job_package_job,
             parent_batch_job_id=parent_batch_job_id,
             job_start_datetime=job_start_datetime,
             job_status=job_status,

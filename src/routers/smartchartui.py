@@ -305,12 +305,14 @@ def run_child_job(new_job: ParametersJob, job_id: str, parent_batch_job_id: str,
     patient_id_key = [item["name"] for item in start_body_dump["parameter"] if item["name"].startswith("patient")][0]
     patient_id = [item["valueString"] for item in start_body_dump["parameter"] if item["name"] == patient_id_key][0]
     job_package = [item["valueString"] for item in start_body_dump["parameter"] if item["name"] == "jobPackage"][0]
+    job_package_job = [item["valueString"] for item in start_body_dump["parameter"] if item["name"] == "job"][0]
     job_added_bool = add_to_jobs(
         new_job_body=new_job,
         job_id=job_id,
         patient_id_type=patient_id_key,
         patient_id=patient_id,
         job_package=job_package,
+        job_package_job=job_package_job,
         parent_batch_job_id=parent_batch_job_id,
         job_start_datetime=tmp_job_obj.parameter[starttime_param_index].valueDateTime,
         job_status="inProgress",

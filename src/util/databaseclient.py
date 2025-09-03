@@ -124,6 +124,7 @@ class Jobs(BaseRCAPI):
     patient_id_type: Mapped[str]
     patient_id: Mapped[str]
     job_package: Mapped[str]
+    job_package_job: Mapped[str]
     job_start_datetime: Mapped[datetime]
     job_status: Mapped[str]
     job: Mapped[dict | None]
