@@ -10,7 +10,6 @@ from typing import Literal, overload
 
 from fhir.resources.R4B.observation import Observation
 from fhir.resources.R4B.operationoutcome import OperationOutcome
-from fhir.resources.R4B.documentreference import DocumentReference
 from requests import Response
 from requests.exceptions import ConnectionError
 from requests_futures.sessions import FuturesSession
@@ -708,7 +707,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
             for question in group["item"]:
                 current_item_count += 1
                 link_id = question["linkId"]
-                question_text  = question["text"]
+                question_text = question["text"]
                 logger.info(f"Working on question {link_id} - {current_item_count}/{total_item_count} ({current_item_count / total_item_count * 100:0.2f}%)")
                 library_task = "."
                 # If the question has these extensions, get their values, if not, keep going
@@ -762,7 +761,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         continue
                     logger.debug(f"Found tuple in NLPQL results: {tuple_str}")
 
-                    tuple_dict = eval(f'{{{tuple_str}}}')
+                    tuple_dict = eval(f"{{{tuple_str}}}")
                     # Commenting out below to try eval method
                     # tuple_str_list = tuple_str.split('"')
                     # if len(tuple_str_list) > 32:
@@ -773,13 +772,20 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     #     value_name = tuple_str_list[i + 4]
                     #     tuple_dict[key_name] = value_name
 
-                    tuple_result = NLPQLTupleResult(**tuple_dict)
+                    tuple_result = NLPQLTupleResult(
+                        sourceNote=tuple_dict["sourceNote"],
+                        answerValue=(eval(tuple_dict["answerValue"]) if "{" in tuple_dict["answerValue"] else tuple_dict["answerValue"]),
+                        answerType=tuple_dict["answerType"],
+                    )
                     tuple_result.sourceNote = tuple_result.sourceNote.strip()
                     temp_answer_obs.focus = [{"reference": f"DocumentReference/{result.report_id}"}]
                     report_date = result.report_date if result.report_date else datetime.today().strftime("%Y-%m-%d")
                     temp_answer_obs.effectiveDateTime = datetime.strptime(report_date, "%Y-%m-%d")
 
-                    temp_answer_obs.component = make_obs_component_for_nlp_result(tuple_result=tuple_result, result_type=tuple_result.answerType)
+                    if tuple_result.answerType:  # Check to make sure the answer value isnt an empty dictionary
+                        temp_answer_obs.component = make_obs_component_for_nlp_result(tuple_result=tuple_result, result_type=tuple_result.answerType)
+                    else:
+                        continue
 
                     # Check if an existing match exists to remove duplicates
                     is_duplicate = False
@@ -803,18 +809,22 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
 
                     try:
                         if external_fhir_server_auth and result.report_id:
-                            supporting_resource_req = session.get(external_fhir_server_url+"DocumentReference/"+result.report_id, headers={'Authorization': external_fhir_server_auth})
+                            supporting_resource_req = session.get(external_fhir_server_url + "DocumentReference/" + result.report_id, headers={"Authorization": external_fhir_server_auth})
                         elif result.report_id:
-                            supporting_resource_req  = session.get(external_fhir_server_url+"DocumentReference/"+result.report_id)
+                            supporting_resource_req = session.get(external_fhir_server_url + "DocumentReference/" + result.report_id)
                         else:
                             raise Exception
                         supporting_resource_obj = supporting_resource_req.json()
-                        supporting_resource_obj['content'] = [content for content in supporting_resource_obj['content'] if 'contentType' in content['attachment'] and content['attachment']['contentType']=='text/plain']
+                        supporting_resource_obj["content"] = [
+                            content for content in supporting_resource_obj["content"] if "contentType" in content["attachment"] and content["attachment"]["contentType"] == "text/plain"
+                        ]
                         supporting_resource: dict = supporting_resource_req.json()
                     except Exception as exc:
                         logger.debug(f"Ran into exception {exc}")
-                        logger.debug(f'Trying to find supporting resource with id DocumentReference/{result.report_id} '
-                            f'failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle')
+                        logger.debug(
+                            f"Trying to find supporting resource with id DocumentReference/{result.report_id} "
+                            f"failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle"
+                        )
 
                         temp_doc_ref = dict(doc_ref_template)
                         temp_doc_ref["id"] = result.report_id
@@ -1272,35 +1282,7 @@ def get_param_index(parameter_list: list, param_name: str) -> int:
 
 
 def make_obs_component_for_nlp_result(tuple_result: NLPQLTupleResult, result_type: str) -> list:
-    component_map = {
-        "generic": [
-            {
-                "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "generic-answer", "display": "Generic Answer"}]},
-                "valueString": tuple_result.answerValue,
-            },
-            {
-                "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "generic-source", "display": "Generic Source"}]},
-                "valueString": tuple_result.sourceNote,
-            },
-        ],
-        "providerassertion": [
-            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "term", "display": "Term"}]}, "valueString": tuple_result.answerValue},
-            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "text-fragment", "display": "Text Fragment"}]}, "valueString": tuple_result.sourceNote},
-        ],
-        "sectionfindertask": [
-            {
-                "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "section-header", "display": "Section Header"}]},
-                "valueString": tuple_result.answerValue,
-            },
-            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "section-text", "display": "Section Text"}]}, "valueString": tuple_result.sourceNote},
-        ],
-        "openaitask": [
-            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "llm-prompt", "display": "LLM Prompt"}]}, "valueString": tuple_result.sourceNote},
-            {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "llm-answer", "display": "LLM Answer"}]}, "valueString": tuple_result.answerValue},
-        ],
-    }
-
-    if result_type.lower() not in component_map:
+    if result_type.lower() not in ["generic", "providerassertion", "sectionfindertask", "openaitask"]:
         logger.warning(f"Received NLP result type of {result_type}, this type is currently not specifically handled in the Answer Observation component making, please add this type to support.")
         result_type = "Generic"
 
@@ -1308,5 +1290,65 @@ def make_obs_component_for_nlp_result(tuple_result: NLPQLTupleResult, result_typ
         {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "nlp-answer-type", "display": "NLP Answer Type"}]}, "valueString": result_type},
     ]
 
-    output_component.extend(component_map[result_type.lower()])
+    match result_type.lower():
+        case "generic":
+            output_component.extend(
+                [
+                    {
+                        "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "generic-answer", "display": "Generic Answer"}]},
+                        "valueString": tuple_result.answerValue,
+                    },
+                    {
+                        "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "generic-source", "display": "Generic Source"}]},
+                        "valueString": tuple_result.sourceNote,
+                    },
+                ]
+            )
+        case "providerassertion":
+            output_component.extend(
+                [
+                    {"code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "term", "display": "Term"}]}, "valueString": tuple_result.answerValue},
+                    {
+                        "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "text-fragment", "display": "Text Fragment"}]},
+                        "valueString": tuple_result.sourceNote,
+                    },
+                ]
+            )
+        case "sectionfindertask":
+            output_component.extend(
+                [
+                    {
+                        "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "section-header", "display": "Section Header"}]},
+                        "valueString": tuple_result.answerValue,
+                    },
+                    {
+                        "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "section-text", "display": "Section Text"}]},
+                        "valueString": tuple_result.sourceNote,
+                    },
+                ]
+            )
+        case "openaitask":
+            assert isinstance(tuple_result.answerValue, dict)
+            output_component.extend(
+                [
+                    {
+                        "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": key.replace("_", "-"), "display": " ".join(key.split("_")).title()}]},
+                        "valueString": value,
+                    }
+                    for key, value in tuple_result.answerValue.items()
+                ]
+            )
+        case _:
+            output_component.extend(
+                [
+                    {
+                        "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "generic-answer", "display": "Generic Answer"}]},
+                        "valueString": tuple_result.answerValue,
+                    },
+                    {
+                        "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/nlp-answer-type-label", "code": "generic-source", "display": "Generic Source"}]},
+                        "valueString": tuple_result.sourceNote,
+                    },
+                ]
+            )
     return output_component

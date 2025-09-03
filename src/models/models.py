@@ -115,7 +115,7 @@ class FlatNLPQLResultDisplayObject(BaseModel):
     date: str | None = None
     result_content: str | None = None
     sentence: str | None = None
-    highlights: list[str] | None = None
+    highlights: list | None = None
     start: list[int] | None = None
     end: list[int] | None = None
 
@@ -166,10 +166,10 @@ class FlatNLPQLResult(BaseModel):
     term: str | None = None
     text: str | None = None
     tuple: str | None = None
-    value: str | None = None
+    value: str | dict | None = None
 
 
 class NLPQLTupleResult(BaseModel):
     sourceNote: str
-    answerValue: str
+    answerValue: str | dict
     answerType: str
