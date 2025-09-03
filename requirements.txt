@@ -1,8 +1,9 @@
-fastapi-restful==0.6.0
 fastapi==0.115.11
+fastapi-restful==0.6.0
 fhir.resources==8.0.0
 gitpython==3.1.46
 hypercorn==0.17.3
+pre-commit==4.3.0
 psycopg==3.2.6
 pyjwt[crypto]==2.10.1
 requests==2.32.4
