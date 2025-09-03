@@ -13,7 +13,6 @@ from fastapi.openapi.docs import (
 )
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from src.models.functions import make_operation_outcome
@@ -125,7 +124,6 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 if api_docs.lower() == "true":
@@ -137,8 +135,6 @@ if api_docs.lower() == "true":
             openapi_url=docs_prepend_url + app.openapi_url,  # type: ignore
             title=app.title + " - Swagger UI",
             oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
-            swagger_js_url="static/swagger-ui-bundle.js",
-            swagger_css_url="static/swagger-ui.css",
         )
 
     @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)  # type: ignore
@@ -152,5 +148,4 @@ if api_docs.lower() == "true":
         return get_redoc_html(
             openapi_url=docs_prepend_url + app.openapi_url,  # type: ignore
             title=app.title + " - ReDoc",
-            redoc_js_url="static/redoc.standalone.js",
         )
