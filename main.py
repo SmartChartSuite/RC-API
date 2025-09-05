@@ -24,7 +24,7 @@ from src.util.git import clone_repo_to_temp_folder
 from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url, log_level
 
 title: str = "SmartChart Suite Results Combining (RC) API"
-version: str = "0.12.0"
+version: str = "0.13.0"
 
 logger: logging.Logger = logging.getLogger("rcapi")
 logger.setLevel(logging.INFO)
@@ -131,13 +131,16 @@ if api_docs.lower() == "true":
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
         """Custom Swagger UI HTML"""
+        assert app.openapi_url
         return get_swagger_ui_html(
-            openapi_url=docs_prepend_url + app.openapi_url,  # type: ignore
+            openapi_url=docs_prepend_url + app.openapi_url,
             title=app.title + " - Swagger UI",
             oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
         )
 
-    @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)  # type: ignore
+    assert app.swagger_ui_oauth2_redirect_url
+
+    @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)
     async def swagger_ui_redirect():
         """Custom Swagger UI Redirect"""
         return get_swagger_ui_oauth2_redirect_html()
@@ -145,7 +148,8 @@ if api_docs.lower() == "true":
     @app.get("/redoc", include_in_schema=False)
     async def redoc_html():
         """Custom Redoc HTML"""
+        assert app.openapi_url
         return get_redoc_html(
-            openapi_url=docs_prepend_url + app.openapi_url,  # type: ignore
+            openapi_url=docs_prepend_url + app.openapi_url,
             title=app.title + " - ReDoc",
         )

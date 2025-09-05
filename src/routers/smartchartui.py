@@ -9,9 +9,9 @@ from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fhir.resources.R4B.bundle import Bundle
 from fhir.resources.R4B.list import List
+from fhir.resources.R4B.operationoutcome import OperationOutcome
 from fhir.resources.R4B.parameters import Parameters
 from fhir.resources.R4B.patient import Patient
-from fhir.resources.R4B.operationoutcome import OperationOutcome
 
 from src.models.batchjob import BatchParametersJob, StartBatchJobsParameters
 from src.models.forms import get_form
@@ -21,7 +21,7 @@ from src.responsemodels.prettyjson import PrettyJSONResponse
 from src.services.jobhandler import get_job_list_from_form, get_value_from_parameter, update_patient_resource_in_parameters
 from src.services.jobstate import add_to_batch_jobs, add_to_jobs, delete_batch_job, get_all_batch_jobs, get_batch_job, get_child_job_statuses, get_job, update_job_to_complete
 from src.util.fhirclient import FhirClient
-from src.util.settings import session
+from src.util.settings import httpx_client
 
 logger: logging.Logger = logging.getLogger("rcapi.routers.smartchartui")
 
@@ -32,12 +32,12 @@ smartchart_router = APIRouter()
 
 
 @smartchart_router.get("/smartchartui/Patient/{patient_id}", response_class=PrettyJSONResponse)
-def read_patient(patient_id: str):
+def read_patient(patient_id: str) -> dict:
     """Read a Patient resource from the external FHIR Server (e.g. Epic)"""
     if "/" in patient_id:
         patient_id = extract_patient_id(patient_id)
     response = external_fhir_client.readResource("Patient", patient_id)
-    return response
+    return response.json()
 
 
 def extract_patient_id(patient_id: str):
@@ -67,7 +67,7 @@ def search_group():
     is handled in this API due to that the Patient resources which are members of the Group exist on a second server.
     """
     logger.info(f"Looking for groups on server {internal_fhir_client.server_base}")
-    resource_list: list = internal_fhir_client.searchResource("Group", flatten=True)
+    resource_list: list = internal_fhir_client.searchResource(resource_type="Group", flatten=True)
     group_list: list = deepcopy(resource_list)
     output_list: list = []
     for group in group_list:
@@ -75,7 +75,7 @@ def search_group():
         for member in group["member"]:
             patient_reference: str = member["entity"]["reference"]
             try:
-                patient_resource = session.get(patient_reference).json()
+                patient_resource: dict = httpx_client.get(patient_reference).json()
                 output_list.append(patient_resource)
             except Exception:
                 logger.error(f"There was an issue collecting the Patient resource from the following URL: {patient_reference}")
@@ -86,7 +86,7 @@ def search_group():
 # TODO: Does this need to exist? Duplciates get form from routers.py. Need to consider if there is another way data may be returned.
 @smartchart_router.get("/smartchartui/questionnaire")
 def search_questionnaire():
-    response = internal_fhir_client.searchResource("Questionnaire?context=smartchartui", flatten=True)
+    response: list = internal_fhir_client.searchResource("Questionnaire?context=smartchartui", flatten=True)
     return response
 
 
@@ -297,7 +297,7 @@ def start_child_job_task(start_body: StartJobsParameters, parent_batch_job_id, b
     return job_id
 
 
-def run_child_job(new_job: ParametersJob, job_id: str, parent_batch_job_id: str, start_body: StartJobsParameters):
+async def run_child_job(new_job: ParametersJob, job_id: str, parent_batch_job_id: str, start_body: StartJobsParameters):
     tmp_job_obj = new_job
     starttime_param_index = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobStartDateTime"][0])
     tmp_job_obj.parameter[starttime_param_index].valueDateTime = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -321,7 +321,7 @@ def run_child_job(new_job: ParametersJob, job_id: str, parent_batch_job_id: str,
         logger.info(f"Created new job with jobId {job_id}")
     else:
         logger.error(f"Error creating job with jobId {job_id}")
-    job_result = start_jobs(start_body)
+    job_result = await start_jobs(start_body)
     update_job_to_complete(job_id, job_result)
 
 
@@ -363,7 +363,7 @@ def create_results_bundle(status_observation, results_list: list):
         if res["resourceType"] == "Patient":
             patient_id = res["id"]
     if patient_id:
-        true_patient = external_fhir_client.readResource("Patient", patient_id)
+        true_patient: dict = external_fhir_client.readResource("Patient", patient_id).json()
         return_entries = [create_bundle_entry(resource) for resource in results_list if not create_bundle_entry(resource)["fullUrl"].startswith("Patient")]
         return_entries.insert(0, create_bundle_entry(status_observation))
         return_entries.insert(1, create_bundle_entry(true_patient))
@@ -378,7 +378,7 @@ def create_results_bundle(status_observation, results_list: list):
         return {"resourceType": "Bundle", "type": "collection", "total": len(results_list), "entry": [create_bundle_entry(resource) for resource in results_list]}
 
 
-def create_bundle_entry(resource):
+def create_bundle_entry(resource: dict):
     if isinstance(resource, str):
         resource = json.loads(resource)
     return {"fullUrl": f"{resource['resourceType']}/{resource['id']}", "resource": resource}

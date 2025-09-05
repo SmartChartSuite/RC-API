@@ -10,9 +10,10 @@ from datetime import datetime
 from typing import Literal, overload
 
 from fhir.resources.R4B.questionnaire import Questionnaire
+import httpx
 
 from src.services.errorhandler import make_operation_outcome
-from src.util.settings import cqfr4_fhir, session
+from src.util.settings import cqfr4_fhir, httpx_client
 from static.diagnostic_questionnaire import diagnostic_questionnaire
 
 logger: logging.Logger = logging.getLogger("rcapi.models.forms")
@@ -39,7 +40,7 @@ questionnaire_template = {
 
 def save_form_questionnaire(questionnaire_dict: dict):
     # Check if Questionnaire with this name and version exist
-    req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={questionnaire_dict['name']}&version={questionnaire_dict['version']}")
+    req: httpx.Response = httpx_client.get(cqfr4_fhir + f"Questionnaire?name:exact={questionnaire_dict['name']}&version={questionnaire_dict['version']}")
     if req.status_code != 200:
         logger.error(f"Trying to get Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
@@ -55,7 +56,7 @@ def save_form_questionnaire(questionnaire_dict: dict):
         logger.info("Questionnaire with that name not found, continuing POST operation")
 
     # Create Questionnaire in CQF Ruler
-    req = session.post(cqfr4_fhir + "Questionnaire", json=questionnaire_dict)
+    req = httpx_client.post(cqfr4_fhir + "Questionnaire", json=questionnaire_dict)
     if req.status_code != 201:
         logger.error(f"Posting Questionnaire to server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Posting Questionnaire to server failed with code {req.status_code}")
@@ -81,12 +82,12 @@ def get_form(form_name: str, form_version: str | None = None, return_Questionnai
         return diagnostic_questionnaire
 
     if form_version:
-        req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&version={form_version}")
+        req: httpx.Response = httpx_client.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&version={form_version}")
         if req.status_code != 200:
             logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
     else:
-        req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&_sort=-_lastUpdated")
+        req = httpx_client.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&_sort=-_lastUpdated")
         if req.status_code != 200:
             logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")

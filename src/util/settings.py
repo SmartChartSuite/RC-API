@@ -3,10 +3,8 @@
 import logging
 import os
 
+import httpx
 from pydantic import BaseModel
-from requests import Session
-from requests.adapters import HTTPAdapter
-from urllib3.util import Retry
 
 logger: logging.Logger = logging.getLogger("rcapi.util.settings")
 
@@ -48,10 +46,8 @@ if deploy_url[-1] != "/":
 if nlpaas_url[-1] != "/":
     nlpaas_url += "/"
 
-session: Session = Session()
-retries: Retry = Retry(total=5, allowed_methods={"GET", "POST", "PUT", "DELETE"}, status_forcelist=[500])
-session.mount("https://", HTTPAdapter(max_retries=retries))
-session.mount("http://", HTTPAdapter(max_retries=retries))
+transport: httpx.HTTPTransport = httpx.HTTPTransport(retries=5)
+httpx_client: httpx.Client = httpx.Client(transport=transport)
 
 config_endpoint: ConfigEndpointModel | dict = (
     ConfigEndpointModel.model_validate({"primaryIdentifier": {"system": primary_identifier_system, "label": primary_identifier_label}}) if primary_identifier_system else {}
