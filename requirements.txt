@@ -1,5 +1,5 @@
 fastapi-restful==0.6.0
-fastapi==0.115.11
+fastapi==0.133.1
 fhir.resources==8.0.0
 gitpython==3.1.46
 hypercorn==0.17.3
