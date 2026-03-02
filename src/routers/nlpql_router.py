@@ -1,16 +1,13 @@
 """Router file for NLPQL-related operations"""
 
-import logging
-
 import httpx
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 from src.models.functions import make_operation_outcome
 from src.services.libraryhandler import create_nlpql, get_library
 from src.util.settings import cqfr4_fhir, httpx_client
-
-logger: logging.Logger = logging.getLogger("rcapi.routers.nlpql_router")
 
 router = APIRouter()
 

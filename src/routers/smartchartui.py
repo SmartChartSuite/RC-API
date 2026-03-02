@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import uuid
 from copy import deepcopy
@@ -12,6 +11,7 @@ from fhir.resources.R4B.list import List
 from fhir.resources.R4B.operationoutcome import OperationOutcome
 from fhir.resources.R4B.parameters import Parameters
 from fhir.resources.R4B.patient import Patient
+from loguru import logger
 
 from src.models.batchjob import BatchParametersJob, StartBatchJobsParameters
 from src.models.forms import get_form
@@ -22,8 +22,6 @@ from src.services.jobhandler import get_job_list_from_form, get_value_from_param
 from src.services.jobstate import add_to_batch_jobs, add_to_jobs, delete_batch_job, get_all_batch_jobs, get_batch_job, get_child_job_statuses, get_job, update_job_to_complete
 from src.util.fhirclient import FhirClient
 from src.util.settings import httpx_client
-
-logger: logging.Logger = logging.getLogger("rcapi.routers.smartchartui")
 
 external_fhir_client = FhirClient(os.getenv("EXTERNAL_FHIR_SERVER_URL"))
 internal_fhir_client = FhirClient(os.getenv("CQF_RULER_R4"))
@@ -176,14 +174,14 @@ def get_batch_job_results(id: str):
                 result: Bundle = get_value_from_parameter(job_parameters_resource, "result", use_iteration_strategy=True, value_key="resource")
                 if result.entry:
                     for entry in result.entry:
-                        result_list.append(entry.resource.json())
+                        result_list.append(entry.resource.model_dump_json()) if entry.resource else None
                 else:
                     result_list = []
             except BaseException as e:
                 if isinstance(result, OperationOutcome):
                     logger.error("OperationOutcome found in job results, reporting diagnostics strings:")
                     for issue in result.issue:
-                        logger.error("    " + issue.diagnostics)
+                        logger.error("    " + issue.diagnostics) if issue.diagnostics else None
                 else:
                     logger.error(e)
                 logger.error(f"Error parsing job: {job_id}")

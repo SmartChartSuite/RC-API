@@ -1,6 +1,5 @@
 """Routing file for form-related operations."""
 
-import logging
 import os
 import uuid
 from datetime import datetime
@@ -9,13 +8,12 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import JSONResponse
 from fastapi_restful.tasks import repeat_every
+from loguru import logger
 
 from src.models.forms import convert_jobpackage_csv_to_questionnaire, get_form, save_form_questionnaire
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
 from src.util.settings import cqfr4_fhir, httpx_client
-
-logger: logging.Logger = logging.getLogger("rcapi.routers.forms_router")
 
 router = APIRouter()
 
@@ -29,7 +27,7 @@ def init_jobs_array() -> None:
     logger.info("Initialized jobs array")
 
 
-@repeat_every(seconds=60 * 60 * 24, logger=logger)
+@repeat_every(seconds=60 * 60 * 24, logger=logger)  # type: ignore
 def clear_jobs_array() -> None:
     logger.info("Clearing jobs array...")
     global jobs

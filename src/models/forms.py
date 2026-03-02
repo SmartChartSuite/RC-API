@@ -1,7 +1,6 @@
 """Forms module for all form/Questionnaire operations called by other files"""
 
 import csv
-import logging
 import re
 import time
 import uuid
@@ -9,14 +8,13 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Literal, overload
 
-from fhir.resources.R4B.questionnaire import Questionnaire
 import httpx
+from fhir.resources.R4B.questionnaire import Questionnaire
+from loguru import logger
 
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import cqfr4_fhir, httpx_client
 from static.diagnostic_questionnaire import diagnostic_questionnaire
-
-logger: logging.Logger = logging.getLogger("rcapi.models.forms")
 
 jobpackage_server_base = "http://gtri.gatech.edu/fakeFormIg/"
 

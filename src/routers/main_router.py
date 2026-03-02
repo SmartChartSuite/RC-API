@@ -1,14 +1,9 @@
 """Routing module for the API"""
 
-import logging
-
 from fastapi import APIRouter
 
 from src.models.functions import get_health_of_stack, make_operation_outcome
 from src.util.settings import ConfigEndpointModel, config_endpoint
-
-# Create logger
-logger: logging.Logger = logging.getLogger("rcapi.routers.routers")
 
 router = APIRouter()
 

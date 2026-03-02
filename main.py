@@ -1,6 +1,5 @@
 """Main application file"""
 
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,29 +12,18 @@ from fastapi.openapi.docs import (
 )
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
+from loguru import logger
 from pydantic import ValidationError
 
 from src.models.functions import make_operation_outcome
-from src.models.models import CustomFormatter
 from src.routers import cql_router, forms_router, main_router, nlpql_router, smartchartui, webhook
 from src.routers.forms_router import init_jobs_array
 from src.util.databaseclient import startup_connect
 from src.util.git import clone_repo_to_temp_folder
-from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url, log_level
+from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url
 
 title: str = "SmartChart Suite Results Combining (RC) API"
-version: str = "0.13.0"
-
-logger: logging.Logger = logging.getLogger("rcapi")
-logger.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-ch.setFormatter(CustomFormatter())
-logger.addHandler(ch)
-
-if log_level == "DEBUG":
-    logger.setLevel(logging.DEBUG)
-    ch.setLevel(logging.DEBUG)
+version: str = "1.0.0-pre"
 
 
 # ========================== Lifespan Function ===========================
@@ -84,8 +72,8 @@ app.add_middleware(
 
 # ================= Routers inclusion from src directory ===============
 app.include_router(main_router.router, tags=["Main API"])
-app.include_router(forms_router.router, tags=["Forms APIs"])
 app.include_router(cql_router.router, tags=["CQL APIs"])
+app.include_router(forms_router.router, tags=["Forms APIs"])
 app.include_router(nlpql_router.router, tags=["NLPQL APIs"])
 app.include_router(webhook.router, tags=["Webhook"])
 app.include_router(smartchartui.smartchart_router, tags=["SmartChart UI"])
@@ -100,8 +88,6 @@ async def validation_exception_handler(request, exc) -> JSONResponse:
 
 
 # ================== Custom OpenAPI ===========================
-
-
 def custom_openapi():
     """Defines the custom OpenAPI schema handling"""
     if app.openapi_schema:

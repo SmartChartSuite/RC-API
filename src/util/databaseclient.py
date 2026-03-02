@@ -1,8 +1,8 @@
 """Handler for all database functions"""
 
-import logging
 from datetime import datetime
 
+from loguru import logger
 from psycopg import DataError
 from sqlalchemy import JSON, Connection, Executable, ForeignKey, Inspector, MetaData, Row, create_engine, inspect, text
 from sqlalchemy.engine import Compiled, Engine
@@ -14,7 +14,6 @@ from sqlalchemy.sql.functions import FunctionElement
 
 from src.util.settings import db_connection_string, db_schema
 
-logger: logging.Logger = logging.getLogger("rcapi.util.databaseclient")
 db_engine: Engine = create_engine(db_connection_string)
 
 

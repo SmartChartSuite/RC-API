@@ -1,0 +1,4 @@
+accesslog = "-"
+access_log_format = "%(h)s %(l)s \"%(R)s\" %(s)s Origin:\"%({origin}i)s\" X-Forwarded-For:\"%({x-forwarded-for}i)s\""
+errorlog = "-"
+bind = ":8080"

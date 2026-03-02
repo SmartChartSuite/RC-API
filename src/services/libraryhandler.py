@@ -1,16 +1,14 @@
 """Module for handling Libraries"""
 
 import base64
-import logging
 from typing import Literal
 
 from fhir.resources.R4B.library import Library
+from loguru import logger
 
 from src.models.functions import make_operation_outcome, validate_cql, validate_nlpql
 from src.services.errorhandler import error_to_operation_outcome
 from src.util.settings import cqfr4_fhir, httpx_client, nlpaas_url
-
-logger = logging.getLogger("rcapi.services.libraryhandler")
 
 
 def create_cql(cql):

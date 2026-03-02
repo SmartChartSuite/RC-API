@@ -4,6 +4,7 @@ fhir.resources==8.2.0
 gitpython==3.1.46
 httpx==0.28.1
 hypercorn==0.18.0
+loguru==0.7.3
 pre-commit==4.5.1
 psycopg[binary,pool]==3.3.3
 pyjwt[crypto]==2.11.0

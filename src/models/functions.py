@@ -2,7 +2,6 @@
 
 import asyncio
 import base64
-import logging
 import re
 import uuid
 from datetime import datetime
@@ -11,13 +10,13 @@ from typing import Literal, overload
 import httpx
 from fhir.resources.R4B.observation import Observation
 from fhir.resources.R4B.operationoutcome import OperationOutcome
+from fhir.resources.R4B.reference import Reference
+from loguru import logger
 
 from src.models.forms import get_form, run_diagnostic_questionnaire
 from src.models.models import FlatNLPQLResult, NLPQLTupleResult, StartJobsParameters
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import cqfr4_fhir, deploy_url, external_fhir_server_auth, external_fhir_server_url, httpx_client, nlpaas_url
-
-logger: logging.Logger = logging.getLogger("rcapi.models.functions")
 
 
 async def run_cql(library_ids: list, parameters_post: dict):
@@ -762,7 +761,11 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         answerType=tuple_dict["answerType"],
                     )
                     tuple_result.sourceNote = tuple_result.sourceNote.strip()
-                    temp_answer_obs.focus = [{"reference": f"DocumentReference/{result.report_id}"}]
+
+                    focus_ref: Reference = Reference.model_construct()
+                    focus_ref.reference = f"DocumentReference/{result.report_id}"
+                    temp_answer_obs.focus = [focus_ref]
+
                     report_date = result.report_date if result.report_date else datetime.today().strftime("%Y-%m-%d")
                     temp_answer_obs.effectiveDateTime = datetime.strptime(report_date, "%Y-%m-%d")
 
