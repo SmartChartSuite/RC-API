@@ -50,7 +50,7 @@ def save_form_questionnaire(questionnaire_dict: dict):
         logger.info("Not completing POST operation because a Questionnaire with that name and version already exist on this FHIR Server")
         logger.info("Change Questionnaire name or version number or use PUT to update this version")
         return make_operation_outcome("duplicate", f"There is already a Questionnaire with this name with resource id {questionnaire_current_id}")
-    except KeyError:
+    except (KeyError, IndexError):
         logger.info("Questionnaire with that name not found, continuing POST operation")
 
     # Create Questionnaire in CQF Ruler
@@ -95,7 +95,7 @@ def get_form(form_name: str, form_version: str | None = None, return_Questionnai
         questionnaire = search_bundle["entry"][0]["resource"]
         logger.info(f"Found Questionnaire with name {form_name}, version {questionnaire['version']}, and form server ID {questionnaire['id']}")
         return questionnaire if not return_Questionnaire_class_obj else Questionnaire.parse_obj(questionnaire)
-    except KeyError:
+    except (KeyError, IndexError):
         logger.error(f"Questionnaire with name {form_name} and version {form_version} not found") if form_version else logger.error(f"Questionnaire with name {form_name} not found")
         return (
             make_operation_outcome("not-found", f"Questionnaire with name {form_name} and version {form_version} not found")

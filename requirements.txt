@@ -1,5 +1,6 @@
+# Core dependencies
 fastapi==0.135.1
-fastapi-restful==0.6.0
+fastapi-utils==0.8.0
 fhir.resources==8.2.0
 gitpython==3.1.46
 httpx==0.28.1
