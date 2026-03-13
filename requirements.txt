@@ -7,7 +7,7 @@ hypercorn==0.18.0
 loguru==0.7.3
 pre-commit==4.5.1
 psycopg[binary,pool]==3.3.3
-pyjwt[crypto]==2.11.0
+pyjwt[crypto]==2.12.1
 ruff==0.15.4
 SQLAlchemy==2.0.48
 typing-inspect==0.9.0
