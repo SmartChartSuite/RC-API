@@ -1,2 +1,22 @@
 [tool.ruff]
 line-length = 200
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: end-to-end tests that require real external services (CQF Ruler, FHIR server). Run with: pytest -m integration",
+]
+
+[tool.pytest.ini_options.env]
+CQF_RULER_R4 = "http://localhost:8080/fhir"
+EXTERNAL_FHIR_SERVER_URL = "http://localhost:9090/fhir"
+EXTERNAL_FHIR_SERVER_AUTH = ""
+NLPAAS_URL = "False"
+LOG_LEVEL = "WARNING"
+API_DOCS = "false"
+KNOWLEDGEBASE_REPO_URL = ""
+DOCS_PREPEND_URL = ""
+DEPLOY_URL = "http://localhost/"
+DB_CONNECTION_STRING = "sqlite+pysqlite:///rcapi_test.sqlite"
+DB_SCHEMA = "rcapi"

@@ -1,0 +1,25 @@
+{
+    "resourceType": "Patient",
+    "id": "test-patient-001",
+    "meta": {
+        "versionId": "1",
+        "lastUpdated": "2024-01-01T00:00:00Z"
+    },
+    "identifier": [
+        {
+            "system": "http://hospital.example.org",
+            "value": "MRN-001"
+        }
+    ],
+    "name": [
+        {
+            "use": "official",
+            "family": "Doe",
+            "given": [
+                "John"
+            ]
+        }
+    ],
+    "gender": "male",
+    "birthDate": "1990-01-15"
+}

@@ -1,0 +1,3905 @@
+{
+    "resourceType": "Questionnaire",
+    "meta": {
+        "profile": [
+            "http://gtri.gatech.edu/fakeFormIg/StructureDefinition/smartchart-form"
+        ]
+    },
+    "extension": [
+        {
+            "url": "http://gtri.gatech.edu/fakeFormIg/cql-form-job-list",
+            "extension": [
+                {
+                    "url": "form-job",
+                    "valueString": "ifu_information.cql"
+                },
+                {
+                    "url": "form-job",
+                    "valueString": "ifu_physical_exam_findings.cql"
+                },
+                {
+                    "url": "form-job",
+                    "valueString": "ifu_covid_19_module.cql"
+                }
+            ]
+        },
+        {
+            "url": "http://gtri.gatech.edu/fakeFormIg/nlpql-form-job-list",
+            "extension": [
+                {
+                    "url": "form-job",
+                    "valueString": "ifu_information.nlpql"
+                },
+                {
+                    "url": "form-job",
+                    "valueString": "ifu_physical_exam_findings.nlpql"
+                },
+                {
+                    "url": "form-job",
+                    "valueString": "ifu_covid_19_module.nlpql"
+                }
+            ]
+        }
+    ],
+    "url": "http://gtri.gatech.edu/fakeFormIg/Questionnaire/SETNETInfantFollowUp",
+    "version": "0.2.0",
+    "name": "SETNETInfantFollowUpIntegrationTesting",
+    "title": "SETNET - Infant Follow Up (Minimal for RC-API Integration Testing)",
+    "status": "draft",
+    "experimental": true,
+    "subjectType": [
+        "Patient"
+    ],
+    "publisher": "GTRI",
+    "description": "Form used to support the SET-NET Data Dictionary elements",
+    "useContext": [
+        {
+            "code": {
+                "system": "http://terminology.hl7.org/CodeSystem/usage-context-type",
+                "code": "workflow",
+                "display": "Workflow Setting"
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://gtri.gatech.edu/fakeFormIg/CodeSystem/custom",
+                        "code": "smartchartui",
+                        "display": "SmartChart UI"
+                    }
+                ]
+            }
+        }
+    ],
+    "item": [
+        {
+            "linkId": "Information",
+            "text": "Information",
+            "type": "group",
+            "item": [
+                {
+                    "linkId": "1",
+                    "text": "CDC Infant ID (e.g.,AZS123456B; LAC1000000C, LAC1000000D)",
+                    "type": "string"
+                },
+                {
+                    "linkId": "2",
+                    "text": "Infant medical record abstraction done",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "3",
+                    "text": "Infant no longer being monitored (i.e., lost to follow-up)",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "4",
+                    "text": "If yes, what is the primary reason for no longer monitoring?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Moved out of area of surveillance"
+                        },
+                        {
+                            "valueString": "Laboratory results not found"
+                        },
+                        {
+                            "valueString": "Not selected for MRA"
+                        },
+                        {
+                            "valueString": "Unable to acquire medical records"
+                        },
+                        {
+                            "valueString": "No consent/public health authority"
+                        },
+                        {
+                            "valueString": "Other"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "5",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_information.ig_death"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_information.ig_death"
+                        }
+                    ],
+                    "linkId": "7",
+                    "text": "Is the infant/child deceased?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_information.ig_death_dt"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_information.ig_death_dt"
+                        }
+                    ],
+                    "linkId": "8",
+                    "text": "If yes, date of infant/child death:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_information.ig_death_dx"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_information.ig_death_dx"
+                        }
+                    ],
+                    "linkId": "9",
+                    "text": "If yes, cause(s) of infant/child death:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_information.ig_visit_dt"
+                        }
+                    ],
+                    "linkId": "10",
+                    "text": "Date of visit:",
+                    "type": "date"
+                },
+                {
+                    "linkId": "11",
+                    "text": "Calculated age at visit (months):",
+                    "type": "integer"
+                }
+            ]
+        },
+        {
+            "linkId": "Physical Exam Findings",
+            "text": "Physical Exam Findings",
+            "type": "group",
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_yn"
+                        }
+                    ],
+                    "linkId": "12",
+                    "text": "Were physical exam findings reported?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "13",
+                    "text": "If yes for above, provide findings of physical exam for each system. If findings not reported for a specific system, select \"Not reported\".",
+                    "type": "display"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_general"
+                        }
+                    ],
+                    "linkId": "14",
+                    "text": "General",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_general_sp"
+                        }
+                    ],
+                    "linkId": "15",
+                    "text": "If abnormal, describe:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_heent"
+                        }
+                    ],
+                    "linkId": "16",
+                    "text": "Head, eyes, ears, nose, throat (HEENT)",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_heent_sp"
+                        }
+                    ],
+                    "linkId": "17",
+                    "text": "If abnormal, describe:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_cardio"
+                        }
+                    ],
+                    "linkId": "18",
+                    "text": "Cardiovascular",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_cardio_sp"
+                        }
+                    ],
+                    "linkId": "19",
+                    "text": "If abnormal, describe:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_lung"
+                        }
+                    ],
+                    "linkId": "20",
+                    "text": "Pulmonary/lung/respiratory",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_lung_sp"
+                        }
+                    ],
+                    "linkId": "21",
+                    "text": "If abnormal, describe:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_abd"
+                        }
+                    ],
+                    "linkId": "22",
+                    "text": "Abdominal/gastrointestinal",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_abd_sp"
+                        }
+                    ],
+                    "linkId": "23",
+                    "text": "If abnormal, describe:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_gu"
+                        }
+                    ],
+                    "linkId": "24",
+                    "text": "Genitourinary",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_gu_sp"
+                        }
+                    ],
+                    "linkId": "25",
+                    "text": "If abnormal, describe:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_muske"
+                        }
+                    ],
+                    "linkId": "26",
+                    "text": "Musculoskeletal",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_muske_sp"
+                        }
+                    ],
+                    "linkId": "27",
+                    "text": "If abnormal, describe:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_neuro"
+                        }
+                    ],
+                    "linkId": "28",
+                    "text": "Neurologic",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_neuro_sp"
+                        }
+                    ],
+                    "linkId": "29",
+                    "text": "If abnormal, describe:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_skin"
+                        }
+                    ],
+                    "linkId": "30",
+                    "text": "Skin/Integument",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_exm_skin_sp"
+                        }
+                    ],
+                    "linkId": "31",
+                    "text": "If abnormal, describe:",
+                    "type": "string"
+                },
+                {
+                    "linkId": "32",
+                    "text": "Describe any additional abnormal findings not included in the previous questions.",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_lt"
+                        }
+                    ],
+                    "linkId": "33",
+                    "text": "Infant/child length (cm):",
+                    "type": "quantity"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_wt"
+                        }
+                    ],
+                    "linkId": "34",
+                    "text": "Infant/child weight (kg):",
+                    "type": "quantity"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_hc"
+                        }
+                    ],
+                    "linkId": "35",
+                    "text": "Infant/child head circumference (cm):",
+                    "type": "quantity"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_physical_exam_findings.ig_bstfed"
+                        }
+                    ],
+                    "linkId": "36",
+                    "text": "Is the infant receiving breastmilk?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "linkId": "Referrals",
+            "text": "Referrals",
+            "type": "group",
+            "item": [
+                {
+                    "linkId": "37",
+                    "text": "Was the child referred to any of the following?",
+                    "type": "display"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "38",
+                    "text": "Early Intervention",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "39",
+                    "text": "Physical Therapy (PT)",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "40",
+                    "text": "Occupational Therapy (OT)",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "41",
+                    "text": "Speech Language Pathology (SLP)",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "42",
+                    "text": "Ophthalmology",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "43",
+                    "text": "Audiology",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "44",
+                    "text": "Developmental specialist",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "45",
+                    "text": "Medical or surgical specialist",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "46",
+                    "text": "Other",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "47",
+                    "text": "If medical or surgical specialist, specify:",
+                    "type": "string"
+                },
+                {
+                    "linkId": "48",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "linkId": "49",
+                    "text": "ICD-10 diagnosis codes associated with this visit:",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "linkId": "Opthalmology Evaluation",
+            "text": "Opthalmology Evaluation",
+            "type": "group",
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "50",
+                    "text": "Was an ophthalmology evaluation performed?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "51",
+                    "text": "Date of ophthalmology evaluation:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "52",
+                    "text": "Results of ophthalmology evaluation:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal findings"
+                        },
+                        {
+                            "valueString": "Abnormal findings"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "53",
+                    "text": "If abnormal findings, describe:",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "linkId": "Audiology Evaluation",
+            "text": "Audiology Evaluation",
+            "type": "group",
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "54",
+                    "text": "Was an audiology evaluation performed?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "55",
+                    "text": "Date of audiology evaluation:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "56",
+                    "text": "Results of audiology evaluation:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal"
+                        },
+                        {
+                            "valueString": "Abnormal unilateral"
+                        },
+                        {
+                            "valueString": "Abnormal bilateral"
+                        },
+                        {
+                            "valueString": "Abnormal, laterality not specified"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "57",
+                    "text": "If abnormal, select findings:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Conductive hearing loss (CHL)"
+                        },
+                        {
+                            "valueString": "Sensorineural hearing loss (SNHL)"
+                        },
+                        {
+                            "valueString": "Mixed hearing loss"
+                        },
+                        {
+                            "valueString": "Auditory neuropathy spectrum disorder (ANSD)"
+                        },
+                        {
+                            "valueString": "Hearing loss, type unknown/not specified"
+                        },
+                        {
+                            "valueString": "Other"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "58",
+                    "text": "If other, describe:",
+                    "type": "string"
+                },
+                {
+                    "linkId": "59",
+                    "text": "Abstractor notes",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "linkId": "COVID-19 Module",
+            "text": "COVID-19 Module",
+            "type": "group",
+            "item": [
+                {
+                    "linkId": "60",
+                    "text": "Infant Follow-up Form: COVID-19 Module",
+                    "type": "display"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_covid_19_module.iv_visitnb"
+                        }
+                    ],
+                    "linkId": "61",
+                    "text": "How was the newborn visit conducted?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "In-person visit"
+                        },
+                        {
+                            "valueString": "Telehealth visit"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_covid_19_module.iv_jaundice"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_covid_19_module.iv_jaundice"
+                        }
+                    ],
+                    "linkId": "62",
+                    "text": "Did the infant have jaundice requiring phototherapy after birth hospitalization?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_covid_19_module.iv_hosp"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/nlpqlTask",
+                            "valueString": "ifu_covid_19_module.iv_hosp"
+                        }
+                    ],
+                    "linkId": "63",
+                    "text": "Was the infant hospitalized after birth hospitalization?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_covid_19_module.iv_hosp_adm_dt"
+                        }
+                    ],
+                    "linkId": "64",
+                    "text": "If yes, date of admission:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "ifu_covid_19_module.iv_hosp_why"
+                        }
+                    ],
+                    "linkId": "65",
+                    "text": "If yes, admission diagnosis codes:",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "linkId": "Hepatitis C Module",
+            "text": "Hepatitis C Module",
+            "type": "group",
+            "item": [
+                {
+                    "linkId": "66",
+                    "text": "Infant Follow-up Form: Hepatitis C Module",
+                    "type": "display"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "67",
+                    "text": "Was the infant/child diagnosed with liver disease?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "68",
+                    "text": "If yes, which kind:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "69",
+                    "text": "If yes, date of diagnosis:",
+                    "type": "date"
+                }
+            ]
+        },
+        {
+            "linkId": "Developmental Screening",
+            "text": "Developmental Screening",
+            "type": "group",
+            "item": [
+                {
+                    "linkId": "70",
+                    "text": "## First Developmental Screening or Assessment",
+                    "type": "display"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "71",
+                    "text": "Name of first standardized developmental screen or assessment performed:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Ages & Stages Questionnaire 3rd ed (ASQ-3)"
+                        },
+                        {
+                            "valueString": "Ages & Questions Questionnaires: Social-Emotional 2nd ed (ASQ:SE-2)"
+                        },
+                        {
+                            "valueString": "Parents' Evaluation of Developmental Status (PEDS)"
+                        },
+                        {
+                            "valueString": "Denver Developmental Screening Test (DDST)"
+                        },
+                        {
+                            "valueString": "Bayley Scales of Infant and Toddler Development (BSID-III)"
+                        },
+                        {
+                            "valueString": "Modified Checklist for Autism in Toddlers (M-CHAT)"
+                        },
+                        {
+                            "valueString": "Other"
+                        },
+                        {
+                            "valueString": "None reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "72",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "73",
+                    "text": "Date of screening or assessment 1:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "74",
+                    "text": "Communication or language 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "75",
+                    "text": "Gross motor 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "76",
+                    "text": "Fine motor 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "77",
+                    "text": "Cognitive or problem solving 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "78",
+                    "text": "Social-emotional 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "79",
+                    "text": "Adaptive 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "80",
+                    "text": "Autism 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Low Risk"
+                        },
+                        {
+                            "valueString": "Medium Risk"
+                        },
+                        {
+                            "valueString": "High Risk"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "81",
+                    "text": "Overall score 1 (if reported)",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "82",
+                    "text": "Describe all additional findings related to development 1",
+                    "type": "string"
+                },
+                {
+                    "linkId": "83",
+                    "text": "## Second Developmental Screening or Assessment",
+                    "type": "display"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "84",
+                    "text": "Name of second standardized developmental screen or assessment performed:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Ages & Stages Questionnaire 3rd ed (ASQ-3)"
+                        },
+                        {
+                            "valueString": "Ages & Questions Questionnaires: Social-Emotional 2nd ed (ASQ:SE-2)"
+                        },
+                        {
+                            "valueString": "Parents' Evaluation of Developmental Status (PEDS)"
+                        },
+                        {
+                            "valueString": "Denver Developmental Screening Test (DDST)"
+                        },
+                        {
+                            "valueString": "Bayley Scales of Infant and Toddler Development (BSID-III)"
+                        },
+                        {
+                            "valueString": "Modified Checklist for Autism in Toddlers (M-CHAT)"
+                        },
+                        {
+                            "valueString": "Other"
+                        },
+                        {
+                            "valueString": "None reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "85",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "86",
+                    "text": "Date of screening or assessment 2.",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "87",
+                    "text": "Communication or language 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "88",
+                    "text": "Gross motor 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "89",
+                    "text": "Fine motor 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "90",
+                    "text": "Cognitive or problem solving 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "91",
+                    "text": "Social-emotional 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "92",
+                    "text": "Adaptive 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "93",
+                    "text": "Autism 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Low Risk"
+                        },
+                        {
+                            "valueString": "Medium Risk"
+                        },
+                        {
+                            "valueString": "High Risk"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "94",
+                    "text": "Overall score 2 (if reported)",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "95",
+                    "text": "Describe all additional findings related to development 2",
+                    "type": "string"
+                },
+                {
+                    "linkId": "96",
+                    "text": "## Third Developmental Screening or Assessment",
+                    "type": "display"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "97",
+                    "text": "Name of third standardized developmental screen or assessment performed:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Ages & Stages Questionnaire 3rd ed (ASQ-3)"
+                        },
+                        {
+                            "valueString": "Ages & Questions Questionnaires: Social-Emotional 2nd ed (ASQ:SE-2)"
+                        },
+                        {
+                            "valueString": "Parents' Evaluation of Developmental Status (PEDS)"
+                        },
+                        {
+                            "valueString": "Denver Developmental Screening Test (DDST)"
+                        },
+                        {
+                            "valueString": "Bayley Scales of Infant and Toddler Development (BSID-III)"
+                        },
+                        {
+                            "valueString": "Modified Checklist for Autism in Toddlers (M-CHAT)"
+                        },
+                        {
+                            "valueString": "Other"
+                        },
+                        {
+                            "valueString": "None reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "98",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "99",
+                    "text": "Date of developmental screening or assessment 3:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "100",
+                    "text": "Communication or language 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "101",
+                    "text": "Gross motor 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "102",
+                    "text": "Fine motor 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "103",
+                    "text": "Cognitive or problem solving 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "104",
+                    "text": "Social-emotional 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "105",
+                    "text": "Adaptive 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "106",
+                    "text": "Autism 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Low Risk"
+                        },
+                        {
+                            "valueString": "Medium Risk"
+                        },
+                        {
+                            "valueString": "High Risk"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "107",
+                    "text": "Overall score 3 (if reported)",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "108",
+                    "text": "Describe all additional findings related to development 3",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "linkId": "Imaging",
+            "text": "Imaging",
+            "type": "group",
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "109",
+                    "text": "Did the infant/child have an MRI of the brain and/or spine?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "110",
+                    "text": "If yes, date of MRI of the brain and/or spine:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "111",
+                    "text": "If yes, verbatim findings of MRI of the brain and/or spine:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "112",
+                    "text": "Did the infant/child have a CT of the brain, head, neck, and/or spine?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "113",
+                    "text": "If yes, date of CT of the brain, head, neck, and/or spine:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "114",
+                    "text": "If yes, verbatim findings of the CT of the brain, head, neck, and/or spine:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "115",
+                    "text": "Did the infant/child have an ultrasound (U/S) of the head?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "116",
+                    "text": "If yes, date of the U/S of the head:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "117",
+                    "text": "If yes, verbatim findings of the U/S of the head:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "118",
+                    "text": "Did the infant/child have a U/S of the spine?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "119",
+                    "text": "If yes, date of the U/S of the spine:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "120",
+                    "text": "If yes, verbatim findings of the U/S of the spine:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "121",
+                    "text": "Did the infant/child have an x-ray of the skull, neck and/or back?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "122",
+                    "text": "If yes, date of the x-ray of the skull, neck and/or back:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "123",
+                    "text": "If yes, verbatim findings of the x-ray of the skull, neck and/or back:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "124",
+                    "text": "Did the infant/child have long bone x-rays?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes, changes consistent with CS"
+                        },
+                        {
+                            "valueString": "Yes, no signs of CS"
+                        },
+                        {
+                            "valueString": "Yes, unknown if signs of CS"
+                        },
+                        {
+                            "valueString": "No x-rays"
+                        },
+                        {
+                            "valueString": "Unknown"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "125",
+                    "text": "If yes, date of the long bone x-rays:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "126",
+                    "text": "If yes, verbatim findings of the long bone x-rays:",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "linkId": "Syphilis Treatment",
+            "text": "Syphilis Treatment",
+            "type": "group",
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "127",
+                    "text": "Did the infant/child receive treatment for syphilis? (1st)",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes, with aqueous or procaine penicillin for 10 days"
+                        },
+                        {
+                            "valueString": "Yes, with benzathine penicillin x 1"
+                        },
+                        {
+                            "valueString": "Yes, with other treatment"
+                        },
+                        {
+                            "valueString": "No treatment"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "128",
+                    "text": "If yes, start date of treatment: (1st)",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "129",
+                    "text": "Did the infant/child receive treatment for syphilis? (2nd)",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes, with aqueous or procaine penicillin for 10 days"
+                        },
+                        {
+                            "valueString": "Yes, with benzathine penicillin x 1"
+                        },
+                        {
+                            "valueString": "Yes, with other treatment"
+                        },
+                        {
+                            "valueString": "No treatment"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "130",
+                    "text": "If yes, start date of treatment: (2nd)",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "131",
+                    "text": "Did the infant/child receive treatment for syphilis? (3rd)",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes, with aqueous or procaine penicillin for 10 days"
+                        },
+                        {
+                            "valueString": "Yes, with benzathine penicillin x 1"
+                        },
+                        {
+                            "valueString": "Yes, with other treatment"
+                        },
+                        {
+                            "valueString": "No treatment"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "132",
+                    "text": "If yes, start date of treatment: (3rd)",
+                    "type": "date"
+                }
+            ]
+        },
+        {
+            "linkId": "Syphilis Complications",
+            "text": "Syphilis Complications",
+            "type": "group",
+            "item": [
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "133",
+                    "text": "Was the infant/child diagnosed with leptomeningitis?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "134",
+                    "text": "If yes, date of diagnosis:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "135",
+                    "text": "Was the infant/child diagnosed with chronic meningovascular syphilis?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "136",
+                    "text": "If yes, date of diagnosis:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "137",
+                    "text": "Was the infant/child diagnosed with nephrotic syndrome?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "138",
+                    "text": "If yes, date of diagnosis:",
+                    "type": "date"
+                }
+            ]
+        },
+        {
+            "linkId": "Cytomegalovirus Module",
+            "text": "Cytomegalovirus Module",
+            "type": "group",
+            "item": [
+                {
+                    "linkId": "140",
+                    "text": "Case classification",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Confirmed cCMV disease"
+                        },
+                        {
+                            "valueString": "Confirmed cCMV infection"
+                        },
+                        {
+                            "valueString": "Probable cCMV disease"
+                        },
+                        {
+                            "valueString": "Not a case"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "142",
+                    "text": "Name of first standardized developmental screen or assessment performed:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "ASQ3, Ages & Stages Questionnaire 3rd ed (ASQ-3)"
+                        },
+                        {
+                            "valueString": "ASQSE, Ages & Questions Questionnaires: Social-Emotional 2nd ed (ASQ:SE-2)"
+                        },
+                        {
+                            "valueString": "PEDS, Parents' Evaluation of Developmental Status (PEDS)"
+                        },
+                        {
+                            "valueString": "DDST, Denver Developmental Screening Test (DDST)"
+                        },
+                        {
+                            "valueString": "BAYLEY, Bayley Scales of Infant and Toddler Development (BSID-III)"
+                        },
+                        {
+                            "valueString": "MCHAT, Modified Checklist for Autism in Toddlers (M-CHAT)"
+                        },
+                        {
+                            "valueString": "OTH, Other"
+                        },
+                        {
+                            "valueString": "NAH, None reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "143",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "144",
+                    "text": "Date of screening or assessment 1:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "145",
+                    "text": "Communication or language 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "146",
+                    "text": "Gross motor 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "147",
+                    "text": "Fine motor 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "148",
+                    "text": "Cognitive or problem solving 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "149",
+                    "text": "Social-emotional 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "150",
+                    "text": "Adaptive 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "151",
+                    "text": "Autism 1",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Low Risk"
+                        },
+                        {
+                            "valueString": "Medium Risk"
+                        },
+                        {
+                            "valueString": "High Risk"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "152",
+                    "text": "Overall score 1 (if reported)",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "153",
+                    "text": "Describe all additional findings related to development 1",
+                    "type": "string"
+                },
+                {
+                    "linkId": "154",
+                    "text": "## Second Developmental Screening or Assessment",
+                    "type": "display"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "155",
+                    "text": "Name of second standardized developmental screen or assessment performed:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "ASQ3, Ages & Stages Questionnaire 3rd ed (ASQ-3)"
+                        },
+                        {
+                            "valueString": "ASQSE, Ages & Questions Questionnaires: Social-Emotional 2nd ed (ASQ:SE-2)"
+                        },
+                        {
+                            "valueString": "PEDS, Parents' Evaluation of Developmental Status (PEDS)"
+                        },
+                        {
+                            "valueString": "DDST, Denver Developmental Screening Test (DDST)"
+                        },
+                        {
+                            "valueString": "BAYLEY, Bayley Scales of Infant and Toddler Development (BSID-III)"
+                        },
+                        {
+                            "valueString": "MCHAT, Modified Checklist for Autism in Toddlers (M-CHAT)"
+                        },
+                        {
+                            "valueString": "OTH, Other"
+                        },
+                        {
+                            "valueString": "NAH, None reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "156",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "157",
+                    "text": "Date of screening or assessment 2.",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "158",
+                    "text": "Communication or language 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "159",
+                    "text": "Gross motor 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "160",
+                    "text": "Fine motor 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "161",
+                    "text": "Cognitive or problem solving 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "162",
+                    "text": "Social-emotional 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "163",
+                    "text": "Adaptive 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "164",
+                    "text": "Autism 2",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Low Risk"
+                        },
+                        {
+                            "valueString": "Medium Risk"
+                        },
+                        {
+                            "valueString": "High Risk"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "165",
+                    "text": "Overall score 2 (if reported)",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "166",
+                    "text": "Describe all additional findings related to development 2",
+                    "type": "string"
+                },
+                {
+                    "linkId": "167",
+                    "text": "## Third Developmental Screening or Assessment",
+                    "type": "display"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "168",
+                    "text": "Name of third standardized developmental screen or assessment performed:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "ASQ3, Ages & Stages Questionnaire 3rd ed (ASQ-3)"
+                        },
+                        {
+                            "valueString": "ASQSE, Ages & Questions Questionnaires: Social-Emotional 2nd ed (ASQ:SE-2)"
+                        },
+                        {
+                            "valueString": "PEDS, Parents' Evaluation of Developmental Status (PEDS)"
+                        },
+                        {
+                            "valueString": "DDST, Denver Developmental Screening Test (DDST)"
+                        },
+                        {
+                            "valueString": "BAYLEY, Bayley Scales of Infant and Toddler Development (BSID-III)"
+                        },
+                        {
+                            "valueString": "MCHAT, Modified Checklist for Autism in Toddlers (M-CHAT)"
+                        },
+                        {
+                            "valueString": "OTH, Other"
+                        },
+                        {
+                            "valueString": "NAH, None reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "169",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "170",
+                    "text": "Date of developmental screening or assessment 3:",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "171",
+                    "text": "Communication or language 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "172",
+                    "text": "Gross motor 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "173",
+                    "text": "Fine motor 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "174",
+                    "text": "Cognitive or problem solving 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "175",
+                    "text": "Social-emotional 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "176",
+                    "text": "Adaptive 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Normal/Passed"
+                        },
+                        {
+                            "valueString": "Monitoring"
+                        },
+                        {
+                            "valueString": "Abnormal/Failed/Needs further evaluation"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "177",
+                    "text": "Autism 3",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Low Risk"
+                        },
+                        {
+                            "valueString": "Medium Risk"
+                        },
+                        {
+                            "valueString": "High Risk"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "178",
+                    "text": "Overall score 3 (if reported)",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "179",
+                    "text": "Describe all additional findings related to development 3",
+                    "type": "string"
+                },
+                {
+                    "linkId": "180",
+                    "text": "Was an amplification or other Assisted Listening Device (ALD) recommended for the infant?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "181",
+                    "text": "Did the infant receive an amplification or other Assistant Listening Device (ALD)?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "182",
+                    "text": "If yes AND received, type of ALD:",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Bone Anchored Hearing Aid (BAHA)"
+                        },
+                        {
+                            "valueString": "Cochlear Implant"
+                        },
+                        {
+                            "valueString": "FM System"
+                        },
+                        {
+                            "valueString": "Hearing Aid"
+                        },
+                        {
+                            "valueString": "Other"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "183",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "184",
+                    "text": "Was the infant diagnosed with cerebral palsy?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "185",
+                    "text": "If yes, Gross Motor Function Classification score",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Level I"
+                        },
+                        {
+                            "valueString": "Level II"
+                        },
+                        {
+                            "valueString": "Level III"
+                        },
+                        {
+                            "valueString": "Level IV"
+                        },
+                        {
+                            "valueString": "Level V"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "186",
+                    "text": "What type of CP was the infant diagnosed with?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Spastic quadriplegia"
+                        },
+                        {
+                            "valueString": "Spastic diplegia"
+                        },
+                        {
+                            "valueString": "Spastic hemiplegia"
+                        },
+                        {
+                            "valueString": "Athetoid/ Dyskinetic"
+                        },
+                        {
+                            "valueString": "Ataxic"
+                        },
+                        {
+                            "valueString": "Other"
+                        },
+                        {
+                            "valueString": "Unspecified type"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "187",
+                    "text": "If other, specify:",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "188",
+                    "text": "Was the infant diagnosed with having seizures?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "189",
+                    "text": "Did the infant have an MRI of the brain and/or spine?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "190",
+                    "text": "If yes, date of MRI of the brain and/or spine",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "191",
+                    "text": "If yes, verbatim findings of MRI of the brain and/or spine",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "192",
+                    "text": "Did the infant have a CT of the brain, head, neck, and/or spine? ",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "193",
+                    "text": "If yes, date of CT of the brain, head, neck, and/or spine",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "194",
+                    "text": "If yes, verbatim findings of the CT of the brain, head, neck, and/or spine",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "195",
+                    "text": "Did the infant have an ultrasound (U/S) of the head?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "196",
+                    "text": "If yes, date of the U/S of the head",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "197",
+                    "text": "If yes, verbatim findings of the U/S of the head",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "198",
+                    "text": "Did the infant receive treatment for cCMV?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "199",
+                    "text": "Indications for anti-viral treatment",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "200",
+                    "text": "Ganciclovir",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "201",
+                    "text": "If yes, start date of Ganciclovir treatment",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "202",
+                    "text": "If yes, end date of Ganciclovir treatment",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "203",
+                    "text": "Valganciclovir",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "204",
+                    "text": "If yes, start date of Valganciclovir treatment",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "205",
+                    "text": "If yes, end date of Valganciclovir treatment",
+                    "type": "date"
+                },
+                {
+                    "linkId": "206",
+                    "text": "Other treatment for cCMV",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "linkId": "207",
+                    "text": "If yes, specify:",
+                    "type": "string"
+                },
+                {
+                    "linkId": "208",
+                    "text": "If yes, other treatment start date",
+                    "type": "date"
+                },
+                {
+                    "linkId": "209",
+                    "text": "If yes, other treatment end date",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "210",
+                    "text": "If the infant was treated for cCMV, was complete blood count performed after treatment started?",
+                    "type": "choice",
+                    "answerOption": [
+                        {
+                            "valueString": "Yes"
+                        },
+                        {
+                            "valueString": "No"
+                        },
+                        {
+                            "valueString": "Not reported"
+                        }
+                    ]
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "211",
+                    "text": "If yes, what were the lowest levels of absolute neutrophil count (cells/mm3)?",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "212",
+                    "text": "Date of lowest absolute neutrophil count",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "213",
+                    "text": "If yes, what were the lowest hemoglobin level (g/DL)?",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "214",
+                    "text": "Date of the lowest hemoglobin level",
+                    "type": "date"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "215",
+                    "text": "If yes, what were the lowest platelet count (cells/mm3)?",
+                    "type": "string"
+                },
+                {
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ],
+                    "linkId": "216",
+                    "text": "Date of the lowest platelet count",
+                    "type": "date"
+                },
+                {
+                    "linkId": "217",
+                    "text": "Reason for treatment termination",
+                    "type": "string"
+                }
+            ]
+        }
+    ]
+}

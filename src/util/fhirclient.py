@@ -37,6 +37,9 @@ class FhirClient:
     def readResource(self, resource_type: str, id: str) -> httpx.Response:
         return self.__http_request__(method="GET", url_path=f"{resource_type}/{id}")
 
+    def deleteResource(self, resource_type: str, id: str) -> httpx.Response:
+        return self.__http_request__(method="DELETE", url_path=f"{resource_type}/{id}")
+
     @typing.overload
     def searchResource(self, resource_type: str, parameters: dict | None = None, flatten: typing.Literal[False] = False) -> dict:
         pass
