@@ -1,20 +1,19 @@
 """Routing file for form-related operations."""
 
-import logging
 import os
 import uuid
 from datetime import datetime
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import JSONResponse
-from fastapi_restful.tasks import repeat_every
+from fastapi_utils.tasks import repeat_every
+from loguru import logger
 
 from src.models.forms import convert_jobpackage_csv_to_questionnaire, get_form, save_form_questionnaire
 from src.models.functions import get_param_index, make_operation_outcome, start_jobs
 from src.models.models import JobCompletedParameter, ParametersJob, StartJobsParameters
-from src.util.settings import cqfr4_fhir, session
-
-logger: logging.Logger = logging.getLogger("rcapi.routers.forms_router")
+from src.util.settings import cqfr4_fhir, httpx_client
 
 router = APIRouter()
 
@@ -28,7 +27,7 @@ def init_jobs_array() -> None:
     logger.info("Initialized jobs array")
 
 
-@repeat_every(seconds=60 * 60 * 24, logger=logger)
+@repeat_every(seconds=60 * 60 * 24, logger=logger)  # type: ignore
 def clear_jobs_array() -> None:
     logger.info("Clearing jobs array...")
     global jobs
@@ -48,7 +47,7 @@ def get_list_of_forms():
         cqfr4_fhir_url = cqfr4_fhir_url + "/"
     else:
         return make_operation_outcome("invalid", f"The CQF Ruler url ({cqfr4_fhir_url}) passed in as an environmental variable is not correct, please check that it ends with fhir or fhir/")  # type:ignore
-    req = session.get(cqfr4_fhir_url + "Questionnaire")
+    req: httpx.Response = httpx_client.get(cqfr4_fhir_url + "Questionnaire")
     if req.status_code == 200:
         return req.json()
     logger.error(f"Getting Questionnaires from server failed with code {req.status_code}")
@@ -66,7 +65,7 @@ def save_form(questions: dict):
 
 
 @router.post("/forms/start", response_model=None)
-def start_jobs_header_function(post_body: StartJobsParameters, background_tasks: BackgroundTasks, asyncFlag: bool = False) -> JSONResponse | dict:
+async def start_jobs_header_function(post_body: StartJobsParameters, background_tasks: BackgroundTasks, asyncFlag: bool = False) -> JSONResponse | dict:
     """Header function for starting jobs either synchronously or asynchronously"""
     if asyncFlag:
         logger.info("asyncFlag detected, running asynchronously")
@@ -84,12 +83,12 @@ def start_jobs_header_function(post_body: StartJobsParameters, background_tasks:
         logger.info("Added background task")
         return JSONResponse(content=new_job.model_dump(exclude_none=True), headers={"Location": f"/forms/status/{tmp_job_id}"})
 
-    return start_jobs(post_body)
+    return await start_jobs(post_body)
 
 
-def start_async_jobs(post_body: StartJobsParameters, uid: str) -> None:
+async def start_async_jobs(post_body: StartJobsParameters, uid: str) -> None:
     """Start job asychronously"""
-    job_result = start_jobs(post_body)
+    job_result = await start_jobs(post_body)
     if uid not in jobs:
         new_job = ParametersJob()
         uid_param_index: int = get_param_index(parameter_list=new_job.parameter, param_name="jobId")
@@ -144,7 +143,7 @@ def get_job_status(uid: str):
 @router.put("/forms/{form_name}")
 def update_form(form_name: str, new_questions: dict):
     """Update Questionnaire using name"""
-    req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
+    req: httpx.Response = httpx_client.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}")
     if req.status_code != 200:
         logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Getting Questionnaire from server failed with status code {req.status_code}")
@@ -153,12 +152,12 @@ def update_form(form_name: str, new_questions: dict):
     try:
         resource_id = search_bundle["entry"][0]["resource"]["id"]
         logger.info(f"Found Questionnaire with name {form_name}")
-    except KeyError:
+    except (KeyError, IndexError):
         logger.error("Questionnaire with that name not found")
         return make_operation_outcome("not-found", f"Getting Questionnaire named {form_name} not found on server")
 
     new_questions["id"] = resource_id
-    req = session.put(cqfr4_fhir + f"Questionnaire/{resource_id}", json=new_questions)
+    req = httpx_client.put(cqfr4_fhir + f"Questionnaire/{resource_id}", json=new_questions)
     if req.status_code != 200:
         logger.error(f"Putting Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Putting Questionnaire from server failed with status code {req.status_code}")

@@ -1,18 +1,16 @@
 """Potentially Temporary Abstraction of Start Job Logic, separated for use for Batch Jobs"""
 # TODO: Merge and delete as needed.
 
-import logging
 from typing import Any
 
 from fhir.resources.R4B.parameters import Parameters
 from fhir.resources.R4B.patient import Patient
+from loguru import logger
 
-from src.models.models import StartJobsParameters
 from src.models.forms import get_form
 from src.models.functions import start_jobs
+from src.models.models import StartJobsParameters
 from src.services.jobstate import update_job_to_complete
-
-logger = logging.getLogger("rcapi.services.jobhandler")
 
 
 def start_async_jobs(post_body: StartJobsParameters, uid: str) -> None:
@@ -59,7 +57,7 @@ def get_job_list(form_name, form_version=None):
 def get_value_from_parameter(parameters_resource: Parameters, parameter_name, use_iteration_strategy: bool = False, value_key: str | None = None) -> Any:
     assert parameters_resource.parameter
     for param in parameters_resource.parameter:
-        key_value_pairs: list[str] = [x for x in param]
+        key_value_pairs: list[tuple] = [x for x in param]
         if not use_iteration_strategy and key_value_pairs[0][1] == parameter_name:
             return key_value_pairs[1][1]
         elif use_iteration_strategy:

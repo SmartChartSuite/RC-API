@@ -1,15 +1,13 @@
 """Git module for knowledge base integration support"""
 
-import logging
 import os
 import tempfile
 
 from git import Repo
+from loguru import logger
 
 from src.services.libraryhandler import create_cql, create_nlpql
 from src.util.settings import nlpaas_url
-
-logger = logging.getLogger("rcapi.util.git")
 
 
 # URL can be either HTTPS or Git SSH, the underlying git command does not change. If Git SSH, must provide appropriate keys.

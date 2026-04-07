@@ -8,4 +8,4 @@ export LOG_LEVEL=DEBUG
 export NLPAAS_URL=https://smartchartsuite.dev.heat.icl.gtri.org/nlpaas
 export DEPLOY_URL=http://localhost:8080
 
-hypercorn main:app --reload
+hypercorn main:app --reload --config hypercorn_config.toml

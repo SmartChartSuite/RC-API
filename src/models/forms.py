@@ -1,7 +1,6 @@
 """Forms module for all form/Questionnaire operations called by other files"""
 
 import csv
-import logging
 import re
 import time
 import uuid
@@ -9,13 +8,13 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Literal, overload
 
+import httpx
 from fhir.resources.R4B.questionnaire import Questionnaire
+from loguru import logger
 
 from src.services.errorhandler import make_operation_outcome
-from src.util.settings import cqfr4_fhir, session
+from src.util.settings import cqfr4_fhir, httpx_client
 from static.diagnostic_questionnaire import diagnostic_questionnaire
-
-logger: logging.Logger = logging.getLogger("rcapi.models.forms")
 
 jobpackage_server_base = "http://gtri.gatech.edu/fakeFormIg/"
 
@@ -39,7 +38,7 @@ questionnaire_template = {
 
 def save_form_questionnaire(questionnaire_dict: dict):
     # Check if Questionnaire with this name and version exist
-    req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={questionnaire_dict['name']}&version={questionnaire_dict['version']}")
+    req: httpx.Response = httpx_client.get(cqfr4_fhir + f"Questionnaire?name:exact={questionnaire_dict['name']}&version={questionnaire_dict['version']}")
     if req.status_code != 200:
         logger.error(f"Trying to get Questionnaire from server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
@@ -51,11 +50,11 @@ def save_form_questionnaire(questionnaire_dict: dict):
         logger.info("Not completing POST operation because a Questionnaire with that name and version already exist on this FHIR Server")
         logger.info("Change Questionnaire name or version number or use PUT to update this version")
         return make_operation_outcome("duplicate", f"There is already a Questionnaire with this name with resource id {questionnaire_current_id}")
-    except KeyError:
+    except (KeyError, IndexError):
         logger.info("Questionnaire with that name not found, continuing POST operation")
 
     # Create Questionnaire in CQF Ruler
-    req = session.post(cqfr4_fhir + "Questionnaire", json=questionnaire_dict)
+    req = httpx_client.post(cqfr4_fhir + "Questionnaire", json=questionnaire_dict)
     if req.status_code != 201:
         logger.error(f"Posting Questionnaire to server failed with status code {req.status_code}")
         return make_operation_outcome("transient", f"Posting Questionnaire to server failed with code {req.status_code}")
@@ -81,12 +80,12 @@ def get_form(form_name: str, form_version: str | None = None, return_Questionnai
         return diagnostic_questionnaire
 
     if form_version:
-        req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&version={form_version}")
+        req: httpx.Response = httpx_client.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&version={form_version}")
         if req.status_code != 200:
             logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
     else:
-        req = session.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&_sort=-_lastUpdated")
+        req = httpx_client.get(cqfr4_fhir + f"Questionnaire?name:exact={form_name}&_sort=-_lastUpdated")
         if req.status_code != 200:
             logger.error(f"Getting Questionnaire from server failed with status code {req.status_code}")
             return make_operation_outcome("transient", f"Getting Questionnaire from server failed with code {req.status_code}")
@@ -96,7 +95,7 @@ def get_form(form_name: str, form_version: str | None = None, return_Questionnai
         questionnaire = search_bundle["entry"][0]["resource"]
         logger.info(f"Found Questionnaire with name {form_name}, version {questionnaire['version']}, and form server ID {questionnaire['id']}")
         return questionnaire if not return_Questionnaire_class_obj else Questionnaire.parse_obj(questionnaire)
-    except KeyError:
+    except (KeyError, IndexError):
         logger.error(f"Questionnaire with name {form_name} and version {form_version} not found") if form_version else logger.error(f"Questionnaire with name {form_name} not found")
         return (
             make_operation_outcome("not-found", f"Questionnaire with name {form_name} and version {form_version} not found")

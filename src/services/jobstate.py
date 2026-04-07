@@ -1,12 +1,12 @@
 """TODO: Potentially Temporary Abstraction of Job Management, separated for use for Batch Jobs testing"""
 
 import json
-import logging
 from collections import OrderedDict
 from datetime import datetime
 from uuid import UUID
 
 from fastapi.responses import JSONResponse
+from loguru import logger
 from sqlalchemy import delete, select, update
 
 from src.models.batchjob import BatchParametersJob
@@ -14,10 +14,8 @@ from src.models.models import ParametersJob
 from src.services.errorhandler import make_operation_outcome
 from src.util.databaseclient import BatchJobs, Jobs, db_engine, execute_orm_no_return, execute_orm_query, save_object
 
-logger: logging.Logger = logging.getLogger("rcapi.util.jobstate")
 
-
-def add_to_jobs(new_job_body: ParametersJob, job_id, patient_id_type, patient_id, job_package, parent_batch_job_id, job_start_datetime, job_status) -> bool:
+def add_to_jobs(new_job_body: ParametersJob, job_id, patient_id_type, patient_id, job_package, job_package_job, parent_batch_job_id, job_start_datetime, job_status) -> bool:
     current_job_id_list: list[str] = execute_orm_query(db_engine, select(Jobs.job_id))
 
     if job_id not in current_job_id_list:
@@ -27,6 +25,7 @@ def add_to_jobs(new_job_body: ParametersJob, job_id, patient_id_type, patient_id
             patient_id_type=patient_id_type,
             patient_id=patient_id,
             job_package=job_package,
+            job_package_job=job_package_job,
             parent_batch_job_id=parent_batch_job_id,
             job_start_datetime=job_start_datetime,
             job_status=job_status,

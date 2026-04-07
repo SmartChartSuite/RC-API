@@ -1,15 +1,13 @@
 """Router file for NLPQL-related operations"""
 
-import logging
-
+import httpx
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 from src.models.functions import make_operation_outcome
 from src.services.libraryhandler import create_nlpql, get_library
-from src.util.settings import cqfr4_fhir, session
-
-logger: logging.Logger = logging.getLogger("rcapi.routers.nlpql_router")
+from src.util.settings import cqfr4_fhir, httpx_client
 
 router = APIRouter()
 
@@ -18,7 +16,7 @@ router = APIRouter()
 def get_nlpql_libraries():
     """Pulls list of CQL libraries from CQF Ruler"""
 
-    req = session.get(cqfr4_fhir + "Library?content-type=text/nlpql")
+    req: httpx.Response = httpx_client.get(cqfr4_fhir + "Library?content-type=text/nlpql")
     if req.status_code == 200:
         return req.json()
 

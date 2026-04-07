@@ -1,0 +1,62 @@
+{
+    "resourceType": "Questionnaire",
+    "id": "test-questionnaire-001",
+    "name": "TestQuestionnaire",
+    "title": "Test Questionnaire",
+    "status": "active",
+    "version": "1.0.0",
+    "useContext": [
+        {
+            "code": {
+                "system": "http://terminology.hl7.org/CodeSystem/usage-context-type",
+                "code": "focus"
+            },
+            "valueCodeableConcept": {
+                "coding": [
+                    {
+                        "code": "smartchartui"
+                    }
+                ]
+            }
+        }
+    ],
+    "extension": [
+        {
+            "url": "http://gtri.gatech.edu/fakeFormIg/cql-form-job-list",
+            "extension": [
+                {
+                    "url": "form-job",
+                    "valueString": "TestLibrary.cql"
+                }
+            ]
+        },
+        {
+            "url": "http://gtri.gatech.edu/fakeFormIg/nlpql-form-job-list",
+            "extension": []
+        }
+    ],
+    "item": [
+        {
+            "linkId": "group-1",
+            "text": "Demographics",
+            "type": "group",
+            "item": [
+                {
+                    "linkId": "1.1",
+                    "text": "Patient Name",
+                    "type": "string",
+                    "extension": [
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cqlTask",
+                            "valueString": "TestLibrary.PatientName"
+                        },
+                        {
+                            "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+                            "valueString": "single"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

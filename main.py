@@ -1,6 +1,5 @@
 """Main application file"""
 
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,30 +12,18 @@ from fastapi.openapi.docs import (
 )
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from loguru import logger
 from pydantic import ValidationError
 
 from src.models.functions import make_operation_outcome
-from src.models.models import CustomFormatter
 from src.routers import cql_router, forms_router, main_router, nlpql_router, smartchartui, webhook
 from src.routers.forms_router import init_jobs_array
 from src.util.databaseclient import startup_connect
 from src.util.git import clone_repo_to_temp_folder
-from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url, log_level
+from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url
 
 title: str = "SmartChart Suite Results Combining (RC) API"
-version: str = "0.12.0"
-
-logger: logging.Logger = logging.getLogger("rcapi")
-logger.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-ch.setFormatter(CustomFormatter())
-logger.addHandler(ch)
-
-if log_level == "DEBUG":
-    logger.setLevel(logging.DEBUG)
-    ch.setLevel(logging.DEBUG)
+version: str = "0.13.0"
 
 
 # ========================== Lifespan Function ===========================
@@ -85,9 +72,9 @@ app.add_middleware(
 
 # ================= Routers inclusion from src directory ===============
 app.include_router(main_router.router, tags=["Main API"])
-app.include_router(forms_router.router, tags=["Forms APIs"])
 app.include_router(cql_router.router, tags=["CQL APIs"])
 app.include_router(nlpql_router.router, tags=["NLPQL APIs"])
+app.include_router(forms_router.router, tags=["Forms APIs"])
 app.include_router(webhook.router, tags=["Webhook"])
 app.include_router(smartchartui.smartchart_router, tags=["SmartChart UI"])
 
@@ -101,8 +88,6 @@ async def validation_exception_handler(request, exc) -> JSONResponse:
 
 
 # ================== Custom OpenAPI ===========================
-
-
 def custom_openapi():
     """Defines the custom OpenAPI schema handling"""
     if app.openapi_schema:
@@ -125,7 +110,6 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 if api_docs.lower() == "true":
@@ -133,15 +117,16 @@ if api_docs.lower() == "true":
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
         """Custom Swagger UI HTML"""
+        assert app.openapi_url
         return get_swagger_ui_html(
-            openapi_url=docs_prepend_url + app.openapi_url,  # type: ignore
+            openapi_url=docs_prepend_url + app.openapi_url,
             title=app.title + " - Swagger UI",
             oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
-            swagger_js_url="static/swagger-ui-bundle.js",
-            swagger_css_url="static/swagger-ui.css",
         )
 
-    @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)  # type: ignore
+    assert app.swagger_ui_oauth2_redirect_url
+
+    @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)
     async def swagger_ui_redirect():
         """Custom Swagger UI Redirect"""
         return get_swagger_ui_oauth2_redirect_html()
@@ -149,8 +134,8 @@ if api_docs.lower() == "true":
     @app.get("/redoc", include_in_schema=False)
     async def redoc_html():
         """Custom Redoc HTML"""
+        assert app.openapi_url
         return get_redoc_html(
-            openapi_url=docs_prepend_url + app.openapi_url,  # type: ignore
+            openapi_url=docs_prepend_url + app.openapi_url,
             title=app.title + " - ReDoc",
-            redoc_js_url="static/redoc.standalone.js",
         )

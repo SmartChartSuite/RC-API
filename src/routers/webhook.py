@@ -1,12 +1,9 @@
 """Webhook for Knowledge Base Integration"""
 
-import logging
-
 from fastapi import APIRouter, Request
+from loguru import logger
 
 from src.util.git import clone_repo_to_temp_folder
-
-logger: logging.Logger = logging.getLogger("rcapi.routers.webhook")
 
 router = APIRouter()
 

@@ -1,15 +1,13 @@
 """Router file for CQL-related operations"""
 
-import logging
-
-from fastapi import APIRouter, Body
+import httpx
+from fastapi import APIRouter, Body, Response
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 from src.models.functions import make_operation_outcome
 from src.services.libraryhandler import create_cql, get_library
-from src.util.settings import cqfr4_fhir, session
-
-logger: logging.Logger = logging.getLogger("rcapi.routers.cql_router")
+from src.util.settings import cqfr4_fhir, httpx_client
 
 router = APIRouter()
 
@@ -18,7 +16,7 @@ router = APIRouter()
 def get_cql_libraries():
     """Pulls list of CQL libraries from CQF Ruler"""
 
-    req = session.get(cqfr4_fhir + "Library?content-type=text/cql")
+    req: httpx.Response = httpx_client.get(cqfr4_fhir + "Library?content-type=text/cql")
     if req.status_code == 200:
         return req.json()
 
@@ -27,9 +25,13 @@ def get_cql_libraries():
 
 
 @router.get("/forms/cql/{library_name}")
-def get_cql(library_name: str) -> str | dict:
+def get_cql(library_name: str) -> Response:
     """Return CQL library based on name"""
-    return get_library(library_name=library_name, library_type="cql")
+    data = get_library(library_name=library_name, library_type="cql")
+
+    if isinstance(data, dict):
+        return JSONResponse(content=data, media_type="application/fhir+json")
+    return Response(content=data, media_type="text/cql")
 
 
 @router.post("/forms/cql")
