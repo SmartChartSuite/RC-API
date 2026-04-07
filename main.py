@@ -23,7 +23,7 @@ from src.util.git import clone_repo_to_temp_folder
 from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url
 
 title: str = "SmartChart Suite Results Combining (RC) API"
-version: str = "1.0.0-pre"
+version: str = "0.13.0"
 
 
 # ========================== Lifespan Function ===========================
