@@ -4,7 +4,8 @@ import asyncio
 import base64
 import re
 import uuid
-from datetime import datetime
+from copy import deepcopy
+from datetime import datetime, timezone
 from typing import Literal, overload
 
 import httpx
@@ -329,16 +330,17 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                     tuple_flag = True
                     logger.info("Found Tuple in results")
                 if supporting_resources:
+                    answer_obs_focus_list = []
                     for resource in supporting_resources:
                         try:
-                            focus_object = {"reference": resource["fullUrl"]}
-                            answer_obs.focus.append(focus_object)  # type: ignore
+                            answer_obs_focus_list.append(Reference.model_construct(reference=resource["fullUrl"]))
                         except KeyError:
                             pass
+                    answer_obs.focus = answer_obs_focus_list
                 if empty_single_return and not supporting_resources:
                     continue
 
-                answer_obs = answer_obs.dict()
+                answer_obs = answer_obs.model_dump()
                 if isinstance(answer_obs["effectiveDateTime"], datetime):
                     answer_obs["effectiveDateTime"] = answer_obs["effectiveDateTime"].strftime("%Y-%m-%dT%H:%M:%SZ")
                 try:
@@ -733,7 +735,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                 for result in task_result:
                     if result.sentence and result.report_text and result.sentence.lower() not in re.sub(r"\n+", " ", result.report_text.lower()):
                         continue
-                    temp_answer_obs = answer_obs_template
+                    temp_answer_obs = answer_obs_template.model_copy(deep=True)
                     temp_answer_obs_uuid = str(uuid.uuid4())
                     temp_answer_obs.id = temp_answer_obs_uuid
                     temp_answer_obs.identifier[0].value = f"Observation/{temp_answer_obs_uuid}"  # type: ignore
@@ -744,30 +746,32 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                         continue
                     logger.debug(f"Found tuple in NLPQL results: {tuple_str}")
 
-                    tuple_dict = eval(f"{{{tuple_str}}}")
-                    # Commenting out below to try eval method
-                    # tuple_str_list = tuple_str.split('"')
-                    # if len(tuple_str_list) > 32:
-                    #     tuple_str_list[31] = "".join(tuple_str_list[31:])
-                    #     del tuple_str_list[32:]
-                    # for i in range(3, len(tuple_str_list), 8):
-                    #     key_name = tuple_str_list[i]
-                    #     value_name = tuple_str_list[i + 4]
-                    #     tuple_dict[key_name] = value_name
+                    try:
+                        tuple_dict = eval(f"{{{tuple_str}}}")
 
-                    tuple_result = NLPQLTupleResult(
-                        sourceNote=tuple_dict["sourceNote"],
-                        answerValue=(eval(tuple_dict["answerValue"]) if "{" in tuple_dict["answerValue"] else tuple_dict["answerValue"]),
-                        answerType=tuple_dict["answerType"],
-                    )
-                    tuple_result.sourceNote = tuple_result.sourceNote.strip()
+                        tuple_result = NLPQLTupleResult(
+                            sourceNote=tuple_dict["sourceNote"],
+                            answerValue=(eval(tuple_dict["answerValue"]) if "{" in tuple_dict["answerValue"] else tuple_dict["answerValue"]),
+                            answerType=tuple_dict["answerType"],
+                        )
+                        tuple_result.sourceNote = tuple_result.sourceNote.strip()
+                    except Exception as e:
+                        logger.exception(f"Exception during tuple eval: {e}")
+                        continue
 
-                    focus_ref: Reference = Reference.model_construct()
-                    focus_ref.reference = f"DocumentReference/{result.report_id}"
-                    temp_answer_obs.focus = [focus_ref]
+                    temp_answer_obs.focus = [Reference.model_construct(reference=f"DocumentReference/{result.report_id}")]
 
                     report_date = result.report_date if result.report_date else datetime.today().strftime("%Y-%m-%d")
-                    temp_answer_obs.effectiveDateTime = datetime.strptime(report_date, "%Y-%m-%d")
+                    if len(report_date) > 10:
+                        # Sometimes NLPaaS returns a full timestamp, handle up to seconds. Strip Z if present, or ignore it.
+                        clean_date = report_date.replace("Z", "")
+                        # Try parsing as ISO format or just fallback to string if it fails
+                        try:
+                            temp_answer_obs.effectiveDateTime = datetime.strptime(clean_date[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                        except ValueError:
+                            temp_answer_obs.effectiveDateTime = datetime.strptime(clean_date[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    else:
+                        temp_answer_obs.effectiveDateTime = datetime.strptime(report_date[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
                     if tuple_result.answerType:  # Check to make sure the answer value isnt an empty dictionary
                         temp_answer_obs.component = make_obs_component_for_nlp_result(tuple_result=tuple_result, result_type=tuple_result.answerType)
@@ -783,7 +787,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                             is_duplicate = True
 
                     if not is_duplicate:
-                        temp_answer_obs_dict = temp_answer_obs.dict()
+                        temp_answer_obs_dict = temp_answer_obs.model_dump()
                         if isinstance(temp_answer_obs_dict["effectiveDateTime"], datetime):
                             temp_answer_obs_dict["effectiveDateTime"] = temp_answer_obs_dict["effectiveDateTime"].strftime("%Y-%m-%dT%H:%M:%SZ")
                         tuple_observations.append(temp_answer_obs_dict)
@@ -815,7 +819,7 @@ def create_linked_results(results_in: list, form_name: str, patient_id: str):
                             f"failed with status code {supporting_resource_req.status_code}, continuing to create one for the Bundle"
                         )
 
-                        temp_doc_ref = dict(doc_ref_template)
+                        temp_doc_ref = deepcopy(doc_ref_template)
                         temp_doc_ref["id"] = result.report_id
                         temp_doc_ref["date"] = result.report_date if result.report_date else datetime.now().isoformat()
                         temp_doc_ref["identifier"] = [
@@ -1150,15 +1154,34 @@ async def start_jobs(post_body: StartJobsParameters) -> dict:
         parameters_post["parameter"][2]["resource"]["header"] = [f"Authorization: {external_fhir_server_auth}"]
 
     # Pass library id to be evaluated, gets back a future object that represent the pending status of the POST
-    futures = []
+    cql_task = None
+    nlpql_task = None
+
     if cql_flag:
         logger.info("Start submitting CQL jobs")
-        futures_cql = await run_cql(cql_library_server_ids, parameters_post)
-        futures.append(futures_cql)
-        logger.info("Submitted all CQL jobs")
+        cql_task = run_cql(cql_library_server_ids, parameters_post)
+
     if nlpql_flag and nlpaas_url != "False":
         logger.info("Start submitting NLPQL jobs")
-        futures_nlpql = await run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)
+        nlpql_task = run_nlpql(nlpql_library_server_ids, patient_id, external_fhir_server_url, external_fhir_server_auth)
+
+    tasks_to_await = []
+    if cql_task:
+        tasks_to_await.append(cql_task)
+    if nlpql_task:
+        tasks_to_await.append(nlpql_task)
+
+    results = await asyncio.gather(*tasks_to_await)
+
+    futures = []
+    result_idx = 0
+    if cql_task:
+        futures_cql = results[result_idx]
+        futures.append(futures_cql)
+        logger.info("Submitted all CQL jobs")
+        result_idx += 1
+    if nlpql_task:
+        futures_nlpql = results[result_idx]
         if isinstance(futures_nlpql, dict):
             return futures_nlpql
         futures.append(futures_nlpql)
@@ -1199,7 +1222,7 @@ async def start_jobs(post_body: StartJobsParameters) -> dict:
     else:
         logger.info(f"Finished linking results, returning Bundle with {bundled_results['total'] if 'total' in bundled_results else 0} entries")
 
-    # return Bundle(**bundled_results).dict(exclude_none=True)
+    # return Bundle(**bundled_results).model_dump(exclude_none=True)
     return bundled_results
 
 
@@ -1261,7 +1284,7 @@ def get_health_of_stack() -> dict:
         rcapi_reason = "RC-API is not up and running because: " + cqf_ruler_reason
         oo_template["issue"].append({"severity": "error", "code": "transient", "diagnostics": rcapi_reason})
 
-    return OperationOutcome.parse_obj(oo_template).dict()
+    return OperationOutcome.parse_obj(oo_template).model_dump()
 
 
 def get_param_index(parameter_list: list, param_name: str) -> int:

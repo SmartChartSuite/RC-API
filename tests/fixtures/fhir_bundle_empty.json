@@ -1,0 +1,7 @@
+{
+    "resourceType": "Bundle",
+    "id": "test-searchset-empty",
+    "type": "searchset",
+    "entry": [],
+    "total": 0
+}

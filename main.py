@@ -73,8 +73,8 @@ app.add_middleware(
 # ================= Routers inclusion from src directory ===============
 app.include_router(main_router.router, tags=["Main API"])
 app.include_router(cql_router.router, tags=["CQL APIs"])
-app.include_router(forms_router.router, tags=["Forms APIs"])
 app.include_router(nlpql_router.router, tags=["NLPQL APIs"])
+app.include_router(forms_router.router, tags=["Forms APIs"])
 app.include_router(webhook.router, tags=["Webhook"])
 app.include_router(smartchartui.smartchart_router, tags=["SmartChart UI"])
 

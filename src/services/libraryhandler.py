@@ -44,7 +44,7 @@ def create_cql(cql):
         existing_cql_library = search_bundle["entry"][0]["resource"]
         logger.info(f"Found CQL Library with name {name} and version {version}, therefore will be updating the resource with PUT.")
         put_flag = True
-    except KeyError:
+    except (KeyError, IndexError):
         put_flag = False
         logger.info("CQL Library with that name not found, continuing POST operation")
 
@@ -56,8 +56,7 @@ def create_cql(cql):
 
     # Create Library object
     data = {"name": name, "version": version, "status": "draft", "experimental": True, "type": {"coding": [{"code": "logic-library"}]}, "content": [{"contentType": "text/cql", "data": base64_cql}]}
-    cql_library = Library(**data)
-    cql_library = cql_library.dict()
+    cql_library = Library(**data).model_dump()
     cql_library["content"][0]["data"] = base64_cql
     logger.info("Created Library object")
 
@@ -106,7 +105,7 @@ def create_nlpql(nlpql):
         existing_nlpql_library = search_bundle["entry"][0]["resource"]
         put_flag = True
         logger.info(f"Found NLPQL Library with name {name} and version {version}, therefore will be updating this library with PUT.")
-    except KeyError:
+    except (KeyError, IndexError):
         put_flag = False
         logger.info("NLPQL Library with that name not found, continuing POST operation")
 
@@ -125,8 +124,7 @@ def create_nlpql(nlpql):
         "type": {"coding": [{"code": "logic-library"}]},
         "content": [{"contentType": "text/nlpql", "data": base64_nlpql}],
     }
-    nlpql_library = Library(**data)
-    nlpql_library = nlpql_library.dict()
+    nlpql_library = Library(**data).model_dump()
     nlpql_library["content"][0]["data"] = base64_nlpql
 
     if not put_flag:
@@ -167,7 +165,7 @@ def get_library(library_name: str, library_type: Literal["cql", "nlpql"]) -> str
     try:
         library = search_bundle["entry"][0]["resource"]
         logger.info(f"Found {library_type.upper()} Library with name {library_name}")
-    except KeyError:
+    except (KeyError, IndexError):
         logger.error(f"{library_type.upper()} Library with that name not found")
         return make_operation_outcome("not-found", f"{library_type.upper()} Library named {library_name} not found on the FHIR server.")
 

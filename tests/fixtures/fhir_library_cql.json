@@ -1,0 +1,21 @@
+{
+    "resourceType": "Library",
+    "id": "test-cql-library-001",
+    "name": "TestLibrary",
+    "version": "1.0.0",
+    "status": "draft",
+    "experimental": true,
+    "type": {
+        "coding": [
+            {
+                "code": "logic-library"
+            }
+        ]
+    },
+    "content": [
+        {
+            "contentType": "text/cql",
+            "data": "bGlicmFyeSBUZXN0TGlicmFyeSB2ZXJzaW9uICcxLjAuMCcKdXNpbmcgRkhJUiB2ZXJzaW9uICc0LjAuMScKY29udGV4dCBQYXRpZW50CmRlZmluZSAiUGF0aWVudE5hbWUiOiBQYXRpZW50Lm5hbWU="
+        }
+    ]
+}

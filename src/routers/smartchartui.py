@@ -111,7 +111,7 @@ def get_all_batch_jobs_request(include_patient: bool = False):
                 continue
             patient_resource = Patient(**read_patient(patient_id))
             batch_job_resource = update_patient_resource_in_parameters(batch_job_resource, patient_resource)
-            batch_jobs_as_resources.append(batch_job_resource.dict())
+            batch_jobs_as_resources.append(batch_job_resource.model_dump())
     else:
         batch_jobs_as_resources = requested_batch_jobs
     return [add_status_to_batch_job(batch_job) for batch_job in batch_jobs_as_resources]
@@ -129,7 +129,7 @@ def get_batch_job_request(id: str, include_patient: bool = False, response_class
             return {}
         patient_resource = Patient(**read_patient(patient_id))
         batch_job_resource = update_patient_resource_in_parameters(batch_job_resource, patient_resource)
-        requested_batch_job = batch_job_resource.dict()
+        requested_batch_job = batch_job_resource.model_dump()
     return requested_batch_job
 
 
@@ -152,7 +152,7 @@ def get_batch_job_results(id: str):
     # TODO: Per above, temp handling given an all statuses complete.
     # 1. Get child job IDs.
     child_job_list_resource: List = get_value_from_parameter(batch_job_resource, "childJobs", use_iteration_strategy=True, value_key="resource")
-    child_job_list_dict = child_job_list_resource.dict()
+    child_job_list_dict = child_job_list_resource.model_dump()
     child_job_list_dict_entries = child_job_list_dict["entry"]
     child_job_ids: list = [entry["item"]["display"] for entry in child_job_list_dict_entries]
 
@@ -248,7 +248,20 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patien
     start_bodies = [temp_start_job_body(patient_id, form_name, job) for job in job_list]
 
     # Temporary holder for the list of responses to include in the batch job response
-    child_job_ids = [start_child_job_task(start_body=start_body, parent_batch_job_id=new_batch_job_batch_id, background_tasks=background_tasks) for start_body in start_bodies]
+    child_job_ids = []
+    child_jobs_to_run = []
+    for start_body in start_bodies:
+        new_job = ParametersJob()
+        uid_param_index = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobId"][0])
+
+        new_uuid = uuid.uuid4()
+        new_job.parameter[uid_param_index].valueString = str(new_uuid)
+
+        job_id = str(new_job.parameter[uid_param_index].valueString)
+        child_job_ids.append(job_id)
+        child_jobs_to_run.append({"new_job": new_job, "job_id": job_id, "parent_batch_job_id": new_batch_job_batch_id, "start_body": start_body})
+
+    background_tasks.add_task(run_all_child_jobs_concurrently, child_jobs_to_run)
 
     list_resource = create_list_resource(child_job_ids)
     new_batch_job.parameter[child_jobs_param_index].resource = list_resource
@@ -271,10 +284,10 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patien
         patient_id = get_value_from_parameter(batch_job_resource, "patientId", use_iteration_strategy=True, value_key="valueString")
         patient_resource = Patient(**read_patient(patient_id))
         batch_job_resource = update_patient_resource_in_parameters(batch_job_resource, patient_resource)
-        batch_job_resource = batch_job_resource.dict(exclude_none=True)
+        batch_job_resource = batch_job_resource.model_dump(exclude_none=True)
 
     if isinstance(batch_job_resource, Parameters):
-        batch_job_resource = batch_job_resource.dict(exclude_none=True)
+        batch_job_resource = batch_job_resource.model_dump(exclude_none=True)
 
     return PrettyJSONResponse(
         batch_job_resource,
@@ -282,17 +295,11 @@ def start_batch_job(post_body, background_tasks: BackgroundTasks, include_patien
     )
 
 
-def start_child_job_task(start_body: StartJobsParameters, parent_batch_job_id, background_tasks: BackgroundTasks):
-    new_job = ParametersJob()
-    uid_param_index = new_job.parameter.index([param for param in new_job.parameter if param.name == "jobId"][0])
+async def run_all_child_jobs_concurrently(child_jobs: list[dict]):
+    import asyncio
 
-    # TODO: Temporary fix to new_job creating duplicate UUIDs
-    new_uuid = uuid.uuid4()
-    new_job.parameter[uid_param_index].valueString = str(new_uuid)
-
-    job_id = str(new_job.parameter[uid_param_index].valueString)
-    background_tasks.add_task(run_child_job, new_job, job_id, parent_batch_job_id, start_body)
-    return job_id
+    tasks = [run_child_job(job["new_job"], job["job_id"], job["parent_batch_job_id"], job["start_body"]) for job in child_jobs]
+    await asyncio.gather(*tasks)
 
 
 async def run_child_job(new_job: ParametersJob, job_id: str, parent_batch_job_id: str, start_body: StartJobsParameters):

@@ -7,7 +7,7 @@ from datetime import datetime
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import JSONResponse
-from fastapi_restful.tasks import repeat_every
+from fastapi_utils.tasks import repeat_every
 from loguru import logger
 
 from src.models.forms import convert_jobpackage_csv_to_questionnaire, get_form, save_form_questionnaire
@@ -152,7 +152,7 @@ def update_form(form_name: str, new_questions: dict):
     try:
         resource_id = search_bundle["entry"][0]["resource"]["id"]
         logger.info(f"Found Questionnaire with name {form_name}")
-    except KeyError:
+    except (KeyError, IndexError):
         logger.error("Questionnaire with that name not found")
         return make_operation_outcome("not-found", f"Getting Questionnaire named {form_name} not found on server")
 

@@ -1,0 +1,359 @@
+{
+    "_comment_integration": "See .env.integration.example — copy it to .env.integration (gitignored) and fill in your real service URLs before running: pytest tests/test_integration.py -m integration",
+    "patients": [
+        {
+            "id": "625747",
+            "name": [
+                {
+                    "use": "official",
+                    "text": "Baby McBaby",
+                    "family": "McBaby",
+                    "given": [
+                        "Baby"
+                    ]
+                }
+            ],
+            "birthDate": "2150-01-01",
+            "identifier": [
+                {
+                    "use": "usual",
+                    "type": {
+                        "text": "GA8"
+                    },
+                    "system": "urn:oid:1.2.840.114350.1.13.876.1.4.8.725198.0",
+                    "value": "999888777"
+                }
+            ],
+            "expected_resource_type": "Patient"
+        }
+    ],
+    "questionnaires": [
+        {
+            "name": "SETNETInfantFollowUp",
+            "expected_resource_type": "Questionnaire"
+        }
+    ],
+    "cql_libraries": [
+        {
+            "name": "ifu_information",
+            "version": "1.0",
+            "sample_cql": "library ifu_information version '1.0'\nusing FHIR version '4.0.1'\ninclude FHIRHelpers version '4.0.1' called FHIRHelpers\ncodesystem \"LOINC\": 'http://loinc.org'\ncontext Patient\ndefine \"ig_death_dx_concept\": Concept {Code '79378-6' from \"LOINC\",Code '92022-3' from \"LOINC\",Code '76060-3' from \"LOINC\",Code '69453-9' from \"LOINC\",Code '76061-1' from \"LOINC\",Code '69441-4' from \"LOINC\",Code '92023-1' from \"LOINC\"} \ndefine \"ig_death\":\n\tcase\n\t\twhen Patient.deceased = true then 'Yes'\n\t\twhen (Patient.deceased as FHIR.dateTime) is not null then 'Yes'\n\t\twhen Patient.deceased = false then 'No'\n\t\telse 'Unknown'\n\tend\ndefine \"ig_death_dx\": [Observation: code ~ \"ig_death_dx_concept\"]\ndefine \"ig_death_dt_dx\": from \"ig_death_dx\" target return ToString((target.effective as FHIR.dateTime).value)\ndefine \"ig_death_dt\":\n\tcase\n\t\twhen (Patient.deceased as FHIR.dateTime) is not null then ToString((Patient.deceased as FHIR.dateTime).value)\n\t\twhen Patient.deceased = false then null\n\t\twhen Patient.deceased = true then 'Unknown'\n\t\twhen exists \"ig_death_dt_dx\" then Combine(\"ig_death_dt_dx\", ',')\n\t\telse 'Not Applicable'\n\tend\ndefine \"ig_death_evidence\": \"ig_death_dx\"\ndefine \"ig_death_dt_evidence\": \"ig_death_evidence\""
+        }
+    ],
+    "nlpql_libraries": [
+        {
+            "name": "ifu_information",
+            "version": "1",
+            "sample_nlpql": "// Phenotype library name\nphenotype \"ifu_information\" version \"1\";\ninclude ClarityCore version \"1.0\" called Clarity;\ntermset ig_death_terms: [\"death\",\"expire\",\"decease\"];\ndefine final ig_death_unstructured: Clarity.ProviderAssertion({termset: [ig_death_terms]});\ndefine final ig_death:Tuple {\"questionConcept\": \"5\",\"answerValue\": ig_death_unstructured.term,\"answerType\": \"ProviderAssertion\",\"sourceNote\": ig_death_unstructured.sentence} where ig_death_unstructured;"
+        }
+    ],
+    "start_jobs_requests": [
+        {
+            "_comment": "A full Parameters POST body to POST /forms/start. Fill in patientId, jobPackage, and job.",
+            "resourceType": "Parameters",
+            "parameter": [
+                {
+                    "name": "patientId",
+                    "valueString": "627902"
+                },
+                {
+                    "name": "jobPackage",
+                    "valueString": "SETNETInfantFollowUp"
+                },
+                {
+                    "name": "job",
+                    "valueString": "ifu_covid_19_module.cql"
+                }
+            ],
+            "expected_output": {
+                "resourceType": "Bundle",
+                "id": "7c9560aa-f176-4501-a401-93442e1c411b",
+                "type": "collection",
+                "entry": [
+                    {
+                        "fullUrl": "Patient/627902",
+                        "resource": {
+                            "resourceType": "Patient",
+                            "id": "627902",
+                            "meta": {
+                                "versionId": "1",
+                                "lastUpdated": "2025-05-06T16:05:10.922+00:00",
+                                "source": "#VA8UUwHAgZxjiVb1"
+                            },
+                            "text": {
+                                "status": "generated",
+                                "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><div class=\"hapiHeaderText\">Chase <b>CAMPBELL </b></div><table class=\"hapiPropertyTable\"><tbody><tr><td>Identifier</td><td>87654321</td></tr><tr><td>Address</td><td><span>875 WEST PEACHTREE ROAD NORTHEAST </span><br/><span>ATLANTA </span><span>GA </span><span>USA </span></td></tr><tr><td>Date of birth</td><td><span>10 January 2024</span></td></tr></tbody></table></div>"
+                            },
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race",
+                                    "extension": [
+                                        {
+                                            "url": "ombCategory",
+                                            "valueCoding": {
+                                                "system": "urn:oid:2.16.840.1.113883.6.238",
+                                                "code": "2106-3",
+                                                "display": "White"
+                                            }
+                                        },
+                                        {
+                                            "url": "text",
+                                            "valueString": "White"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity",
+                                    "extension": [
+                                        {
+                                            "url": "ombCategory",
+                                            "valueCoding": {
+                                                "system": "urn:oid:2.16.840.1.113883.6.238",
+                                                "code": "2186-5",
+                                                "display": "Not Hispanic or Latino"
+                                            }
+                                        },
+                                        {
+                                            "url": "text",
+                                            "valueString": "Not Hispanic or Latino"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "url": "http://open.epic.com/FHIR/StructureDefinition/extension/legal-sex",
+                                    "valueCodeableConcept": {
+                                        "coding": [
+                                            {
+                                                "system": "urn:oid:1.2.840.114350.1.13.244.2.7.10.698084.130.768080.39128",
+                                                "code": "male",
+                                                "display": "male"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/patient-genderIdentity",
+                                    "valueCodeableConcept": {
+                                        "coding": [
+                                            {
+                                                "system": "http://hl7.org/fhir/gender-identity",
+                                                "code": "male",
+                                                "display": "male"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "url": "http://open.epic.com/FHIR/StructureDefinition/extension/sex-for-clinical-use",
+                                    "valueCodeableConcept": {
+                                        "coding": [
+                                            {
+                                                "system": "urn:oid:1.2.840.114350.1.13.244.2.7.10.698084.130.768080.35144",
+                                                "code": "male",
+                                                "display": "male"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/patient-birthTime",
+                                    "valueDateTime": "2024-01-10T14:53:00+00:00"
+                                }
+                            ],
+                            "identifier": [
+                                {
+                                    "use": "usual",
+                                    "type": {
+                                        "text": "GA8"
+                                    },
+                                    "system": "urn:oid:1.2.840.114350.1.13.876.1.4.8.725198.0",
+                                    "value": "87654321"
+                                }
+                            ],
+                            "active": true,
+                            "name": [
+                                {
+                                    "use": "official",
+                                    "text": "Chase Campbell",
+                                    "family": "Campbell",
+                                    "given": [
+                                        "Chase"
+                                    ]
+                                }
+                            ],
+                            "telecom": [
+                                {
+                                    "system": "phone",
+                                    "value": "404-678-9876",
+                                    "use": "home"
+                                }
+                            ],
+                            "gender": "male",
+                            "birthDate": "2024-01-10",
+                            "address": [
+                                {
+                                    "use": "home",
+                                    "line": [
+                                        "875 WEST PEACHTREE ROAD NORTHEAST"
+                                    ],
+                                    "city": "ATLANTA",
+                                    "district": "FULTON",
+                                    "state": "GA",
+                                    "postalCode": "30308",
+                                    "country": "USA"
+                                }
+                            ],
+                            "maritalStatus": {
+                                "text": "Single"
+                            },
+                            "multipleBirthInteger": 1,
+                            "communication": [
+                                {
+                                    "language": {
+                                        "coding": [
+                                            {
+                                                "system": "urn:ietf:bcp:47",
+                                                "code": "en",
+                                                "display": "English"
+                                            }
+                                        ]
+                                    },
+                                    "preferred": true
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "fullUrl": "Observation/5bdb345a-d577-493f-8e5f-a81969c4f9e0",
+                        "resource": {
+                            "resourceType": "Observation",
+                            "id": "5bdb345a-d577-493f-8e5f-a81969c4f9e0",
+                            "identifier": [
+                                {
+                                    "system": "https://smartchartsuite.dev.heat.icl.gtri.org/rc-api/",
+                                    "value": "Observation/5bdb345a-d577-493f-8e5f-a81969c4f9e0"
+                                }
+                            ],
+                            "status": "final",
+                            "category": [
+                                {
+                                    "coding": [
+                                        {
+                                            "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                                            "code": "survey",
+                                            "display": "Survey"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "code": {
+                                "coding": [
+                                    {
+                                        "system": "urn:gtri:heat:form:SETNETInfantFollowUp",
+                                        "code": "62",
+                                        "display": "Did the infant have jaundice requiring phototherapy after birth hospitalization?"
+                                    }
+                                ]
+                            },
+                            "subject": {
+                                "reference": "Patient/627902"
+                            },
+                            "focus": [
+                                {
+                                    "reference": "Condition/a06d1f28-0fa8-4e4a-9c92-4f841b12c1f0"
+                                }
+                            ],
+                            "effectiveDateTime": "2026-03-03T14:16:35Z"
+                        }
+                    },
+                    {
+                        "fullUrl": "Condition/a06d1f28-0fa8-4e4a-9c92-4f841b12c1f0",
+                        "resource": {
+                            "resourceType": "Condition",
+                            "id": "a06d1f28-0fa8-4e4a-9c92-4f841b12c1f0",
+                            "meta": {
+                                "versionId": "1",
+                                "lastUpdated": "2025-05-12T20:32:46.903+00:00",
+                                "source": "#1oavnQAhg9J3JcG8",
+                                "profile": [
+                                    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition"
+                                ]
+                            },
+                            "clinicalStatus": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                                        "code": "active",
+                                        "display": "Active"
+                                    }
+                                ]
+                            },
+                            "verificationStatus": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                                        "code": "confirme",
+                                        "display": "Confirmed"
+                                    }
+                                ]
+                            },
+                            "category": [
+                                {
+                                    "coding": [
+                                        {
+                                            "system": "http://terminology.hl7.org/CodeSystem/condition-category",
+                                            "code": "encounter-diagnosis",
+                                            "display": "Encounter Diagnosis"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "code": {
+                                "coding": [
+                                    {
+                                        "system": "http://hl7.org/fhir/sid/icd-10-cm",
+                                        "code": "P59.9",
+                                        "display": "Neonatal jaundice, unspecified"
+                                    }
+                                ]
+                            },
+                            "subject": {
+                                "reference": "Patient/627902"
+                            },
+                            "encounter": {
+                                "reference": "Encounter/c9683c13-8ea3-4102-90a0-303595172a5e"
+                            },
+                            "onsetDateTime": "2024-01-12T00:00:00+00:00"
+                        }
+                    }
+                ],
+                "total": 3
+            }
+        }
+    ],
+    "batch_jobs_requests": [
+        {
+            "_comment": "A full Parameters POST body to POST /smartchartui/batchjob.",
+            "resourceType": "Parameters",
+            "parameter": [
+                {
+                    "name": "patientId",
+                    "valueString": "627902"
+                },
+                {
+                    "name": "jobPackage",
+                    "valueString": "SETNETInfantFollowUpIntegrationTesting"
+                }
+            ]
+        }
+    ],
+    "jobpackage_csv_samples": [
+        {
+            "_comment": "A CSV string for POST /forms/jobPackageToQuestionnaire. Paste the full CSV content in 'csv'.",
+            "csv": "NAME:,Syphilis Registry,,,,,,,,,,,,,,,,,,,,,,,,,,,\nVERSION:,0.3,,,,,,,,,,,,,,,,,,,,,,,,,,,\nDESCRIPTION:,Package for Syphilis Registry,,,,,,,,,,,,,,,,,,,,,,,,,,,\nQuestion Text,Group,LinkID,Task Type,CQL Library,CQL Definition,Cardinality,Item/Answer Type,AnswerOption (Choice Only),Notes (Not Parsed),GitHub location,Atlas location,,,,,,,,,,,,,,,,,\nFirst Name,Demographics,2000000001,CQL,demographics,first_name,single,string,,,,,,,,,,,,,,,,,,,,,\nLast Name,Demographics,2000000002,CQL,demographics,last_name,single,string,,,,,https://atlas-demo.ohdsi.org/#/conceptset/1870997/expression,,,,,,,,,,,,,,,,\nDOB,Demographics,2000000003,CQL,demographics,date_of_birth,single,string,,,,,https://atlas-demo.ohdsi.org/#/conceptset/1870998/expression,,,,,,,,,,,,,,,,\nAge,Demographics,2000000004,CQL,demographics,age,single,string,,,,,https://atlas-demo.ohdsi.org/#/conceptset/1870999/expression,,,,,,,,,,,,,,,,\nGender,Demographics,2000000005,CQL,demographics,gender,single,string,,,,,,,,,,,,,,,,,,,,,\nRace,Demographics,2000000006,CQL,demographics,race,single,string,,,,,,,,,,,,,,,,,,,,,\nEthnicity,Demographics,2000000007,CQL,demographics,ethnicity,single,string,,,,,,,,,,,,,,,,,,,,,\nTest Results,Testing,display1,,,,,display,,Display Item,,,,,,,,,,,,,,,,,,,\nLab Results,Lab Results,2000000008,CQL,Syphilis_Lab_Results,lab_results,series,string,,Will contain Date / Test Codesystem / Code / Name / Result / Units,\"\"\"10/14/2020^http://loinc.org^1234-5^Rapid Plasma Reagin^Positive\"\"\",https://atlas-demo.ohdsi.org/#/conceptset/1870999/expression,,,,,,,,,,,,,,,,,\nRelated Lab Results,Lab Results,2000000009,CQL,Syphilis_Lab_Results,syphilis_related_labs,series,string,,Will contain Date / Test Codesystem / Code / Name / Result / Units,\"\"\"10/14/2020^http://loinc.org^7918-6^HIV 1+2 Ab [Presence] in Serum^Negative\"\"\",,,,,,,,,,,,,,,,,,\nDiagnoses,Diagnoses,display2,,,,,display,,,,,,,,,,,,,,,,,,,,,\nSyphilis Diagnoses,Diagnoses,2000000010,CQL,Syphilis_Diagnoses,syphilis_diagnoses,series,string,,Will contain Date / Codesystem / Code / Name,\"\"\"07/21/2019^ICD9^362.2^Neurosyphilis\"\"\",https://atlas-demo.ohdsi.org/#/conceptset/1870999/expression,,,,,,,,,,,,,,,,,\nSyphilis DIagnoses,Diagnoses,2000000010,NLPQL,Syphilis_Diagnoses,syphilis_diagnoses,series,string,,Will contain Date^Concept Name^text,\"\"\"07/21/2020^Syphilis^Patient diagnosed with Syphilis\"\"\",,,,,,,,,,,,,,,,,,\nSymptoms,Diagnoses,2000000012,CQL,Syphilis_Diagnoses,syphilis_symptoms,series,string,,Will contain Date / Codesystem / Code / Name,\"\"\"07/21/2020^ICD10^E210^Mental Status Changes\"\"\",,,,,,,,,,,,,,,,,,\nSymptoms,Diagnoses,2000000012,NLPQL,Syphilis_Symptoms,syphilis_symptoms,series,string,,,,,,,,,,,,,,,,,,,,,\nPotential Complications,Diagnoses,2000000020,CQL,,,series,string,,,,,,,,,,,,,,,,,,,,,\nPotential Complications,Diagnoses,2000000020,NLPQL,,,series,string,,,,,,,,,,,,,,,,,,,,,\nComorbid Conditions,Diagnoses,2000000011,CQL,Syphilis_Related_Diagnoses,syphilis_related_diagnoses,series,,,,,https://atlas-demo.ohdsi.org/#/conceptset/1870997/expression,,,,,,,,,,,,,,,,,\nComorbid Conditions,Diagnoses,2000000011,NLPQL,Syphilis_Related_Diagnoses,syphilis_related_diagnoses,series,string,,,,,,,,,,,,,,,,,,,,,\nBehaviorial Factor,Diagnoses,2000000022,CQL,Syphilis_Related_Diagnoses,syphilis_behavioral_factors,series,string,,,,https://atlas-demo.ohdsi.org/#/conceptset/1870998/expression,,,,,,,,,,,,,,,,,\nBehaviorial Factor,Diagnoses,2000000022,NLPQL,Syphilis_Related_Diagnoses,syphilis_behavioral_factors,series,string,,,,,,,,,,,,,,,,,,,,,\nTreatments,Treatment,display2,,,,,display,,,,,,,,,,,,,,,,,,,,,\nSyphilis Treatment,Treatment,2000000013,CQL,Syphilis_Treatment,syphilis_treatment,series,string,,Will contain Date / Codesystem / Code / Name / Dose / Units,\"\"\"09/21/2020^RxNorm^123345^Penicillin G^1000^milligram\"\"\",,,,,,,,,,,,,,,,,,\nSyphilis Treatment,Treatment,2000000013,NLPQL,Syphilis_Treatment,syphilis_treatment,series,string,,,,,,,,,,,,,,,,,,,,,\nPregnancy,Pregnancy,display2,,,,,display,,,,,,,,,,,,,,,,,,,,,\nLast Menstrual Period,Pregnancy,2000000014,CQL,Pregnancy,lmp,series,display,,,,,,,,,,,,,,,,,,,,,\nLast Menstrual Period,Pregnancy,2000000014,NLPQL,Pregnancy,lmp,series,display,,,,,,,,,,,,,,,,,,,,,\nPregnant,Pregnancy,2000000015,CQL,Pregnancy,pregnant,series,string,,,,,,,,,,,,,,,,,,,,,\nPregnant,Pregnancy,2000000015,NLPQL,Pregnancy,pregnant,series,string,,,,,,,,,,,,,,,,,,,,,\nPrenatal Care,Pregnancy,2000000016,CQL,Pregnancy,prenatal_care_afp,series,string,,,,,,,,,,,,,,,,,,,,,\nPrenatal Care,Pregnancy,2000000016,CQL,Pregnancy,prenatal_care,series,string,,,,,,,,,,,,,,,,,,,,,\nPrenatal Care,Pregnancy,2000000016,NLPQL,Pregnancy,prenatal_care,series,string,,,,,,,,,,,,,,,,,,,,,\nPregnancy Test,Pregnancy,2000000017,CQL,Pregnancy,pregnancy_test,series,string,,,,,,,,,,,,,,,,,,,,,\nPregnancy Test,Pregnancy,2000000017,NLPQL,Pregnancy,pregnancy_test,series,string,,,,,,,,,,,,,,,,,,,,,\nDelivery Related,Pregnancy,2000000018,CQL,Pregnancy,delivery_related,series,string,,,,,,,,,,,,,,,,,,,,,\nDelivery Related,Pregnancy,2000000018,NLPQL,Pregnancy,delivery_related,series,string,,,,,,,,,,,,,,,,,,,,,\nTermination,Pregnancy,2000000019,CQL,Pregnancy,termination_observation,series,string,,,,,,,,,,,,,,,,,,,,,",
+            "cql_only": false,
+            "smartchart": false,
+            "expected_resource_type": "Questionnaire"
+        }
+    ]
+}

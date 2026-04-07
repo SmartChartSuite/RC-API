@@ -33,7 +33,7 @@ class ResultParameter(JobParameter):
     """Result Parameter for Job Status Support"""
 
     name: str = "result"
-    resource: dict = {"resourceType": "Bundle"}
+    resource: dict = {"resourceType": "Bundle", "type": "collection"}
 
 
 class JobStartParameter(JobParameter):

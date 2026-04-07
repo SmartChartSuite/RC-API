@@ -42,8 +42,10 @@ if external_fhir_server_url[-1] != "/":
 if deploy_url[-1] != "/":
     deploy_url += "/"
 
-if nlpaas_url[-1] != "/":
+if nlpaas_url and nlpaas_url.lower() != "false" and nlpaas_url[-1] != "/":
     nlpaas_url += "/"
+elif nlpaas_url.lower() == "false":
+    nlpaas_url = ""
 
 transport: httpx.HTTPTransport = httpx.HTTPTransport(retries=5)
 httpx_client: httpx.Client = httpx.Client(transport=transport)
