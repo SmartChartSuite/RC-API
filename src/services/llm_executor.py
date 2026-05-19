@@ -1,0 +1,93 @@
+"""LiteLLM-based LLM execution service.
+
+Mirrors v0 NLPaaS approach: one LLM call per document per prompt, results collapsed.
+All calls use asyncio.gather for concurrency.
+
+Guarded by use_llm — if LiteLLM is not configured, run_all_prompts() should not be called.
+"""
+
+import asyncio
+from dataclasses import dataclass, field
+
+import litellm
+from loguru import logger
+
+from src.models.prompt import Prompt
+from src.util.settings import litellm_api_base, litellm_api_key, litellm_model, use_llm
+
+
+@dataclass
+class LlmDocumentResult:
+    """Result of running a single prompt against a single document."""
+
+    doc_id: str
+    doc_type: str
+    doc_date: str
+    response: str  # raw LLM response text
+    error: str | None = None
+
+
+@dataclass
+class LlmResult:
+    """Results of running a single prompt across all patient documents."""
+
+    prompt_path: str  # matches the unstructuredTask extension value on Questionnaire items
+    document_results: list[LlmDocumentResult] = field(default_factory=list)
+
+
+async def run_prompt_on_document(prompt: Prompt, document: dict) -> LlmDocumentResult:
+    """Run a single prompt against a single DocumentReference's plain text.
+
+    Appends the document text to the end of the prompt content before calling the LLM.
+    Returns an LlmDocumentResult with the document metadata and LLM response.
+    """
+    doc_id = document["id"]
+    doc_type = document.get("type", "Unknown")
+    doc_date = document.get("date", "")
+
+    if not use_llm:
+        logger.warning("LLM not configured — skipping prompt execution")
+        return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response="", error="LLM not configured")
+
+    try:
+        assert litellm_model
+        # response = litellm.responses( #type: ignore
+        #     model=litellm_model,
+        #     api_base=litellm_api_base,
+        #     api_key=litellm_api_key,
+        #     instructions=prompt.content,
+        #     input=document["text"],
+        # )
+        # answer: str = response.output[0].content[0].text or "" #type: ignore
+        response = litellm.completion(
+            model=litellm_model, api_base=litellm_api_base, api_key=litellm_api_key, messages=[{"role": "system", "content": prompt.content}, {"role": "user", "content": document["text"]}]
+        )
+        answer = response.choices[0].message.content or ""  # type: ignore
+        logger.info(f"LLM response received for prompt '{prompt.metadata.path}' / doc {doc_id}")
+        return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response=answer)
+    except Exception as exc:
+        logger.error(f"LLM call failed for prompt '{prompt.metadata.path}' / doc {doc_id}: {exc}")
+        return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response="", error=str(exc))
+
+
+async def run_prompt_across_documents(prompt: Prompt, documents: list[dict]) -> LlmResult:
+    """Run a single prompt against all patient documents concurrently.
+
+    Returns a single LlmResult containing all per-document findings.
+    """
+    doc_results = await asyncio.gather(*[run_prompt_on_document(prompt, doc) for doc in documents])
+    return LlmResult(
+        prompt_path=prompt.metadata.path,
+        document_results=list(doc_results),
+    )
+
+
+async def run_all_prompts(prompts: list[Prompt], documents: list[dict]) -> list[LlmResult]:
+    """Run all prompts across all documents concurrently.
+
+    Only called when len(documents) > 0; orchestrator skips this if no documents found.
+    """
+    if not prompts or not documents:
+        return []
+    results = await asyncio.gather(*[run_prompt_across_documents(p, documents) for p in prompts])
+    return list(results)
