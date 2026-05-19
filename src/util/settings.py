@@ -1,98 +1,86 @@
-"""Settings file for importing environmental variables"""
+"""v1 settings — all environment variables with graceful degraded-mode handling.
 
-import logging
+Required vars (EXTERNAL_FHIR_SERVER_URL, HAPI_FHIR_CQL_EXECUTION_URL) are loaded via
+_require() which records the error but does NOT raise, allowing the API to start inside
+Docker even with missing config. Endpoints check config_errors and return a FHIR
+OperationOutcome (HTTP 503) rather than crashing.
+"""
+
 import os
 
-import httpx
 from loguru import logger
-from pydantic import BaseModel
+import litellm
+
+# ── Startup error registry ─────────────────────────────────────────────────────
+config_errors: dict[str, str] = {}
 
 
-class ConfigEndpointPrimaryIdentifier(BaseModel):
-    label: str | None = None
-    system: str | None = None
+def _get(var: str, default: str | None = None) -> str | None:
+    """Read an env var and normalize common docker --env-file formatting artifacts."""
+    value = os.environ.get(var)
+    if value is None:
+        return default
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1]
+    return value
 
 
-class ConfigEndpointModel(BaseModel):
-    primaryIdentifier: ConfigEndpointPrimaryIdentifier | None = None
+def _require(var: str) -> str | None:
+    """Load a required env var. Records error without raising if missing."""
+    val = _get(var)
+    if not val:
+        msg = f"Required environment variable '{var}' is not set."
+        logger.error(msg)
+        config_errors[var] = msg
+    return val
 
 
-# ================= Creating necessary variables from Secrets ========================
-cqfr4_fhir = os.environ["CQF_RULER_R4"]
-external_fhir_server_url = os.environ["EXTERNAL_FHIR_SERVER_URL"]
-external_fhir_server_auth = os.environ.get("EXTERNAL_FHIR_SERVER_AUTH", "")
-nlpaas_url = os.environ.get("NLPAAS_URL", "False")
-log_level = os.environ.get("LOG_LEVEL", "info").upper()
-api_docs = os.environ.get("API_DOCS", "true")
-knowledgebase_repo_url = os.environ.get("KNOWLEDGEBASE_REPO_URL", "")
-docs_prepend_url = os.environ.get("DOCS_PREPEND_URL", "")
-deploy_url = os.environ.get("DEPLOY_URL", "http://example.org/")
-db_connection_string = os.environ.get("DB_CONNECTION_STRING", "sqlite+pysqlite:///rcapi_jobs.sqlite")
-db_schema = os.environ.get("DB_SCHEMA", "rcapi")
+# FHIR servers
+external_fhir_server_url: str | None = _require("EXTERNAL_FHIR_SERVER_URL")
+external_fhir_server_auth: str = _get("EXTERNAL_FHIR_SERVER_AUTH", "") or ""
 
-primary_identifier_system = os.environ.get("PRIMARYIDENTIFIER_SYSTEM")
-primary_identifier_label = os.environ.get("PRIMARYIDENTIFIER_LABEL")
+# HAPI FHIR CQL Execution Service
+# Library IDs are the CamelCase resource name (e.g. "SyphilisRegistry")
+# POST {hapi_fhir_cql_execution_url}/Library/{LibraryName}/$evaluate
+hapi_fhir_cql_execution_url: str | None = _require("HAPI_FHIR_CQL_EXECUTION_URL")
 
-if cqfr4_fhir[-1] != "/":
-    cqfr4_fhir += "/"
+# LiteLLM (all three required together for LLM operations)
+litellm_model: str | None = _get("LITELLM_MODEL")
+litellm_api_base: str | None = _get("LITELLM_API_BASE")
+litellm_api_key: str | None = _get("LITELLM_API_KEY")
+use_llm: bool = bool(litellm_model and litellm_api_base and litellm_api_key)
+if any([litellm_model, litellm_api_base, litellm_api_key]) and not use_llm:
+    logger.warning("Partial LiteLLM config — set LITELLM_MODEL, LITELLM_API_BASE, and LITELLM_API_KEY together.")
 
-if external_fhir_server_url[-1] != "/":
-    external_fhir_server_url += "/"
+# Langfuse (all three required together for prompt retrieval)
+langfuse_public_key: str | None = _get("LANGFUSE_PUBLIC_KEY")
+langfuse_secret_key: str | None = _get("LANGFUSE_SECRET_KEY")
+langfuse_host: str | None = _get("LANGFUSE_HOST")
+use_langfuse: bool = bool(langfuse_public_key and langfuse_secret_key and langfuse_host)
+if any([langfuse_public_key, langfuse_secret_key, langfuse_host]) and not use_langfuse:
+    logger.warning("Partial Langfuse config — set LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, and LANGFUSE_HOST together.")
 
-if deploy_url[-1] != "/":
-    deploy_url += "/"
+# Prompts folder (fallback when Langfuse not configured)
+prompts_dir: str = _get("PROMPTS_DIR", "./prompts") or "./prompts"
 
-if nlpaas_url and nlpaas_url.lower() != "false" and nlpaas_url[-1] != "/":
-    nlpaas_url += "/"
-elif nlpaas_url.lower() == "false":
-    nlpaas_url = ""
+# Database
+db_connection_string: str = _get("DB_CONNECTION_STRING", "sqlite+pysqlite:///rcapi_jobs.sqlite") or "sqlite+pysqlite:///rcapi_jobs.sqlite"
+db_schema: str = _get("DB_SCHEMA", "rcapi") or "rcapi"
 
-transport: httpx.HTTPTransport = httpx.HTTPTransport(retries=5)
-httpx_client: httpx.Client = httpx.Client(transport=transport)
+# OAuth 2 (optional; auth disabled if OAUTH2_JWKS_URL is not set)
+oauth2_jwks_url: str | None = _get("OAUTH2_JWKS_URL")
+oauth2_issuer: str | None = _get("OAUTH2_ISSUER")
+oauth2_audience: str | None = _get("OAUTH2_AUDIENCE")
+oauth2_enabled: bool = bool(oauth2_jwks_url)
+if oauth2_jwks_url and not oauth2_issuer:
+    logger.warning("OAUTH2_JWKS_URL is set but OAUTH2_ISSUER is missing — token issuer will not be validated.")
 
-config_endpoint: ConfigEndpointModel | dict = (
-    ConfigEndpointModel.model_validate({"primaryIdentifier": {"system": primary_identifier_system, "label": primary_identifier_label}}) if primary_identifier_system else {}
-)
+# Misc
+api_docs: str = _get("API_DOCS", "true") or "true"
+deploy_url: str = _get("DEPLOY_URL", "http://example.org/") or "http://example.org/"
+log_level: str = (_get("LOG_LEVEL", "INFO") or "INFO").upper()
 
-
-# ================= Logging setup ========================
-os.environ["LOGURU_LEVEL"] = log_level
-
-# Remove existing handlers
-for handler in logging.root.handlers[:]:
-    logging.root.removeHandler(handler)
-
-
-class InterceptHandler(logging.Handler):
-    def emit(self, record):
-        # Get corresponding Loguru level
-        try:
-            level = logger.level(record.levelname).name
-        except ValueError:
-            level = record.levelno
-
-        # Find caller to get correct stack depth
-        frame, depth = logging.currentframe(), 2
-        while frame.f_back and frame.f_code.co_filename == logging.__file__:
-            frame = frame.f_back
-            depth += 1
-
-        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
-
-
-# Intercept standard logging
-logging.basicConfig(handlers=[InterceptHandler()], level=logging.INFO)
-
-loggers = (
-    "hypercorn",
-    "hypercorn.access",
-    "hypercorn.error",
-    "fastapi",
-    "asyncio",
-    "starlette",
-)
-
-for logger_name in loggers:
-    logging_logger = logging.getLogger(logger_name)
-    logging_logger.handlers = []
-    logging_logger.propagate = True
+if use_llm and use_langfuse:
+    litellm.callbacks = ["langfuse_otel"]
+    litellm.suppress_debug_info = True

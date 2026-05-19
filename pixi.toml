@@ -1,0 +1,17 @@
+[workspace]
+name = "rc-api"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[dependencies]
+python = ">=3.10,<=3.13"
+uv = "*"
+
+[tasks]
+install = "uv sync --dev"
+serve = "uv run hypercorn main:app --reload --config hypercorn_config.toml"
+serve-prod = "uv run hypercorn main:app --config hypercorn_config.toml"
+test = "uv run pytest"
+lint = "uv run ruff check src main.py"
+format = "uv run ruff format src main.py"
+hooks = "uv run pre-commit install"

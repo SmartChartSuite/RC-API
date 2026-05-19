@@ -3,3 +3,12 @@
 .idea
 
 __pycache__
+.DS_Store
+.env
+.env.*
+.pixi
+.pytest_cache
+.ruff_cache
+.venv
+pixi.lock
+*.sqlite
