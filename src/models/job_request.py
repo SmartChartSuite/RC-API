@@ -12,7 +12,7 @@ class JobRequest(BaseModel):
     """FHIR Parameters resource envelope for POST /batchjob.
 
     Required parameters: patientId, jobPackage.
-    Optional parameters: jobPackageVersion.
+    Optional parameters: jobPackageVersion, job.
     """
 
     resourceType: str = "Parameters"
@@ -33,6 +33,10 @@ class JobRequest(BaseModel):
                 return p.valueString
         return None
 
+    def get_params(self, name: str) -> list[str]:
+        """Return all values for a repeated named parameter in request order."""
+        return [p.valueString for p in self.parameter if p.name == name]
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -42,6 +46,8 @@ class JobRequest(BaseModel):
                         {"name": "patientId", "valueString": "12345"},
                         {"name": "jobPackage", "valueString": "SyphilisRegistry"},
                         {"name": "jobPackageVersion", "valueString": "1.0"},
+                        {"name": "job", "valueString": "SyphilisHistory"},
+                        {"name": "job", "valueString": "prompts/2025_08/syphilis/ig_hc"},
                     ],
                 }
             ]

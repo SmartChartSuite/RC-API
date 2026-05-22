@@ -12,6 +12,7 @@ Orchestrates the full CQL + LLM pipeline for a batch job submission:
 import asyncio
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 from loguru import logger
@@ -29,16 +30,14 @@ from src.services.llm_executor import LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
 from src.util.settings import deploy_url, external_fhir_server_auth, external_fhir_server_url, use_llm
 
-# ── Questionnaire extension URLs ──────────────────────────────────────────────
+# Questionnaire extension URLs
 _CQL_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/structured-form-job-list"
 _LLM_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/unstructured-form-job-list"
 _STRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/structuredTask"
 _UNSTRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/unstructuredTask"
 
 
-# ── Questionnaire parsing ─────────────────────────────────────────────────────
-
-
+# Questionnaire parsing
 def _extract_job_lists(questionnaire: dict) -> tuple[list[str], list[str]]:
     """Extract CQL library names and LLM prompt paths from a Questionnaire resource."""
     cql_names: list[str] = []
@@ -57,6 +56,53 @@ def _extract_job_lists(questionnaire: dict) -> tuple[list[str], list[str]]:
     return cql_names, prompt_paths
 
 
+def _filter_requested_jobs(cql_names: list[str], prompt_paths: list[str], requested_jobs: list[str] | None) -> tuple[list[str], list[str]]:
+    """Limit execution to the named CQL libraries and prompt paths requested by the client."""
+    if not requested_jobs:
+        return cql_names, prompt_paths
+
+    requested = list(dict.fromkeys(job for job in requested_jobs if job))
+    if not requested:
+        return cql_names, prompt_paths
+
+    available_cql = set(cql_names)
+    available_prompts = set(prompt_paths)
+    prompt_names: dict[str, list[str]] = {}
+    for path in prompt_paths:
+        prompt_names.setdefault(Path(path).name, []).append(path)
+
+    selected_cql: set[str] = set()
+    selected_prompts: set[str] = set()
+    missing_jobs: list[str] = []
+    ambiguous_jobs: dict[str, list[str]] = {}
+
+    for job_name in requested:
+        if job_name in available_cql:
+            selected_cql.add(job_name)
+            continue
+        if job_name in available_prompts:
+            selected_prompts.add(job_name)
+            continue
+
+        prompt_matches = prompt_names.get(job_name, [])
+        if len(prompt_matches) == 1:
+            selected_prompts.add(prompt_matches[0])
+            continue
+        if len(prompt_matches) > 1:
+            ambiguous_jobs[job_name] = prompt_matches
+            continue
+
+        missing_jobs.append(job_name)
+
+    if ambiguous_jobs:
+        details = "; ".join(f"{job_name}: {matches}" for job_name, matches in sorted(ambiguous_jobs.items()))
+        raise ValueError(f"Requested job name matches multiple prompts in job package '{details}'")
+    if missing_jobs:
+        raise ValueError(f"Requested job(s) not found in job package: {', '.join(missing_jobs)}")
+
+    return [name for name in cql_names if name in selected_cql], [path for path in prompt_paths if path in selected_prompts]
+
+
 def _get_item_task(item: dict, extension_url: str) -> str | None:
     for ext in item.get("extension", []):
         if ext.get("url") == extension_url:
@@ -64,9 +110,7 @@ def _get_item_task(item: dict, extension_url: str) -> str | None:
     return None
 
 
-# ── Observation builders ──────────────────────────────────────────────────────
-
-
+# Observation builders
 def _obs_base(link_id: str, question_text: str, patient_id: str, form_name: str) -> dict:
     obs_id = str(uuid.uuid4())
     return {
@@ -372,22 +416,21 @@ def _build_result_bundle(
     }
 
 
-# ── Main orchestrator ─────────────────────────────────────────────────────────
-
-
+# Main orchestrator
 async def run_batch_job(
     batch_id: str,
     job_id: str,
     patient_id: str,
     job_package: str,
     job_package_version: str | None = None,
+    requested_jobs: list[str] | None = None,
 ) -> None:
     """Run the full CQL + LLM pipeline for a batch job.
 
     Called as a FastAPI BackgroundTask after POST /batchjob writes the DB record.
     Updates batch_jobs_v1 status to 'running' then 'complete' (or 'error').
     """
-    logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}")
+    logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}")
     update_batch_job_status(batch_id, "running")
     create_job(job_id, batch_id, patient_id, job_package)
 
@@ -412,32 +455,34 @@ async def run_batch_job(
 
         # 2. Extract task lists
         cql_names, prompt_paths = _extract_job_lists(questionnaire)
+        cql_names, prompt_paths = _filter_requested_jobs(cql_names, prompt_paths, requested_jobs)
         logger.info(f"[batch={batch_id}] CQL libs={cql_names}, LLM prompts={prompt_paths}")
 
-        # 3. Concurrently: load prompts + fetch patient documents
-        prompts, documents = await asyncio.gather(
-            load_prompts(prompt_paths),
-            fetch_patient_documents(patient_id),
-        )
-
-        if not documents and prompt_paths:
-            logger.info(f"[batch={batch_id}] No DocumentReferences found — skipping LLM execution")
-            for path in prompt_paths:
-                task_results.append(
-                    {
-                        "task_name": path,
-                        "task_type": "unstructured",
-                        "status": "skipped",
-                        "result": "skipped — no supporting documents",
-                    }
-                )
+        # 3. Concurrently: load prompts + fetch patient documents if running any prompts
+        prompts = documents = []
+        if prompt_paths:
+            prompts, documents = await asyncio.gather(
+                load_prompts(prompt_paths),
+                fetch_patient_documents(patient_id),
+            )
+            if not documents and prompt_paths:
+                logger.info(f"[batch={batch_id}] No DocumentReferences found — skipping LLM execution")
+                for path in prompt_paths:
+                    task_results.append(
+                        {
+                            "task_name": path,
+                            "task_type": "unstructured",
+                            "status": "skipped",
+                            "result": "skipped — no supporting documents",
+                        }
+                    )
 
         # 4. Concurrently: CQL + LLM
         async def _empty() -> list:
             return []
 
         cql_task = run_cql_libraries(cql_names, patient_id) if cql_names else _empty()
-        llm_task = run_all_prompts(prompts, documents) if (documents and use_llm and prompt_paths) else _empty()
+        llm_task = run_all_prompts(prompts, documents) if (prompt_paths and documents and use_llm and prompt_paths) else _empty()
 
         cql_results, llm_results = await asyncio.gather(cql_task, llm_task)
 

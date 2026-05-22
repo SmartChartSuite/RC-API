@@ -1,8 +1,10 @@
-"""Pydantic models for job package response CRUD (POST /response body and DB shape)."""
+"""Pydantic models for job package response CRUD."""
 
-from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
+
+from src.models.fhir import ParametersResponse
 
 
 class ResponseParameter(BaseModel):
@@ -57,14 +59,16 @@ class ResponseRequest(BaseModel):
     }
 
 
-class QuestionnaireResponseRecord(BaseModel):
-    """DB-shaped record returned from GET /response endpoints."""
+class ResponseRecord(BaseModel):
+    responseId: str
+    batchJobId: str
+    jobPackage: str
+    patientId: str
+    userId: str
+    response: dict[str, Any]
+    createdAt: str | None = None
+    updatedAt: str | None = None
 
-    response_id: str
-    batch_job_id: str
-    job_package: str
-    patient_id: str
-    user_id: str
-    response: dict  # full FHIR QuestionnaireResponse resource
-    created_at: datetime
-    updated_at: datetime
+
+class ResponseCreatedResponse(ParametersResponse):
+    """FHIR Parameters body returned when a response record is created."""

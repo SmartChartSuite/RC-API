@@ -28,12 +28,10 @@ dev = [
 
 [tool.uv]
 package = false
+exclude-newer = "7 days"
 
 [tool.ruff]
 line-length = 200
-
-[tool.pyright]
-ignore = ["src_v0", "tests_v0", "main_v0.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

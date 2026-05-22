@@ -1,9 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "baseBranchPatterns": ["dev"],
+  "baseBranchPatterns": ["dev", "dev-v1"],
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "Renovate Dashboard",
   "assignees": ["AndyStevens98"],
-  "labels": ["renovate"]
+  "labels": ["renovate"],
+  "minimumReleaseAge": "7 days"
 }
