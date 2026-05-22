@@ -4,9 +4,12 @@ Used by jobpackage, group, and library routers. All operations target
 HAPI_FHIR_CQL_EXECUTION_URL and carry no patient data.
 """
 
+from typing import Any, cast
+
 import httpx
 from loguru import logger
 
+from src.models.fhir import FHIRProxyResult, OperationOutcomeJSON
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import hapi_fhir_cql_execution_url
 
@@ -29,8 +32,8 @@ def _base_url(resource_type: str, resource_id: str | None = None) -> str:
 async def fhir_get(
     resource_type: str,
     resource_id: str | None = None,
-    params: dict | None = None,
-) -> dict:
+    params: dict[str, Any] | None = None,
+) -> FHIRProxyResult:
     """GET a FHIR resource or execute a search."""
     url = _base_url(resource_type, resource_id)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
@@ -39,7 +42,7 @@ async def fhir_get(
     return _handle(resp, "GET", url)
 
 
-async def fhir_post(resource_type: str, body: dict) -> dict:
+async def fhir_post(resource_type: str, body: dict[str, Any]) -> FHIRProxyResult:
     """POST (create) a FHIR resource."""
     url = _base_url(resource_type)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
@@ -48,7 +51,7 @@ async def fhir_post(resource_type: str, body: dict) -> dict:
     return _handle(resp, "POST", url)
 
 
-async def fhir_put(resource_type: str, resource_id: str, body: dict) -> dict:
+async def fhir_put(resource_type: str, resource_id: str, body: dict[str, Any]) -> FHIRProxyResult:
     """PUT (update) a FHIR resource."""
     url = _base_url(resource_type, resource_id)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
@@ -57,7 +60,7 @@ async def fhir_put(resource_type: str, resource_id: str, body: dict) -> dict:
     return _handle(resp, "PUT", url)
 
 
-async def fhir_delete(resource_type: str, resource_id: str) -> dict:
+async def fhir_delete(resource_type: str, resource_id: str) -> FHIRProxyResult:
     """DELETE a FHIR resource."""
     url = _base_url(resource_type, resource_id)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
@@ -66,22 +69,28 @@ async def fhir_delete(resource_type: str, resource_id: str) -> dict:
     return _handle(resp, "DELETE", url)
 
 
-def _handle(resp: httpx.Response, method: str, url: str) -> dict:
+def _handle(resp: httpx.Response, method: str, url: str) -> FHIRProxyResult:
     """Parse the FHIR response, wrapping errors as OperationOutcome."""
     try:
         data = resp.json()
     except Exception:
         data = {}
 
+    if not isinstance(data, dict):
+        data = {}
+
     if resp.is_success:
-        return data
+        return cast(FHIRProxyResult, data)
 
     # Pass through FHIR OperationOutcomes from the server as-is
-    if isinstance(data, dict) and data.get("resourceType") == "OperationOutcome":
-        return data
+    if data.get("resourceType") == "OperationOutcome":
+        return cast(OperationOutcomeJSON, data)
 
     logger.error(f"FHIR {method} {url} failed with {resp.status_code}: {resp.text}")
-    return make_operation_outcome(
-        "transient",
-        f"FHIR server returned HTTP {resp.status_code} for {method} {url}",
+    return cast(
+        OperationOutcomeJSON,
+        make_operation_outcome(
+            "transient",
+            f"FHIR server returned HTTP {resp.status_code} for {method} {url}",
+        ),
     )

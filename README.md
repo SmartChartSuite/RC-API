@@ -60,8 +60,8 @@ Batch jobs run **asynchronously** in a background task. Clients poll `GET /batch
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/batchjob` | Submit a job package run for a patient |
-| `GET` | `/batchjob` | List all batch jobs (`?include_patient=true`) |
-| `GET` | `/batchjob/{id}/status` | Poll status of a batch job |
+| `GET` | `/batchjob` | List all batch jobs as FHIR Parameters resources (`?include_patient=true`) |
+| `GET` | `/batchjob/{id}/status` | Poll status of a batch job as a FHIR Parameters resource |
 | `GET` | `/batchjob/{id}` | Retrieve the full FHIR result Bundle |
 | `DELETE` | `/batchjob/{id}` | Delete a batch job *(requires `admin` scope)* |
 
@@ -72,10 +72,14 @@ Batch jobs run **asynchronously** in a background task. Clients poll `GET /batch
   "parameter": [
     { "name": "patientId",        "valueString": "12345" },
     { "name": "jobPackage",       "valueString": "SyphilisRegistry" },
-    { "name": "jobPackageVersion","valueString": "1.0" }
+    { "name": "jobPackageVersion","valueString": "1.0" },
+    { "name": "job",              "valueString": "SyphilisHistory" },
+    { "name": "job",              "valueString": "prompts/2025_08/syphilis/ig_hc" }
   ]
 }
 ```
+
+Use one or more repeated `job` parameters to run only the named CQL library or prompt entries from the job package. Prompt matching accepts either the full prompt path or a unique prompt file name.
 
 ### Job Packages (Questionnaires)
 

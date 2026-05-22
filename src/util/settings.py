@@ -11,7 +11,6 @@ import os
 from loguru import logger
 import litellm
 
-# ── Startup error registry ─────────────────────────────────────────────────────
 config_errors: dict[str, str] = {}
 
 
@@ -38,7 +37,7 @@ def _require(var: str) -> str | None:
 
 # FHIR servers
 external_fhir_server_url: str | None = _require("EXTERNAL_FHIR_SERVER_URL")
-external_fhir_server_auth: str = _get("EXTERNAL_FHIR_SERVER_AUTH", "") or ""
+external_fhir_server_auth: str = _get("EXTERNAL_FHIR_SERVER_AUTH") or ""
 
 # HAPI FHIR CQL Execution Service
 # Library IDs are the CamelCase resource name (e.g. "SyphilisRegistry")
@@ -62,11 +61,11 @@ if any([langfuse_public_key, langfuse_secret_key, langfuse_host]) and not use_la
     logger.warning("Partial Langfuse config — set LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, and LANGFUSE_HOST together.")
 
 # Prompts folder (fallback when Langfuse not configured)
-prompts_dir: str = _get("PROMPTS_DIR", "./prompts") or "./prompts"
+prompts_dir: str = _get("PROMPTS_DIR") or "./prompts"
 
 # Database
-db_connection_string: str = _get("DB_CONNECTION_STRING", "sqlite+pysqlite:///rcapi_jobs.sqlite") or "sqlite+pysqlite:///rcapi_jobs.sqlite"
-db_schema: str = _get("DB_SCHEMA", "rcapi") or "rcapi"
+db_connection_string: str = _get("DB_CONNECTION_STRING") or "sqlite+pysqlite:///rcapi_jobs.sqlite"
+db_schema: str = _get("DB_SCHEMA") or "rcapi"
 
 # OAuth 2 (optional; auth disabled if OAUTH2_JWKS_URL is not set)
 oauth2_jwks_url: str | None = _get("OAUTH2_JWKS_URL")
@@ -77,9 +76,9 @@ if oauth2_jwks_url and not oauth2_issuer:
     logger.warning("OAUTH2_JWKS_URL is set but OAUTH2_ISSUER is missing — token issuer will not be validated.")
 
 # Misc
-api_docs: str = _get("API_DOCS", "true") or "true"
-deploy_url: str = _get("DEPLOY_URL", "http://example.org/") or "http://example.org/"
-log_level: str = (_get("LOG_LEVEL", "INFO") or "INFO").upper()
+api_docs: str = _get("API_DOCS") or "true"
+deploy_url: str = _get("DEPLOY_URL") or "http://example.org/"
+log_level: str = (_get("LOG_LEVEL") or "INFO").upper()
 
 if use_llm and use_langfuse:
     litellm.callbacks = ["langfuse_otel"]

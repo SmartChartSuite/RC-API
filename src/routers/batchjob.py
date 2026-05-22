@@ -2,14 +2,17 @@
 
 import uuid
 from datetime import datetime, timezone
+from typing import Any, cast
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Security
+from fastapi import APIRouter, BackgroundTasks, Response, Security
 from fastapi.responses import JSONResponse
 from loguru import logger
 
+from src.models.fhir import BundleJSON, ParametersParameter, ParametersResponse
 from src.models.job_request import JobRequest
-from src.services.errorhandler import config_error_response, make_operation_outcome
+from src.models.job_response import BatchJobAcceptedResponse
+from src.services.errorhandler import config_error_response, operation_outcome_response, operation_outcome_responses
 from src.services.job_orchestrator import run_batch_job
 from src.services.job_state import (
     BatchJobs,
@@ -26,6 +29,21 @@ from src.util.settings import (
 )
 
 router = APIRouter(tags=["Batch Jobs"])
+
+
+def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = None) -> ParametersResponse:
+    parameters = [
+        ParametersParameter(name="batchId", valueString=job.batch_id),
+        ParametersParameter(name="patientId", valueString=job.patient_id),
+        ParametersParameter(name="jobPackage", valueString=job.job_package),
+        ParametersParameter(name="status", valueString=cast(Any, job.status)),
+        ParametersParameter(name="jobStartDateTime", valueDateTime=job.created_at.isoformat()),
+    ]
+    if job.completed_at:
+        parameters.append(ParametersParameter(name="jobCompletedDateTime", valueDateTime=job.completed_at.isoformat()))
+    if patient is not None:
+        parameters.append(ParametersParameter(name="patient", resource=patient))
+    return ParametersResponse(parameter=parameters)
 
 
 def _required_config() -> list[str]:
@@ -49,12 +67,13 @@ async def _fetch_patient(patient_id: str) -> dict | None:
     return None
 
 
-@router.post("/batchjob")
+@router.post("/batchjob", response_model=BatchJobAcceptedResponse, responses=operation_outcome_responses(500, 503), response_model_exclude_none=True)
 async def post_batch_job(
     body: JobRequest,
     background_tasks: BackgroundTasks,
+    response: Response,
     claims: dict = Security(validate_token),
-):
+) -> BatchJobAcceptedResponse | JSONResponse:
     """Submit a job package run for a patient.
 
     Returns a FHIR Parameters resource with the batch job metadata (v0-compatible).
@@ -64,9 +83,13 @@ async def post_batch_job(
     if missing:
         return config_error_response(missing)
 
-    patient_id: str = body.get_param("patientId")  # type: ignore
-    job_package: str = body.get_param("jobPackage")  # type: ignore
+    patient_id: str | None = body.get_param("patientId")
+    job_package: str | None = body.get_param("jobPackage")
     job_package_version: str | None = body.get_param("jobPackageVersion")
+    job_names = body.get_params("job")
+
+    assert patient_id
+    assert job_package
 
     batch_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())
@@ -74,61 +97,44 @@ async def post_batch_job(
 
     created = create_batch_job(batch_id, patient_id, job_package)
     if not created:
-        return JSONResponse(
-            make_operation_outcome(
-                "processing",
-                "The batch job could not be saved to the database. See logs for details.",
-            ),
-            status_code=500,
+        return operation_outcome_response(
+            500,
+            "processing",
+            "The batch job could not be saved to the database. See logs for details.",
         )
 
-    background_tasks.add_task(run_batch_job, batch_id, job_id, patient_id, job_package, job_package_version)
+    background_tasks.add_task(run_batch_job, batch_id, job_id, patient_id, job_package, job_package_version, job_names)
 
-    # Return full Parameters response body — v0-compatible convention
-    response_body = {
-        "resourceType": "Parameters",
-        "parameter": [
-            {"name": "batchId", "valueString": batch_id},
-            {"name": "jobStartDateTime", "valueDateTime": start_time},
-            {"name": "patientId", "valueString": patient_id},
-            {"name": "jobPackage", "valueString": job_package},
-            {"name": "status", "valueString": "pending"},
-        ],
-    }
-    return JSONResponse(
-        content=response_body,
-        headers={"Location": f"/batchjob/{batch_id}"},
+    response.headers["Location"] = f"/batchjob/{batch_id}"
+    return BatchJobAcceptedResponse(
+        parameter=[
+            ParametersParameter(name="batchId", valueString=batch_id),
+            ParametersParameter(name="jobStartDateTime", valueDateTime=start_time),
+            ParametersParameter(name="patientId", valueString=patient_id),
+            ParametersParameter(name="jobPackage", valueString=job_package),
+            ParametersParameter(name="status", valueString="pending"),
+        ]
     )
 
 
-@router.get("/batchjob")
-async def list_batch_jobs(
-    include_patient: bool = False,
-    claims: dict = Security(validate_token),
-):
-    """List all batch job runs. Optionally embed the Patient resource inline."""
+@router.get("/batchjob", response_model=list[ParametersResponse], responses=operation_outcome_responses(503), response_model_exclude_none=True)
+async def list_batch_jobs(include_patient: bool = False, claims: dict = Security(validate_token)) -> list[ParametersResponse]:
+    """List all batch job runs as FHIR Parameters resources. Optionally embed the Patient resource."""
     jobs: list[BatchJobs] = get_all_batch_jobs()
+    patients_by_id: dict[str, dict[str, Any] | None] = {}
     results = []
     for job in jobs:
-        item = {
-            "batchId": job.batch_id,
-            "patientId": job.patient_id,
-            "jobPackage": job.job_package,
-            "status": job.status,
-            "createdAt": job.created_at.isoformat() if job.created_at else None,
-            "completedAt": job.completed_at.isoformat() if job.completed_at else None,
-        }
+        patient = None
         if include_patient:
-            item["patient"] = await _fetch_patient(job.patient_id)
-        results.append(item)
+            if job.patient_id not in patients_by_id:
+                patients_by_id[job.patient_id] = await _fetch_patient(job.patient_id)
+            patient = patients_by_id[job.patient_id]
+        results.append(_to_batch_job_parameters(job, patient=patient))
     return results
 
 
-@router.get("/batchjob/{batch_id}")
-async def get_batch_job_results(
-    batch_id: str,
-    claims: dict = Security(validate_token),
-):
+@router.get("/batchjob/{batch_id}", response_model=dict[str, Any], responses=operation_outcome_responses(202, 404, 500))
+async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_token)) -> BundleJSON | JSONResponse:
     """Get the full FHIR result Bundle for a completed batch job.
 
     The Bundle is stored during background job execution — this is a pure DB read.
@@ -136,63 +142,45 @@ async def get_batch_job_results(
     """
     job = get_batch_job(batch_id)
     if not job:
-        return JSONResponse(
-            make_operation_outcome("not-found", f"Batch Job ID {batch_id} was not found."),
-            status_code=404,
+        return operation_outcome_response(
+            404,
+            "not-found",
+            f"Batch Job ID {batch_id} was not found.",
         )
     if job.status in ("pending", "running"):
-        return JSONResponse(
-            make_operation_outcome(
-                "informational",
-                f"Batch job {batch_id} is still {job.status}. Poll GET /batchjob/{{id}} and retry when status is 'complete'.",
-                severity="information",
-            ),
-            status_code=202,
+        return operation_outcome_response(
+            202,
+            "informational",
+            f"Batch job {batch_id} is still {job.status}. Poll GET /batchjob/{{id}} and retry when status is 'complete'.",
+            severity="information",
         )
     if not job.result_bundle:
-        return JSONResponse(
-            make_operation_outcome(
-                "transient",
-                f"Batch job {batch_id} has no result bundle. The job may have encountered an error — check job status.",
-            ),
-            status_code=500,
+        return operation_outcome_response(
+            500,
+            "transient",
+            f"Batch job {batch_id} has no result bundle. The job may have encountered an error - check job status.",
         )
-    return job.result_bundle
+    return BundleJSON(**job.result_bundle)
 
 
-@router.get("/batchjob/{batch_id}/status")
+@router.get("/batchjob/{batch_id}/status", response_model=ParametersResponse, responses=operation_outcome_responses(404), response_model_exclude_none=True)
 async def get_batch_job_status(
     batch_id: str,
     include_patient: bool = False,
     claims: dict = Security(validate_token),
-):
+) -> ParametersResponse | JSONResponse:
     """Get the status of a batch job (lightweight polling endpoint).
 
-    Returns status-only JSON — no Bundle assembly. Use /batchjob/{id}/results to retrieve the full FHIR Bundle once status is 'complete'.
+    Returns a FHIR Parameters resource — no Bundle assembly. Use /batchjob/{id}/results to retrieve the full FHIR Bundle once status is 'complete'.
     """
     job = get_batch_job(batch_id)
     if not job:
-        return JSONResponse(
-            make_operation_outcome("not-found", f"Batch Job ID {batch_id} was not found."),
-            status_code=404,
-        )
-    result = {
-        "batchId": job.batch_id,
-        "patientId": job.patient_id,
-        "jobPackage": job.job_package,
-        "status": job.status,
-        "createdAt": job.created_at.isoformat() if job.created_at else None,
-        "completedAt": job.completed_at.isoformat() if job.completed_at else None,
-    }
-    if include_patient:
-        result["patient"] = await _fetch_patient(job.patient_id)
-    return result
+        return operation_outcome_response(404, "not-found", f"Batch Job ID {batch_id} was not found.")
+    patient = await _fetch_patient(job.patient_id) if include_patient else None
+    return _to_batch_job_parameters(job, patient=patient)
 
 
 @router.delete("/batchjob/{batch_id}")
-async def delete_batch_job(
-    batch_id: str,
-    _: None = Security(require_admin),
-):
+async def delete_batch_job(batch_id: str, claims: None = Security(require_admin)):
     """Delete a batch job and its child jobs. Requires 'admin' scope."""
     return delete_batch_job_record(batch_id)

@@ -35,6 +35,15 @@ class CqlResult:
     error: str | None = None
 
 
+def _extract_operation_outcome_diagnostics(outcome: dict) -> str:
+    """Extract a readable error string from an OperationOutcome resource."""
+    diagnostics = [issue.get("diagnostics") for issue in outcome.get("issue", []) if issue.get("diagnostics")]
+    if diagnostics:
+        return "; ".join(diagnostics)
+    codes = [issue.get("code") for issue in outcome.get("issue", []) if issue.get("code")]
+    return "; ".join(codes)
+
+
 def _build_parameters_body(patient_id: str) -> dict:
     """Build the FHIR Parameters body for Library/$evaluate."""
     endpoint_resource: dict = {
@@ -57,7 +66,7 @@ def _build_parameters_body(patient_id: str) -> dict:
         ],
         "address": external_fhir_server_url,
     }
-    # Inject auth header only when configured (mirrors v0 functions.py line 1154)
+    # Inject auth header only when configured
     if external_fhir_server_auth:
         endpoint_resource["header"] = [f"Authorization: {external_fhir_server_auth}"]
 
@@ -77,11 +86,7 @@ def _parse_parameters_response(library_name: str, patient_id: str, data: dict) -
     Multiple entries with the same name are collected into a list.
     """
     if data.get("resourceType") == "OperationOutcome":
-        diagnostics = ""
-        try:
-            diagnostics = data["issue"][0]["diagnostics"]
-        except (KeyError, IndexError):
-            pass
+        diagnostics = _extract_operation_outcome_diagnostics(data)
         logger.error(f"CQL OperationOutcome for {library_name}: {diagnostics}")
         return CqlResult(library_name=library_name, patient_id=patient_id, error=diagnostics)
 
@@ -93,6 +98,10 @@ def _parse_parameters_response(library_name: str, patient_id: str, data: dict) -
             continue
         resource = param.get("resource")
         if resource is not None:
+            if resource.get("resourceType") == "OperationOutcome":
+                diagnostics = _extract_operation_outcome_diagnostics(resource)
+                logger.error(f"CQL evaluation error for {library_name}: {diagnostics}")
+                return CqlResult(library_name=library_name, patient_id=patient_id, error=diagnostics)
             grouped.setdefault(name, []).append(resource)
         elif "valueString" in param:
             grouped.setdefault(name, []).append({"value": param["valueString"]})

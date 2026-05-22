@@ -9,7 +9,8 @@ from fastapi import APIRouter, Security
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-from src.services.errorhandler import config_error_response
+from src.models.fhir import GroupResource, OperationOutcome, PatientResource
+from src.services.errorhandler import config_error_response, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete, fhir_post, fhir_put
 from src.util.auth import require_admin, validate_token
 from src.util.settings import (
@@ -20,6 +21,9 @@ from src.util.settings import (
 )
 
 router = APIRouter(tags=["Groups"])
+
+GroupSearchResult = GroupResource | PatientResource
+GroupWriteResult = GroupResource | OperationOutcome
 
 
 def _check_config():
@@ -35,8 +39,8 @@ def _patient_headers() -> dict:
     return headers
 
 
-@router.get("/group", response_model=dict)
-async def search_groups(name: str | None = None, claims: dict = Security(validate_token)) -> JSONResponse | list | list[dict]:
+@router.get("/group", response_model=list[GroupSearchResult], responses=operation_outcome_responses(503))
+async def search_groups(name: str | None = None, claims: dict = Security(validate_token)) -> JSONResponse | list[GroupSearchResult]:
     """Search Groups on HAPI FHIR and fetch referenced Patient resources.
 
     Returns a flat list: [Group, Patient, Patient, ..., Group, ...] mirroring v0's search_group() implicit include behaviour.
@@ -70,13 +74,13 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
     bundle = resp.json()
     entries = bundle.get("entry", [])
 
-    result: list[dict] = []
+    result: list[GroupSearchResult] = []
     async with httpx.AsyncClient(timeout=60) as client:
         for entry in entries:
             group = entry.get("resource", {})
             if group.get("resourceType") != "Group":
                 continue
-            result.append(group)
+            result.append(GroupResource.model_validate(group))
 
             # Fetch each member Patient from external FHIR server
             for member in group.get("member", []):
@@ -91,7 +95,9 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
                 try:
                     patient_resp = await client.get(patient_url, headers=_patient_headers())
                     if patient_resp.is_success:
-                        result.append(patient_resp.json())
+                        patient = patient_resp.json()
+                        if patient.get("resourceType") == "Patient":
+                            result.append(PatientResource.model_validate(patient))
                     else:
                         logger.warning(f"Could not fetch {patient_ref}: {patient_resp.status_code}")
                 except httpx.RequestError as exc:
@@ -100,8 +106,8 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
     return result
 
 
-@router.get("/group/{resource_id}", response_model=dict)
-async def get_group(resource_id: str, claims: dict = Security(validate_token)) -> JSONResponse | dict:
+@router.get("/group/{resource_id}", response_model=GroupResource | OperationOutcome, responses=operation_outcome_responses(503))
+async def get_group(resource_id: str, claims: dict = Security(validate_token)) -> JSONResponse | GroupResource | OperationOutcome:
     """Get a specific Group resource by ID from HAPI FHIR."""
     if err := _check_config():
         return err
@@ -109,28 +115,37 @@ async def get_group(resource_id: str, claims: dict = Security(validate_token)) -
     async with httpx.AsyncClient(timeout=60) as client:
         url = f"{hapi_fhir_cql_execution_url.rstrip('/')}/Group/{resource_id}"
         resp = await client.get(url, headers={"Accept": "application/fhir+json"})
-    return resp.json()
+    data = resp.json()
+    if data.get("resourceType") == "OperationOutcome":
+        return OperationOutcome.model_validate(data)
+    return GroupResource.model_validate(data)
 
 
-@router.post("/group", response_model=dict)
-async def create_group(body: dict, claims: dict = Security(validate_token)) -> JSONResponse | dict:
+@router.post("/group", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
+async def create_group(body: dict, claims: dict = Security(validate_token)) -> JSONResponse | GroupWriteResult:
     """Create a new Group resource on HAPI FHIR."""
     if err := _check_config():
         return err
-    return await fhir_post("Group", body)
+    data = await fhir_post("Group", body)
+    if data.get("resourceType") == "OperationOutcome":
+        return OperationOutcome.model_validate(data)
+    return GroupResource.model_validate(data)
 
 
-@router.put("/group/{resource_id}", response_model=dict)
-async def update_group(resource_id: str, body: dict, claims: dict = Security(validate_token)) -> JSONResponse | dict:
+@router.put("/group/{resource_id}", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
+async def update_group(resource_id: str, body: dict, claims: dict = Security(validate_token)) -> JSONResponse | GroupWriteResult:
     """Update an existing Group resource."""
     if err := _check_config():
         return err
-    return await fhir_put("Group", resource_id, body)
+    data = await fhir_put("Group", resource_id, body)
+    if data.get("resourceType") == "OperationOutcome":
+        return OperationOutcome.model_validate(data)
+    return GroupResource.model_validate(data)
 
 
-@router.delete("/group/{resource_id}", response_model=dict)
-async def delete_group(resource_id: str, claims: None = Security(require_admin)) -> JSONResponse | dict:
+@router.delete("/group/{resource_id}", response_model=OperationOutcome, responses=operation_outcome_responses(503))
+async def delete_group(resource_id: str, claims: None = Security(require_admin)) -> JSONResponse | OperationOutcome:
     """Delete a Group resource. Requires 'admin' scope."""
     if err := _check_config():
         return err
-    return await fhir_delete("Group", resource_id)
+    return OperationOutcome.model_validate(await fhir_delete("Group", resource_id))

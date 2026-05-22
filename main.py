@@ -14,7 +14,7 @@ from src.services.errorhandler import make_operation_outcome
 from src.util.settings import api_docs, log_level
 
 logger.remove()
-logger.add(sys.stderr, level=log_level)
+logger.add(sys.stderr, level=log_level, colorize=True)
 
 # ── App ────────────────────────────────────────────────────────────────────────
 
