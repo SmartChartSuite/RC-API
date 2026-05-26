@@ -17,6 +17,7 @@ from sqlalchemy import (
     Column,
     CursorResult,
     ForeignKey,
+    MetaData,
     String,
     create_engine,
     delete,
@@ -24,6 +25,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
+from sqlalchemy.schema import CreateSchema
 
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import db_connection_string, db_schema
@@ -31,7 +33,16 @@ from src.util.settings import db_connection_string, db_schema
 # ── ORM base ──────────────────────────────────────────────────────────────────
 
 
+def _uses_named_schema(connection_string: str) -> bool:
+    return not connection_string.startswith("sqlite")
+
+
+def _metadata_schema(connection_string: str, schema: str | None) -> str | None:
+    return schema if _uses_named_schema(connection_string) and schema else None
+
+
 class Base(DeclarativeBase):
+    metadata = MetaData(schema=_metadata_schema(db_connection_string, db_schema))
     type_annotation_map = {dict: JSON}
 
 
@@ -77,17 +88,17 @@ class QuestionnaireResponses(Base):
 
 db_engine = create_engine(db_connection_string, pool_pre_ping=True)
 
-# SQLite does not support named schemas — only apply schema for other backends
-_is_sqlite = db_connection_string.startswith("sqlite")
-_schema_args: dict = {} if _is_sqlite else ({"schema": db_schema} if db_schema else {})
 
-
-def _table_args() -> dict:
-    """Return __table_args__ dict appropriate for the current DB backend."""
-    return _schema_args
+def _ensure_schema_exists() -> None:
+    schema = Base.metadata.schema
+    if not schema:
+        return
+    with db_engine.begin() as connection:
+        connection.execute(CreateSchema(schema, if_not_exists=True))
 
 
 try:
+    _ensure_schema_exists()
     Base.metadata.create_all(db_engine)
     logger.info("v1 DB tables created/verified.")
 except Exception as exc:
