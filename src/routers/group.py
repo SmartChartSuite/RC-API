@@ -63,6 +63,7 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
                 params=params,
                 headers={"Accept": "application/fhir+json"},
             )
+            logger.info(f"FHIR GET {url} → {resp.status_code}")
         except httpx.RequestError as exc:
             logger.error(f"Failed to search Groups: {exc}")
             return []
@@ -94,6 +95,7 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
                     patient_url = f"{external_fhir_server_url.rstrip('/')}/{patient_ref.lstrip('/')}"
                 try:
                     patient_resp = await client.get(patient_url, headers=_patient_headers())
+                    logger.info(f"FHIR GET {patient_url} → {patient_resp.status_code}")
                     if patient_resp.is_success:
                         patient = patient_resp.json()
                         if patient.get("resourceType") == "Patient":
@@ -115,6 +117,7 @@ async def get_group(resource_id: str, claims: dict = Security(validate_token)) -
     async with httpx.AsyncClient(timeout=60) as client:
         url = f"{hapi_fhir_cql_execution_url.rstrip('/')}/Group/{resource_id}"
         resp = await client.get(url, headers={"Accept": "application/fhir+json"})
+    logger.info(f"FHIR GET {url} → {resp.status_code}")
     data = resp.json()
     if data.get("resourceType") == "OperationOutcome":
         return OperationOutcome.model_validate(data)
