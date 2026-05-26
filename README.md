@@ -46,6 +46,7 @@ RC-API (this service)
   ├── /jobpackage  ─── Questionnaire CRUD ──────────────── HAPI FHIR (proxied)
   ├── /group       ─── Group CRUD + Patient include ─────── HAPI FHIR (proxied)
   ├── /library     ─── CQL Library CRUD ─────────────────── HAPI FHIR (proxied)
+  ├── /patient     ─── Patient search/read ──────────────── External FHIR (proxied)
   └── /response    ─── QuestionnaireResponse CRUD ────────── Local DB (patient data)
 ```
 
@@ -97,6 +98,13 @@ Same CRUD pattern (`GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}`) for:
 - `/group` — FHIR Groups with implicit Patient member inclusion on search
 - `/library` — CQL Library resources
 - `/response` — Patient-linked QuestionnaireResponses (stored in local DB only)
+
+### Patients
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/patient` | Search Patients on the external FHIR server using FHIR query params |
+| `GET` | `/patient/{id}` | Get a single Patient from the external FHIR server |
 
 ### Health
 
