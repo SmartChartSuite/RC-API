@@ -11,12 +11,17 @@ from src.routers.config import router as config_router
 from src.routers.group import router as group_router
 from src.routers.jobpackage import router as jobpackage_router
 from src.routers.library import router as library_router
+from src.routers.patient import router as patient_router
 from src.routers.response import router as response_router
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import api_docs, log_level
 
 
 LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
+_NOISY_LOGGER_LEVELS = {
+    "httpcore": logging.WARNING,
+    "httpx": logging.WARNING,
+}
 
 
 def _patch_log_record(record) -> None:
@@ -39,6 +44,11 @@ class InterceptHandler(logging.Handler):
         ).opt(exception=record.exc_info).log(level, record.getMessage())
 
 
+def _configure_noisy_loggers() -> None:
+    for logger_name, level in _NOISY_LOGGER_LEVELS.items():
+        logging.getLogger(logger_name).setLevel(level)
+
+
 def configure_logging() -> None:
     logger.remove()
     logger.configure(patcher=_patch_log_record)
@@ -51,6 +61,8 @@ def configure_logging() -> None:
         stdlib_logger = logging.getLogger(logger_name)
         stdlib_logger.handlers = [intercept_handler]
         stdlib_logger.propagate = False
+
+    _configure_noisy_loggers()
 
 
 configure_logging()
@@ -85,6 +97,7 @@ app.include_router(jobpackage_router)
 app.include_router(config_router)
 app.include_router(group_router)
 app.include_router(library_router)
+app.include_router(patient_router)
 app.include_router(response_router)
 
 
