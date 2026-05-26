@@ -2,3 +2,22 @@ accesslog = "-"
 access_log_format = "%(h)s %(l)s \"%(R)s\" %(s)s Origin:\"%({origin}i)s\" X-Forwarded-For:\"%({x-forwarded-for}i)s\""
 errorlog = "-"
 bind = ":8080"
+
+[logconfig_dict]
+version = 1
+disable_existing_loggers = false
+
+[logconfig_dict.loggers.hypercorn.access]
+level = "INFO"
+handlers = []
+propagate = true
+
+[logconfig_dict.loggers.hypercorn.error]
+level = "INFO"
+handlers = []
+propagate = true
+
+[logconfig_dict.loggers.hypercorn]
+level = "INFO"
+handlers = []
+propagate = true
