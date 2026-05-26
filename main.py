@@ -1,3 +1,4 @@
+import logging
 import sys
 
 from fastapi import FastAPI, Request
@@ -14,8 +15,45 @@ from src.routers.response import router as response_router
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import api_docs, log_level
 
-logger.remove()
-logger.add(sys.stderr, level=log_level, colorize=True)
+
+LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
+
+
+def _patch_log_record(record) -> None:
+    record["extra"].setdefault("source_name", record["name"])
+    record["extra"].setdefault("source_function", record["function"])
+    record["extra"].setdefault("source_line", record["line"])
+
+
+class InterceptHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level: str | int = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        logger.bind(
+            source_name=record.name,
+            source_function=record.funcName,
+            source_line=record.lineno,
+        ).opt(exception=record.exc_info).log(level, record.getMessage())
+
+
+def configure_logging() -> None:
+    logger.remove()
+    logger.configure(patcher=_patch_log_record)
+    logger.add(sys.stderr, level=log_level, colorize=True, format=LOG_FORMAT)
+
+    intercept_handler = InterceptHandler()
+    logging.basicConfig(handlers=[intercept_handler], level=log_level, force=True)
+
+    for logger_name in ("hypercorn.access", "hypercorn.error", "hypercorn"):
+        stdlib_logger = logging.getLogger(logger_name)
+        stdlib_logger.handlers = [intercept_handler]
+        stdlib_logger.propagate = False
+
+
+configure_logging()
 
 # ── App ────────────────────────────────────────────────────────────────────────
 
