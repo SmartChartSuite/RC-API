@@ -104,6 +104,12 @@ Same CRUD pattern (`GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}`) for:
 |--------|------|-------------|
 | `GET` | `/health` | Returns `ok` or `degraded` with a list of missing config vars |
 
+### Config
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/config` | Returns public client config such as the primary identifier metadata |
+
 Interactive docs are available at `/docs` (when `API_DOCS=true`).
 
 ---
@@ -138,6 +144,8 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `DB_SCHEMA` | `rcapi` | DB schema name (ignored for SQLite) |
 | `API_DOCS` | `true` | Set to `false` to disable `/docs` and `/redoc` |
 | `DEPLOY_URL` | `http://example.org/` | Base URL used in Observation identifiers |
+| `PRIMARYIDENTIFIER_SYSTEM` | *(none)* | If set, enables `/config.primaryIdentifier.system` in the public config response |
+| `PRIMARYIDENTIFIER_LABEL` | *(none)* | Optional label returned as `/config.primaryIdentifier.label` when `PRIMARYIDENTIFIER_SYSTEM` is set |
 | `LOG_LEVEL` | `INFO` | Loguru log level |
 
 ---

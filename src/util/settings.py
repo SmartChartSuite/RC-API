@@ -11,6 +11,8 @@ import os
 from loguru import logger
 import litellm
 
+from src.models.config import ConfigEndpointModel
+
 config_errors: dict[str, str] = {}
 
 
@@ -79,6 +81,20 @@ if oauth2_jwks_url and not oauth2_issuer:
 api_docs: str = _get("API_DOCS") or "true"
 deploy_url: str = _get("DEPLOY_URL") or "http://example.org/"
 log_level: str = (_get("LOG_LEVEL") or "INFO").upper()
+primary_identifier_system: str | None = _get("PRIMARYIDENTIFIER_SYSTEM")
+primary_identifier_label: str | None = _get("PRIMARYIDENTIFIER_LABEL")
+config_endpoint: ConfigEndpointModel | dict = (
+    ConfigEndpointModel.model_validate(
+        {
+            "primaryIdentifier": {
+                "system": primary_identifier_system,
+                "label": primary_identifier_label,
+            }
+        }
+    )
+    if primary_identifier_system
+    else {}
+)
 
 if use_llm and use_langfuse:
     litellm.callbacks = ["langfuse_otel"]
