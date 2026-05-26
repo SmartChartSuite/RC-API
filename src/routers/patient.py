@@ -45,6 +45,7 @@ async def _external_patient_get(resource_id: str | None = None, params: Sequence
     async with httpx.AsyncClient(timeout=60) as client:
         try:
             resp = await client.get(url, headers=_headers(), params=cast(Any, list(params) if params is not None else None))
+            logger.info(f"FHIR GET {url} → {resp.status_code}")
         except httpx.RequestError as exc:
             logger.error(f"Patient GET {url} failed: {exc}")
             return make_operation_outcome("transient", f"External FHIR server request failed for GET {url}")
