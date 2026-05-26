@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from src.routers.batchjob import router as batchjob_router
+from src.routers.config import router as config_router
 from src.routers.group import router as group_router
 from src.routers.jobpackage import router as jobpackage_router
 from src.routers.library import router as library_router
@@ -43,6 +44,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 app.include_router(batchjob_router)
 app.include_router(jobpackage_router)
+app.include_router(config_router)
 app.include_router(group_router)
 app.include_router(library_router)
 app.include_router(response_router)
