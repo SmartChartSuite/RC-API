@@ -42,7 +42,7 @@ def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = No
     if job.completed_at:
         parameters.append(ParametersParameter(name="jobCompletedDateTime", valueDateTime=job.completed_at.isoformat()))
     if patient is not None:
-        parameters.append(ParametersParameter(name="patient", resource=patient))
+        parameters.append(ParametersParameter(name="patientResource", resource=patient))
     return ParametersResponse(parameter=parameters)
 
 

@@ -18,10 +18,7 @@ from src.util.settings import api_docs, log_level
 
 
 LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
-_NOISY_LOGGER_LEVELS = {
-    "httpcore": logging.WARNING,
-    "httpx": logging.WARNING,
-}
+_NOISY_LOGGER_LEVELS = {"httpcore": logging.WARNING, "httpx": logging.WARNING, "LiteLLM": logging.WARNING, "urllib3": logging.WARNING, "openai": logging.WARNING, "asyncio": logging.WARNING}
 
 
 def _patch_log_record(record) -> None:
@@ -57,7 +54,7 @@ def configure_logging() -> None:
     intercept_handler = InterceptHandler()
     logging.basicConfig(handlers=[intercept_handler], level=log_level, force=True)
 
-    for logger_name in ("hypercorn.access", "hypercorn.error", "hypercorn"):
+    for logger_name in ("hypercorn.access", "hypercorn.error", "hypercorn", "LiteLLM"):
         stdlib_logger = logging.getLogger(logger_name)
         stdlib_logger.handlers = [intercept_handler]
         stdlib_logger.propagate = False
