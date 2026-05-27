@@ -1,6 +1,6 @@
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import BundleResource, OperationOutcome, QuestionnaireResource
+from src.models.fhir import OperationOutcome, QuestionnaireResource
 from src.routers import jobpackage
 
 
@@ -23,13 +23,15 @@ async def test_search_job_packages_passes_filters(monkeypatch):
 
     result = await jobpackage.search_job_packages(name="Registry", version="1.0", claims={})
 
-    assert isinstance(result, BundleResource)
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert isinstance(result[0], QuestionnaireResource)
     assert captured == {
         "resource_type": "Questionnaire",
         "resource_id": None,
         "params": {"context": "smartchartui", "name": "Registry", "version": "1.0"},
     }
-    assert result.total == 1
+    assert result[0].id == "q-1"
 
 
 async def test_get_job_package_returns_operation_outcome(monkeypatch):

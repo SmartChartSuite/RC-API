@@ -86,7 +86,7 @@ Use one or more repeated `job` parameters to run only the named CQL library or p
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/jobpackage` | Search Questionnaires (`?name=`, `?version=`) |
+| `GET` | `/jobpackage` | Search Questionnaires (`?name=`, `?version=`) and return a flat list of Questionnaire resources |
 | `GET` | `/jobpackage/{id}` | Get a Questionnaire |
 | `POST` | `/jobpackage` | Create a Questionnaire |
 | `PUT` | `/jobpackage/{id}` | Update a Questionnaire |
