@@ -36,7 +36,7 @@ def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = No
         ParametersParameter(name="batchId", valueString=job.batch_id),
         ParametersParameter(name="patientId", valueString=job.patient_id),
         ParametersParameter(name="jobPackage", valueString=job.job_package),
-        ParametersParameter(name="status", valueString=cast(Any, job.status)),
+        ParametersParameter(name="batchJobStatus", valueString=cast(Any, job.status)),
         ParametersParameter(name="jobStartDateTime", valueDateTime=job.created_at.isoformat()),
     ]
     if job.completed_at:
