@@ -74,6 +74,155 @@ def test_build_llm_observations_deduplicates_same_document_and_text(monkeypatch)
     assert entries[0]["resource"]["focus"] == [{"reference": "DocumentReference/doc-1"}]
 
 
+def test_build_llm_observations_maps_json_response_to_components(monkeypatch):
+    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-1")
+    questionnaire = {
+        "item": [
+            {
+                "item": [
+                    {
+                        "linkId": "1.1",
+                        "text": "Question text",
+                        "extension": [{"url": job_orchestrator._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}],
+                    }
+                ]
+            }
+        ]
+    }
+    llm_results = [
+        LlmResult(
+            prompt_path="prompts/a",
+            document_results=[
+                LlmDocumentResult(
+                    doc_id="doc-1",
+                    doc_type="Visit Note",
+                    doc_date="2026-05-22",
+                    response='{"nlp-answer-type":"SectionFinderTask","section-header":"head_review [5.39.115.133.89]","section-text":"closed fontanelles"}',
+                )
+            ],
+        )
+    ]
+
+    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123")
+
+    assert len(entries) == 1
+    resource = entries[0]["resource"]
+    assert "valueString" not in resource
+    assert resource["focus"] == [{"reference": "DocumentReference/doc-1"}]
+    assert resource["component"] == [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label",
+                        "code": "nlp-answer-type",
+                        "display": "Nlp Answer Type",
+                    }
+                ]
+            },
+            "valueString": "SectionFinderTask",
+        },
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label",
+                        "code": "section-header",
+                        "display": "Section Header",
+                    }
+                ]
+            },
+            "valueString": "head_review [5.39.115.133.89]",
+        },
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label",
+                        "code": "section-text",
+                        "display": "Section Text",
+                    }
+                ]
+            },
+            "valueString": "closed fontanelles",
+        },
+    ]
+
+
+def test_build_llm_observations_maps_fenced_json_response_to_components(monkeypatch):
+    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-1")
+    questionnaire = {
+        "item": [
+            {
+                "item": [
+                    {
+                        "linkId": "1.1",
+                        "text": "Question text",
+                        "extension": [{"url": job_orchestrator._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}],
+                    }
+                ]
+            }
+        ]
+    }
+    llm_results = [
+        LlmResult(
+            prompt_path="prompts/a",
+            document_results=[
+                LlmDocumentResult(
+                    doc_id="doc-1",
+                    doc_type="Visit Note",
+                    doc_date="2026-05-22",
+                    response='```json\n{\n  "resultValue": "Normal",\n  "evidenceText": "Chest: Lungs clear to auscultation, respirations unlabored.",\n  "reasoning": "The physical exam explicitly documents that the lungs are clear to auscultation and respirations are unlabored, indicating a normal pulmonary and respiratory assessment for this encounter."\n}\n```',
+                )
+            ],
+        )
+    ]
+
+    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123")
+
+    assert len(entries) == 1
+    resource = entries[0]["resource"]
+    assert "valueString" not in resource
+    assert resource["component"] == [
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label",
+                        "code": "resultValue",
+                        "display": "Result Value",
+                    }
+                ]
+            },
+            "valueString": "Normal",
+        },
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label",
+                        "code": "evidenceText",
+                        "display": "Evidence Text",
+                    }
+                ]
+            },
+            "valueString": "Chest: Lungs clear to auscultation, respirations unlabored.",
+        },
+        {
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label",
+                        "code": "reasoning",
+                        "display": "Reasoning",
+                    }
+                ]
+            },
+            "valueString": "The physical exam explicitly documents that the lungs are clear to auscultation and respirations are unlabored, indicating a normal pulmonary and respiratory assessment for this encounter.",
+        },
+    ]
+
+
 def test_build_cql_observations_uses_matching_structured_task(monkeypatch):
     monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-123")
     questionnaire = {

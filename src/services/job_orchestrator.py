@@ -10,6 +10,8 @@ Orchestrates the full CQL + LLM pipeline for a batch job submission:
 """
 
 import asyncio
+import json
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +37,7 @@ _CQL_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/structured-form-job-list"
 _LLM_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/unstructured-form-job-list"
 _STRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/structuredTask"
 _UNSTRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/unstructuredTask"
+_UNSTRUCTURED_COMPONENT_SYSTEM = "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label"
 
 
 # Questionnaire parsing
@@ -108,6 +111,67 @@ def _get_item_task(item: dict, extension_url: str) -> str | None:
         if ext.get("url") == extension_url:
             return ext.get("valueString")
     return None
+
+
+def _format_component_display(component_key: str) -> str:
+    normalized = component_key.replace("-", " ").replace("_", " ")
+    normalized = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", normalized)
+    return normalized.title()
+
+
+def _extract_json_payload(response_text: str) -> str:
+    stripped = response_text.strip()
+    if not stripped.startswith("```"):
+        return stripped
+
+    lines = stripped.splitlines()
+    if len(lines) < 3:
+        return stripped
+
+    first_line = lines[0].strip().lower()
+    last_line = lines[-1].strip()
+    if first_line not in {"```", "```json"} or last_line != "```":
+        return stripped
+
+    return "\n".join(lines[1:-1]).strip()
+
+
+def _build_llm_components(response_text: str) -> list[dict] | None:
+    try:
+        parsed = json.loads(_extract_json_payload(response_text))
+    except json.JSONDecodeError:
+        return None
+
+    if not isinstance(parsed, dict):
+        return None
+
+    components: list[dict] = []
+    for key, value in parsed.items():
+        if isinstance(value, str):
+            value_string = value
+        elif value is None:
+            value_string = "null"
+        elif isinstance(value, (int, float, bool)):
+            value_string = str(value)
+        else:
+            value_string = json.dumps(value)
+
+        components.append(
+            {
+                "code": {
+                    "coding": [
+                        {
+                            "system": _UNSTRUCTURED_COMPONENT_SYSTEM,
+                            "code": key,
+                            "display": _format_component_display(key),
+                        }
+                    ]
+                },
+                "valueString": value_string,
+            }
+        )
+
+    return components
 
 
 # Observation builders
@@ -347,7 +411,11 @@ def _build_llm_observations(
                 obs = _obs_base(link_id, question_text, patient_id, form_name)
                 obs["effectiveDateTime"] = doc_result.doc_date
                 obs["focus"] = [{"reference": f"DocumentReference/{doc_result.doc_id}"}]
-                obs["valueString"] = doc_result.response
+                components = _build_llm_components(doc_result.response)
+                if components is not None:
+                    obs["component"] = components
+                else:
+                    obs["valueString"] = doc_result.response
 
                 obs_url = f"Observation/{obs['id']}"
                 # Deduplicate on focus + valueString (mirrors v0 NLPQL dedup)
