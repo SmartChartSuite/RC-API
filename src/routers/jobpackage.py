@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Security
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import BundleResource, OperationOutcome, QuestionnaireResource
+from src.models.fhir import OperationOutcome, QuestionnaireResource
 from src.services.errorhandler import config_error_response, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete, fhir_get, fhir_post, fhir_put
 from src.util.auth import require_admin, validate_token
@@ -20,12 +20,12 @@ def _check_config():
     return None
 
 
-@router.get("/jobpackage", response_model=BundleResource | OperationOutcome, responses=operation_outcome_responses(503))
+@router.get("/jobpackage", response_model=list[QuestionnaireResource] | OperationOutcome, responses=operation_outcome_responses(503))
 async def search_job_packages(
     name: str | None = None,
     version: str | None = None,
     claims: dict = Security(validate_token),
-) -> JSONResponse | BundleResource | OperationOutcome:
+) -> JSONResponse | list[QuestionnaireResource] | OperationOutcome:
     """Search job package Questionnaires on HAPI FHIR."""
     if err := _check_config():
         return err
@@ -37,7 +37,8 @@ async def search_job_packages(
     data = await fhir_get("Questionnaire", params=params)
     if data.get("resourceType") == "OperationOutcome":
         return OperationOutcome.model_validate(data)
-    return BundleResource.model_validate(data)
+    entries = data.get("entry", []) or []
+    return [QuestionnaireResource.model_validate(entry.get("resource", {})) for entry in entries if entry.get("resource", {}).get("resourceType") == "Questionnaire"]
 
 
 @router.get("/jobpackage/{resource_id}", response_model=QuestionnaireResult, responses=operation_outcome_responses(503))
