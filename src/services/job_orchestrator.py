@@ -18,6 +18,7 @@ from pathlib import Path
 
 import httpx
 from loguru import logger
+import base64
 
 from src.services.cql_executor import CqlResult, run_cql_libraries
 from src.services.errorhandler import make_operation_outcome
@@ -582,10 +583,49 @@ async def run_batch_job(
         cql_entries = _build_cql_observations(cql_results, questionnaire, form_name, patient_id)
         llm_entries = _build_llm_observations(llm_results, questionnaire, form_name, patient_id)
 
+        # Build DocumentReference entries from fetched documents so Observations' focus references resolve
+        document_entries: list[dict] = []
+        for doc in documents:
+            try:
+                # If fetch_patient_documents returned the original resource, include it verbatim
+                original = doc.get("resource")
+                if original and original.get("resourceType") == "DocumentReference":
+                    doc_id = original.get("id", doc.get("id"))
+                    if not doc_id:
+                        continue
+                    doc_url = f"DocumentReference/{doc_id}"
+                    document_entries.append({"fullUrl": doc_url, "resource": original})
+                    continue
+
+                # Fallback: construct a minimal DocumentReference (preserve previous behavior)
+                doc_id = doc.get("id")
+                if not doc_id:
+                    continue
+                doc_url = f"DocumentReference/{doc_id}"
+                supporting_doc: dict = {
+                    "resourceType": "DocumentReference",
+                    "id": doc_id,
+                    "status": "current",
+                    "type": {"text": doc.get("type", "Unknown")},
+                    "subject": {"reference": f"Patient/{patient_id}"},
+                    "date": doc.get("date", ""),
+                }
+                if doc.get("text"):
+                    try:
+                        encoded = base64.b64encode(doc["text"].encode("utf-8")).decode("ascii")
+                        supporting_doc["content"] = [{"attachment": {"contentType": "text/plain", "data": encoded}}]
+                    except Exception:
+                        pass
+
+                document_entries.append({"fullUrl": doc_url, "resource": supporting_doc})
+            except Exception:
+                continue
+
         # 7. Assemble result Bundle
         all_errors = [t for t in task_results if t.get("status") == "error"]
         overall_status = "complete" if not all_errors else "preliminary"
-        result_bundle = _build_result_bundle(patient_resource, cql_entries, llm_entries, overall_status)
+        # Append document entries so Observations referencing DocumentReference/* have supporting resources
+        result_bundle = _build_result_bundle(patient_resource, cql_entries, llm_entries + document_entries, overall_status)
 
         # 8. Persist
         update_job_complete(job_id, task_results, result_bundle)
