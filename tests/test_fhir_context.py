@@ -76,8 +76,32 @@ async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypa
     result = await fhir_context.fetch_patient_documents("patient-123")
 
     assert result == [
-        {"id": "doc-1", "type": "Visit Note", "date": "2026-05-22T12:00:00Z", "text": "inline note"},
-        {"id": "doc-2", "type": "Lab Note", "date": "2026-05-23T12:00:00Z", "text": "external note"},
+        {
+            "id": "doc-1",
+            "type": "Visit Note",
+            "date": "2026-05-22T12:00:00Z",
+            "text": "inline note",
+            "resource": {
+                "resourceType": "DocumentReference",
+                "id": "doc-1",
+                "date": "2026-05-22T12:00:00Z",
+                "type": {"coding": [{"display": "Visit Note"}]},
+                "content": [{"attachment": {"contentType": "text/plain", "data": base64.b64encode(b"inline note").decode("utf-8")}}],
+            },
+        },
+        {
+            "id": "doc-2",
+            "type": "Lab Note",
+            "date": "2026-05-23T12:00:00Z",
+            "text": "external note",
+            "resource": {
+                "resourceType": "DocumentReference",
+                "id": "doc-2",
+                "date": "2026-05-23T12:00:00Z",
+                "type": {"text": "Lab Note"},
+                "content": [{"attachment": {"contentType": "text/plain", "url": "http://docs.example/doc-2.txt"}}],
+            },
+        },
     ]
     assert _FakeAsyncClient.calls[0] == {
         "url": "http://external.example/fhir/DocumentReference",

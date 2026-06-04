@@ -112,7 +112,7 @@ async def post_batch_job(
             ParametersParameter(name="jobStartDateTime", valueDateTime=start_time),
             ParametersParameter(name="patientId", valueString=patient_id),
             ParametersParameter(name="jobPackage", valueString=job_package),
-            ParametersParameter(name="status", valueString="pending"),
+            ParametersParameter(name="batchJobStatus", valueString="pending"),
         ]
     )
 

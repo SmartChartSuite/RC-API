@@ -106,6 +106,7 @@ async def fetch_patient_documents(patient_id: str) -> list[dict]:
                             "type": doc_type,
                             "date": doc_date,
                             "text": plain_text,
+                            "resource": doc_ref,
                         }
                     )
                     break  # one text/plain entry per DocumentReference is enough

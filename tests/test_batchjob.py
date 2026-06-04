@@ -31,7 +31,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
 
     assert isinstance(result, BatchJobAcceptedResponse)
     assert not isinstance(result, JSONResponse)
-    assert {param.name: param.valueString for param in result.parameter}["status"] == "pending"
+    assert {param.name: param.valueString for param in result.parameter}["batchJobStatus"] == "pending"
     assert response.headers["Location"].startswith("/batchjob/")
     assert len(background_tasks.tasks) == 1
     task = background_tasks.tasks[0]
@@ -114,10 +114,10 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
     assert values["batchId"].valueString == "batch-123"
     assert values["patientId"].valueString == "patient-123"
     assert values["jobPackage"].valueString == "SyphilisRegistry"
-    assert values["status"].valueString == "complete"
+    assert values["batchJobStatus"].valueString == "complete"
     assert values["jobStartDateTime"].valueDateTime == created_at.isoformat()
     assert values["jobCompletedDateTime"].valueDateTime == completed_at.isoformat()
-    assert values["patient"].resource == {"resourceType": "Patient", "id": "patient-123"}
+    assert values["patientResource"].resource == {"resourceType": "Patient", "id": "patient-123"}
     assert fetch_calls == ["patient-123"]
 
 
@@ -150,7 +150,7 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
     assert values["batchId"].valueString == "batch-123"
     assert values["patientId"].valueString == "patient-123"
     assert values["jobPackage"].valueString == "SyphilisRegistry"
-    assert values["status"].valueString == "complete"
+    assert values["batchJobStatus"].valueString == "complete"
     assert values["jobStartDateTime"].valueDateTime == created_at.isoformat()
     assert values["jobCompletedDateTime"].valueDateTime == completed_at.isoformat()
-    assert values["patient"].resource == {"resourceType": "Patient", "id": "patient-123"}
+    assert values["patientResource"].resource == {"resourceType": "Patient", "id": "patient-123"}
