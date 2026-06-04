@@ -3,6 +3,7 @@ import sys
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
 
@@ -15,7 +16,6 @@ from src.routers.patient import router as patient_router
 from src.routers.response import router as response_router
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import api_docs, log_level
-
 
 LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
 _NOISY_LOGGER_LEVELS = {"httpcore": logging.WARNING, "httpx": logging.WARNING, "LiteLLM": logging.WARNING, "urllib3": logging.WARNING, "openai": logging.WARNING, "asyncio": logging.WARNING}
@@ -64,8 +64,7 @@ def configure_logging() -> None:
 
 configure_logging()
 
-# ── App ────────────────────────────────────────────────────────────────────────
-
+# App
 app = FastAPI(
     title="RC-API",
     description="SmartChart Suite Results Combining API — v1.0",
@@ -74,9 +73,17 @@ app = FastAPI(
     redoc_url="/redoc" if api_docs.lower() != "false" else None,
 )
 
-# ── Exception handlers ─────────────────────────────────────────────────────────
+# CORS stuff
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
+# Exception handlers
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Return FHIR OperationOutcome for Pydantic validation failures (e.g. missing params)."""
@@ -87,8 +94,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-# ── Routers ────────────────────────────────────────────────────────────────────
-
+# Routers
 app.include_router(batchjob_router)
 app.include_router(jobpackage_router)
 app.include_router(config_router)
@@ -98,9 +104,7 @@ app.include_router(patient_router)
 app.include_router(response_router)
 
 
-# ── Health ─────────────────────────────────────────────────────────────────────
-
-
+# Health
 @app.get("/health", tags=["Health"])
 async def health():
     """Basic health check."""
