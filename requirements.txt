@@ -1,7 +1,7 @@
 # Core dependencies
 fastapi==0.135.3
 fastapi-utils==0.8.0
-fhir.resources==8.2.0
+fhir.resources==8.3.0
 gitpython==3.1.46
 httpx==0.28.1
 hypercorn==0.18.0
