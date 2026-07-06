@@ -15,7 +15,7 @@ from src.routers.library import router as library_router
 from src.routers.patient import router as patient_router
 from src.routers.response import router as response_router
 from src.services.errorhandler import make_operation_outcome
-from src.util.settings import api_docs, log_level
+from src.util.settings import api_docs, log_level, root_path
 
 LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
 _NOISY_LOGGER_LEVELS = {"httpcore": logging.WARNING, "httpx": logging.WARNING, "LiteLLM": logging.WARNING, "urllib3": logging.WARNING, "openai": logging.WARNING, "asyncio": logging.WARNING}
@@ -69,6 +69,7 @@ app = FastAPI(
     title="RC-API",
     description="SmartChart Suite Results Combining API — v1.0",
     version="1.0.0",
+    root_path=root_path,
     docs_url="/docs" if api_docs.lower() != "false" else None,
     redoc_url="/redoc" if api_docs.lower() != "false" else None,
 )

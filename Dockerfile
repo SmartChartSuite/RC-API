@@ -3,7 +3,8 @@ FROM python:3.13-slim
 LABEL org.opencontainers.image.source=https://github.com/SmartChartSuite/RC-API
 
 RUN apt-get -y update && \
-    apt-get -y install git libpq-dev gcc
+    apt-get -y install libpq-dev gcc && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.15 /uv /uvx /bin/
 

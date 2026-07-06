@@ -80,6 +80,9 @@ if oauth2_jwks_url and not oauth2_issuer:
 # Misc
 api_docs: str = _get("API_DOCS") or "true"
 deploy_url: str = _get("DEPLOY_URL") or "http://example.org/"
+if deploy_url[-1] != "/":
+    deploy_url += "/"
+root_path: str = deploy_url.split("/")[-1]
 log_level: str = (_get("LOG_LEVEL") or "INFO").upper()
 primary_identifier_system: str | None = _get("PRIMARYIDENTIFIER_SYSTEM")
 primary_identifier_label: str | None = _get("PRIMARYIDENTIFIER_LABEL")
