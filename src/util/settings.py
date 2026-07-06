@@ -78,7 +78,6 @@ if oauth2_jwks_url and not oauth2_issuer:
     logger.warning("OAUTH2_JWKS_URL is set but OAUTH2_ISSUER is missing — token issuer will not be validated.")
 
 # Misc
-api_docs: str = _get("API_DOCS") or "true"
 deploy_url: str = _get("DEPLOY_URL") or "http://example.org/"
 if deploy_url[-1] != "/":
     deploy_url += "/"
