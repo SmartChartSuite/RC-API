@@ -118,7 +118,7 @@ Same CRUD pattern (`GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}`) for:
 |--------|------|-------------|
 | `GET` | `/config` | Returns public client config such as the primary identifier metadata |
 
-Interactive docs are available at `/docs` (when `API_DOCS=true`).
+Interactive docs are available at `/docs`.
 
 ---
 
@@ -150,8 +150,7 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `OAUTH2_AUDIENCE` | *(none)* | Expected `aud` claim in JWT |
 | `DB_CONNECTION_STRING` | `sqlite+pysqlite:///rcapi_jobs.sqlite` | SQLAlchemy connection string |
 | `DB_SCHEMA` | `rcapi` | DB schema name (ignored for SQLite) |
-| `API_DOCS` | `true` | Set to `false` to disable `/docs` and `/redoc` |
-| `DEPLOY_URL` | `http://example.org/` | Base URL used in Observation identifiers |
+| `DEPLOY_URL` | `http://example.org/` | Base URL used in Observation identifiers as well as determining root_path |
 | `PRIMARYIDENTIFIER_SYSTEM` | *(none)* | If set, enables `/config.primaryIdentifier.system` in the public config response |
 | `PRIMARYIDENTIFIER_LABEL` | *(none)* | Optional label returned as `/config.primaryIdentifier.label` when `PRIMARYIDENTIFIER_SYSTEM` is set |
 | `LOG_LEVEL` | `INFO` | Loguru log level |
