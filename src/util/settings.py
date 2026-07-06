@@ -7,6 +7,7 @@ OperationOutcome (HTTP 503) rather than crashing.
 """
 
 import os
+from urllib.parse import urlparse
 
 from loguru import logger
 import litellm
@@ -35,6 +36,15 @@ def _require(var: str) -> str | None:
         logger.error(msg)
         config_errors[var] = msg
     return val
+
+
+def _normalize_root_path(value: str | None) -> str:
+    if not value or value == "/":
+        return ""
+    normalized = value.strip()
+    if not normalized.startswith("/"):
+        normalized = f"/{normalized}"
+    return normalized.rstrip("/")
 
 
 # FHIR servers
@@ -81,7 +91,7 @@ if oauth2_jwks_url and not oauth2_issuer:
 deploy_url: str = _get("DEPLOY_URL") or "http://example.org/"
 if deploy_url[-1] != "/":
     deploy_url += "/"
-root_path: str = deploy_url.split("/")[-1]
+root_path: str = _normalize_root_path(_get("ROOT_PATH") or urlparse(deploy_url).path)
 log_level: str = (_get("LOG_LEVEL") or "INFO").upper()
 primary_identifier_system: str | None = _get("PRIMARYIDENTIFIER_SYSTEM")
 primary_identifier_label: str | None = _get("PRIMARYIDENTIFIER_LABEL")
