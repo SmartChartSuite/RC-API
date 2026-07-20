@@ -4,12 +4,12 @@ version = "1.0.0"
 description = "SmartChart Suite Results Combining API"
 requires-python = ">=3.10,<3.14"
 dependencies = [
-    "boto3>=1.43.37,<2",
-    "fastapi>=0.138.2,<1",
+    "boto3>=1.43.46,<2",
+    "fastapi>=0.139.0,<1",
     "httpx>=0.28.1,<1",
     "hypercorn>=0.18.0,<1",
-    "langfuse>=4.12.0,<5",
-    "litellm>=1.90.0,<2",
+    "langfuse>=4.14.0,<5",
+    "litellm>=1.92.0,<2",
     "loguru>=0.7.3,<1",
     "psycopg[binary,pool]>=3.3.4,<4",
     "pydantic>=2.13.4,<3",
@@ -24,7 +24,7 @@ dev = [
     "pytest>=8.4.2,<9",
     "pytest-asyncio>=1.4.0,<2",
     "pytest-env>=1.2.0,<2",
-    "ruff>=0.15.20,<1",
+    "ruff>=0.15.21,<1",
     "uv-bump>=0.5.0,<1",
 ]
 
