@@ -139,9 +139,9 @@ def get_all_batch_jobs() -> list[BatchJobs]:
 
 def query_batch_jobs(
     *,
-    status: str | None = None,
+    statuses: list[str] | None = None,
     job_package: str | None = None,
-    questionnaire_response_status: str | None = None,
+    questionnaire_response_statuses: list[str] | None = None,
     run_start_date: date | None = None,
     run_end_date: date | None = None,
 ) -> list[BatchJobs]:
@@ -151,16 +151,16 @@ def query_batch_jobs(
     Results are ordered newest-first.
     """
     stmt = select(BatchJobs)
-    if status:
-        stmt = stmt.where(func.lower(BatchJobs.status) == status.casefold())
+    if statuses:
+        stmt = stmt.where(func.lower(BatchJobs.status).in_(statuses))
     if job_package:
         stmt = stmt.where(func.lower(BatchJobs.job_package) == job_package.casefold())
-    if questionnaire_response_status:
+    if questionnaire_response_statuses:
         stmt = stmt.where(
             exists(
                 select(QuestionnaireResponses.response_id).where(
                     QuestionnaireResponses.batch_job_id == BatchJobs.batch_id,
-                    func.lower(QuestionnaireResponses.response["status"].as_string()) == questionnaire_response_status.casefold(),
+                    func.lower(QuestionnaireResponses.response["status"].as_string()).in_(questionnaire_response_statuses),
                 )
             )
         )
