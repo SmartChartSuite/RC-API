@@ -69,6 +69,13 @@ def _matches_filter(value: str | None, expected: str | None, *, partial: bool = 
     return value.casefold() == expected.casefold()
 
 
+def _parse_csv_filter(value: str | None) -> list[str] | None:
+    if not value:
+        return None
+    values = [part.strip().casefold() for part in value.split(",") if part.strip()]
+    return values or None
+
+
 def _parse_iso_date(value: str | None) -> date | None:
     if not value:
         return None
@@ -333,11 +340,13 @@ async def list_batch_jobs(
     run_end, error = _parse_iso_date_filter(job_run_end_date, "jobRunEndDate")
     if error:
         return error
+    batch_job_statuses = _parse_csv_filter(batch_job_status)
+    questionnaire_response_statuses = _parse_csv_filter(questionnaire_response_status)
 
     all_jobs: list[BatchJobs] = query_batch_jobs(
-        status=batch_job_status,
+        statuses=batch_job_statuses,
         job_package=job_package_filter,
-        questionnaire_response_status=questionnaire_response_status,
+        questionnaire_response_statuses=questionnaire_response_statuses,
         run_start_date=run_start,
         run_end_date=run_end,
     )

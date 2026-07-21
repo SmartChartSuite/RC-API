@@ -299,10 +299,11 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
 
 async def test_list_batch_jobs_applies_search_filters(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
-    monkeypatch.setattr(
-        batchjob,
-        "query_batch_jobs",
-        lambda **kwargs: [
+    captured_kwargs = {}
+
+    def _fake_query_batch_jobs(**kwargs):
+        captured_kwargs.update(kwargs)
+        return [
             BatchJobs(
                 batch_id="batch-match",
                 patient_id="patient-match",
@@ -323,7 +324,12 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
                 created_at=created_at,
                 completed_at=None,
             ),
-        ],
+        ]
+
+    monkeypatch.setattr(
+        batchjob,
+        "query_batch_jobs",
+        _fake_query_batch_jobs,
     )
 
     def _fake_get_responses(batch_job_id=None, job_package=None):
@@ -364,8 +370,53 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
     bundle = BundleResource.model_validate(result)
     assert bundle.total == 1
     assert bundle.entry is not None
+    assert captured_kwargs["statuses"] == ["complete"]
+    assert captured_kwargs["questionnaire_response_statuses"] == ["completed"]
     values = {param.name: param for param in ParametersResponse.model_validate(bundle.entry[0].resource).parameter}
     assert values["batchId"].valueString == "batch-match"
+
+
+async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypatch):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    captured_kwargs = {}
+
+    def _fake_query_batch_jobs(**kwargs):
+        captured_kwargs.update(kwargs)
+        return [
+            BatchJobs(
+                batch_id="batch-match",
+                patient_id="patient-match",
+                job_package="ExampleRegistry",
+                started_by="user-123",
+                status="running",
+                result_bundle=None,
+                created_at=created_at,
+                completed_at=None,
+            )
+        ]
+
+    monkeypatch.setattr(batchjob, "query_batch_jobs", _fake_query_batch_jobs)
+    monkeypatch.setattr(
+        batchjob,
+        "get_responses",
+        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response": {"status": "in-progress"}})()],
+    )
+
+    async def _fake_fetch_patient(patient_id):
+        return {"resourceType": "Patient", "id": patient_id}
+
+    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+
+    result = await batchjob.list_batch_jobs(
+        batch_job_status="pending, running , complete",
+        questionnaire_response_status="completed, in-progress",
+        claims={},
+    )
+
+    bundle = BundleResource.model_validate(result)
+    assert bundle.total == 1
+    assert captured_kwargs["statuses"] == ["pending", "running", "complete"]
+    assert captured_kwargs["questionnaire_response_statuses"] == ["completed", "in-progress"]
 
 
 async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
