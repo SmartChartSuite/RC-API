@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import BackgroundTasks, Response
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import ParametersResponse
+from src.models.fhir import BundleResource, ParametersResponse
 from src.models.job_request import JobRequest
 from src.models.job_request import JobRequestParameter
 from src.models.job_response import BatchJobAcceptedResponse
@@ -188,8 +188,8 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
     fetch_calls: list[str] = []
     monkeypatch.setattr(
         batchjob,
-        "get_all_batch_jobs",
-        lambda: [
+        "query_batch_jobs",
+        lambda **kwargs: [
             BatchJobs(
                 batch_id="batch-123",
                 patient_id="patient-123",
@@ -232,10 +232,15 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
 
     result = await batchjob.list_batch_jobs(include_patient=True, claims={})
 
-    assert isinstance(result, list)
-    assert len(result) == 2
-    assert isinstance(result[0], ParametersResponse)
-    values = {param.name: param for param in result[0].parameter}
+    assert isinstance(result, dict)
+    bundle = BundleResource.model_validate(result)
+    assert bundle.resourceType == "Bundle"
+    assert bundle.type == "searchset"
+    assert bundle.total == 2
+    assert bundle.entry is not None
+    assert len(bundle.entry) == 2
+    first = ParametersResponse.model_validate(bundle.entry[0].resource)
+    values = {param.name: param for param in first.parameter}
     assert values["batchId"].valueString == "batch-123"
     assert values["patientId"].valueString == "patient-123"
     assert values["jobPackage"].valueString == "SyphilisRegistry"
@@ -261,8 +266,8 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
     monkeypatch.setattr(
         batchjob,
-        "get_all_batch_jobs",
-        lambda: [
+        "query_batch_jobs",
+        lambda **kwargs: [
             BatchJobs(
                 batch_id=f"batch-{index}",
                 patient_id=f"patient-{index}",
@@ -285,16 +290,19 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
 
     result = await batchjob.list_batch_jobs(page=1, size=2, claims={})
 
-    assert isinstance(result, list)
-    assert [next(param.valueString for param in entry.parameter if param.name == "batchId") for entry in result] == ["batch-2", "batch-3"]
+    assert isinstance(result, dict)
+    bundle = BundleResource.model_validate(result)
+    assert bundle.total == 5
+    assert bundle.entry is not None
+    assert [next(param["valueString"] for param in entry.resource["parameter"] if param["name"] == "batchId") for entry in bundle.entry] == ["batch-2", "batch-3"]
 
 
 async def test_list_batch_jobs_applies_search_filters(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
     monkeypatch.setattr(
         batchjob,
-        "get_all_batch_jobs",
-        lambda: [
+        "query_batch_jobs",
+        lambda **kwargs: [
             BatchJobs(
                 batch_id="batch-match",
                 patient_id="patient-match",
@@ -352,9 +360,11 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
         claims={},
     )
 
-    assert isinstance(result, list)
-    assert len(result) == 1
-    values = {param.name: param for param in result[0].parameter}
+    assert isinstance(result, dict)
+    bundle = BundleResource.model_validate(result)
+    assert bundle.total == 1
+    assert bundle.entry is not None
+    values = {param.name: param for param in ParametersResponse.model_validate(bundle.entry[0].resource).parameter}
     assert values["batchId"].valueString == "batch-match"
 
 
@@ -363,8 +373,8 @@ async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
     nonmatching_created_at = datetime(2026, 5, 25, 12, 0, tzinfo=timezone.utc)
     monkeypatch.setattr(
         batchjob,
-        "get_all_batch_jobs",
-        lambda: [
+        "query_batch_jobs",
+        lambda **kwargs: [
             BatchJobs(
                 batch_id="batch-match",
                 patient_id="patient-match",
@@ -412,14 +422,16 @@ async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
         claims={},
     )
 
-    assert isinstance(result, list)
-    assert len(result) == 1
-    values = {param.name: param for param in result[0].parameter}
+    assert isinstance(result, dict)
+    bundle = BundleResource.model_validate(result)
+    assert bundle.total == 1
+    assert bundle.entry is not None
+    values = {param.name: param for param in ParametersResponse.model_validate(bundle.entry[0].resource).parameter}
     assert values["batchId"].valueString == "batch-match"
 
 
 async def test_list_batch_jobs_rejects_invalid_date_filters(monkeypatch):
-    monkeypatch.setattr(batchjob, "get_all_batch_jobs", lambda: [])
+    monkeypatch.setattr(batchjob, "query_batch_jobs", lambda **kwargs: [])
 
     result = await batchjob.list_batch_jobs(dob_start_date="01-01-2020", claims={})
 

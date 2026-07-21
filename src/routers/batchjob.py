@@ -19,9 +19,9 @@ from src.services.job_state import (
     BatchJobs,
     create_batch_job_with_response,
     delete_batch_job_record,
-    get_all_batch_jobs,
     get_batch_job,
     get_responses,
+    query_batch_jobs,
 )
 from src.util.auth import require_admin, validate_token
 from src.util.settings import (
@@ -296,7 +296,7 @@ async def post_batch_job(
 @router.get(
     "/batchjob",
     summary="List Batch Jobs",
-    response_model=list[ParametersResponse],
+    response_model=BundleResource,
     responses=operation_outcome_responses(400, 503),
     response_model_exclude_none=True,
 )
@@ -314,14 +314,13 @@ async def list_batch_jobs(
     job_run_start_date: Annotated[str | None, Query(alias="jobRunStartDate")] = None,
     job_run_end_date: Annotated[str | None, Query(alias="jobRunEndDate")] = None,
     claims: dict = Security(validate_token),
-) -> list[ParametersResponse] | JSONResponse:
+) -> BundleJSON | JSONResponse:
     """List batch jobs as FHIR ``Parameters`` resources.
 
     Set ``include_patient=true`` to embed each Patient resource from the
     external FHIR server as ``patientResource``. Results are paginated with
     zero-based ``page`` and ``size`` query parameters.
     """
-    all_jobs: list[BatchJobs] = get_all_batch_jobs()
     dob_start, error = _parse_iso_date_filter(dob_start_date, "dobStartDate")
     if error:
         return error
@@ -334,6 +333,15 @@ async def list_batch_jobs(
     run_end, error = _parse_iso_date_filter(job_run_end_date, "jobRunEndDate")
     if error:
         return error
+
+    all_jobs: list[BatchJobs] = query_batch_jobs(
+        status=batch_job_status,
+        job_package=job_package_filter,
+        questionnaire_response_status=questionnaire_response_status,
+        run_start_date=run_start,
+        run_end_date=run_end,
+    )
+
     patients_by_id: dict[str, dict[str, Any] | None] = {}
     filtered_jobs: list[tuple[BatchJobs, dict[str, Any] | None]] = []
     for job in all_jobs:
@@ -343,22 +351,12 @@ async def list_batch_jobs(
         derived_patient_name = _patient_name(patient)
         derived_patient_gender = patient.get("gender") if isinstance(patient, dict) else None
         derived_patient_dob = _parse_iso_date(patient.get("birthDate") if isinstance(patient, dict) else None)
-        derived_questionnaire_response_status = _questionnaire_response_status(job.batch_id)
-        derived_job_run_date = job.created_at.date() if job.created_at else None
 
-        if not _matches_filter(cast(str | None, job.status), batch_job_status):
-            continue
-        if not _matches_filter(job.job_package, job_package_filter):
-            continue
-        if not _matches_filter(derived_questionnaire_response_status, questionnaire_response_status):
-            continue
         if not _matches_filter(derived_patient_name, patient_name, partial=True):
             continue
         if not _matches_filter(cast(str | None, derived_patient_gender), patient_gender):
             continue
         if not _matches_date_range(derived_patient_dob, dob_start, dob_end):
-            continue
-        if not _matches_date_range(derived_job_run_date, run_start, run_end):
             continue
 
         filtered_jobs.append((job, patient))
@@ -367,8 +365,14 @@ async def list_batch_jobs(
     end = start + size
     results = []
     for job, patient in filtered_jobs[start:end]:
-        results.append(_to_batch_job_parameters(job, patient=patient, include_patient_resource=include_patient))
-    return results
+        results.append({"resource": _to_batch_job_parameters(job, patient=patient, include_patient_resource=include_patient).model_dump(exclude_none=True)})
+
+    return {
+        "resourceType": "Bundle",
+        "type": "searchset",
+        "total": len(filtered_jobs),
+        "entry": results,
+    }
 
 
 @router.get("/batchjob/{batch_id}", summary="Get Batch Job Results", response_model=BundleResource, responses=operation_outcome_responses(202, 404, 500))
