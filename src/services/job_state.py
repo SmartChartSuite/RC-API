@@ -16,6 +16,7 @@ from sqlalchemy import (
     JSON,
     Column,
     CursorResult,
+    exists,
     ForeignKey,
     MetaData,
     String,
@@ -155,14 +156,19 @@ def query_batch_jobs(
     if job_package:
         stmt = stmt.where(func.lower(BatchJobs.job_package) == job_package.casefold())
     if questionnaire_response_status:
-        stmt = stmt.join(QuestionnaireResponses, QuestionnaireResponses.batch_job_id == BatchJobs.batch_id).where(
-            func.lower(QuestionnaireResponses.response["status"].as_string()) == questionnaire_response_status.casefold()
+        stmt = stmt.where(
+            exists(
+                select(QuestionnaireResponses.response_id).where(
+                    QuestionnaireResponses.batch_job_id == BatchJobs.batch_id,
+                    func.lower(QuestionnaireResponses.response["status"].as_string()) == questionnaire_response_status.casefold(),
+                )
+            )
         )
     if run_start_date is not None:
         stmt = stmt.where(BatchJobs.created_at >= datetime.combine(run_start_date, time.min, tzinfo=timezone.utc))
     if run_end_date is not None:
         stmt = stmt.where(BatchJobs.created_at < datetime.combine(run_end_date, time.min, tzinfo=timezone.utc) + timedelta(days=1))
-    stmt = stmt.order_by(BatchJobs.created_at.desc()).distinct()
+    stmt = stmt.order_by(BatchJobs.created_at.desc())
     with Session(db_engine) as session:
         return list(session.execute(stmt).scalars().all())
 
