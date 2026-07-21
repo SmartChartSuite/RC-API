@@ -1,4 +1,5 @@
 from src.services.cql_executor import CqlResult
+from src.models.prompt import Prompt, PromptMetadata
 from src.services.llm_executor import LlmDocumentResult, LlmResult
 from src.services import job_orchestrator
 
@@ -260,3 +261,49 @@ def test_build_result_bundle_includes_status_and_patient(monkeypatch):
     assert bundle["id"] == "bundle-123"
     assert bundle["total"] == 4
     assert bundle["entry"][0]["resource"]["id"] == "status-observation"
+
+
+async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
+    updates = []
+
+    async def _fake_fhir_get(resource_type, resource_id):
+        assert resource_type == "Questionnaire"
+        return {
+            "resourceType": "Questionnaire",
+            "name": "RegistryForm",
+            "extension": [
+                {
+                    "url": job_orchestrator._LLM_JOB_LIST_URL,
+                    "extension": [{"valueString": "prompts/a"}],
+                }
+            ],
+            "item": [],
+        }
+
+    monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
+    monkeypatch.setattr(job_orchestrator, "create_job", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda *args, **kwargs: None)
+    monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: updates.append((args, kwargs)))
+
+    async def _fake_load_prompts(prompt_paths):
+        return [Prompt(metadata=PromptMetadata(name="a", path="prompts/a"), content="prompt")]
+
+    async def _fake_fetch_patient_documents(patient_id):
+        return [{"id": "doc-1", "text": "note", "date": "2026-05-22"}]
+
+    async def _fake_run_all_prompts(prompts, documents):
+        return []
+
+    async def _fake_fetch_patient_resource(patient_id):
+        return None
+
+    monkeypatch.setattr(job_orchestrator, "load_prompts", _fake_load_prompts)
+    monkeypatch.setattr(job_orchestrator, "fetch_patient_documents", _fake_fetch_patient_documents)
+    monkeypatch.setattr(job_orchestrator, "run_all_prompts", _fake_run_all_prompts)
+    monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
+    monkeypatch.setattr(job_orchestrator, "use_llm", True)
+    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "job-123")
+
+    await job_orchestrator.run_batch_job("batch-1", "patient-1", "RegistryForm", "questionnaire-1")
+
+    assert updates == [(("job-123", "error", {"message": "no llm result returned for prompt"}), {})]
