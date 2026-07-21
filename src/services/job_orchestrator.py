@@ -10,9 +10,11 @@ Orchestrates the full CQL + LLM pipeline for a batch job submission:
 """
 
 import asyncio
+from dataclasses import asdict
 import json
 import re
 import uuid
+from typing import Any, cast
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,7 +29,7 @@ from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
     create_job,
     update_batch_job_status,
-    update_job_complete,
+    update_job_result,
 )
 from src.services.llm_executor import LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
@@ -488,9 +490,9 @@ def _build_result_bundle(
 # Main orchestrator
 async def run_batch_job(
     batch_id: str,
-    job_id: str,
     patient_id: str,
     job_package: str,
+    questionnaire_id: str,
     job_package_version: str | None = None,
     requested_jobs: list[str] | None = None,
 ) -> None:
@@ -501,24 +503,19 @@ async def run_batch_job(
     """
     logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}")
     update_batch_job_status(batch_id, "running")
-    create_job(job_id, batch_id, patient_id, job_package)
 
     task_results: list[dict] = []
+    job_ids_by_task: dict[tuple[str, str], str] = {}
 
     try:
         # 1. Fetch Questionnaire from HAPI FHIR
-        params: dict = {"name": job_package}
-        if job_package_version:
-            params["version"] = job_package_version
-        questionnaire_bundle = await fhir_get("Questionnaire", params=params)
+        questionnaire_data = await fhir_get("Questionnaire", questionnaire_id)
 
-        if questionnaire_bundle.get("resourceType") == "OperationOutcome":
-            raise RuntimeError(f"Could not fetch Questionnaire: {questionnaire_bundle}")
+        if questionnaire_data.get("resourceType") == "OperationOutcome":
+            raise RuntimeError(f"Could not fetch Questionnaire/{questionnaire_id}: {questionnaire_data}")
 
-        entries = questionnaire_bundle.get("entry", [])
-        if not entries:
-            raise RuntimeError(f"No Questionnaire found with name='{job_package}'")
-        questionnaire = entries[0]["resource"]
+        questionnaire = cast(dict[str, Any], questionnaire_data)
+
         form_name = questionnaire.get("name", job_package)
         logger.info(f"[batch={batch_id}] Loaded Questionnaire '{form_name}'")
 
@@ -526,6 +523,15 @@ async def run_batch_job(
         cql_names, prompt_paths = _extract_job_lists(questionnaire)
         cql_names, prompt_paths = _filter_requested_jobs(cql_names, prompt_paths, requested_jobs)
         logger.info(f"[batch={batch_id}] CQL libs={cql_names}, LLM prompts={prompt_paths}")
+
+        for library_name in cql_names:
+            task_job_id = str(uuid.uuid4())
+            if create_job(task_job_id, batch_id, patient_id, job_package, library_name, "structured", status="running"):
+                job_ids_by_task[("structured", library_name)] = task_job_id
+        for prompt_path in prompt_paths:
+            task_job_id = str(uuid.uuid4())
+            if create_job(task_job_id, batch_id, patient_id, job_package, prompt_path, "unstructured", status="running"):
+                job_ids_by_task[("unstructured", prompt_path)] = task_job_id
 
         # 3. Concurrently: load prompts + fetch patient documents if running any prompts
         prompts = documents = []
@@ -537,6 +543,9 @@ async def run_batch_job(
             if not documents and prompt_paths:
                 logger.info(f"[batch={batch_id}] No DocumentReferences found — skipping LLM execution")
                 for path in prompt_paths:
+                    job_id = job_ids_by_task.get(("unstructured", path))
+                    if job_id:
+                        update_job_result(job_id, "skipped", {"message": "skipped — no supporting documents"})
                     task_results.append(
                         {
                             "task_name": path,
@@ -545,18 +554,39 @@ async def run_batch_job(
                             "result": "skipped — no supporting documents",
                         }
                     )
+            elif not use_llm:
+                logger.info(f"[batch={batch_id}] LiteLLM is not configured — skipping LLM execution")
+                for path in prompt_paths:
+                    job_id = job_ids_by_task.get(("unstructured", path))
+                    if job_id:
+                        update_job_result(job_id, "skipped", {"message": "skipped — llm not configured"})
+                    task_results.append(
+                        {
+                            "task_name": path,
+                            "task_type": "unstructured",
+                            "status": "skipped",
+                            "result": "skipped — llm not configured",
+                        }
+                    )
 
         # 4. Concurrently: CQL + LLM
         async def _empty() -> list:
             return []
 
         cql_task = run_cql_libraries(cql_names, patient_id) if cql_names else _empty()
-        llm_task = run_all_prompts(prompts, documents) if (prompt_paths and documents and use_llm and prompt_paths) else _empty()
+        llm_task = run_all_prompts(prompts, documents) if (prompt_paths and documents and use_llm) else _empty()
 
         cql_results, llm_results = await asyncio.gather(cql_task, llm_task)
 
         # Record CQL task results
         for cql_res in cql_results:
+            job_id = job_ids_by_task.get(("structured", cql_res.library_name))
+            if job_id:
+                update_job_result(
+                    job_id,
+                    "error" if cql_res.error else "complete",
+                    {"error": cql_res.error, "results": cql_res.results},
+                )
             task_results.append(
                 {
                     "task_name": cql_res.library_name,
@@ -568,6 +598,9 @@ async def run_batch_job(
 
         # Record LLM task results
         for llm_res in llm_results:
+            job_id = job_ids_by_task.get(("unstructured", llm_res.prompt_path))
+            if job_id:
+                update_job_result(job_id, "complete", asdict(llm_res))
             task_results.append(
                 {
                     "task_name": llm_res.prompt_path,
@@ -628,12 +661,12 @@ async def run_batch_job(
         result_bundle = _build_result_bundle(patient_resource, cql_entries, llm_entries + document_entries, overall_status)
 
         # 8. Persist
-        update_job_complete(job_id, task_results, result_bundle)
         update_batch_job_status(batch_id, "complete", result_bundle)
         logger.info(f"[batch={batch_id}] Completed. Bundle entries: {result_bundle['total']}")
 
     except Exception as exc:
         logger.exception(f"[batch={batch_id}] Unhandled error in run_batch_job: {exc}")
         error_bundle = make_operation_outcome("exception", str(exc))
-        update_job_complete(job_id, task_results)
+        for task_job_id in job_ids_by_task.values():
+            update_job_result(task_job_id, "error", {"message": str(exc)})
         update_batch_job_status(batch_id, "error", error_bundle)

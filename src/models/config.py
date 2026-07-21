@@ -8,3 +8,16 @@ class ConfigEndpointPrimaryIdentifier(BaseModel):
 
 class ConfigEndpointModel(BaseModel):
     primaryIdentifier: ConfigEndpointPrimaryIdentifier | None = None
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "primaryIdentifier": {
+                        "system": "http://hospital.example.org/mrn",
+                        "label": "Medical Record Number",
+                    }
+                }
+            ]
+        }
+    }

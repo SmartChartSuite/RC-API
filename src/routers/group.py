@@ -5,7 +5,7 @@ mirroring v0's search_group() logic.
 """
 
 import httpx
-from fastapi import APIRouter, Security
+from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse
 from loguru import logger
 
@@ -21,6 +21,15 @@ from src.util.settings import (
 )
 
 router = APIRouter(tags=["Groups"])
+
+_GROUP_EXAMPLE = {
+    "resourceType": "Group",
+    "id": "setnet-follow-up-cohort",
+    "name": "SETNET Follow Up Cohort",
+    "type": "person",
+    "actual": True,
+    "member": [{"entity": {"reference": "Patient/627902"}}],
+}
 
 GroupSearchResult = GroupResource | PatientResource
 GroupWriteResult = GroupResource | OperationOutcome
@@ -39,11 +48,12 @@ def _patient_headers() -> dict:
     return headers
 
 
-@router.get("/group", response_model=list[GroupSearchResult], responses=operation_outcome_responses(503))
+@router.get("/group", summary="Search Groups", response_model=list[GroupSearchResult], responses=operation_outcome_responses(503))
 async def search_groups(name: str | None = None, claims: dict = Security(validate_token)) -> JSONResponse | list[GroupSearchResult]:
     """Search Groups on HAPI FHIR and fetch referenced Patient resources.
 
-    Returns a flat list: [Group, Patient, Patient, ..., Group, ...] mirroring v0's search_group() implicit include behaviour.
+    Returns a flat list such as ``[Group, Patient, Patient, ..., Group, ...]``
+    mirroring the legacy implicit-include behavior used by this API.
     """
     if err := _check_config():
         return err
@@ -108,7 +118,7 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
     return result
 
 
-@router.get("/group/{resource_id}", response_model=GroupResource | OperationOutcome, responses=operation_outcome_responses(503))
+@router.get("/group/{resource_id}", summary="Get Group", response_model=GroupResource | OperationOutcome, responses=operation_outcome_responses(503))
 async def get_group(resource_id: str, claims: dict = Security(validate_token)) -> JSONResponse | GroupResource | OperationOutcome:
     """Get a specific Group resource by ID from HAPI FHIR."""
     if err := _check_config():
@@ -124,8 +134,11 @@ async def get_group(resource_id: str, claims: dict = Security(validate_token)) -
     return GroupResource.model_validate(data)
 
 
-@router.post("/group", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
-async def create_group(body: dict, claims: dict = Security(validate_token)) -> JSONResponse | GroupWriteResult:
+@router.post("/group", summary="Create Group", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
+async def create_group(
+    body: dict = Body(..., openapi_examples={"group": {"summary": "FHIR Group", "value": _GROUP_EXAMPLE}}),
+    claims: dict = Security(validate_token),
+) -> JSONResponse | GroupWriteResult:
     """Create a new Group resource on HAPI FHIR."""
     if err := _check_config():
         return err
@@ -135,8 +148,12 @@ async def create_group(body: dict, claims: dict = Security(validate_token)) -> J
     return GroupResource.model_validate(data)
 
 
-@router.put("/group/{resource_id}", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
-async def update_group(resource_id: str, body: dict, claims: dict = Security(validate_token)) -> JSONResponse | GroupWriteResult:
+@router.put("/group/{resource_id}", summary="Update Group", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
+async def update_group(
+    resource_id: str,
+    body: dict = Body(..., openapi_examples={"group": {"summary": "FHIR Group", "value": _GROUP_EXAMPLE}}),
+    claims: dict = Security(validate_token),
+) -> JSONResponse | GroupWriteResult:
     """Update an existing Group resource."""
     if err := _check_config():
         return err
@@ -146,7 +163,7 @@ async def update_group(resource_id: str, body: dict, claims: dict = Security(val
     return GroupResource.model_validate(data)
 
 
-@router.delete("/group/{resource_id}", response_model=OperationOutcome, responses=operation_outcome_responses(503))
+@router.delete("/group/{resource_id}", summary="Delete Group", response_model=OperationOutcome, responses=operation_outcome_responses(503))
 async def delete_group(resource_id: str, claims: None = Security(require_admin)) -> JSONResponse | OperationOutcome:
     """Delete a Group resource. Requires 'admin' scope."""
     if err := _check_config():

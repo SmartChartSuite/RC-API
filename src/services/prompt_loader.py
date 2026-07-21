@@ -1,17 +1,36 @@
 """Prompt loader — loads prompts from Langfuse or local ./prompts/ directory.
 
-Strategy is selected at module load time based on use_langfuse in settings.
+Startup initialization validates Langfuse connectivity and selects whether
+prompt loading and tracing should use Langfuse or the local prompts folder.
 All callers use load_prompts(prompt_paths) regardless of strategy.
 """
 
 from pathlib import Path
 
+import httpx
+import litellm
 import yaml
 from loguru import logger
 
 from src.models.prompt import Prompt, PromptMetadata
 from src.util.settings import langfuse_host, langfuse_public_key, langfuse_secret_key
 from src.util.settings import prompts_dir, use_langfuse
+
+
+def _disable_langfuse_tracing() -> None:
+    callbacks = getattr(litellm, "callbacks", None)
+    if isinstance(callbacks, list) and "langfuse_otel" in callbacks:
+        litellm.callbacks = [callback for callback in callbacks if callback != "langfuse_otel"]
+
+
+def _enable_langfuse_tracing() -> None:
+    callbacks = getattr(litellm, "callbacks", None)
+    if isinstance(callbacks, list):
+        if "langfuse_otel" not in callbacks:
+            litellm.callbacks = [*callbacks, "langfuse_otel"]
+    else:
+        litellm.callbacks = ["langfuse_otel"]
+    litellm.suppress_debug_info = True
 
 
 def _parse_md_frontmatter(text: str) -> tuple[dict, str]:
@@ -97,6 +116,27 @@ async def _load_from_langfuse(prompt_paths: list[str]) -> list[Prompt]:
         except Exception as exc:
             logger.error(f"Failed to load prompt '{path}' from Langfuse: {exc}")
     return prompts
+
+
+async def initialize_prompt_source() -> None:
+    """Validate Langfuse connectivity at startup and fall back to the prompts folder if unavailable."""
+    global use_langfuse
+
+    if not use_langfuse:
+        _disable_langfuse_tracing()
+        logger.info(f"Langfuse is not fully configured. Falling back to local prompts folder: {prompts_dir}")
+        return
+
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            response = await client.get(str(langfuse_host))
+        response.raise_for_status()
+        _enable_langfuse_tracing()
+        logger.info(f"Langfuse is configured and reachable at {langfuse_host}")
+    except Exception as exc:
+        use_langfuse = False
+        _disable_langfuse_tracing()
+        logger.warning(f"Langfuse is configured but not reachable at {langfuse_host}: {exc}. Falling back to local prompts folder: {prompts_dir}")
 
 
 async def load_prompts(prompt_paths: list[str]) -> list[Prompt]:

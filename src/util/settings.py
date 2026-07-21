@@ -10,7 +10,6 @@ import os
 from urllib.parse import urlparse
 
 from loguru import logger
-import litellm
 
 from src.models.config import ConfigEndpointModel
 
@@ -107,7 +106,3 @@ config_endpoint: ConfigEndpointModel | dict = (
     if primary_identifier_system
     else {}
 )
-
-if use_llm and use_langfuse:
-    litellm.callbacks = ["langfuse_otel"]
-    litellm.suppress_debug_info = True

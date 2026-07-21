@@ -4,8 +4,7 @@ from types import SimpleNamespace
 from fastapi import Response
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import OperationOutcome
-from src.models.response import ResponseCreatedResponse, ResponseParameter, ResponseRecord, ResponseRequest
+from src.models.fhir import BundleResource, OperationOutcome, QuestionnaireResponseResource
 from src.routers import response as response_router
 
 
@@ -16,29 +15,32 @@ def _make_record(response_id: str = "response-1") -> SimpleNamespace:
         batch_job_id="batch-1",
         job_package="SyphilisRegistry",
         patient_id="patient-123",
-        user_id="user-123",
+        last_updated_by="user-123",
         response={"resourceType": "QuestionnaireResponse", "status": "completed"},
         created_at=timestamp,
         updated_at=timestamp,
     )
 
 
-async def test_search_responses_filters_by_user(monkeypatch):
+async def test_search_responses_returns_fhir_bundle(monkeypatch):
     captured: dict = {}
 
-    def _fake_get_responses(batch_job_id=None, job_package=None, user_id=None):
+    def _fake_get_responses(batch_job_id=None, job_package=None):
         captured["batch_job_id"] = batch_job_id
         captured["job_package"] = job_package
-        captured["user_id"] = user_id
         return [_make_record()]
 
     monkeypatch.setattr(response_router, "get_responses", _fake_get_responses)
 
     result = await response_router.search_responses(batch_job_id="batch-1", job_package="SyphilisRegistry", claims={"sub": "user-123"})
 
-    assert captured == {"batch_job_id": "batch-1", "job_package": "SyphilisRegistry", "user_id": "user-123"}
-    assert isinstance(result[0], ResponseRecord)
-    assert result[0].responseId == "response-1"
+    assert captured == {"batch_job_id": "batch-1", "job_package": "SyphilisRegistry"}
+    assert isinstance(result, BundleResource)
+    assert result.type == "searchset"
+    assert result.total == 1
+    assert result.entry is not None
+    assert result.entry[0].resource["resourceType"] == "QuestionnaireResponse"
+    assert result.entry[0].resource["id"] == "response-1"
 
 
 async def test_get_response_record_returns_404_when_missing(monkeypatch):
@@ -50,34 +52,72 @@ async def test_get_response_record_returns_404_when_missing(monkeypatch):
     assert result.status_code == 404
 
 
-async def test_create_response_record_sets_location_and_returns_parameters(monkeypatch):
-    monkeypatch.setattr(response_router.uuid, "uuid4", lambda: "response-123")
-    monkeypatch.setattr(response_router, "create_response", lambda *args: True)
+async def test_get_response_record_returns_questionnaire_response(monkeypatch):
+    monkeypatch.setattr(response_router, "get_response", lambda response_id: _make_record(response_id))
 
-    body = ResponseRequest(
-        parameter=[
-            ResponseParameter(name="batchJobId", valueString="batch-1"),
-            ResponseParameter(name="jobPackage", valueString="SyphilisRegistry"),
-            ResponseParameter(name="patientId", valueString="patient-123"),
-            ResponseParameter(name="response", resource={"resourceType": "QuestionnaireResponse", "status": "completed"}),
-        ]
+    result = await response_router.get_response_record("response-1", claims={})
+
+    assert isinstance(result, QuestionnaireResponseResource)
+    assert result.resourceType == "QuestionnaireResponse"
+    assert result.id == "response-1"
+
+
+async def test_create_response_record_sets_location_and_returns_questionnaire_response(monkeypatch):
+    monkeypatch.setattr(response_router.uuid, "uuid4", lambda: "response-123")
+    captured: dict = {}
+
+    def _fake_create_response(*args):
+        captured["response"] = args[5]
+        return True
+
+    monkeypatch.setattr(response_router, "create_response", _fake_create_response)
+
+    body = QuestionnaireResponseResource.model_validate(
+        {
+            "resourceType": "QuestionnaireResponse",
+            "questionnaire": "Questionnaire/ExampleRegistry",
+            "status": "completed",
+            "subject": {"reference": "Patient/patient-123"},
+        }
     )
     response = Response()
 
-    result = await response_router.create_response_record(body, response, claims={"sub": "user-123"})
+    result = await response_router.create_response_record(body, batch_job_id="batch-1", response=response, claims={"sub": "user-123"})
 
-    assert isinstance(result, ResponseCreatedResponse)
+    assert isinstance(result, QuestionnaireResponseResource)
     assert response.headers["Location"] == "/response/response-123"
-    assert result.parameter[0].valueString == "response-123"
+    assert result.id == "response-123"
+    assert result.resourceType == "QuestionnaireResponse"
+    assert captured["response"]["id"] == "response-123"
+
+
+async def test_create_response_record_returns_400_when_required_fields_missing(monkeypatch):
+    body = QuestionnaireResponseResource.model_validate({"resourceType": "QuestionnaireResponse", "status": "completed"})
+    response = Response()
+
+    result = await response_router.create_response_record(body, batch_job_id="batch-1", response=response, claims={})
+
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 400
 
 
 async def test_update_response_record_returns_operation_outcome(monkeypatch):
-    monkeypatch.setattr(response_router, "update_response_body", lambda response_id, body: True)
+    captured: dict = {}
 
-    result = await response_router.update_response_record("response-1", {"resourceType": "QuestionnaireResponse"}, claims={})
+    def _fake_update_response_body(response_id, body, last_updated_by):
+        captured["response_id"] = response_id
+        captured["body"] = body
+        captured["last_updated_by"] = last_updated_by
+        return True
+
+    monkeypatch.setattr(response_router, "update_response_body", _fake_update_response_body)
+
+    result = await response_router.update_response_record("response-1", {"resourceType": "QuestionnaireResponse"}, claims={"sub": "user-456"})
 
     assert isinstance(result, OperationOutcome)
     assert result.issue[0].diagnostics == "Response response-1 updated."
+    assert captured["last_updated_by"] == "user-456"
+    assert captured["body"]["id"] == "response-1"
 
 
 async def test_delete_response_delegates_to_job_state(monkeypatch):
