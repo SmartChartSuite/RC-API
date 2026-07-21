@@ -8,7 +8,7 @@ Tables:
 Uses SQLAlchemy Core + ORM with the same engine/session pattern as v0.
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -21,6 +21,7 @@ from sqlalchemy import (
     String,
     create_engine,
     delete,
+    func,
     select,
     update,
 )
@@ -133,6 +134,37 @@ def get_batch_job(batch_id: str) -> BatchJobs | None:
 def get_all_batch_jobs() -> list[BatchJobs]:
     with Session(db_engine) as session:
         return list(session.execute(select(BatchJobs)).scalars().all())
+
+
+def query_batch_jobs(
+    *,
+    status: str | None = None,
+    job_package: str | None = None,
+    questionnaire_response_status: str | None = None,
+    run_start_date: date | None = None,
+    run_end_date: date | None = None,
+) -> list[BatchJobs]:
+    """Return batch jobs filtered at the database level.
+
+    Filters that depend on external Patient data are applied by the caller.
+    Results are ordered newest-first.
+    """
+    stmt = select(BatchJobs)
+    if status:
+        stmt = stmt.where(func.lower(BatchJobs.status) == status.casefold())
+    if job_package:
+        stmt = stmt.where(func.lower(BatchJobs.job_package) == job_package.casefold())
+    if questionnaire_response_status:
+        stmt = stmt.join(QuestionnaireResponses, QuestionnaireResponses.batch_job_id == BatchJobs.batch_id).where(
+            func.lower(QuestionnaireResponses.response["status"].as_string()) == questionnaire_response_status.casefold()
+        )
+    if run_start_date is not None:
+        stmt = stmt.where(BatchJobs.created_at >= datetime.combine(run_start_date, time.min, tzinfo=timezone.utc))
+    if run_end_date is not None:
+        stmt = stmt.where(BatchJobs.created_at < datetime.combine(run_end_date, time.min, tzinfo=timezone.utc) + timedelta(days=1))
+    stmt = stmt.order_by(BatchJobs.created_at.desc()).distinct()
+    with Session(db_engine) as session:
+        return list(session.execute(stmt).scalars().all())
 
 
 def create_batch_job_with_response(
