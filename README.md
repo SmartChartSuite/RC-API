@@ -226,7 +226,7 @@ pyproject.toml
 - `uv` handles package add/remove operations and syncing the environment.
 - `pixi` provides a stable command surface for developers so common workflows do not depend on local shell setup.
 - `hypercorn` is the ASGI server behind `pixi run serve` and `pixi run serve-prod`.
-- `pre-commit` runs formatting and validation hooks before code is committed.
+- `pre-commit` runs formatting, linting, and `pyright` type checks before code is committed.
 
 ### Managing Dependencies
 
@@ -301,6 +301,9 @@ Docker builds install dependencies with `uv` from the committed `uv.lock` file, 
 ### Code Quality
 
 ```bash
+# Type check
+uv run pyright
+
 # Lint
 pixi run lint
 
