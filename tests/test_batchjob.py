@@ -232,6 +232,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
 
     result = await batchjob.list_batch_jobs(include_patient=True, claims={})
 
+    assert isinstance(result, list)
     assert len(result) == 2
     assert isinstance(result[0], ParametersResponse)
     values = {param.name: param for param in result[0].parameter}
@@ -284,6 +285,7 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
 
     result = await batchjob.list_batch_jobs(page=1, size=2, claims={})
 
+    assert isinstance(result, list)
     assert [next(param.valueString for param in entry.parameter if param.name == "batchId") for entry in result] == ["batch-2", "batch-3"]
 
 
@@ -350,6 +352,7 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
         claims={},
     )
 
+    assert isinstance(result, list)
     assert len(result) == 1
     values = {param.name: param for param in result[0].parameter}
     assert values["batchId"].valueString == "batch-match"
@@ -409,6 +412,7 @@ async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
         claims={},
     )
 
+    assert isinstance(result, list)
     assert len(result) == 1
     values = {param.name: param for param in result[0].parameter}
     assert values["batchId"].valueString == "batch-match"
