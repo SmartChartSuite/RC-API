@@ -16,6 +16,7 @@ from src.routers.library import router as library_router
 from src.routers.patient import router as patient_router
 from src.routers.response import router as response_router
 from src.services.errorhandler import make_operation_outcome
+from src.services.job_state import initialize_db
 from src.services.prompt_loader import initialize_prompt_source
 from src.util.settings import log_level, root_path
 
@@ -69,6 +70,7 @@ configure_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    initialize_db()
     await initialize_prompt_source()
     yield
 

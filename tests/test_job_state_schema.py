@@ -39,6 +39,7 @@ def test_models_apply_configured_schema_for_named_schema_backends(monkeypatch):
     monkeypatch.setattr(MetaData, "create_all", lambda self, engine: create_all_calls.append((self.schema, engine)))
 
     reloaded = importlib.reload(job_state)
+    reloaded.initialize_db()
 
     assert reloaded.Base.metadata.schema == "custom_schema"
     assert reloaded.BatchJobs.__table__.schema == "custom_schema"
