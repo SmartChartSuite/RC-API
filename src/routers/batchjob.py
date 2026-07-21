@@ -69,6 +69,12 @@ def _matches_filter(value: str | None, expected: str | None, *, partial: bool = 
     return value.casefold() == expected.casefold()
 
 
+def _matches_any_filter(value: str | None, expected: list[str] | None, *, partial: bool = False) -> bool:
+    if not expected:
+        return True
+    return any(_matches_filter(value, candidate, partial=partial) for candidate in expected)
+
+
 def _parse_csv_filter(value: str | None) -> list[str] | None:
     if not value:
         return None
@@ -342,6 +348,7 @@ async def list_batch_jobs(
         return error
     batch_job_statuses = _parse_csv_filter(batch_job_status)
     questionnaire_response_statuses = _parse_csv_filter(questionnaire_response_status)
+    patient_genders = _parse_csv_filter(patient_gender)
 
     all_jobs: list[BatchJobs] = query_batch_jobs(
         statuses=batch_job_statuses,
@@ -363,7 +370,7 @@ async def list_batch_jobs(
 
         if not _matches_filter(derived_patient_name, patient_name, partial=True):
             continue
-        if not _matches_filter(cast(str | None, derived_patient_gender), patient_gender):
+        if not _matches_any_filter(cast(str | None, derived_patient_gender), patient_genders):
             continue
         if not _matches_date_range(derived_patient_dob, dob_start, dob_end):
             continue
