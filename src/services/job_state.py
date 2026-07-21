@@ -100,12 +100,14 @@ def _ensure_schema_exists() -> None:
         connection.execute(CreateSchema(schema, if_not_exists=True))
 
 
-try:
-    _ensure_schema_exists()
-    Base.metadata.create_all(db_engine)
-    logger.info("v1 DB tables created/verified.")
-except Exception as exc:
-    logger.error(f"Failed to create v1 DB tables: {exc}")
+def initialize_db() -> None:
+    try:
+        _ensure_schema_exists()
+        Base.metadata.create_all(db_engine)
+        logger.info("v1 DB tables created/verified.")
+    except Exception as exc:
+        logger.error(f"Failed to create v1 DB tables: {exc}")
+        raise
 
 
 # ── Batch Job CRUD ─────────────────────────────────────────────────────────────
