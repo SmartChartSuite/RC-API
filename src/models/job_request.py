@@ -43,11 +43,11 @@ class JobRequest(BaseModel):
                 {
                     "resourceType": "Parameters",
                     "parameter": [
-                        {"name": "patientId", "valueString": "12345"},
-                        {"name": "jobPackage", "valueString": "SyphilisRegistry"},
-                        {"name": "jobPackageVersion", "valueString": "1.0"},
-                        {"name": "job", "valueString": "SyphilisHistory"},
-                        {"name": "job", "valueString": "prompts/2025_08/syphilis/ig_hc"},
+                        {"name": "patientId", "valueString": "patient-123"},
+                        {"name": "jobPackage", "valueString": "ExampleRegistry"},
+                        {"name": "jobPackageVersion", "valueString": "1.0.0"},
+                        {"name": "job", "valueString": "ExampleStructuredTask"},
+                        {"name": "job", "valueString": "2026_01/example/example-unstructured-task"},
                     ],
                 }
             ]

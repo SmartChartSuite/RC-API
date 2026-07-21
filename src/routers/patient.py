@@ -68,9 +68,13 @@ async def _external_patient_get(resource_id: str | None = None, params: Sequence
     return make_operation_outcome("transient", f"External FHIR server returned HTTP {resp.status_code} for GET {url}")
 
 
-@router.get("/patient", response_model=PatientSearchResult, responses=operation_outcome_responses(503))
+@router.get("/patient", summary="Search Patients", response_model=PatientSearchResult, responses=operation_outcome_responses(503))
 async def search_patients(request: Request, claims: dict = Security(validate_token)) -> JSONResponse | PatientSearchResult:
-    """Search Patient resources on the external FHIR server using FHIR query parameters."""
+    """Search Patient resources on the external FHIR server.
+
+    All query parameters are forwarded as-is to the upstream FHIR ``Patient``
+    search endpoint and the resulting Bundle is returned.
+    """
     if err := _check_config():
         return err
     data = await _external_patient_get(params=list(request.query_params.multi_items()))
@@ -79,7 +83,7 @@ async def search_patients(request: Request, claims: dict = Security(validate_tok
     return BundleResource.model_validate(data)
 
 
-@router.get("/patient/{resource_id}", response_model=PatientReadResult, responses=operation_outcome_responses(503))
+@router.get("/patient/{resource_id}", summary="Get Patient", response_model=PatientReadResult, responses=operation_outcome_responses(503))
 async def get_patient(resource_id: str, claims: dict = Security(validate_token)) -> JSONResponse | PatientReadResult:
     """Get a specific Patient resource by ID from the external FHIR server."""
     if err := _check_config():

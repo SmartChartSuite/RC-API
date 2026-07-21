@@ -153,6 +153,14 @@ class QuestionnaireResource(FHIRBaseModel):
     version: str | None = None
 
 
+class QuestionnaireResponseResource(FHIRBaseModel):
+    resourceType: Literal["QuestionnaireResponse"] = "QuestionnaireResponse"
+    id: str | None = None
+    questionnaire: str | None = None
+    status: str | None = None
+    subject: dict[str, Any] | None = None
+
+
 class LibraryResource(FHIRBaseModel):
     resourceType: Literal["Library"] = "Library"
     id: str | None = None
@@ -163,6 +171,7 @@ class LibraryResource(FHIRBaseModel):
 class ParametersParameter(BaseModel):
     name: str
     valueString: str | None = None
+    valueReference: dict | None = None
     valueBoolean: bool | None = None
     valueInteger: int | None = None
     valueDecimal: float | None = None
@@ -182,6 +191,7 @@ class ParametersParameter(BaseModel):
     def check_inv_1(self) -> "ParametersParameter":
         value_fields = [
             "valueString",
+            "valueReference",
             "valueBoolean",
             "valueInteger",
             "valueDecimal",

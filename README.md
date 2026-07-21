@@ -50,7 +50,7 @@ RC-API (this service)
   └── /response    ─── QuestionnaireResponse CRUD ────────── Local DB (patient data)
 ```
 
-Batch jobs run **asynchronously** in a background task. Clients poll `GET /batchjob/{id}` for status and fetch results with `GET /batchjob/{id}/results` when complete.
+Batch jobs run **asynchronously** in a background task. Clients poll `GET /batchjob/{id}/status` for lightweight status and fetch results with `GET /batchjob/{id}` when complete.
 
 ---
 
@@ -71,33 +71,58 @@ Batch jobs run **asynchronously** in a background task. Clients poll `GET /batch
 {
   "resourceType": "Parameters",
   "parameter": [
-    { "name": "patientId",        "valueString": "12345" },
-    { "name": "jobPackage",       "valueString": "SyphilisRegistry" },
-    { "name": "jobPackageVersion","valueString": "1.0" },
-    { "name": "job",              "valueString": "SyphilisHistory" },
-    { "name": "job",              "valueString": "prompts/2025_08/syphilis/ig_hc" }
+    { "name": "patientId",        "valueString": "patient-123" },
+    { "name": "jobPackage",       "valueString": "ExampleRegistry" },
+    { "name": "jobPackageVersion","valueString": "1.0.0" },
+    { "name": "job",              "valueString": "ExampleStructuredTask" },
+    { "name": "job",              "valueString": "2026_01/example/example-unstructured-task" }
   ]
 }
 ```
 
 Use one or more repeated `job` parameters to run only the named CQL library or prompt entries from the job package. Prompt matching accepts either the full prompt path or a unique prompt file name.
 
+On success, `POST /batchjob` returns a FHIR `Parameters` resource that now includes `batchJobQuestionnaireResponse` as a `valueReference`, for example:
+
+```json
+{
+  "name": "batchJobQuestionnaireResponse",
+  "valueReference": {
+    "reference": "QuestionnaireResponse/550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+That reference points to the initial local `QuestionnaireResponse` record created when the batch job starts. The stored resource is created with `status = in-progress` and is tied to the exact Questionnaire resolved for the job package and version.
+The batch job list and status endpoints include `startedBy`.
+
 ### Job Packages (Questionnaires)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/jobpackage` | Search Questionnaires (`?name=`, `?version=`) and return a flat list of Questionnaire resources |
+| `GET` | `/jobpackage` | Search Questionnaires (`?name=`, `?version=`) within the `smartchartui` context and return a flat list of Questionnaire resources |
 | `GET` | `/jobpackage/{id}` | Get a Questionnaire |
 | `POST` | `/jobpackage` | Create a Questionnaire |
 | `PUT` | `/jobpackage/{id}` | Update a Questionnaire |
 | `DELETE` | `/jobpackage/{id}` | Delete a Questionnaire *(requires `admin` scope)* |
 
-### Groups, Libraries, Responses
+### Groups and Libraries
 
 Same CRUD pattern (`GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}`) for:
 - `/group` — FHIR Groups with implicit Patient member inclusion on search
 - `/library` — CQL Library resources
-- `/response` — Patient-linked QuestionnaireResponses (stored in local DB only)
+
+### Responses
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/response` | List stored QuestionnaireResponses as a FHIR `Bundle` (`?batch_job_id=`, `?job_package=`) |
+| `GET` | `/response/{id}` | Get a stored `QuestionnaireResponse` by local response ID |
+| `POST` | `/response?batch_job_id=<id>` | Create a stored `QuestionnaireResponse` from a raw FHIR `QuestionnaireResponse` body |
+| `PUT` | `/response/{id}` | Update a stored `QuestionnaireResponse` using a raw FHIR `QuestionnaireResponse` body |
+| `DELETE` | `/response/{id}` | Delete a stored `QuestionnaireResponse` *(requires `admin` scope)* |
+
+`POST /response` expects a raw `QuestionnaireResponse` resource body. The related local batch job id is passed as the `batch_job_id` query parameter. The API derives `patient_id` from `subject.reference`, stores the `questionnaire` value as the local `job_package`, and normalizes the resource `id` to the local response id.
 
 ### Patients
 
@@ -237,7 +262,7 @@ Dependency changes should be committed with the updated project metadata files g
 
 ### Prompts Directory
 
-If Langfuse is not configured, LLM prompts are loaded from `./prompts/` using the path structure defined in Questionnaire `unstructuredTask` extensions:
+If Langfuse is not configured, or if it is configured but unreachable at startup, LLM prompts are loaded from `./prompts/` using the path structure defined in Questionnaire `unstructuredTask` extensions:
 
 ```
 prompts/
@@ -348,6 +373,5 @@ RC-API/
 │       ├── settings.py            # Environment variable config
 │       └── auth.py                # OAuth 2 JWT validation dependencies
 │
-├── src_v0/                        # Archived v0 source (read-only reference)
-└── tests_v0/                      # Archived v0 tests (read-only reference)
+└── tests/                         # Pytest coverage for routers, services, and models
 ```

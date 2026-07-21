@@ -39,3 +39,70 @@ async def test_load_prompts_returns_empty_for_no_paths():
     result = await prompt_loader.load_prompts([])
 
     assert result == []
+
+
+async def test_initialize_prompt_source_disables_langfuse_when_unreachable(monkeypatch):
+    class _FailingClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url):
+            raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(prompt_loader, "use_langfuse", True)
+    monkeypatch.setattr(prompt_loader, "langfuse_host", "https://langfuse.example")
+    monkeypatch.setattr(prompt_loader, "prompts_dir", "./prompts")
+    monkeypatch.setattr(prompt_loader.httpx, "AsyncClient", _FailingClient)
+    monkeypatch.setattr(prompt_loader.litellm, "callbacks", ["langfuse_otel", "other-callback"])
+
+    await prompt_loader.initialize_prompt_source()
+
+    assert prompt_loader.use_langfuse is False
+    assert prompt_loader.litellm.callbacks == ["other-callback"]
+
+
+async def test_initialize_prompt_source_keeps_langfuse_when_reachable(monkeypatch):
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+    class _HealthyClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url):
+            return _Response()
+
+    monkeypatch.setattr(prompt_loader, "use_langfuse", True)
+    monkeypatch.setattr(prompt_loader, "langfuse_host", "https://langfuse.example")
+    monkeypatch.setattr(prompt_loader.httpx, "AsyncClient", _HealthyClient)
+    monkeypatch.setattr(prompt_loader.litellm, "callbacks", [])
+    monkeypatch.setattr(prompt_loader.litellm, "suppress_debug_info", False)
+
+    await prompt_loader.initialize_prompt_source()
+
+    assert prompt_loader.use_langfuse is True
+    assert prompt_loader.litellm.callbacks == ["langfuse_otel"]
+    assert prompt_loader.litellm.suppress_debug_info is True
+
+
+async def test_initialize_prompt_source_disables_langfuse_tracing_when_not_configured(monkeypatch):
+    monkeypatch.setattr(prompt_loader, "use_langfuse", False)
+    monkeypatch.setattr(prompt_loader, "prompts_dir", "./prompts")
+    monkeypatch.setattr(prompt_loader.litellm, "callbacks", ["langfuse_otel"])
+
+    await prompt_loader.initialize_prompt_source()
+
+    assert prompt_loader.litellm.callbacks == []

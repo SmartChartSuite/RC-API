@@ -2,7 +2,7 @@
 
 Tables:
     batch_jobs_v1       — one row per batch submission
-    jobs_v1             — one row per async job run (child of batch)
+    jobs_v1             — one row per task executed under a batch job
     questionnaire_responses — patient-linked response data
 
 Uses SQLAlchemy Core + ORM with the same engine/session pattern as v0.
@@ -52,6 +52,7 @@ class BatchJobs(Base):
     batch_id: Mapped[str] = mapped_column(primary_key=True)
     patient_id: Mapped[str]
     job_package: Mapped[str]
+    started_by: Mapped[str] = mapped_column(default="unknown")
     status: Mapped[str] = mapped_column(default="pending")
     result_bundle: Mapped[dict | None]
     created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
@@ -65,8 +66,10 @@ class Jobs(Base):
     batch_id = Column(String, ForeignKey("batch_jobs_v1.batch_id"), nullable=False)
     patient_id: Mapped[str]
     job_package: Mapped[str]
+    task_name: Mapped[str]
+    task_type: Mapped[str]
     status: Mapped[str] = mapped_column(default="pending")
-    tasks: Mapped[dict | None]
+    result: Mapped[dict | None]
     created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
     completed_at: Mapped[datetime | None]
 
@@ -78,7 +81,7 @@ class QuestionnaireResponses(Base):
     batch_job_id: Mapped[str]
     job_package: Mapped[str]
     patient_id: Mapped[str]
-    user_id: Mapped[str] = mapped_column(default="unknown")
+    last_updated_by: Mapped[str] = mapped_column(default="unknown")
     response: Mapped[dict]
     created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
@@ -108,10 +111,10 @@ except Exception as exc:
 # ── Batch Job CRUD ─────────────────────────────────────────────────────────────
 
 
-def create_batch_job(batch_id: str, patient_id: str, job_package: str) -> bool:
+def create_batch_job(batch_id: str, patient_id: str, job_package: str, started_by: str = "unknown") -> bool:
     try:
         with Session(db_engine) as session:
-            session.add(BatchJobs(batch_id=batch_id, patient_id=patient_id, job_package=job_package, status="pending"))
+            session.add(BatchJobs(batch_id=batch_id, patient_id=patient_id, job_package=job_package, started_by=started_by, status="pending"))
             session.commit()
         logger.info(f"Created batch job {batch_id}")
         return True
@@ -128,6 +131,35 @@ def get_batch_job(batch_id: str) -> BatchJobs | None:
 def get_all_batch_jobs() -> list[BatchJobs]:
     with Session(db_engine) as session:
         return list(session.execute(select(BatchJobs)).scalars().all())
+
+
+def create_batch_job_with_response(
+    batch_id: str,
+    patient_id: str,
+    job_package: str,
+    started_by: str,
+    response_id: str,
+    response_body: dict,
+) -> bool:
+    try:
+        with Session(db_engine) as session:
+            session.add(BatchJobs(batch_id=batch_id, patient_id=patient_id, job_package=job_package, started_by=started_by, status="pending"))
+            session.add(
+                QuestionnaireResponses(
+                    response_id=response_id,
+                    batch_job_id=batch_id,
+                    job_package=job_package,
+                    patient_id=patient_id,
+                    last_updated_by=started_by,
+                    response=response_body,
+                )
+            )
+            session.commit()
+        logger.info(f"Created batch job {batch_id} with questionnaire response {response_id}")
+        return True
+    except Exception as exc:
+        logger.error(f"Failed to create batch job {batch_id} with questionnaire response {response_id}: {exc}")
+        return False
 
 
 def update_batch_job_status(batch_id: str, status: str, result_bundle: dict | None = None) -> None:
@@ -148,38 +180,52 @@ def delete_batch_job_record(batch_id: str) -> JSONResponse:
         return JSONResponse(make_operation_outcome("not-found", f"Batch Job ID {batch_id} was not found."), 404)
     with Session(db_engine) as session:
         session.execute(delete(Jobs).where(Jobs.batch_id == batch_id))
+        session.execute(delete(QuestionnaireResponses).where(QuestionnaireResponses.batch_job_id == batch_id))
         session.execute(delete(BatchJobs).where(BatchJobs.batch_id == batch_id))
         session.commit()
-    logger.info(f"Deleted batch job {batch_id} and its child jobs.")
+    logger.info(f"Deleted batch job {batch_id}, its child jobs, and linked questionnaire responses.")
     return JSONResponse(make_operation_outcome("deleted", f"Batch Job {batch_id} deleted successfully.", "information"))
 
 
 # ── Job CRUD ──────────────────────────────────────────────────────────────────
 
 
-def create_job(job_id: str, batch_id: str, patient_id: str, job_package: str) -> bool:
+def create_job(job_id: str, batch_id: str, patient_id: str, job_package: str, task_name: str, task_type: str, status: str = "pending") -> bool:
     try:
         with Session(db_engine) as session:
-            session.add(Jobs(job_id=job_id, batch_id=batch_id, patient_id=patient_id, job_package=job_package, status="running"))
+            session.add(
+                Jobs(
+                    job_id=job_id,
+                    batch_id=batch_id,
+                    patient_id=patient_id,
+                    job_package=job_package,
+                    task_name=task_name,
+                    task_type=task_type,
+                    status=status,
+                )
+            )
             session.commit()
-        logger.info(f"Created job {job_id} under batch {batch_id}")
+        logger.info(f"Created job {job_id} under batch {batch_id} for task {task_type}:{task_name}")
         return True
     except Exception as exc:
         logger.error(f"Failed to create job {job_id}: {exc}")
         return False
 
 
-def update_job_complete(job_id: str, tasks: list[dict], result_bundle: dict | None = None) -> None:
+def update_job_result(job_id: str, status: str, result: dict | None = None) -> None:
+    values: dict = {"status": status, "result": result}
+    if status in {"complete", "error", "skipped"}:
+        values["completed_at"] = datetime.now(timezone.utc)
     with Session(db_engine) as session:
-        session.execute(update(Jobs).where(Jobs.job_id == job_id).values(status="complete", tasks=tasks, completed_at=datetime.now(timezone.utc)))
+        session.execute(update(Jobs).where(Jobs.job_id == job_id).values(**values))
         session.commit()
-    logger.info(f"Marked job {job_id} complete with {len(tasks)} task(s).")
+    logger.info(f"Updated job {job_id} → status={status}")
 
 
 # ── Questionnaire Response CRUD ────────────────────────────────────────────────
 
 
-def create_response(response_id: str, batch_job_id: str, job_package: str, patient_id: str, user_id: str, response_body: dict) -> bool:
+def create_response(response_id: str, batch_job_id: str, job_package: str, patient_id: str, last_updated_by: str, response_body: dict) -> bool:
     try:
         with Session(db_engine) as session:
             session.add(
@@ -188,7 +234,7 @@ def create_response(response_id: str, batch_job_id: str, job_package: str, patie
                     batch_job_id=batch_job_id,
                     job_package=job_package,
                     patient_id=patient_id,
-                    user_id=user_id,
+                    last_updated_by=last_updated_by,
                     response=response_body,
                 )
             )
@@ -205,22 +251,22 @@ def get_response(response_id: str) -> QuestionnaireResponses | None:
         return session.get(QuestionnaireResponses, response_id)
 
 
-def get_responses(batch_job_id: str | None = None, job_package: str | None = None, user_id: str | None = None) -> list[QuestionnaireResponses]:
+def get_responses(batch_job_id: str | None = None, job_package: str | None = None) -> list[QuestionnaireResponses]:
     with Session(db_engine) as session:
         stmt = select(QuestionnaireResponses)
         if batch_job_id:
             stmt = stmt.where(QuestionnaireResponses.batch_job_id == batch_job_id)
         if job_package:
             stmt = stmt.where(QuestionnaireResponses.job_package == job_package)
-        if user_id:
-            stmt = stmt.where(QuestionnaireResponses.user_id == user_id)
         return list(session.execute(stmt).scalars().all())
 
 
-def update_response_body(response_id: str, response_body: dict) -> bool:
+def update_response_body(response_id: str, response_body: dict, last_updated_by: str) -> bool:
     with Session(db_engine) as session:
         result: CursorResult = session.execute(
-            update(QuestionnaireResponses).where(QuestionnaireResponses.response_id == response_id).values(response=response_body, updated_at=datetime.now(timezone.utc))
+            update(QuestionnaireResponses)
+            .where(QuestionnaireResponses.response_id == response_id)
+            .values(response=response_body, last_updated_by=last_updated_by, updated_at=datetime.now(timezone.utc))
         )  # type: ignore
         session.commit()
     updated = result.rowcount > 0

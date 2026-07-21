@@ -15,6 +15,8 @@ from loguru import logger
 from src.models.prompt import Prompt
 from src.util.settings import litellm_api_base, litellm_api_key, litellm_model, use_llm
 
+litellm.suppress_debug_info = True
+
 
 @dataclass
 class LlmDocumentResult:
