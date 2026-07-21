@@ -430,6 +430,17 @@ def _build_llm_observations(
     return entries
 
 
+def _summarize_llm_result(llm_result: LlmResult) -> tuple[str, dict]:
+    has_success = any(doc_result.response for doc_result in llm_result.document_results if not doc_result.error)
+    errors = [doc_result.error for doc_result in llm_result.document_results if doc_result.error]
+
+    if has_success:
+        return "complete", asdict(llm_result)
+    if errors:
+        return "error", {"message": "llm execution produced no usable response", "errors": errors, "document_results": [asdict(doc) for doc in llm_result.document_results]}
+    return "skipped", {"message": "llm execution produced no response", "document_results": [asdict(doc) for doc in llm_result.document_results]}
+
+
 def _create_status_observation(overall_status: str) -> dict:
     """Create a status Observation (mirrors v0 create_results_status_observation)."""
     status_code = "complete" if overall_status == "complete" else "in-progress"
@@ -597,15 +608,32 @@ async def run_batch_job(
             )
 
         # Record LLM task results
+        llm_result_paths = {llm_res.prompt_path for llm_res in llm_results}
         for llm_res in llm_results:
+            status, result_payload = _summarize_llm_result(llm_res)
             job_id = job_ids_by_task.get(("unstructured", llm_res.prompt_path))
             if job_id:
-                update_job_result(job_id, "complete", asdict(llm_res))
+                update_job_result(job_id, status, result_payload)
             task_results.append(
                 {
                     "task_name": llm_res.prompt_path,
                     "task_type": "unstructured",
-                    "status": "complete",
+                    "status": status,
+                }
+            )
+
+        for prompt_path in prompt_paths:
+            if prompt_path in llm_result_paths:
+                continue
+            logger.warning(f"[batch={batch_id}] No LLM result returned for prompt '{prompt_path}'")
+            job_id = job_ids_by_task.get(("unstructured", prompt_path))
+            if job_id:
+                update_job_result(job_id, "error", {"message": "no llm result returned for prompt"})
+            task_results.append(
+                {
+                    "task_name": prompt_path,
+                    "task_type": "unstructured",
+                    "status": "error",
                 }
             )
 
