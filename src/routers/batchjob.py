@@ -50,13 +50,18 @@ def _patient_name(patient: dict[str, Any] | None) -> str | None:
     return family or first
 
 
-def _questionnaire_response_status(batch_id: str) -> str | None:
+def _questionnaire_response_info(batch_id: str) -> tuple[str | None, str | None]:
+    """Return (response_id, status) for a batch job's QuestionnaireResponse, if any."""
     responses = get_responses(batch_job_id=batch_id)
     if not responses:
-        return None
-    response_resource = responses[0].response
+        return None, None
+    response = responses[0]
+    response_id = getattr(response, "response_id", None)
+    response_id = response_id if isinstance(response_id, str) and response_id else None
+    response_resource = response.response
     status = response_resource.get("status") if isinstance(response_resource, dict) else None
-    return status if isinstance(status, str) and status else None
+    status = status if isinstance(status, str) and status else None
+    return response_id, status
 
 
 def _matches_filter(value: str | None, expected: str | None, *, partial: bool = False) -> bool:
@@ -119,9 +124,16 @@ def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = No
         ParametersParameter(name="batchJobStatus", valueString=cast(Any, job.status)),
         ParametersParameter(name="jobStartDateTime", valueDateTime=job.created_at.isoformat()),
     ]
-    form_status = _questionnaire_response_status(job.batch_id)
+    form_response_id, form_status = _questionnaire_response_info(job.batch_id)
     if form_status:
         parameters.append(ParametersParameter(name="questionnaireResponseStatus", valueString=form_status))
+    if form_response_id:
+        parameters.append(
+            ParametersParameter(
+                name="batchJobQuestionnaireResponse",
+                valueReference={"reference": f"QuestionnaireResponse/{form_response_id}"},
+            )
+        )
     patient_name = _patient_name(patient)
     if patient_name:
         parameters.append(ParametersParameter(name="patientName", valueString=patient_name))
