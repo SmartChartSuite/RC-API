@@ -22,11 +22,11 @@ async def test_run_prompt_on_document_calls_litellm_completion(monkeypatch):
     monkeypatch.setattr(llm_executor, "litellm_model", "gpt-test")
     captured: dict = {}
 
-    def _fake_completion(**kwargs):
+    async def _fake_acompletion(**kwargs):
         captured.update(kwargs)
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="answer text"))])
 
-    monkeypatch.setattr(llm_executor.litellm, "completion", _fake_completion)
+    monkeypatch.setattr(llm_executor.litellm, "acompletion", _fake_acompletion)
 
     result = await llm_executor.run_prompt_on_document(_prompt(), {"id": "doc-1", "type": "Visit Note", "date": "2026-05-22", "text": "patient text"})
 

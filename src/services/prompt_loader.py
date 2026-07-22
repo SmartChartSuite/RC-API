@@ -75,7 +75,7 @@ def _load_from_folder(prompt_paths: list[str]) -> list[Prompt]:
                     content=body,
                 )
             )
-            logger.info(f"Loaded prompt from file: {file_path}")
+            logger.debug(f"Loaded prompt from file: {file_path}")
         except Exception as exc:
             logger.error(f"Failed to load prompt {file_path}: {exc}")
     return prompts
@@ -112,7 +112,7 @@ async def _load_from_langfuse(prompt_paths: list[str]) -> list[Prompt]:
                     content=body,
                 )
             )
-            logger.info(f"Loaded prompt from Langfuse: {path}")
+            logger.debug(f"Loaded prompt from Langfuse: {path}")
         except Exception as exc:
             logger.error(f"Failed to load prompt '{path}' from Langfuse: {exc}")
     return prompts

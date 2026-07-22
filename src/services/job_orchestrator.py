@@ -675,11 +675,12 @@ async def run_batch_job(
                     try:
                         encoded = base64.b64encode(doc["text"].encode("utf-8")).decode("ascii")
                         supporting_doc["content"] = [{"attachment": {"contentType": "text/plain", "data": encoded}}]
-                    except Exception:
-                        pass
+                    except (UnicodeEncodeError, TypeError) as exc:
+                        logger.warning(f"[batch={batch_id}] Failed to base64-encode text for DocumentReference/{doc_id}: {exc}")
 
                 document_entries.append({"fullUrl": doc_url, "resource": supporting_doc})
-            except Exception:
+            except Exception as exc:
+                logger.warning(f"[batch={batch_id}] Skipping malformed document entry (id={doc.get('id', 'unknown')}): {exc}")
                 continue
 
         # 7. Assemble result Bundle

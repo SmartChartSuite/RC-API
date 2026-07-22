@@ -13,9 +13,13 @@ import litellm
 from loguru import logger
 
 from src.models.prompt import Prompt
-from src.util.settings import litellm_api_base, litellm_api_key, litellm_model, use_llm
+from src.util.settings import litellm_api_base, litellm_api_key, llm_max_concurrency, litellm_model, use_llm
 
 litellm.suppress_debug_info = True
+
+# Bounds the number of concurrent in-flight LLM calls per job so large
+# prompt/document fan-outs don't overwhelm the provider or exhaust connections.
+_llm_semaphore = asyncio.Semaphore(llm_max_concurrency)
 
 
 @dataclass
@@ -54,19 +58,15 @@ async def run_prompt_on_document(prompt: Prompt, document: dict) -> LlmDocumentR
 
     try:
         assert litellm_model
-        # response = litellm.responses( #type: ignore
-        #     model=litellm_model,
-        #     api_base=litellm_api_base,
-        #     api_key=litellm_api_key,
-        #     instructions=prompt.content,
-        #     input=document["text"],
-        # )
-        # answer: str = response.output[0].content[0].text or "" #type: ignore
-        response = litellm.completion(
-            model=litellm_model, api_base=litellm_api_base, api_key=litellm_api_key, messages=[{"role": "system", "content": prompt.content}, {"role": "user", "content": document["text"]}]
-        )
+        async with _llm_semaphore:
+            response = await litellm.acompletion(
+                model=litellm_model,
+                api_base=litellm_api_base,
+                api_key=litellm_api_key,
+                messages=[{"role": "system", "content": prompt.content}, {"role": "user", "content": document["text"]}],
+            )
         answer = response.choices[0].message.content or ""  # type: ignore
-        logger.info(f"LLM response received for prompt '{prompt.metadata.path}' / doc {doc_id}")
+        logger.debug(f"LLM response received for prompt '{prompt.metadata.path}' / doc {doc_id}")
         return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response=answer, doc_text=document.get("text"))
     except Exception as exc:
         logger.error(f"LLM call failed for prompt '{prompt.metadata.path}' / doc {doc_id}: {exc}")
@@ -77,11 +77,16 @@ async def run_prompt_across_documents(prompt: Prompt, documents: list[dict]) -> 
     """Run a single prompt against all patient documents concurrently.
 
     Returns a single LlmResult containing all per-document findings.
+    Emits a single aggregate INFO summary per prompt; per-document detail is at DEBUG.
     """
     doc_results = await asyncio.gather(*[run_prompt_on_document(prompt, doc) for doc in documents])
+    doc_results = list(doc_results)
+    errors = sum(1 for r in doc_results if r.error)
+    succeeded = len(doc_results) - errors
+    logger.info(f"Prompt '{prompt.metadata.path}': {succeeded}/{len(doc_results)} document(s) succeeded" + (f", {errors} error(s)" if errors else ""))
     return LlmResult(
         prompt_path=prompt.metadata.path,
-        document_results=list(doc_results),
+        document_results=doc_results,
     )
 
 
