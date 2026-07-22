@@ -215,7 +215,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
     monkeypatch.setattr(
         batchjob,
         "get_responses",
-        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response": {"status": "in-progress"}})()],
+        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "in-progress"}})()],
     )
 
     async def _fake_fetch_patient(patient_id):
@@ -247,6 +247,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
     assert values["startedBy"].valueString == "user-123"
     assert values["batchJobStatus"].valueString == "complete"
     assert values["questionnaireResponseStatus"].valueString == "in-progress"
+    assert values["batchJobQuestionnaireResponse"].valueReference == {"reference": "QuestionnaireResponse/response-123"}
     assert values["patientName"].valueString == "Doe, Jane"
     assert values["patientDob"].valueDate == "2020-01-01"
     assert values["patientGender"].valueCode == "female"
@@ -334,7 +335,7 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
 
     def _fake_get_responses(batch_job_id=None, job_package=None):
         status = "completed" if batch_job_id == "batch-match" else "in-progress"
-        return [type("ResponseRecord", (), {"response": {"status": status}})()]
+        return [type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": status}})()]
 
     monkeypatch.setattr(batchjob, "get_responses", _fake_get_responses)
 
@@ -399,7 +400,7 @@ async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypat
     monkeypatch.setattr(
         batchjob,
         "get_responses",
-        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response": {"status": "in-progress"}})()],
+        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "in-progress"}})()],
     )
 
     async def _fake_fetch_patient(patient_id):
@@ -559,7 +560,7 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
     monkeypatch.setattr(
         batchjob,
         "get_responses",
-        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response": {"status": "completed"}})()],
+        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "completed"}})()],
     )
 
     async def _fake_fetch_patient(patient_id):
@@ -583,6 +584,7 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
     assert values["startedBy"].valueString == "user-123"
     assert values["batchJobStatus"].valueString == "complete"
     assert values["questionnaireResponseStatus"].valueString == "completed"
+    assert values["batchJobQuestionnaireResponse"].valueReference == {"reference": "QuestionnaireResponse/response-123"}
     assert values["patientName"].valueString == "Doe, Jane"
     assert values["patientDob"].valueDate == "2020-01-01"
     assert values["patientGender"].valueCode == "female"
