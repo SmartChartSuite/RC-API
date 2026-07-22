@@ -63,6 +63,28 @@ use_llm: bool = bool(litellm_model and litellm_api_base and litellm_api_key)
 if any([litellm_model, litellm_api_base, litellm_api_key]) and not use_llm:
     logger.warning("Partial LiteLLM config — set LITELLM_MODEL, LITELLM_API_BASE, and LITELLM_API_KEY together.")
 
+
+def _positive_int(var: str, default: int) -> int:
+    """Read a positive-integer env var, falling back to default on missing/invalid input."""
+    raw = _get(var)
+    if raw is None:
+        return default
+    try:
+        parsed = int(raw)
+    except ValueError:
+        logger.warning(f"{var}='{raw}' is not a valid integer — using default {default}.")
+        return default
+    if parsed < 1:
+        logger.warning(f"{var}={parsed} must be >= 1 — using default {default}.")
+        return default
+    return parsed
+
+
+# Max concurrent in-flight LLM completion calls across all prompts/documents in a job.
+llm_max_concurrency: int = _positive_int("LLM_MAX_CONCURRENCY", 8)
+# Max concurrent attachment fetches when loading DocumentReference content.
+doc_fetch_max_concurrency: int = _positive_int("DOC_FETCH_MAX_CONCURRENCY", 8)
+
 # Langfuse (all three required together for prompt retrieval)
 langfuse_public_key: str | None = _get("LANGFUSE_PUBLIC_KEY")
 langfuse_secret_key: str | None = _get("LANGFUSE_SECRET_KEY")

@@ -38,7 +38,7 @@ async def fhir_get(
     url = _base_url(resource_type, resource_id)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
         resp = await client.get(url, headers=_headers(), params=params or {})
-    logger.info(f"FHIR GET {url} → {resp.status_code}")
+    logger.debug(f"FHIR GET {url} → {resp.status_code}")
     return _handle(resp, "GET", url)
 
 
@@ -47,7 +47,7 @@ async def fhir_post(resource_type: str, body: dict[str, Any]) -> FHIRProxyResult
     url = _base_url(resource_type)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
         resp = await client.post(url, headers=_headers(), json=body)
-    logger.info(f"FHIR POST {url} → {resp.status_code}")
+    logger.debug(f"FHIR POST {url} → {resp.status_code}")
     return _handle(resp, "POST", url)
 
 
@@ -56,7 +56,7 @@ async def fhir_put(resource_type: str, resource_id: str, body: dict[str, Any]) -
     url = _base_url(resource_type, resource_id)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
         resp = await client.put(url, headers=_headers(), json=body)
-    logger.info(f"FHIR PUT {url} → {resp.status_code}")
+    logger.debug(f"FHIR PUT {url} → {resp.status_code}")
     return _handle(resp, "PUT", url)
 
 
@@ -65,7 +65,7 @@ async def fhir_delete(resource_type: str, resource_id: str) -> FHIRProxyResult:
     url = _base_url(resource_type, resource_id)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
         resp = await client.delete(url, headers=_headers())
-    logger.info(f"FHIR DELETE {url} → {resp.status_code}")
+    logger.debug(f"FHIR DELETE {url} → {resp.status_code}")
     return _handle(resp, "DELETE", url)
 
 

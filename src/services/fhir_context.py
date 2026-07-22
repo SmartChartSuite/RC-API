@@ -5,13 +5,14 @@ Returns an empty list if the patient has no documents — in which case the orch
 skips all LLM prompt execution.
 """
 
+import asyncio
 import base64
 from datetime import datetime
 
 import httpx
 from loguru import logger
 
-from src.util.settings import external_fhir_server_auth, external_fhir_server_url
+from src.util.settings import doc_fetch_max_concurrency, external_fhir_server_auth, external_fhir_server_url
 
 _TIMEOUT = 60
 _TRANSPORT = httpx.AsyncHTTPTransport(retries=3)
@@ -59,11 +60,13 @@ async def fetch_patient_documents(patient_id: str) -> list[dict]:
         return []
 
     documents: list[dict] = []
+    semaphore = asyncio.Semaphore(doc_fetch_max_concurrency)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
-        for entry in entries:
+
+        async def _process_entry(entry: dict) -> dict | None:
             doc_ref = entry.get("resource", {})
             if doc_ref.get("resourceType") != "DocumentReference":
-                continue
+                return None
             doc_id = doc_ref.get("id", "unknown")
             doc_date = doc_ref.get("date", datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"))
 
@@ -91,7 +94,8 @@ async def fetch_patient_documents(patient_id: str) -> list[dict]:
                 # External URL
                 elif "url" in attachment:
                     try:
-                        url_resp = await client.get(attachment["url"], headers=_auth_headers())
+                        async with semaphore:
+                            url_resp = await client.get(attachment["url"], headers=_auth_headers())
                         if url_resp.is_success:
                             plain_text = url_resp.text
                         else:
@@ -100,16 +104,17 @@ async def fetch_patient_documents(patient_id: str) -> list[dict]:
                         logger.warning(f"Request error fetching attachment for DocRef {doc_id}: {exc}")
 
                 if plain_text:
-                    documents.append(
-                        {
-                            "id": doc_id,
-                            "type": doc_type,
-                            "date": doc_date,
-                            "text": plain_text,
-                            "resource": doc_ref,
-                        }
-                    )
-                    break  # one text/plain entry per DocumentReference is enough
+                    return {
+                        "id": doc_id,
+                        "type": doc_type,
+                        "date": doc_date,
+                        "text": plain_text,
+                        "resource": doc_ref,
+                    }
+            return None
+
+        results = await asyncio.gather(*[_process_entry(entry) for entry in entries])
+        documents = [doc for doc in results if doc is not None]
 
     logger.info(f"Fetched {len(documents)} text/plain DocumentReference(s) for Patient/{patient_id}")
     return documents

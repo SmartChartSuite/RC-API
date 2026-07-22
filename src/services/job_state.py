@@ -245,7 +245,7 @@ def create_job(job_id: str, batch_id: str, patient_id: str, job_package: str, ta
                 )
             )
             session.commit()
-        logger.info(f"Created job {job_id} under batch {batch_id} for task {task_type}:{task_name}")
+        logger.debug(f"Created job {job_id} under batch {batch_id} for task {task_type}:{task_name}")
         return True
     except Exception as exc:
         logger.error(f"Failed to create job {job_id}: {exc}")
@@ -259,7 +259,7 @@ def update_job_result(job_id: str, status: str, result: dict | None = None) -> N
     with Session(db_engine) as session:
         session.execute(update(Jobs).where(Jobs.job_id == job_id).values(**values))
         session.commit()
-    logger.info(f"Updated job {job_id} → status={status}")
+    logger.debug(f"Updated job {job_id} → status={status}")
 
 
 # ── Questionnaire Response CRUD ────────────────────────────────────────────────
