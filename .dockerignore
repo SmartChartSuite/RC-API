@@ -1,6 +1,8 @@
 .git
 .gitignore
 .idea
+.vscode
+.opencode
 
 __pycache__
 .DS_Store
@@ -11,4 +13,13 @@ __pycache__
 .ruff_cache
 .venv
 pixi.lock
+pixi.toml
 *.sqlite
+
+# dev/test/tooling not needed at runtime
+tests
+.pre-commit-config.yaml
+Dockerfile
+.dockerignore
+README.md
+LICENSE
