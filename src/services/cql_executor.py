@@ -74,6 +74,7 @@ def _build_parameters_body(patient_id: str) -> dict:
         "resourceType": "Parameters",
         "parameter": [
             {"name": "subject", "valueString": f"Patient/{patient_id}"},
+            {"name": "useServerData", "valueBoolean": False},
             {"name": "dataEndpoint", "resource": endpoint_resource},
         ],
     }
