@@ -1,0 +1,96 @@
+{
+  "id": "chatcmpl-E6geusNRNiVAaiV74SHEsWGFeZXTS",
+  "created": 1785262656,
+  "model": "gpt-5.1-self-service",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "```json\n{\n  \"resultValue\": \"Normal\",\n  \"evidenceText\": \"Dermatological: no rash.\\n\\nSkin: normal, no.\",\n  \"reasoning\": \"The review of systems explicitly documents \\\"Dermatological: no rash,\\\" indicating no dermatologic abnormalities reported, and the physical exam documents \\\"Skin: normal,\\\" clearly stating the skin exam is normal. These explicit negative and normal findings support assigning the Skin/integument data element as Normal.\"\n}\n```",
+        "role": "assistant",
+        "provider_specific_fields": {
+          "refusal": null
+        },
+        "annotations": []
+      },
+      "provider_specific_fields": {
+        "content_filter_results": {
+          "hate": {
+            "filtered": false,
+            "severity": "safe"
+          },
+          "self_harm": {
+            "filtered": false,
+            "severity": "safe"
+          },
+          "sexual": {
+            "filtered": false,
+            "severity": "safe"
+          },
+          "violence": {
+            "filtered": false,
+            "severity": "safe"
+          }
+        },
+        "content_filter_result": {
+          "error": {
+            "code": "content_filter_error",
+            "message": "The contents are not filtered"
+          }
+        }
+      }
+    }
+  ],
+  "usage": {
+    "completion_tokens": 110,
+    "prompt_tokens": 2084,
+    "total_tokens": 2194,
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 0,
+      "rejected_prediction_tokens": 0
+    },
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0
+    },
+    "latency_checkpoint": {
+      "engine_tbt_ms": 16,
+      "engine_ttft_ms": 95,
+      "engine_ttlt_ms": 1894,
+      "pre_inference_ms": 67,
+      "service_tbt_ms": 16,
+      "service_ttft_ms": 208,
+      "service_ttlt_ms": 1983,
+      "total_duration_ms": 1923,
+      "user_visible_ttft_ms": 140
+    }
+  },
+  "service_tier": "default",
+  "prompt_filter_results": [
+    {
+      "prompt_index": 0,
+      "content_filter_results": {
+        "hate": {
+          "filtered": false,
+          "severity": "safe"
+        },
+        "self_harm": {
+          "filtered": false,
+          "severity": "safe"
+        },
+        "sexual": {
+          "filtered": false,
+          "severity": "safe"
+        },
+        "violence": {
+          "filtered": false,
+          "severity": "safe"
+        }
+      }
+    }
+  ]
+}

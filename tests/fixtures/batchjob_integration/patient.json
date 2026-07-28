@@ -1,0 +1,165 @@
+{
+  "resourceType": "Patient",
+  "id": "625747",
+  "meta": {
+    "versionId": "1",
+    "lastUpdated": "2024-03-05T19:10:25.857+00:00"
+  },
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race",
+      "extension": [
+        {
+          "url": "ombCategory",
+          "valueCoding": {
+            "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
+            "code": "UNK",
+            "display": "Unknown"
+          }
+        },
+        {
+          "url": "text",
+          "valueString": "Unknown"
+        }
+      ]
+    },
+    {
+      "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity",
+      "extension": [
+        {
+          "url": "ombCategory",
+          "valueCoding": {
+            "system": "urn:oid:2.16.840.1.113883.6.238",
+            "code": "2135-2",
+            "display": "Hispanic or Latino"
+          }
+        },
+        {
+          "url": "text",
+          "valueString": "Hispanic or Latino"
+        }
+      ]
+    },
+    {
+      "url": "http://open.epic.com/FHIR/StructureDefinition/extension/legal-sex",
+      "valueCodeableConcept": {
+        "coding": [
+          {
+            "system": "urn:oid:1.2.840.114350.1.13.244.2.7.10.698084.130.768080.39128",
+            "code": "male",
+            "display": "male"
+          }
+        ]
+      }
+    },
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/patient-genderIdentity",
+      "valueCodeableConcept": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/gender-identity",
+            "code": "male",
+            "display": "male"
+          }
+        ]
+      }
+    },
+    {
+      "url": "http://open.epic.com/FHIR/StructureDefinition/extension/sex-for-clinical-use",
+      "valueCodeableConcept": {
+        "coding": [
+          {
+            "system": "urn:oid:1.2.840.114350.1.13.244.2.7.10.698084.130.768080.35144",
+            "code": "male",
+            "display": "male"
+          }
+        ]
+      }
+    },
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/patient-birthTime",
+      "valueDateTime": "2150-01-01T14:53:00+00:00"
+    }
+  ],
+  "identifier": [
+    {
+      "use": "usual",
+      "type": {
+        "text": "GA8"
+      },
+      "system": "urn:oid:1.2.840.114350.1.13.876.1.4.8.725198.0",
+      "value": "999888777"
+    }
+  ],
+  "active": true,
+  "name": [
+    {
+      "use": "official",
+      "text": "Baby McBaby",
+      "family": "McBaby",
+      "given": [
+        "Baby"
+      ]
+    }
+  ],
+  "telecom": [
+    {
+      "system": "phone",
+      "value": "404-678-9876",
+      "use": "home"
+    }
+  ],
+  "gender": "male",
+  "birthDate": "2150-01-01",
+  "deceasedDateTime": "2152-01-01T00:00:00+00:00",
+  "address": [
+    {
+      "use": "home",
+      "line": [
+        "299 WEST PEACHTREE ROAD NORTHEAST"
+      ],
+      "city": "ATLANTA",
+      "district": "FULTON",
+      "state": "GA",
+      "postalCode": "30308",
+      "country": "USA"
+    }
+  ],
+  "maritalStatus": {
+    "text": "Single"
+  },
+  "multipleBirthInteger": 1,
+  "contact": [
+    {
+      "relationship": [
+        {
+          "coding": [
+            {
+              "system": "urn:oid:1.2.840.114350.1.13.244.2.7.4.827665.1000",
+              "code": "8",
+              "display": "Mother"
+            }
+          ]
+        }
+      ],
+      "name": {
+        "use": "usual",
+        "text": "Mother McMother"
+      }
+    }
+  ],
+  "communication": [
+    {
+      "language": {
+        "coding": [
+          {
+            "system": "urn:ietf:bcp:47",
+            "code": "es",
+            "display": "Spanish"
+          }
+        ]
+      },
+      "preferred": true
+    }
+  ]
+}
