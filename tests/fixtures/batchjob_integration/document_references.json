@@ -1,0 +1,258 @@
+{
+  "resourceType": "Bundle",
+  "id": "5fbd268f-80e0-48a7-86e2-1ecdda5ccb11",
+  "meta": {
+    "lastUpdated": "2026-07-28T18:13:28.144+00:00"
+  },
+  "type": "searchset",
+  "total": 2,
+  "link": [
+    {
+      "relation": "self",
+      "url": "https://example.org/fhir/DocumentReference?_count=500&subject=Patient%2F625747"
+    }
+  ],
+  "entry": [
+    {
+      "fullUrl": "https://example.org/fhir/DocumentReference/625776",
+      "resource": {
+        "resourceType": "DocumentReference",
+        "id": "625776",
+        "meta": {
+          "versionId": "3",
+          "lastUpdated": "2024-04-29T21:12:10.913+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:oid:1.2.840.114350.1.13.244.2.7.2.727879",
+            "value": "birthhistorydocumentreference"
+          }
+        ],
+        "status": "current",
+        "docStatus": "final",
+        "type": {
+          "coding": [
+            {
+              "system": "urn:oid:1.2.840.114350.1.13.244.2.7.4.737880.5010",
+              "code": "4",
+              "display": "H&P"
+            },
+            {
+              "system": "urn:oid:1.2.840.114350.1.72.727879.69848980",
+              "code": "4",
+              "display": "H&P"
+            },
+            {
+              "system": "http://loinc.org",
+              "code": "34117-2",
+              "display": "History and physical note",
+              "userSelected": true
+            }
+          ],
+          "text": "H&P"
+        },
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/us/core/CodeSystem/us-core-documentreference-category",
+                "code": "clinical-note",
+                "display": "Clinical Note"
+              }
+            ],
+            "text": "Clinical Note"
+          }
+        ],
+        "subject": {
+          "reference": "Patient/625747",
+          "display": "McBaby, Baby"
+        },
+        "date": "2150-01-01T15:27:08+00:00",
+        "content": [
+          {
+            "attachment": {
+              "contentType": "text/plain",
+              "data": "U3ViamVjdGl2ZToKRW5jb3VudGVyIGNvbXBsZXRlZCB3aXRoIFNwYW5pc2ggTEwgaW50ZXJwcmV0ZXIuCgpCYWJ5IE1jQmFieSBpcyBhIDMzNTAgZ3JhbSBtYWxlIGluZmFudCBib3JuIGF0IDM5IDEvNyB3ZWVrcy4KCgpJbmZvcm1hdGlvbiBmb3IgdGhlIHBhdGllbnQncyBtb3RoZXI6Ck1jTW90aGVyLCBNb3RoZXIgWzg4ODc3NzY2Nl0KMjggeS5vLgoKSW5mb3JtYXRpb24gZm9yIHRoZSBwYXRpZW50J3MgbW90aGVyOgpNY01vdGhlciwgTW90aGVyIFs4ODg3Nzc2NjZdCkczUDIwMDIKCkluZm9ybWF0aW9uIGZvciB0aGUgcGF0aWVudCdzIG1vdGhlcjoKTWNNb3RoZXIsIE1vdGhlciBbODg4Nzc3NjY2XQoKT0IgSGlzdG9yeQoKR3JhdmlkYTogMwpQYXJhOiAyClRlcm06IDIKUHJldGVybTogMApBQjogMApMaXZpbmc6IDIKU0FCOiAwCklBQjogMApFY3RvcGljOiAwCk11bHRpcGxlOiAwCkxpdmUgQmlydGhzOiAyCgoKRmlyc3QgUHJlZ25hbmN5Ck91dGNvbWU6IFRlcm0KRGF0ZTogMDEvMDEvMjE0NQpHQTogNDB3MGQKTGJyIExlbi8ybmQ6CldlaWdodDogMzYyOSBnClNleDogTQpEZWxpdmVyeTogQ1MtTFRyYW52CkFuZXM6ClBUTDogTgpMdjogTElWCkJpcnRoIENvbW1lbnRzOiAiQnJvdGhlciBNY0JhYnkiIHdhcyBib3JuIGluIFNlYXR0bGUgYnkgQ2VzYXJlYW4gZm9yIEZUUCBpbiAxc3Qgc3RhZ2UuIFNoZSBkaWxhdGVkIHRvIDcgY20ncy4gU2hlIHJlcXVpcmVkIEJsb29kIFRyYW5zZnVzaW9uIFBQLCBhbmQgaGFkIFBQIEZldmVyLgpDb21wbGljYXRpb25zOiBGYWlsdXJlIHRvIFByb2dyZXNzIGluIEZpcnN0IFN0YWdlCgpTZWNvbmQgUHJlZ25hbmN5Ck91dGNvbWU6IFRlcm0KRGF0ZTogMDEvMDEvMjE0NwpHQTogMzl3NmQKTGJyIExlbi8ybmQ6CldlaWdodDogMzU2MCBnClNleDogRgpEZWxpdmVyeTogQ1MtTFRyYW52CkFuZXM6IFNwaW5hbApQVEw6Ckx2OiBMSVYKQmlydGggQ29tbWVudHM6ICJTaXN0ZXIgTWNCYWJ5IiB3YXMgYm9ybiBieSBlbGVjdGl2ZSByZXBlYXQgQ1MgYXQgSG9zcGl0YWwKCgpUaGlyZCBQcmVnbmFuY3kKT3V0Y29tZTogQ3VycmVudApEYXRlOgpHQToKTGJyIExlbi8ybmQ6CldlaWdodDoKU2V4OgpEZWxpdmVyeToKQW5lczoKUFRMOgpMdjoKCgpQcmVuYXRhbCBsYWJzOgoKTWF0ZXJuYWwgYmxvb2QgdHlwZTogTysvLQoKSElWLTEvMiBBQi9BRyBTQ1JFRU4KTGF0ZXN0IFJlZmVyZW5jZSBSYW5nZSAmIFVuaXRzOiBOZWdhdGl2ZQpNb3N0IFJlY2VudDogTmVnYXRpdmUgIDAxLzAxLzIxNDkgMTE6MDUKCkhCViBTVVJGQUNFIEFOVElHRU4KTGF0ZXN0IFJlZmVyZW5jZSBSYW5nZSAmIFVuaXRzOiBOZWdhdGl2ZSwgSW5kZXRlcm1pbmFudApNb3N0IFJlY2VudDogTmVnYXRpdmUgIDAxLzAxLzIxNDkgMTE6MDUKCkhDViBBQiAoMk5EIEdFTkVSQVRJT04pCkxhdGVzdCBSZWZlcmVuY2UgUmFuZ2UgJiBVbml0czogTmVnYXRpdmUKTW9zdCBSZWNlbnQ6IE5lZ2F0aXZlICAxMS8wMS8yMTQ5IDE2OjA1CgpWQVJJQ0VMTEEgWk9TVEVSIElHRwpMYXRlc3QgUmVmZXJlbmNlIFJhbmdlICYgVW5pdHM6IE5lZ2F0aXZlLCBFcXVpdm9jYWwKTW9zdCBSZWNlbnQ6IFBvc2l0aXZlICEgIDExLzAxLzIxNDkgMTY6MDUKClJVQkVMTEEgU1RBVFVTCkxhdGVzdCBSZWZlcmVuY2UgUmFuZ2UgJiBVbml0czoKTW9zdCBSZWNlbnQ6IFBvc2l0aXZlICAxMS8wMS8yMTQ5IDE2OjA1CgpSUFIoUVVBTCktU0VSVU0KTGF0ZXN0IFJlZmVyZW5jZSBSYW5nZSAmIFVuaXRzOiBOb24tUmVhY3RpdmUKTW9zdCBSZWNlbnQ6IE5vbi1SZWFjdGl2ZSAgMDEvMDEvMjE0OSAxMTowNQoKSC5QWUxPUkkgSUdHIEFOVElCT0RZLEVJQQpMYXRlc3QgUmVmZXJlbmNlIFJhbmdlICYgVW5pdHM6IE5lZ2F0aXZlCk1vc3QgUmVjZW50OiBQb3NpdGl2ZSAhICAxMi8wMS8yMTQ5IDEyOjIyCgpUUklDSE9NT05BUyBWQUdJTkFMSVMgUk5BCkxhdGVzdCBSZWZlcmVuY2UgUmFuZ2UgJiBVbml0czogTmVnYXRpdmUgZm9yIFRyaWNob21vbmFzIHZhZ2luYWxpcyBSTkEKTW9zdCBSZWNlbnQ6IE5lZ2F0aXZlIGZvciBUcmljaG9tb25hcyB2YWdpbmFsaXMgUk5BICAxMS8wMS8yMTQ5IDE1OjAyCgpHQyBTQ1JOLUFNUExJRklFRCBQUk9CRQpMYXRlc3QgUmVmZXJlbmNlIFJhbmdlICYgVW5pdHM6IE5lZ2F0aXZlIGZvciBOZWlzZXJyaWEgZ29ub3JyaG9lYWUgclJOQQpNb3N0IFJlY2VudDogTmVnYXRpdmUgZm9yIE5laXNlcnJpYSBnb25vcnJob2VhZSByUk5BICAxMS8wMS8yMTQ5IDE1OjAyCgpDSExBTVlESUEgU0NSTi1BTVBMLlBST0JFCkxhdGVzdCBSZWZlcmVuY2UgUmFuZ2UgJiBVbml0czogTmVnYXRpdmUgZm9yIENobGFteWRpYSB0cmFjaG9tYXRpcyByUk5BCk1vc3QgUmVjZW50OiBOZWdhdGl2ZSBmb3IgQ2hsYW15ZGlhIHRyYWNob21hdGlzIHJSTkEgIDExLzAxLzIxNDkgMTU6MDIKCiE6IERhdGEgaXMgYWJub3JtYWwKCkdCUyBuZWdhdGl2ZQoKaGFzIGphdW5kaWNlIHRoYXQgbmVlZHMgcGhvdG90aGVyYXB5CgpJbmZhbnQgbGFiczoKSGN0OiA2Ny4zICUKR2x1YzogNzAgbWcvZEwKQmxvb2QgdHlwZTogTysvLQoKClByZW5hdGFsIGNhcmU6IExvY2F0aW9uMSBIZWFsdGggQ2VudGVyLCBIb3NwaXRhbDIgSFJPQi4KClByZWduYW5jeSBjb21wbGljYXRpb25zOiBUaHJvbWJvY3l0b3BlbmlhLgpQZXJpbmF0YWwgY29tcGxpY2F0aW9uczogVGhyb21ib2N5dG9wZW5pYS4KTWF0ZXJuYWwgYW50aWJpb3RpY3MgZHVyaW5nIGxhYm9yOiBOb25lLgoKUFJPTTogTm8KUm91dGUgb2YgZGVsaXZlcnk6IFJlcGVhdCBjLXNlY3Rpb24sIGxvdyB0cmFuc3ZlcnNlLgpBcGdhciBzY29yZXM6IDgsOS4KCk9iamVjdGl2ZToKV3QgMzM1MCBnIENvbW1lbnQ6IEZpbGVkIGZyb20gRGVsaXZlcnkgU3VtbWFyeS4KCkdlbmVyYWwgQXBwZWFyYW5jZTogSGVhbHRoeS1hcHBlYXJpbmcsIHZpZ29yb3VzIGluZmFudCwgc3Ryb25nIGNyeS4KSGVhZDogIEFudGVyaW9yIGZvbnRhbmVsbGUgc29mdCBhbmQgZmxhdC4KRXllczogU2NsZXJhZSB3aGl0ZSwgcHVwaWxzIGVxdWFsIGFuZCByZWFjdGl2ZSwgcmVkIHJlZmxleCBub3JtYWwgYmlsYXRlcmFsbHkuCkVhcnM6IFdlbGwtcG9zaXRpb25lZCwgd2VsbC1mb3JtZWQgcGlubmFlLgpOb3NlOiBDbGVhciwgbm9ybWFsIG11Y29zYS4KVGhyb2F0OiBMaXBzLCB0b25ndWUgYW5kIG11Y29zYSBhcmUgcGluaywgbW9pc3QgYW5kIGludGFjdDsgcGFsYXRlIGludGFjdC4KTmVjazogU3VwcGxlLCBzeW1tZXRyaWNhbC4KQ2hlc3Q6IEx1bmdzIGNsZWFyIHRvIGF1c2N1bHRhdGlvbiwgcmVzcGlyYXRpb25zIHVubGFib3JlZC4KSGVhcnQ6IFJlZ3VsYXIgcmF0ZSAmIHJoeXRobSwgbmwgUzEgUzIsIG5vIG11cm11cnMsIHJ1YnMsIG9yIGdhbGxvcHMuCkFiZG9tZW46IFNvZnQsIG5vbi10ZW5kZXIsIG5vIG1hc3NlczsgdW1iaWxpY2FsIHN0dW1wIGNsZWFuIGFuZCBkcnkuClB1bHNlczogU3Ryb25nIGVxdWFsIGZlbW9yYWwgcHVsc2VzLCBicmlzayBjYXBpbGxhcnkgcmVmaWxsLgpIaXBzOiBOZWdhdGl2ZSBCYXJsb3csIE9ydG9sYW5pLCBnbHV0ZWFsIGNyZWFzZXMgZXF1YWwuCkdVOiBOb3JtYWwgbWFsZSBnZW5pdGFsaWEsIGRlc2NlbmRlZCB0ZXN0ZXMuIFNhY3JhbCBkaW1wbGUgd2l0aCBiYXNlIHZpc3VhbGl6ZWQuCkV4dHJlbWl0aWVzOiBXZWxsLXBlcmZ1c2VkLCB3YXJtIGFuZCBkcnkuCk5ldXJvOiBFYXNpbHkgYXJvdXNlZDsgZ29vZCBzeW1tZXRyaWMgdG9uZSBhbmQgc3RyZW5ndGg7IHBvc2l0aXZlIHJvb3QgYW5kIHN1Y2s7IHN5bW1ldHJpYyBub3JtYWwgcmVmbGV4ZXMuClNraW46IE5vbi1pY3RlcmljLCBubyByYXNoZXMuIFN1Y2tpbmcgYmxpc3RlciBvbiBsZWZ0IHdyaXN0LgoKQXNzZXNzbWVudDoKVGVybSBBR0EgSSBzYXcgYW5kIGV4YW1pbmVkIHdpdGggdGVhbSBvbiByb3VuZHMuIFRyZWF0bWVudCBhbmQgcGxhbiBkaXNjdXNzZWQuIE5vIGludGVydmFsIHByb2JsZW1zIGluIFRlcm0uCgpQbGFuOgpSb3V0aW5lIE5ld2Jvcm4gQ2FyZS4KVml0IEs6IHJlY2VpdmVkIDAxLzAxLzIxNTAuCkhlcCBCIHZhY2NpbmU6IHJlY2VpdmVkIDAxLzAxLzIxNTAuCk1ldGFib2xpYyBTY3JlZW4uCkhlYXJpbmcgU2NyZWVuLg=="
+            }
+          }
+        ],
+        "context": {
+          "extension": [
+            {
+              "url": "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-author-provider-type",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "urn:oid:1.2.840.114350.1.13.244.2.7.4.836982.1040",
+                    "code": "1",
+                    "display": "Physician"
+                  }
+                ],
+                "text": "Physician"
+              }
+            },
+            {
+              "url": "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-service",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "urn:oid:1.2.840.114350.1.13.244.2.7.4.696784.34886",
+                    "code": "113",
+                    "display": "Neonatology"
+                  }
+                ],
+                "text": "Neonatology"
+              }
+            }
+          ],
+          "encounter": [
+            {
+              "reference": "Encounter/625749",
+              "identifier": {
+                "use": "usual",
+                "system": "urn:oid:1.2.840.114350.1.13.244.2.7.3.698084.8",
+                "value": "birthencounter01012150"
+              },
+              "display": "Hospital Encounter"
+            }
+          ],
+          "period": {
+            "start": "2150-01-01T20:00:56+00:00"
+          },
+          "practiceSetting": {
+            "coding": [
+              {
+                "system": "urn:oid:1.2.840.114350.1.72.1.7.7.10.688867.4160",
+                "code": "35",
+                "display": "Neonatology"
+              },
+              {
+                "system": "urn:oid:1.2.840.114350.1.13.244.2.7.4.836982.1050",
+                "code": "92",
+                "display": "Neonatology"
+              }
+            ],
+            "text": "Neonatology"
+          }
+        }
+      },
+      "search": {
+        "mode": "match"
+      }
+    },
+    {
+      "fullUrl": "https://example.org/fhir/DocumentReference/625777",
+      "resource": {
+        "resourceType": "DocumentReference",
+        "id": "625777",
+        "meta": {
+          "versionId": "2",
+          "lastUpdated": "2024-03-06T13:46:49.815+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:oid:1.2.840.114350.1.13.244.2.7.2.727879",
+            "value": "progressnote04012151"
+          }
+        ],
+        "status": "current",
+        "docStatus": "final",
+        "type": {
+          "coding": [
+            {
+              "system": "urn:oid:1.2.840.114350.1.13.244.2.7.4.737880.5010",
+              "code": "1",
+              "display": "Progress Notes"
+            },
+            {
+              "system": "urn:oid:1.2.840.114350.1.72.727879.69848980",
+              "code": "1",
+              "display": "Progress Notes"
+            },
+            {
+              "system": "http://loinc.org",
+              "code": "11506-3",
+              "display": "Progress note",
+              "userSelected": true
+            }
+          ],
+          "text": "Progress Notes"
+        },
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/us/core/CodeSystem/us-core-documentreference-category",
+                "code": "clinical-note",
+                "display": "Clinical Note"
+              }
+            ],
+            "text": "Clinical Note"
+          }
+        ],
+        "subject": {
+          "reference": "Patient/625747",
+          "display": "McBaby, Baby"
+        },
+        "date": "2151-04-01T15:01:21+00:00",
+        "content": [
+          {
+            "attachment": {
+              "contentType": "text/plain",
+              "data": "U3ViamVjdGl2ZQoKSGlzdG9yeSB3YXMgcHJvdmlkZWQgYnkgdGhlIG1vdGhlci4KCkJhYnkgTWNCYWJ5IDE1IG0uby4gbWFsZSB3aG8gaXMgYnJvdWdodCBpbiBmb3IgdGhpcyB3ZWxsIGNoaWxkIHZpc2l0LgoKSW1tdW5pemF0aW9uIEhpc3RvcnkKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQpBZG1pbmlzdGVyZWQgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgIERhdGUocykgQWRtaW5pc3RlcmVkCkRUYVAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAgMDQvMDEvMjE1MQpEVGFQLElQVixIaWIsSGVwQiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgIDAzLzA1LzIxNTAsIDA1LzEzLzIxNTAsIDA3LzEzLzIxNTAKSGVwIEEsIHBlZC9hZG9sLCAyIGRvc2UgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgICAwMS8wNC8yMTUxCkhlcCBCLCBhZG9sZXNjZW50IG9yIHBlZGlhdHJpYyAgICAgICAgICAgICAgICAgICAgICAgICB8ICAgMDEvMDEvMjE1MApIaUIgUFJQLU9NUCAoUGVkdmF4SElCKSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgIDA0LzAxLzIxNTEKSW5mbHVlbnphLCBpbmplY3RhYmxlLCBxdWFkcml2YWxlbnQsIHByZXNlcnZhdGl2ZSBmcmVlIHwgICAxMC8wMS8yMTUwLCAwMS8wNC8yMTUxCk1NUiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAgMDEvMDQvMjE1MQpQbmV1bW9jb2NjYWwgMTMtdmFsIChQUkVWTkFSIDEzKSAgICAgICAgICAgICAgICAgICAgICAgfCAgIDAzLzA1LzIxNTAsIDA1LzEzLzIxNTAsIDA3LzEzLzIxNTAKUG5ldW1vY29jY2FsIDIwLXZhbCAoUHJldm5hciAyMCkgICAgICAgICAgICAgICAgICAgICAgIHwgICAwNC8wMS8yMTUxClJvdGF2aXJ1cyBQZW50YXZhbGVudCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAgMDMvMDUvMjE1MCwgMDUvMTMvMjE1MCwgMDcvMTMvMjE1MApWYXJpY2VsbGEgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgIDAxLzA0LzIxNTEKCgpQYXRpZW50J3MgbWVkaWNhdGlvbnMsIGFsbGVyZ2llcywgcGFzdCBtZWRpY2FsLCBzdXJnaWNhbCwgc29jaWFsIGFuZCBmYW1pbHkgaGlzdG9yaWVzIHdlcmUgcmV2aWV3ZWQgYW5kIHVwZGF0ZWQgYXMgYXBwcm9wcmlhdGUuCgpDdXJyZW50IElzc3VlczoKQ3VycmVudCBjb25jZXJucyBpbmNsdWRlIGRpZCB0YWtlIGlyb24geCAxIG1vbnRoLiBIYWQgaGdiIDEwLjcuIG1vbSBoYXMgYWxzbyBkZWNyZWFzZWQgYnJlYXN0ZmVlZGluZyBhbmQgaXMgdHJ5aW5nIHRvIHRyYW5zaXRpb24gdG8gbGFjdGFpZCBtaWxrLiBNZWV0aW5nIG1pbGVzdG9uZXMgYW5kIGdhaW5pbmcgYXBwcm9wcmlhdGUgd2VpZ2h0LgoKUmV2aWV3IG9mIFN5c3RlbToKQ29uc3RpdHV0aW9uYWw6IG5lZ2F0aXZlIGZvciBmZXZlciwgZmF0aWd1ZSwgd3QgbG9zcy4KRXllczogbmVnYXRpdmUgZm9yIGlycml0YXRpb24gYW5kIHJlZG5lc3MsIGRpc2NoYXJnZS4KRWFycywgbm9zZSwgbW91dGgsIHRocm9hdCwgYW5kIGZhY2U6IG5lZ2F0aXZlIGZvciBuYXNhbCBjb25nZXN0aW9uLgpSZXNwaXJhdG9yeTogbmVnYXRpdmUgZm9yIGNvdWdoLgpDYXJkaW92YXNjdWxhcjogbmVnYXRpdmUuCkdhc3Ryb2ludGVzdGluYWw6IG5lZ2F0aXZlIGZvciBhYmRvbWluYWwgcGFpbiwgY29uc3RpcGF0aW9uIGFuZCB2b21pdGluZy4KR2VuaXRvdXJpbmFyeTpuZWdhdGl2ZSBmb3IgZGVjIHVyaW5hdGlvbi4KSGVtYXRvbG9naWMvbHltcGhhdGljOiBuZWdhdGl2ZS4KTXVzY3Vsb3NrZWxldGFsOm5lZ2F0aXZlIGZvciBkZWMgUk9NLgpOZXVyb2xvZ2ljYWw6IG5lZ2F0aXZlLgpEZXJtYXRvbG9naWNhbDogbm8gcmFzaC4KClJldmlldyBvZiBOdXRyaXRpb246CkN1cnJlbnQgZGlldDogbG93IGxhY3RhaWQsIG1pbGssIGZydWl0cywgdmVnZ2llcywgY2hpeCwgYmVhbnMsIHJpY2UuCkJhbGFuY2VkIGRpZXQ/IHllcwpEaWZmaWN1bHRpZXMgd2l0aCBmZWVkaW5nPyBubwoKU29jaWFsIFNjcmVlbmluZzoKQ3VycmVudCBjaGlsZC1jYXJlIGFycmFuZ2VtZW50czogaW4gaG9tZTogcHJpbWFyeSBjYXJlZ2l2ZXIgaXMgbW90aGVyLgpQYXJlbnRhbCBjb3BpbmcgYW5kIHNlbGYtY2FyZTogZG9pbmcgd2VsbDsgbm8gY29uY2VybnMuClNlY29uZGhhbmQgc21va2UgZXhwb3N1cmU/IG5vCgoKU2NyZWVuaW5nIFF1ZXN0aW9uczoKUmlzayBmYWN0b3JzIGZvciBoZWFyaW5nIGxvc3M6IG5vCgpPYmplY3RpdmUKClB1bHNlICghKSAxOTIgfCBUZW1wIDM2LjEgwrBDICg5NyDCsEYpIChBeGlsbGFyeSAoUGVkaWF0cmljcyBPbmx5KSkgfCBSZXNwIDI0IHwgSHQgMzAuMzIiICg3NyBjbSkgfCBXdCA5LjM4NCBrZyAoMjAgbGIgMTEgb3opIHwgSEMgNDUgY20gKDE3LjcyIikgfCBCTUkgMTUuODMga2cvbcKyCgpHZW5lcmFsOiBhbGVydCBhbmQgbm8gZGlzdHJlc3MsIGFjdGl2ZQoKLS0tfC0tLQoKU2tpbjogbm9ybWFsLCBuby4KSGVhZDogY2xvc2VkIGZvbnRhbmVsbGVzLCBub3JtYWwgYXBwZWFyYW5jZSwgbm9ybWFsIHBhbGF0ZSBhbmQgc3VwcGxlIG5lY2suCk5lY2s6IE5vcm1hbC4KRXllczogc2NsZXJhZSB3aGl0ZSwgcmVkIHJlZmxleCBub3JtYWwgYmlsYXRlcmFsbHkuCkVhcnM6IG5vcm1hbCBiaWxhdGVyYWxseS4KTm9zZSBub3JtYWwgZXh0ZXJuYWwgYXBwZWFyYW5jZSBhbmQgbmFyZXMgcGF0ZW50LgpNb3V0aDogbm9ybWFsLgpMdW5nczogY2xlYXIgdG8gYXVzY3VsdGF0aW9uIGJpbGF0ZXJhbGx5LgpIZWFydDogMSwgUzIgbm9ybWFsLCBubyBNLgpBYmRvbWVuOiBzb2Z0LCBub24tdGVuZGVyOyBib3dlbCBzb3VuZHMgbm9ybWFsOyBubyBtYXNzZXMsIG5vIG9yZ2Fub21lZ2FseS4KR1U6IG5vcm1hbCBleHRlcm5hbCBnZW5pdGFsaWEuCkZlbW9yYWwgcHVsc2VzOiBwcmVzZW50IGJpbGF0ZXJhbGx5LgpFeHRyZW1pdGllczogZXh0cmVtaXRpZXMgbm9ybWFsLCBhdHJhdW1hdGljLCBubyBjeWFub3NpcyBvciBlZGVtYS4KTmV1cm86IGFsZXJ0IGFuZCBtb3ZlcyBhbGwgZXh0cmVtaXRpZXMgc3BvbnRhbmVvdXNseS4KCgpBc3Nlc3NtZW50CgpIZWFsdGh5IDE1IG0uby4gbWFsZSBpbmZhbnQuCkdyb3d0aCBwYXJhbWV0ZXJzIGFyZSBub3RlZCBhbmQgYXJlIGFwcHJvcHJpYXRlIGZvciBhZ2UuCgoxLiBFbmNvdW50ZXIgZm9yIHJvdXRpbmUgY2hpbGQgaGVhbHRoIGV4YW1pbmF0aW9uIHdpdGhvdXQgYWJub3JtYWwgZmluZGluZ3MuCjIuIE5lZWQgZm9yIEhpYiB2YWNjaW5hdGlvbiB8IEhpQiBQUlAtT01QIChQZWR2YXhISUIpIHZhY2NpbmUgLSAyIGRvc2Ugc2VyaWVzLgozLiBOZWVkIGZvciBwbmV1bW9jb2NjYWwgMjAtdmFsZW50IGNvbmp1Z2F0ZSB2YWNjaW5hdGlvbiB8IFBuZXVtb2NvY2NhbCAyMC1WYWxlbnQgVmFjY2luZSAoUFJFVk5BUiAyMCkuCjQuIE5lZWQgZm9yIERUYVAgdmFjY2luYXRpb24gfCBEVGFQIHZhY2NpbmUgbGVzcyB0aGFuIDd5byBJTS4KNS4gT3RoZXIgaXJvbiBkZWZpY2llbmN5IGFuZW1pYSB8IEZlcnJvdXMgU3VsZmF0ZSAoRkVSLUlST04pIDc1ICgxNSBGZSkgTUcvTUwgU09MTiBwbyBzb2xuLgoKMSBtb3JlIG1vbnRoIG9mIGlyb24gc3VwcGxlbWVudGF0aW9uLgoKUGxhbgoxXFwuIEFudGljaXBhdG9yeSBndWlkYW5jZSBkaXNjdXNzZWQuR2F2ZSBoYW5kb3V0IG9uIHdlbGwtY2hpbGQgaXNzdWVzIGF0IHRoaXMgYWdlLiBTcGVjaWZpYyB0b3BpY3MgcmV2aWV3ZWQ6IGF2b2lkIHBvdGVudGlhbCBjaG9raW5nIGhhemFyZHMgKGxhcmdlLCBzcGhlcmljYWwsIG9yIGNvaW4gc2hhcGVkIGZvb2RzKSwgYXZvaWQgc21hbGwgdG95cyAoY2hva2luZyBoYXphcmQpLCBjYXIgc2VhdCBpc3N1ZXMsIGluY2x1ZGluZyBwcm9wZXIgcGxhY2VtZW50IGFuZCB0cmFuc2l0aW9uIHRvIHRvZGRsZXIgc2VhdCBhdCAyMCBwb3VuZHMsIGNhdXRpb24gd2l0aCBwb3NzaWJsZSBwb2lzb25zIChwaWxscywgcGxhbnRzLCBjb3NtZXRpY3MpLCBjaGlsZC1wcm9vZiBob21lIHdpdGggY2FiaW5ldCBsb2Nrcywgb3V0bGV0IHBsdWdzLCB3aW5kb3cgZ3VhcmRzLCBhbmQgc3RhaXIgc2FmZXR5IGdhdGVzLCBkaXNjaXBsaW5lIGlzc3VlczogbGltaXQtc2V0dGluZywgcG9zaXRpdmUgcmVpbmZvcmNlbWVudCwgZmx1b3JpZGUgc3VwcGxlbWVudGF0aW9uIGlmIHVuZmx1b3JpZGF0ZWQgd2F0ZXIgc3VwcGx5LCBpbXBvcnRhbmNlIG9mIHZhcmllZCBkaWV0LCBuZXZlciBsZWF2ZSB1bmF0dGVuZGVkLCBvYnNlcnZlIHdoaWxlIGVhdGluZzsgY29uc2lkZXIgQ1BSIGNsYXNzZXMsIHBoYXNlIG91dCBib3R0bGUtZmVlZGluZywgUG9pc29uIENvbnRyb2wgcGhvbmUgbnVtYmVyIDEtODAwLTIyMi0xMjIyLCByaXNrIG9mIGNoaWxkIHB1bGxpbmcgZG93biBvYmplY3RzIG9uIGhpbS9oZXJzZWxmLCBzbW9rZSBkZXRlY3RvcnMgYW5kIHdpbmQtZG93biBhY3Rpdml0aWVzIHRvIGhlbHAgd2l0aCBzbGVlcC4KMlxcLiBEZXZlbG9wbWVudDogYXBwcm9wcmlhdGUgZm9yIGFnZS4KM1xcLiBJbW11bml6YXRpb25zIHRvZGF5OiBwZXIgb3JkZXJzLgpIaXN0b3J5IG9mIHByZXZpb3VzIGFkdmVyc2UgcmVhY3Rpb25zIHRvIGltbXVuaXphdGlvbnM/IG5vLgo0XFwuIEZvbGxvdy11cCB2aXNpdCBpbiAzIG1vbnRocyBmb3IgbmV4dCB3ZWxsIGNoaWxkIHZpc2l0LCBvciBzb29uZXIgYXMgbmVlZGVkLg=="
+            }
+          }
+        ],
+        "context": {
+          "extension": [
+            {
+              "url": "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-author-provider-type",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "urn:oid:1.2.840.114350.1.13.244.2.7.4.836982.1040",
+                    "code": "1",
+                    "display": "Physician"
+                  }
+                ],
+                "text": "Physician"
+              }
+            }
+          ],
+          "encounter": [
+            {
+              "reference": "Encounter/625752",
+              "identifier": {
+                "use": "usual",
+                "system": "urn:oid:1.2.840.114350.1.13.244.2.7.3.698084.8",
+                "value": "ifuencounter04012151"
+              },
+              "display": "Office Visit"
+            }
+          ],
+          "period": {
+            "start": "2151-04-01T14:20:00+00:00"
+          },
+          "practiceSetting": {
+            "coding": [
+              {
+                "system": "urn:oid:1.2.840.114350.1.72.1.7.7.10.688867.4160",
+                "code": "82",
+                "display": "Pediatrics"
+              },
+              {
+                "system": "urn:oid:1.2.840.114350.1.13.244.2.7.4.836982.1050",
+                "code": "32",
+                "display": "Pediatrics"
+              }
+            ],
+            "text": "Pediatrics"
+          }
+        }
+      },
+      "search": {
+        "mode": "match"
+      }
+    }
+  ]
+}

@@ -26,6 +26,7 @@ dev = [
     "pytest>=8.4.2,<9",
     "pytest-asyncio>=1.4.0,<2",
     "pytest-env>=1.2.0,<2",
+    "respx>=0.23.1",
     "ruff>=0.15.21,<1",
     "uv-bump>=0.5.0,<1",
 ]
@@ -40,9 +41,6 @@ line-length = 200
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-markers = [
-    "integration: end-to-end tests that require real external services (CQF Ruler, FHIR server). Run with: pytest -m integration",
-]
 
 [tool.pytest.ini_options.env]
 CQF_RULER_R4 = "http://localhost:8080/fhir"
