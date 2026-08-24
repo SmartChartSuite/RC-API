@@ -305,6 +305,7 @@ async def test_run_batch_job_persists_completed_task_results_while_running(monke
     monkeypatch.setattr(job_orchestrator, "create_job", lambda *args, **kwargs: True)
     monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: None)
     monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda batch_id, bundle: partial_bundles.append(bundle))
+    monkeypatch.setattr(job_orchestrator, "start_batch_job_attempt", lambda batch_id: status_updates.append(("running", None)))
     monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda batch_id, status, bundle=None: status_updates.append((status, bundle)))
     monkeypatch.setattr(job_orchestrator, "run_cql_libraries", _fake_run_cql_libraries)
     monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
@@ -346,6 +347,7 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
 
     monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
     monkeypatch.setattr(job_orchestrator, "create_job", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "start_batch_job_attempt", lambda batch_id: None)
     monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda *args, **kwargs: None)
     monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda *args, **kwargs: None)
     monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: updates.append((args, kwargs)))
@@ -383,6 +385,7 @@ async def test_run_batch_job_marks_only_unfinished_jobs_after_late_failure(monke
 
     monkeypatch.setattr(job_orchestrator, "fhir_get", _failing_fhir_get)
     monkeypatch.setattr(job_orchestrator, "mark_unfinished_jobs_error", lambda batch_id, message: marked_errors.append((batch_id, message)))
+    monkeypatch.setattr(job_orchestrator, "start_batch_job_attempt", lambda batch_id: status_updates.append(("running", None)))
     monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda batch_id, status, bundle=None: status_updates.append((status, bundle)))
 
     await job_orchestrator.run_batch_job("batch-1", "patient-1", "RegistryForm", "questionnaire-1")

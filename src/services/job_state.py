@@ -9,7 +9,11 @@ Uses SQLAlchemy Core + ORM with the same engine/session pattern as v0.
 """
 
 from datetime import date, datetime, time, timedelta, timezone
+from pathlib import Path
 
+from alembic.config import Config
+from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy import (
@@ -59,6 +63,12 @@ class BatchJobs(Base):
     result_bundle: Mapped[dict | None]
     created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
     completed_at: Mapped[datetime | None]
+    questionnaire_id: Mapped[str | None]
+    job_package_version: Mapped[str | None]
+    requested_jobs: Mapped[list[str] | None] = mapped_column(JSON)
+    attempt_count: Mapped[int] = mapped_column(default=0)
+    heartbeat_at: Mapped[datetime | None]
+    updated_at: Mapped[datetime | None] = mapped_column(default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
 
 class Jobs(Base):
@@ -92,6 +102,7 @@ class QuestionnaireResponses(Base):
 # ── Engine + table creation ────────────────────────────────────────────────────
 
 db_engine = create_engine(db_connection_string, pool_pre_ping=True)
+_ALEMBIC_CONFIG_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 
 def _ensure_schema_exists() -> None:
@@ -102,13 +113,31 @@ def _ensure_schema_exists() -> None:
         connection.execute(CreateSchema(schema, if_not_exists=True))
 
 
+def _head_revision() -> str | None:
+    config = Config(_ALEMBIC_CONFIG_PATH)
+    return ScriptDirectory.from_config(config).get_current_head()
+
+
+def _current_database_revision() -> str | None:
+    with db_engine.connect() as connection:
+        migration_context = MigrationContext.configure(
+            connection,
+            opts={"version_table_schema": Base.metadata.schema},
+        )
+        return migration_context.get_current_revision()
+
+
 def initialize_db() -> None:
+    """Verify connectivity and require the database to be migrated to Alembic head."""
     try:
         _ensure_schema_exists()
-        Base.metadata.create_all(db_engine)
-        logger.info("v1 DB tables created/verified.")
+        current_revision = _current_database_revision()
+        head_revision = _head_revision()
+        if current_revision != head_revision:
+            raise RuntimeError(f"Database schema revision is {current_revision or 'unversioned'}; expected {head_revision}. Run 'uv run alembic upgrade head' before starting the API.")
+        logger.info(f"Database schema verified at Alembic revision {head_revision}.")
     except Exception as exc:
-        logger.error(f"Failed to create v1 DB tables: {exc}")
+        logger.error(f"Database initialization failed: {exc}")
         raise
 
 
@@ -180,10 +209,27 @@ def create_batch_job_with_response(
     started_by: str,
     response_id: str,
     response_body: dict,
+    questionnaire_id: str,
+    job_package_version: str | None = None,
+    requested_jobs: list[str] | None = None,
 ) -> bool:
     try:
+        now = datetime.now(timezone.utc)
         with Session(db_engine) as session:
-            session.add(BatchJobs(batch_id=batch_id, patient_id=patient_id, job_package=job_package, started_by=started_by, status="pending"))
+            session.add(
+                BatchJobs(
+                    batch_id=batch_id,
+                    patient_id=patient_id,
+                    job_package=job_package,
+                    started_by=started_by,
+                    status="pending",
+                    questionnaire_id=questionnaire_id,
+                    job_package_version=job_package_version,
+                    requested_jobs=requested_jobs or None,
+                    attempt_count=0,
+                    updated_at=now,
+                )
+            )
             session.add(
                 QuestionnaireResponses(
                     response_id=response_id,
@@ -202,10 +248,81 @@ def create_batch_job_with_response(
         return False
 
 
+def start_batch_job_attempt(batch_id: str) -> None:
+    """Mark a batch running and atomically increment its execution attempt."""
+    now = datetime.now(timezone.utc)
+    with Session(db_engine) as session:
+        session.execute(
+            update(BatchJobs)
+            .where(BatchJobs.batch_id == batch_id)
+            .values(
+                status="running",
+                attempt_count=BatchJobs.attempt_count + 1,
+                heartbeat_at=now,
+                updated_at=now,
+            )
+        )
+        session.commit()
+    logger.info(f"Started execution attempt for batch job {batch_id}")
+
+
+def touch_batch_job_heartbeat(batch_id: str) -> None:
+    """Refresh liveness metadata for a running batch job."""
+    now = datetime.now(timezone.utc)
+    with Session(db_engine) as session:
+        session.execute(update(BatchJobs).where(BatchJobs.batch_id == batch_id, BatchJobs.status == "running").values(heartbeat_at=now, updated_at=now))
+        session.commit()
+
+
+def reconcile_stale_batch_jobs(stale_after_seconds: int) -> list[str]:
+    """Mark stale pending/running batches and their unfinished child jobs as interrupted."""
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(seconds=stale_after_seconds)
+    stale_reference = func.coalesce(BatchJobs.heartbeat_at, BatchJobs.updated_at, BatchJobs.created_at)
+    message = "Batch execution was interrupted before completion."
+
+    with Session(db_engine) as session:
+        stale_jobs = list(
+            session.execute(
+                select(BatchJobs).where(
+                    BatchJobs.status.in_(("pending", "running")),
+                    stale_reference < cutoff,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        stale_ids = [job.batch_id for job in stale_jobs]
+        for job in stale_jobs:
+            job.status = "error"
+            job.completed_at = now
+            job.updated_at = now
+            if job.result_bundle is None:
+                job.result_bundle = make_operation_outcome("exception", message)
+
+        if stale_ids:
+            session.execute(
+                update(Jobs)
+                .where(
+                    Jobs.batch_id.in_(stale_ids),
+                    Jobs.status.not_in(("complete", "error", "skipped")),
+                )
+                .values(status="error", result={"message": message}, completed_at=now)
+            )
+            session.commit()
+
+    if stale_ids:
+        logger.warning(f"Marked {len(stale_ids)} stale batch job(s) as interrupted: {stale_ids}")
+    return stale_ids
+
+
 def update_batch_job_status(batch_id: str, status: str, result_bundle: dict | None = None) -> None:
-    vals: dict = {"status": status}
-    if status == "complete":
-        vals["completed_at"] = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    vals: dict = {"status": status, "updated_at": now}
+    if status == "running":
+        vals["heartbeat_at"] = now
+    if status in {"complete", "error"}:
+        vals["completed_at"] = now
     if result_bundle is not None:
         vals["result_bundle"] = result_bundle
     with Session(db_engine) as session:
@@ -215,9 +332,10 @@ def update_batch_job_status(batch_id: str, status: str, result_bundle: dict | No
 
 
 def update_batch_job_result(batch_id: str, result_bundle: dict) -> None:
-    """Persist a partial result snapshot without changing batch status or timestamps."""
+    """Persist a partial result snapshot and refresh batch liveness metadata."""
+    now = datetime.now(timezone.utc)
     with Session(db_engine) as session:
-        session.execute(update(BatchJobs).where(BatchJobs.batch_id == batch_id).values(result_bundle=result_bundle))
+        session.execute(update(BatchJobs).where(BatchJobs.batch_id == batch_id).values(result_bundle=result_bundle, heartbeat_at=now, updated_at=now))
         session.commit()
     logger.debug(f"Updated partial result Bundle for batch job {batch_id}")
 

@@ -49,13 +49,26 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
             ],
         }
 
-    def _fake_create_batch_job_with_response(batch_id, patient_id, job_package, started_by, response_id, response_body):
+    def _fake_create_batch_job_with_response(
+        batch_id,
+        patient_id,
+        job_package,
+        started_by,
+        response_id,
+        response_body,
+        questionnaire_id,
+        job_package_version,
+        requested_jobs,
+    ):
         captured["batch_id"] = batch_id
         captured["patient_id"] = patient_id
         captured["job_package"] = job_package
         captured["started_by"] = started_by
         captured["response_id"] = response_id
         captured["response_body"] = response_body
+        captured["questionnaire_id"] = questionnaire_id
+        captured["job_package_version"] = job_package_version
+        captured["requested_jobs"] = requested_jobs
         return True
 
     monkeypatch.setattr(batchjob, "_resolve_questionnaire", _fake_resolve_questionnaire)
@@ -104,6 +117,9 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
             }
         ],
     }
+    assert captured["questionnaire_id"] == "questionnaire-123"
+    assert captured["job_package_version"] is None
+    assert captured["requested_jobs"] == ["SyphilisHistory", "ig_hc"]
     assert response.headers["Location"].startswith("/batchjob/")
     assert len(background_tasks.tasks) == 1
     task = background_tasks.tasks[0]

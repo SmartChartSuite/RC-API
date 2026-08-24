@@ -9,6 +9,9 @@ uv = "*"
 
 [tasks]
 install = "uv sync --dev"
+migrate = "uv run alembic upgrade head"
+migration-current = "uv run alembic current"
+migration-history = "uv run alembic history"
 serve = "uv run hypercorn main:app --reload --config hypercorn_config.toml"
 serve-prod = "uv run hypercorn main:app --config hypercorn_config.toml"
 test = "uv run pytest"

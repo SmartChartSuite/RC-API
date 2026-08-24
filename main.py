@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 import sys
@@ -16,9 +17,9 @@ from src.routers.library import router as library_router
 from src.routers.patient import router as patient_router
 from src.routers.response import router as response_router
 from src.services.errorhandler import make_operation_outcome
-from src.services.job_state import initialize_db
+from src.services.job_state import initialize_db, reconcile_stale_batch_jobs
 from src.services.prompt_loader import initialize_prompt_source
-from src.util.settings import log_level, root_path
+from src.util.settings import batch_job_stale_after_seconds, log_level, root_path
 
 LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
 _NOISY_LOGGER_LEVELS = {"httpcore": logging.WARNING, "httpx": logging.WARNING, "LiteLLM": logging.WARNING, "urllib3": logging.WARNING, "openai": logging.WARNING, "asyncio": logging.WARNING}
@@ -71,6 +72,7 @@ configure_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     initialize_db()
+    await asyncio.to_thread(reconcile_stale_batch_jobs, batch_job_stale_after_seconds)
     await initialize_prompt_source()
     yield
 

@@ -10,6 +10,7 @@ Orchestrates the full CQL + LLM pipeline for a batch job submission:
 """
 
 import asyncio
+from contextlib import suppress
 from dataclasses import asdict
 import json
 import re
@@ -29,13 +30,15 @@ from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
     create_job,
     mark_unfinished_jobs_error,
+    start_batch_job_attempt,
+    touch_batch_job_heartbeat,
     update_batch_job_result,
     update_batch_job_status,
     update_job_result,
 )
 from src.services.llm_executor import LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
-from src.util.settings import deploy_url, external_fhir_server_auth, external_fhir_server_url, use_llm
+from src.util.settings import batch_job_heartbeat_interval_seconds, deploy_url, external_fhir_server_auth, external_fhir_server_url, use_llm
 
 # Questionnaire extension URLs
 _CQL_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/structured-form-job-list"
@@ -557,6 +560,13 @@ def _build_result_bundle(
     }
 
 
+async def _maintain_batch_heartbeat(batch_id: str) -> None:
+    """Refresh batch liveness while long-running external work is in flight."""
+    while True:
+        await asyncio.sleep(batch_job_heartbeat_interval_seconds)
+        await asyncio.to_thread(touch_batch_job_heartbeat, batch_id)
+
+
 # Main orchestrator
 async def run_batch_job(
     batch_id: str,
@@ -572,13 +582,16 @@ async def run_batch_job(
     Updates batch_jobs_v1 status to 'running' then 'complete' (or 'error').
     """
     logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}")
-    update_batch_job_status(batch_id, "running")
 
     task_results: list[dict] = []
     job_ids_by_task: dict[tuple[str, str], str] = {}
     partial_bundle_persisted = False
+    heartbeat_task: asyncio.Task[None] | None = None
 
     try:
+        start_batch_job_attempt(batch_id)
+        heartbeat_task = asyncio.create_task(_maintain_batch_heartbeat(batch_id))
+
         # 1. Fetch Questionnaire from HAPI FHIR
         questionnaire_data = await fhir_get("Questionnaire", questionnaire_id)
 
@@ -753,3 +766,8 @@ async def run_batch_job(
             update_batch_job_status(batch_id, "error")
         else:
             update_batch_job_status(batch_id, "error", error_bundle)
+    finally:
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await heartbeat_task

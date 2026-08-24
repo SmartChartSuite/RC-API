@@ -21,3 +21,8 @@ def test_root_path_falls_back_to_deploy_url_path(monkeypatch):
     assert reloaded.root_path == "/api/v1"
 
     importlib.reload(reloaded)
+
+
+def test_batch_recovery_settings_use_safe_positive_defaults():
+    assert settings.batch_job_heartbeat_interval_seconds > 0
+    assert settings.batch_job_stale_after_seconds > settings.batch_job_heartbeat_interval_seconds

@@ -175,6 +175,8 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `OAUTH2_AUDIENCE` | *(none)* | Expected `aud` claim in JWT |
 | `DB_CONNECTION_STRING` | `sqlite+pysqlite:///rcapi_jobs.sqlite` | SQLAlchemy connection string |
 | `DB_SCHEMA` | `rcapi` | DB schema name (ignored for SQLite) |
+| `BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS` | `30` | Seconds between database heartbeat updates while a batch is executing |
+| `BATCH_JOB_STALE_AFTER_SECONDS` | `300` | Age after which a pending/running batch is marked interrupted during startup |
 | `DEPLOY_URL` | `http://example.org/` | Base URL used in Observation identifiers as well as determining root_path |
 | `ROOT_PATH` | *(derived from `DEPLOY_URL` path, or empty)* | FastAPI `root_path` for deployments behind a URL prefix, e.g. `/rc-api` |
 | `PRIMARYIDENTIFIER_SYSTEM` | *(none)* | If set, enables `/config.primaryIdentifier.system` in the public config response |
@@ -206,9 +208,31 @@ pixi run hooks
 # 4. Copy and configure environment variables
 cp .env.example .env
 # Edit .env with your FHIR server URLs and credentials
+
+# 5. Apply database migrations
+pixi run migrate
 ```
 
 `pixi` is used for local task orchestration. Python dependencies live in `pyproject.toml`, and `uv` creates the project environment for both local development and Docker builds.
+
+### Database Migrations
+
+Alembic is the schema authority. Run migrations once as a deployment step before starting or replacing API workers:
+
+```bash
+pixi run migrate
+```
+
+For a fresh database, this creates the baseline tables and applies all later revisions. For an existing database created before Alembic was introduced, first back up the database, stamp it at the baseline revision, and then apply later migrations:
+
+```bash
+uv run alembic stamp 0001
+uv run alembic upgrade head
+```
+
+Do not stamp a fresh empty database because stamping records a revision without creating its tables. The API verifies that the database is at Alembic head during startup and exits with a migration instruction when it is not. Useful inspection commands are `pixi run migration-current` and `pixi run migration-history`.
+
+Running batches write periodic heartbeats. During startup, batches left in `pending` or `running` beyond `BATCH_JOB_STALE_AFTER_SECONDS` are marked `error`; existing partial result Bundles and already-terminal child task statuses are preserved.
 
 ### Tooling Flow
 
@@ -341,6 +365,8 @@ Authorization: Bearer <token>
 
 ```
 RC-API/
+├── alembic.ini                     # Alembic configuration
+├── alembic/                        # Versioned database migrations
 ├── main.py                        # FastAPI app entry points
 ├── hypercorn_config.toml          # ASGI server configuration (binds :8080)
 ├── pyproject.toml                 # Python dependencies and tool configuration

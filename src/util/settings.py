@@ -85,6 +85,13 @@ llm_max_concurrency: int = _positive_int("LLM_MAX_CONCURRENCY", 8)
 # Max concurrent attachment fetches when loading DocumentReference content.
 doc_fetch_max_concurrency: int = _positive_int("DOC_FETCH_MAX_CONCURRENCY", 8)
 
+
+# Batch recovery
+batch_job_heartbeat_interval_seconds: int = _positive_int("BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS", 30)
+batch_job_stale_after_seconds: int = _positive_int("BATCH_JOB_STALE_AFTER_SECONDS", 300)
+if batch_job_stale_after_seconds <= batch_job_heartbeat_interval_seconds:
+    logger.warning("BATCH_JOB_STALE_AFTER_SECONDS should be greater than BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS to avoid false stale-job detection.")
+
 # Langfuse (all three required together for prompt retrieval)
 langfuse_public_key: str | None = _get("LANGFUSE_PUBLIC_KEY")
 langfuse_secret_key: str | None = _get("LANGFUSE_SECRET_KEY")
