@@ -540,6 +540,105 @@ async def test_list_batch_jobs_rejects_invalid_date_filters(monkeypatch):
     assert result.status_code == 400
 
 
+async def test_get_batch_job_results_returns_partial_bundle_while_running(monkeypatch):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    partial_bundle = {
+        "resourceType": "Bundle",
+        "id": "bundle-123",
+        "type": "collection",
+        "total": 2,
+        "entry": [
+            {
+                "fullUrl": "Observation/status-observation",
+                "resource": {
+                    "resourceType": "Observation",
+                    "id": "status-observation",
+                    "status": "preliminary",
+                    "code": {"coding": [{"code": "result-status"}]},
+                },
+            },
+            {
+                "fullUrl": "Observation/obs-1",
+                "resource": {"resourceType": "Observation", "id": "obs-1", "status": "final", "code": {"coding": [{"code": "answer"}]}},
+            },
+        ],
+    }
+    monkeypatch.setattr(
+        batchjob,
+        "get_batch_job",
+        lambda batch_id: BatchJobs(
+            batch_id=batch_id,
+            patient_id="patient-123",
+            job_package="Registry",
+            started_by="user-123",
+            status="running",
+            result_bundle=partial_bundle,
+            created_at=created_at,
+            completed_at=None,
+        ),
+    )
+    monkeypatch.setattr(
+        batchjob,
+        "get_jobs_for_batch",
+        lambda batch_id: [
+            type("Job", (), {"status": "complete"})(),
+            type("Job", (), {"status": "running"})(),
+            type("Job", (), {"status": "skipped"})(),
+        ],
+    )
+
+    result = await batchjob.get_batch_job_results("batch-123", claims={})
+
+    assert isinstance(result, dict)
+    result_entries = result.get("entry")
+    assert result_entries is not None
+    assert result_entries[0]["resource"]["valueCodeableConcept"]["text"] == "Batch job status: 67% (2/3)"
+    assert "valueCodeableConcept" not in partial_bundle["entry"][0]["resource"]
+
+
+def test_with_batch_progress_reports_complete_zero_task_batch():
+    bundle = {
+        "resourceType": "Bundle",
+        "entry": [
+            {
+                "resource": {
+                    "resourceType": "Observation",
+                    "id": "status-observation",
+                    "code": {"coding": [{"code": "result-status"}]},
+                    "valueCodeableConcept": {"coding": [{"code": "complete"}]},
+                }
+            }
+        ],
+    }
+
+    result = batchjob._with_batch_progress(bundle, [], "complete")
+
+    assert result["entry"][0]["resource"]["valueCodeableConcept"]["text"] == "Batch job status: 100% (0/0)"
+
+
+async def test_get_batch_job_results_returns_202_when_running_without_snapshot(monkeypatch):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        batchjob,
+        "get_batch_job",
+        lambda batch_id: BatchJobs(
+            batch_id=batch_id,
+            patient_id="patient-123",
+            job_package="Registry",
+            started_by="user-123",
+            status="running",
+            result_bundle=None,
+            created_at=created_at,
+            completed_at=None,
+        ),
+    )
+
+    result = await batchjob.get_batch_job_results("batch-123", claims={})
+
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 202
+
+
 async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
     completed_at = datetime(2026, 5, 22, 12, 5, tzinfo=timezone.utc)

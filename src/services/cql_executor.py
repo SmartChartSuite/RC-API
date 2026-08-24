@@ -8,6 +8,7 @@ The dataEndpoint.header is conditionally populated with the auth token when
 settings.external_fhir_server_auth is set.
 """
 
+from collections.abc import Awaitable, Callable
 import asyncio
 from dataclasses import dataclass, field
 
@@ -144,20 +145,32 @@ async def _evaluate_library(client: httpx.AsyncClient, library_name: str, patien
     return _parse_parameters_response(library_name, patient_id, data)
 
 
-async def run_cql_libraries(library_names: list[str], patient_id: str) -> list[CqlResult]:
+async def run_cql_libraries(
+    library_names: list[str],
+    patient_id: str,
+    on_result: Callable[[CqlResult], Awaitable[None]] | None = None,
+) -> list[CqlResult]:
     """Concurrently evaluate all CQL libraries for a patient.
 
     Args:
         library_names: FHIR Library resource IDs (e.g. ["Demographics"]).
         patient_id: The bare FHIR Patient ID (without "Patient/" prefix).
+        on_result: Optional async callback invoked as each library finishes.
 
     Returns:
-        List of CqlResult objects, one per library.
+        List of CqlResult objects in the same order as ``library_names``.
     """
     if not library_names:
         return []
+
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
-        tasks = [_evaluate_library(client, lib, patient_id) for lib in library_names]
-        results = await asyncio.gather(*tasks)
+
+        async def _evaluate_and_report(library_name: str) -> CqlResult:
+            result = await _evaluate_library(client, library_name, patient_id)
+            if on_result:
+                await on_result(result)
+            return result
+
+        results = await asyncio.gather(*[_evaluate_and_report(library_name) for library_name in library_names])
     logger.info(f"CQL evaluation complete for {len(library_names)} library(ies)")
     return list(results)

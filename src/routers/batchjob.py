@@ -1,5 +1,6 @@
 """POST/GET/DELETE /batchjob — batch job submission and status/results retrieval."""
 
+from copy import deepcopy
 import uuid
 from datetime import date, datetime, timezone
 from typing import Annotated, Any, cast
@@ -20,6 +21,7 @@ from src.services.job_state import (
     create_batch_job_with_response,
     delete_batch_job_record,
     get_batch_job,
+    get_jobs_for_batch,
     get_responses,
     query_batch_jobs,
 )
@@ -403,14 +405,34 @@ async def list_batch_jobs(
     }
 
 
+_TERMINAL_TASK_STATUSES = {"complete", "error", "skipped"}
+
+
+def _with_batch_progress(result_bundle: dict, child_jobs: list[Any], batch_status: str) -> dict:
+    """Return a Bundle copy whose status Observation text reflects live task progress."""
+    bundle = deepcopy(result_bundle)
+    total_jobs = len(child_jobs)
+    completed_jobs = sum(1 for child_job in child_jobs if getattr(child_job, "status", None) in _TERMINAL_TASK_STATUSES)
+    percent_complete = round((completed_jobs / total_jobs) * 100) if total_jobs else (100 if batch_status == "complete" else 0)
+    progress_text = f"Batch job status: {percent_complete}% ({completed_jobs}/{total_jobs})"
+
+    for entry in bundle.get("entry", []):
+        resource = entry.get("resource", {})
+        codings = resource.get("code", {}).get("coding", [])
+        if resource.get("id") == "status-observation" or any(coding.get("code") == "result-status" for coding in codings):
+            resource.setdefault("valueCodeableConcept", {})["text"] = progress_text
+            break
+
+    return bundle
+
+
 @router.get("/batchjob/{batch_id}", summary="Get Batch Job Results", response_model=BundleResource, responses=operation_outcome_responses(202, 404, 500))
 async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_token)) -> BundleJSON | JSONResponse:
-    """Get the full FHIR result Bundle for a completed batch job.
+    """Get the latest stored FHIR result Bundle for a batch job.
 
-    The Bundle is stored during background job execution, so this endpoint is a
-    pure DB read. Returns the stored Bundle as-is, or an ``OperationOutcome`` if
-    the batch job does not exist, is still running, or completed without a
-    stored result Bundle.
+    Running jobs return HTTP 200 once a preliminary Bundle has been persisted;
+    that Bundle contains the results of tasks completed so far. Pending or
+    running jobs without a stored snapshot return HTTP 202.
     """
     job = get_batch_job(batch_id)
     if not job:
@@ -419,11 +441,14 @@ async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_
             "not-found",
             f"Batch Job ID {batch_id} was not found.",
         )
+    if job.result_bundle and job.result_bundle.get("resourceType") == "Bundle":
+        child_jobs = get_jobs_for_batch(batch_id)
+        return BundleJSON(**_with_batch_progress(job.result_bundle, child_jobs, job.status))
     if job.status in ("pending", "running"):
         return operation_outcome_response(
             202,
             "informational",
-            f"Batch job {batch_id} is still {job.status}. Poll GET /batchjob/{{id}} and retry when status is 'complete'.",
+            f"Batch job {batch_id} is still {job.status} and no partial result Bundle is available yet.",
             severity="information",
         )
     if not job.result_bundle:
@@ -432,7 +457,7 @@ async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_
             "transient",
             f"Batch job {batch_id} has no result bundle. The job may have encountered an error - check job status.",
         )
-    return BundleJSON(**job.result_bundle)
+    return JSONResponse(content=job.result_bundle, status_code=500)
 
 
 @router.get(
@@ -450,8 +475,8 @@ async def get_batch_job_status(
     """Get the status of a batch job (lightweight polling endpoint).
 
     Returns batch job metadata as a FHIR ``Parameters`` resource without loading
-    the full result Bundle. Use ``GET /batchjob/{id}`` to retrieve the stored
-    Bundle once ``batchJobStatus`` is ``complete``.
+    the result Bundle. Use ``GET /batchjob/{id}`` to retrieve the latest stored
+    partial or final Bundle.
     """
     job = get_batch_job(batch_id)
     if not job:

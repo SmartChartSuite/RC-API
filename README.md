@@ -50,7 +50,7 @@ RC-API (this service)
   └── /response    ─── QuestionnaireResponse CRUD ────────── Local DB (patient data)
 ```
 
-Batch jobs run **asynchronously** in a background task. Clients poll `GET /batchjob/{id}/status` for lightweight status and fetch results with `GET /batchjob/{id}` when complete.
+Batch jobs run **asynchronously** in a background task. Clients poll `GET /batchjob/{id}/status` for lightweight status and use `GET /batchjob/{id}` for the latest result snapshot. Once individual tasks finish, running jobs return a preliminary Bundle containing the results completed so far; the same endpoint returns the final Bundle when processing completes. On each results request, the status Observation text reports live task progress as `Batch job status: x% (m/n)`.
 
 ---
 
@@ -63,7 +63,7 @@ Batch jobs run **asynchronously** in a background task. Clients poll `GET /batch
 | `POST` | `/batchjob` | Submit a job package run for a patient |
 | `GET` | `/batchjob` | List all batch jobs as FHIR Parameters resources (`?include_patient=true`) |
 | `GET` | `/batchjob/{id}/status` | Poll status of a batch job as a FHIR Parameters resource |
-| `GET` | `/batchjob/{id}` | Retrieve the full FHIR result Bundle |
+| `GET` | `/batchjob/{id}` | Retrieve the latest preliminary or final FHIR result Bundle |
 | `DELETE` | `/batchjob/{id}` | Delete a batch job *(requires `admin` scope)* |
 
 **`POST /batchjob` request body** (FHIR Parameters):
