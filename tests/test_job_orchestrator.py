@@ -263,6 +263,70 @@ def test_build_result_bundle_includes_status_and_patient(monkeypatch):
     assert bundle["entry"][0]["resource"]["id"] == "status-observation"
 
 
+async def test_run_batch_job_persists_completed_task_results_while_running(monkeypatch):
+    partial_bundles: list[dict] = []
+    status_updates: list[tuple[str, dict | None]] = []
+
+    async def _fake_fhir_get(resource_type, resource_id):
+        assert resource_type == "Questionnaire"
+        return {
+            "resourceType": "Questionnaire",
+            "name": "RegistryForm",
+            "extension": [
+                {
+                    "url": job_orchestrator._CQL_JOB_LIST_URL,
+                    "extension": [{"valueString": "LibOne"}],
+                }
+            ],
+            "item": [
+                {
+                    "item": [
+                        {
+                            "linkId": "1.1",
+                            "text": "Question text",
+                            "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+                        }
+                    ]
+                }
+            ],
+        }
+
+    async def _fake_run_cql_libraries(library_names, patient_id, on_result=None):
+        assert library_names == ["LibOne"]
+        result = CqlResult(library_name="LibOne", patient_id=patient_id, results={"TaskA": [{"value": "positive"}]})
+        if on_result:
+            await on_result(result)
+        return [result]
+
+    async def _fake_fetch_patient_resource(patient_id):
+        return {"resourceType": "Patient", "id": patient_id}
+
+    monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
+    monkeypatch.setattr(job_orchestrator, "create_job", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: None)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda batch_id, bundle: partial_bundles.append(bundle))
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda batch_id, status, bundle=None: status_updates.append((status, bundle)))
+    monkeypatch.setattr(job_orchestrator, "run_cql_libraries", _fake_run_cql_libraries)
+    monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
+
+    await job_orchestrator.run_batch_job("batch-1", "patient-1", "RegistryForm", "questionnaire-1")
+
+    assert len(partial_bundles) == 2
+    assert partial_bundles[0]["entry"][0]["resource"]["status"] == "preliminary"
+    completed_snapshot = partial_bundles[1]
+    completed_observations = [entry["resource"] for entry in completed_snapshot["entry"] if entry["resource"].get("code", {}).get("coding", [{}])[0].get("code") == "1.1"]
+    assert len(completed_observations) == 1
+    assert completed_observations[0]["valueString"] == "positive"
+
+    assert status_updates[0] == ("running", None)
+    final_status, final_bundle = status_updates[-1]
+    assert final_status == "complete"
+    assert final_bundle is not None
+    assert final_bundle["id"] == completed_snapshot["id"]
+    assert final_bundle["entry"][0]["resource"]["status"] == "complete"
+    assert any(entry["resource"].get("resourceType") == "Patient" for entry in final_bundle["entry"])
+
+
 async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
     updates = []
 
@@ -283,6 +347,7 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
     monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
     monkeypatch.setattr(job_orchestrator, "create_job", lambda *args, **kwargs: True)
     monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda *args, **kwargs: None)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda *args, **kwargs: None)
     monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: updates.append((args, kwargs)))
 
     async def _fake_load_prompts(prompt_paths):
@@ -291,7 +356,7 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
     async def _fake_fetch_patient_documents(patient_id):
         return [{"id": "doc-1", "text": "note", "date": "2026-05-22"}]
 
-    async def _fake_run_all_prompts(prompts, documents):
+    async def _fake_run_all_prompts(prompts, documents, on_result=None):
         return []
 
     async def _fake_fetch_patient_resource(patient_id):

@@ -6,6 +6,7 @@ All calls use asyncio.gather for concurrency.
 Guarded by use_llm — if LiteLLM is not configured, run_all_prompts() should not be called.
 """
 
+from collections.abc import Awaitable, Callable
 import asyncio
 from dataclasses import dataclass, field
 
@@ -90,12 +91,24 @@ async def run_prompt_across_documents(prompt: Prompt, documents: list[dict]) -> 
     )
 
 
-async def run_all_prompts(prompts: list[Prompt], documents: list[dict]) -> list[LlmResult]:
+async def run_all_prompts(
+    prompts: list[Prompt],
+    documents: list[dict],
+    on_result: Callable[[LlmResult], Awaitable[None]] | None = None,
+) -> list[LlmResult]:
     """Run all prompts across all documents concurrently.
 
     Only called when len(documents) > 0; orchestrator skips this if no documents found.
+    The optional callback runs when all document calls for one prompt have completed.
     """
     if not prompts or not documents:
         return []
-    results = await asyncio.gather(*[run_prompt_across_documents(p, documents) for p in prompts])
+
+    async def _run_and_report(prompt: Prompt) -> LlmResult:
+        result = await run_prompt_across_documents(prompt, documents)
+        if on_result:
+            await on_result(result)
+        return result
+
+    results = await asyncio.gather(*[_run_and_report(prompt) for prompt in prompts])
     return list(results)

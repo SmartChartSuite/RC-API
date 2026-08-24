@@ -214,6 +214,14 @@ def update_batch_job_status(batch_id: str, status: str, result_bundle: dict | No
     logger.info(f"Updated batch job {batch_id} → status={status}")
 
 
+def update_batch_job_result(batch_id: str, result_bundle: dict) -> None:
+    """Persist a partial result snapshot without changing batch status or timestamps."""
+    with Session(db_engine) as session:
+        session.execute(update(BatchJobs).where(BatchJobs.batch_id == batch_id).values(result_bundle=result_bundle))
+        session.commit()
+    logger.debug(f"Updated partial result Bundle for batch job {batch_id}")
+
+
 def delete_batch_job_record(batch_id: str) -> JSONResponse:
     existing = get_batch_job(batch_id)
     if not existing:
@@ -250,6 +258,12 @@ def create_job(job_id: str, batch_id: str, patient_id: str, job_package: str, ta
     except Exception as exc:
         logger.error(f"Failed to create job {job_id}: {exc}")
         return False
+
+
+def get_jobs_for_batch(batch_id: str) -> list[Jobs]:
+    """Return all child task jobs for a batch submission."""
+    with Session(db_engine) as session:
+        return list(session.execute(select(Jobs).where(Jobs.batch_id == batch_id)).scalars().all())
 
 
 def update_job_result(job_id: str, status: str, result: dict | None = None) -> None:

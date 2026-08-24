@@ -1,3 +1,4 @@
+import asyncio
 from types import SimpleNamespace
 
 from src.models.prompt import Prompt, PromptMetadata
@@ -59,3 +60,26 @@ async def test_run_all_prompts_returns_empty_when_missing_inputs():
 
     assert await llm_executor.run_all_prompts([], [{"id": "doc-1"}]) == []
     assert await llm_executor.run_all_prompts([prompt], []) == []
+
+
+async def test_run_all_prompts_reports_each_result_as_it_finishes(monkeypatch):
+    callback_order: list[str] = []
+    prompts = [
+        Prompt(metadata=PromptMetadata(name="Slow", path="prompts/slow"), content="slow"),
+        Prompt(metadata=PromptMetadata(name="Fast", path="prompts/fast"), content="fast"),
+    ]
+
+    async def _fake_run_prompt_across_documents(prompt, documents):
+        if prompt.metadata.path == "prompts/slow":
+            await asyncio.sleep(0.01)
+        return llm_executor.LlmResult(prompt_path=prompt.metadata.path)
+
+    async def _on_result(result):
+        callback_order.append(result.prompt_path)
+
+    monkeypatch.setattr(llm_executor, "run_prompt_across_documents", _fake_run_prompt_across_documents)
+
+    results = await llm_executor.run_all_prompts(prompts, [{"id": "doc-1"}], on_result=_on_result)
+
+    assert callback_order == ["prompts/fast", "prompts/slow"]
+    assert [result.prompt_path for result in results] == ["prompts/slow", "prompts/fast"]
