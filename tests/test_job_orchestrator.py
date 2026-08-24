@@ -372,3 +372,23 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
     await job_orchestrator.run_batch_job("batch-1", "patient-1", "RegistryForm", "questionnaire-1")
 
     assert updates == [(("job-123", "error", {"message": "no llm result returned for prompt"}), {})]
+
+
+async def test_run_batch_job_marks_only_unfinished_jobs_after_late_failure(monkeypatch):
+    marked_errors: list[tuple[str, str]] = []
+    status_updates: list[tuple[str, dict | None]] = []
+
+    async def _failing_fhir_get(resource_type, resource_id):
+        raise RuntimeError("late failure")
+
+    monkeypatch.setattr(job_orchestrator, "fhir_get", _failing_fhir_get)
+    monkeypatch.setattr(job_orchestrator, "mark_unfinished_jobs_error", lambda batch_id, message: marked_errors.append((batch_id, message)))
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda batch_id, status, bundle=None: status_updates.append((status, bundle)))
+
+    await job_orchestrator.run_batch_job("batch-1", "patient-1", "RegistryForm", "questionnaire-1")
+
+    assert marked_errors == [("batch-1", "late failure")]
+    assert status_updates[0] == ("running", None)
+    assert status_updates[-1][0] == "error"
+    assert status_updates[-1][1] is not None
+    assert status_updates[-1][1]["resourceType"] == "OperationOutcome"

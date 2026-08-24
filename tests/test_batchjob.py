@@ -265,6 +265,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
 
 async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    fetch_calls: list[str] = []
     monkeypatch.setattr(
         batchjob,
         "query_batch_jobs",
@@ -285,6 +286,7 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
     monkeypatch.setattr(batchjob, "get_responses", lambda batch_job_id=None, job_package=None: [])
 
     async def _fake_fetch_patient(patient_id):
+        fetch_calls.append(patient_id)
         return {"resourceType": "Patient", "id": patient_id}
 
     monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
@@ -296,6 +298,7 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
     assert bundle.total == 5
     assert bundle.entry is not None
     assert [next(param["valueString"] for param in entry.resource["parameter"] if param["name"] == "batchId") for entry in bundle.entry] == ["batch-2", "batch-3"]
+    assert fetch_calls == ["patient-2", "patient-3"]
 
 
 async def test_list_batch_jobs_applies_search_filters(monkeypatch):

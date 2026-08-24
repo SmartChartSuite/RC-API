@@ -28,6 +28,7 @@ from src.services.fhir_context import fetch_patient_documents
 from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
     create_job,
+    mark_unfinished_jobs_error,
     update_batch_job_result,
     update_batch_job_status,
     update_job_result,
@@ -747,8 +748,7 @@ async def run_batch_job(
     except Exception as exc:
         logger.exception(f"[batch={batch_id}] Unhandled error in run_batch_job: {exc}")
         error_bundle = make_operation_outcome("exception", str(exc))
-        for task_job_id in job_ids_by_task.values():
-            update_job_result(task_job_id, "error", {"message": str(exc)})
+        mark_unfinished_jobs_error(batch_id, str(exc))
         if partial_bundle_persisted:
             update_batch_job_status(batch_id, "error")
         else:

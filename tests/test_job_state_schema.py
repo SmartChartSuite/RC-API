@@ -52,3 +52,29 @@ def test_models_apply_configured_schema_for_named_schema_backends(monkeypatch):
     monkeypatch.setattr(settings, "db_connection_string", original_connection_string)
     monkeypatch.setattr(settings, "db_schema", original_schema)
     importlib.reload(reloaded)
+
+
+def test_mark_unfinished_jobs_error_preserves_terminal_jobs(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+
+    assert job_state.create_batch_job("batch-1", "patient-1", "Registry")
+    for job_id, status in (
+        ("job-complete", "complete"),
+        ("job-running", "running"),
+        ("job-skipped", "skipped"),
+        ("job-pending", "pending"),
+    ):
+        assert job_state.create_job(job_id, "batch-1", "patient-1", "Registry", job_id, "structured", status=status)
+
+    updated = job_state.mark_unfinished_jobs_error("batch-1", "late failure")
+
+    jobs = {job.job_id: job for job in job_state.get_jobs_for_batch("batch-1")}
+    assert updated == 2
+    assert jobs["job-complete"].status == "complete"
+    assert jobs["job-skipped"].status == "skipped"
+    assert jobs["job-running"].status == "error"
+    assert jobs["job-running"].result == {"message": "late failure"}
+    assert jobs["job-pending"].status == "error"
+    assert jobs["job-pending"].result == {"message": "late failure"}

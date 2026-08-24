@@ -149,3 +149,39 @@ async def test_delete_group_returns_config_error(monkeypatch):
 
     assert isinstance(result, JSONResponse)
     assert result.status_code == 503
+
+
+async def test_search_groups_skips_cross_origin_patient_reference(monkeypatch):
+    _FakeAsyncClient.calls = []
+    _FakeAsyncClient.queued_responses = [
+        [
+            _FakeResponse(
+                {
+                    "resourceType": "Bundle",
+                    "entry": [
+                        {
+                            "resource": {
+                                "resourceType": "Group",
+                                "id": "group-1",
+                                "name": "Panel",
+                                "member": [{"entity": {"reference": "https://attacker.example/Patient/patient-123"}}],
+                            }
+                        }
+                    ],
+                }
+            )
+        ],
+        [],
+    ]
+    monkeypatch.setattr(group, "config_errors", {})
+    monkeypatch.setattr(group, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(group, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(group, "external_fhir_server_auth", "Bearer token")
+    monkeypatch.setattr(group.httpx, "AsyncClient", _FakeAsyncClient)
+
+    result = await group.search_groups(name="Panel", claims={})
+
+    assert not isinstance(result, JSONResponse)
+    assert len(result) == 1
+    assert isinstance(result[0], GroupResource)
+    assert len(_FakeAsyncClient.calls) == 1
