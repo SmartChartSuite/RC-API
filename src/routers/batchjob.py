@@ -310,7 +310,17 @@ async def post_batch_job(
         "item": _prefill_questionnaire_response_items(questionnaire.get("item")),
     }
 
-    created = create_batch_job_with_response(batch_id, patient_id, job_package, started_by, response_id, response_resource)
+    created = create_batch_job_with_response(
+        batch_id,
+        patient_id,
+        job_package,
+        started_by,
+        response_id,
+        response_resource,
+        questionnaire_id,
+        job_package_version,
+        job_names or None,
+    )
     if not created:
         return operation_outcome_response(
             500,
