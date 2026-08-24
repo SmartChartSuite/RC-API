@@ -1,5 +1,6 @@
 """POST/GET/DELETE /batchjob — batch job submission and status/results retrieval."""
 
+import asyncio
 from copy import deepcopy
 import uuid
 from datetime import date, datetime, timezone
@@ -171,6 +172,21 @@ async def _fetch_patient(patient_id: str) -> dict | None:
     except Exception as exc:
         logger.warning(f"Could not fetch Patient/{patient_id}: {exc}")
     return None
+
+
+_PATIENT_FETCH_MAX_CONCURRENCY = 8
+
+
+async def _fetch_patients(patient_ids: list[str]) -> dict[str, dict[str, Any] | None]:
+    """Fetch unique Patients concurrently while bounding pressure on the FHIR server."""
+    unique_ids = list(dict.fromkeys(patient_ids))
+    semaphore = asyncio.Semaphore(_PATIENT_FETCH_MAX_CONCURRENCY)
+
+    async def _fetch_one(patient_id: str) -> tuple[str, dict[str, Any] | None]:
+        async with semaphore:
+            return patient_id, await _fetch_patient(patient_id)
+
+    return dict(await asyncio.gather(*(_fetch_one(patient_id) for patient_id in unique_ids)))
 
 
 def _questionnaire_reference(questionnaire: dict[str, Any]) -> str | None:
@@ -372,37 +388,46 @@ async def list_batch_jobs(
         run_end_date=run_end,
     )
 
-    patients_by_id: dict[str, dict[str, Any] | None] = {}
-    filtered_jobs: list[tuple[BatchJobs, dict[str, Any] | None]] = []
-    for job in all_jobs:
-        if job.patient_id not in patients_by_id:
-            patients_by_id[job.patient_id] = await _fetch_patient(job.patient_id)
-        patient = patients_by_id[job.patient_id]
-        derived_patient_name = _patient_name(patient)
-        derived_patient_gender = patient.get("gender") if isinstance(patient, dict) else None
-        derived_patient_dob = _parse_iso_date(patient.get("birthDate") if isinstance(patient, dict) else None)
-
-        if not _matches_filter(derived_patient_name, patient_name, partial=True):
-            continue
-        if not _matches_any_filter(cast(str | None, derived_patient_gender), patient_genders):
-            continue
-        if not _matches_date_range(derived_patient_dob, dob_start, dob_end):
-            continue
-
-        filtered_jobs.append((job, patient))
-
     start = page * size
     end = start + size
-    results = []
-    for job, patient in filtered_jobs[start:end]:
-        results.append({"resource": _to_batch_job_parameters(job, patient=patient, include_patient_resource=include_patient).model_dump(exclude_none=True)})
+    has_patient_filters = bool(patient_name or patient_genders or dob_start or dob_end)
 
-    return {
-        "resourceType": "Bundle",
-        "type": "searchset",
-        "total": len(filtered_jobs),
-        "entry": results,
-    }
+    if has_patient_filters:
+        patients_by_id = await _fetch_patients([job.patient_id for job in all_jobs])
+        filtered_jobs: list[tuple[BatchJobs, dict[str, Any] | None]] = []
+        for job in all_jobs:
+            patient = patients_by_id[job.patient_id]
+            derived_patient_name = _patient_name(patient)
+            derived_patient_gender = patient.get("gender") if isinstance(patient, dict) else None
+            derived_patient_dob = _parse_iso_date(patient.get("birthDate") if isinstance(patient, dict) else None)
+
+            if not _matches_filter(derived_patient_name, patient_name, partial=True):
+                continue
+            if not _matches_any_filter(cast(str | None, derived_patient_gender), patient_genders):
+                continue
+            if not _matches_date_range(derived_patient_dob, dob_start, dob_end):
+                continue
+            filtered_jobs.append((job, patient))
+
+        total = len(filtered_jobs)
+        page_jobs = filtered_jobs[start:end]
+    else:
+        selected_jobs = all_jobs[start:end]
+        patients_by_id = await _fetch_patients([job.patient_id for job in selected_jobs])
+        total = len(all_jobs)
+        page_jobs = [(job, patients_by_id[job.patient_id]) for job in selected_jobs]
+
+    results = [{"resource": _to_batch_job_parameters(job, patient=patient, include_patient_resource=include_patient).model_dump(exclude_none=True)} for job, patient in page_jobs]
+
+    return cast(
+        BundleJSON,
+        {
+            "resourceType": "Bundle",
+            "type": "searchset",
+            "total": total,
+            "entry": results,
+        },
+    )
 
 
 _TERMINAL_TASK_STATUSES = {"complete", "error", "skipped"}

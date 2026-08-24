@@ -108,6 +108,11 @@ async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypa
         "headers": {"Accept": "application/fhir+json", "Authorization": "Bearer token"},
         "params": {"subject": "Patient/patient-123", "_count": "500"},
     }
+    assert _FakeAsyncClient.calls[1] == {
+        "url": "http://docs.example/doc-2.txt",
+        "headers": {"Accept": "application/fhir+json"},
+        "params": None,
+    }
 
 
 async def test_fetch_patient_documents_returns_empty_list_on_search_error(monkeypatch):
@@ -156,3 +161,34 @@ async def test_fetch_patient_documents_ignores_non_text_attachments(monkeypatch)
     result = await fhir_context.fetch_patient_documents("patient-123")
 
     assert result == []
+
+
+async def test_fetch_patient_documents_skips_unsafe_attachment_url(monkeypatch):
+    _FakeAsyncClient.calls = []
+    _FakeAsyncClient.queued_responses = [
+        [
+            _FakeResponse(
+                {
+                    "resourceType": "Bundle",
+                    "entry": [
+                        {
+                            "resource": {
+                                "resourceType": "DocumentReference",
+                                "id": "doc-unsafe",
+                                "content": [{"attachment": {"contentType": "text/plain", "url": "file:///etc/passwd"}}],
+                            }
+                        }
+                    ],
+                }
+            )
+        ],
+        [],
+    ]
+    monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(fhir_context, "external_fhir_server_auth", "Bearer token")
+    monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
+
+    result = await fhir_context.fetch_patient_documents("patient-123")
+
+    assert result == []
+    assert len(_FakeAsyncClient.calls) == 1

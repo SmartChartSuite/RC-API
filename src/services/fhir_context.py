@@ -12,15 +12,17 @@ from datetime import datetime
 import httpx
 from loguru import logger
 
+from src.util.outbound_url import is_same_origin, resolve_http_reference
 from src.util.settings import doc_fetch_max_concurrency, external_fhir_server_auth, external_fhir_server_url
 
 _TIMEOUT = 60
 _TRANSPORT = httpx.AsyncHTTPTransport(retries=3)
 
 
-def _auth_headers() -> dict:
+def _auth_headers(target_url: str) -> dict[str, str]:
+    """Build FHIR headers without forwarding credentials to another origin."""
     headers = {"Accept": "application/fhir+json"}
-    if external_fhir_server_auth:
+    if external_fhir_server_auth and external_fhir_server_url and is_same_origin(target_url, external_fhir_server_url):
         headers["Authorization"] = external_fhir_server_auth
     return headers
 
@@ -38,13 +40,14 @@ async def fetch_patient_documents(patient_id: str) -> list[dict]:
 
     Returns [] if the patient has no documents or none have text/plain attachments.
     """
-    assert external_fhir_server_url
-    url = f"{external_fhir_server_url.rstrip('/')}/DocumentReference"
+    base_url = external_fhir_server_url
+    assert base_url
+    url = f"{base_url.rstrip('/')}/DocumentReference"
     params = {"subject": f"Patient/{patient_id}", "_count": "500"}
 
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
         try:
-            resp = await client.get(url, headers=_auth_headers(), params=params)
+            resp = await client.get(url, headers=_auth_headers(url), params=params)
         except httpx.RequestError as exc:
             logger.error(f"Failed to reach external FHIR server for DocumentReferences: {exc}")
             return []
@@ -93,9 +96,13 @@ async def fetch_patient_documents(patient_id: str) -> list[dict]:
 
                 # External URL
                 elif "url" in attachment:
+                    attachment_url = resolve_http_reference(base_url, attachment["url"])
+                    if attachment_url is None:
+                        logger.warning(f"Skipping unsafe attachment URL for DocRef {doc_id}")
+                        continue
                     try:
                         async with semaphore:
-                            url_resp = await client.get(attachment["url"], headers=_auth_headers())
+                            url_resp = await client.get(attachment_url, headers=_auth_headers(attachment_url))
                         if url_resp.is_success:
                             plain_text = url_resp.text
                         else:

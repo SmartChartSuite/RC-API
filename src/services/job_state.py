@@ -276,6 +276,27 @@ def update_job_result(job_id: str, status: str, result: dict | None = None) -> N
     logger.debug(f"Updated job {job_id} → status={status}")
 
 
+def mark_unfinished_jobs_error(batch_id: str, message: str) -> int:
+    """Mark only pending/running child jobs as failed after a batch-level exception."""
+    with Session(db_engine) as session:
+        result: CursorResult = session.execute(
+            update(Jobs)
+            .where(
+                Jobs.batch_id == batch_id,
+                Jobs.status.not_in(("complete", "error", "skipped")),
+            )
+            .values(
+                status="error",
+                result={"message": message},
+                completed_at=datetime.now(timezone.utc),
+            )
+        )  # type: ignore
+        session.commit()
+    updated = result.rowcount or 0
+    logger.debug(f"Marked {updated} unfinished job(s) as error for batch {batch_id}")
+    return updated
+
+
 # ── Questionnaire Response CRUD ────────────────────────────────────────────────
 
 

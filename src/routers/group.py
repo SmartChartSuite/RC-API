@@ -13,6 +13,7 @@ from src.models.fhir import GroupResource, OperationOutcome, PatientResource
 from src.services.errorhandler import config_error_response, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete, fhir_post, fhir_put
 from src.util.auth import require_admin, validate_token
+from src.util.outbound_url import is_same_origin, resolve_http_reference
 from src.util.settings import (
     config_errors,
     external_fhir_server_auth,
@@ -98,11 +99,10 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
                 patient_ref: str = member.get("entity", {}).get("reference", "")
                 if not patient_ref:
                     continue
-                # Build absolute URL — if reference is already absolute, use as-is
-                if patient_ref.startswith("http"):
-                    patient_url = patient_ref
-                else:
-                    patient_url = f"{external_fhir_server_url.rstrip('/')}/{patient_ref.lstrip('/')}"
+                patient_url = resolve_http_reference(external_fhir_server_url, patient_ref)
+                if patient_url is None or not is_same_origin(patient_url, external_fhir_server_url):
+                    logger.warning(f"Skipping unsafe cross-origin Patient reference: {patient_ref}")
+                    continue
                 try:
                     patient_resp = await client.get(patient_url, headers=_patient_headers())
                     logger.info(f"FHIR GET {patient_url} → {patient_resp.status_code}")
