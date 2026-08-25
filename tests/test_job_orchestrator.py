@@ -1,3 +1,4 @@
+import threading
 from src.services.cql_executor import CqlResult
 from src.models.prompt import Prompt, PromptMetadata
 from src.services.llm_executor import LlmDocumentResult, LlmResult
@@ -493,3 +494,18 @@ async def test_worker_retry_restores_completed_cql_without_rerunning(monkeypatch
     observations = [entry["resource"] for entry in final_bundles[-1]["entry"] if entry["resource"].get("code", {}).get("coding", [{}])[0].get("code") == "1.1"]
     assert len(observations) == 1
     assert observations[0]["valueString"] == "positive"
+
+
+async def test_run_state_call_executes_synchronous_persistence_off_event_loop():
+    event_loop_thread = threading.get_ident()
+    observed_threads: list[int] = []
+
+    def _state_operation(value: str) -> str:
+        observed_threads.append(threading.get_ident())
+        return value
+
+    result = await job_orchestrator._run_state_call(_state_operation, "persisted")
+
+    assert result == "persisted"
+    assert observed_threads
+    assert observed_threads[0] != event_loop_thread

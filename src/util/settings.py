@@ -114,6 +114,8 @@ if batch_worker_lease_seconds <= batch_job_heartbeat_interval_seconds:
 langfuse_public_key: str | None = _get("LANGFUSE_PUBLIC_KEY")
 langfuse_secret_key: str | None = _get("LANGFUSE_SECRET_KEY")
 langfuse_host: str | None = _get("LANGFUSE_HOST")
+langfuse_prompt_fetch_timeout_seconds: int = _positive_int("LANGFUSE_PROMPT_FETCH_TIMEOUT_SECONDS", 5)
+langfuse_prompt_max_retries: int = _positive_int("LANGFUSE_PROMPT_MAX_RETRIES", 1)
 use_langfuse: bool = bool(langfuse_public_key and langfuse_secret_key and langfuse_host)
 if any([langfuse_public_key, langfuse_secret_key, langfuse_host]) and not use_langfuse:
     logger.warning("Partial Langfuse config — set LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, and LANGFUSE_HOST together.")

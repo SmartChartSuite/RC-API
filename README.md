@@ -169,7 +169,9 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `LANGFUSE_PUBLIC_KEY` | *(none)* | Langfuse public key. All three `LANGFUSE_*` vars required together |
 | `LANGFUSE_SECRET_KEY` | *(none)* | Langfuse secret key |
 | `LANGFUSE_HOST` | *(none)* | Langfuse host URL |
-| `PROMPTS_DIR` | `./prompts` | Local prompt directory (fallback when Langfuse not configured) |
+| `LANGFUSE_PROMPT_FETCH_TIMEOUT_SECONDS` | `5` | Maximum duration of each synchronous Langfuse prompt fetch attempt, executed outside the API event loop |
+| `LANGFUSE_PROMPT_MAX_RETRIES` | `1` | Retries after a failed Langfuse prompt fetch before using the matching local prompt |
+| `PROMPTS_DIR` | `./prompts` | Local prompt directory used when Langfuse is disabled, unavailable, or fails to return an individual prompt |
 | `OAUTH2_JWKS_URL` | *(none)* | JWKS endpoint URL. Auth is **disabled** if not set |
 | `OAUTH2_ISSUER` | *(none)* | Expected `iss` claim in JWT |
 | `OAUTH2_AUDIENCE` | *(none)* | Expected `aud` claim in JWT |
@@ -236,7 +238,7 @@ uv run alembic upgrade head
 
 Do not stamp a fresh empty database because stamping records a revision without creating its tables. The API verifies that the database is at Alembic head during startup and exits with a migration instruction when it is not. Useful inspection commands are `pixi run migration-current` and `pixi run migration-history`.
 
-Revision `0003` adds the embedded-worker queue, lease, retry, and logical-child uniqueness fields. Running batches renew their leases periodically. The worker continuously requeues expired attempts while retry capacity remains and marks a batch `error` only after `BATCH_JOB_MAX_ATTEMPTS` is exhausted. Partial result Bundles and already-completed or skipped child tasks are preserved across claims, retries, graceful shutdowns, and container restarts. The API and worker run in the same container; deploy only one RC-API container unless you intentionally scale replicas against the same database.
+Revision `0003` adds the embedded-worker queue, lease, retry, and logical-child uniqueness fields. Running batches renew their leases periodically. Workers continuously requeue expired attempts while retry capacity remains and mark a batch `error` only after `BATCH_JOB_MAX_ATTEMPTS` is exhausted. Partial result Bundles and already-completed or skipped child tasks are preserved across claims, retries, graceful shutdowns, and container restarts. The API and workers run in the same container. Each Hypercorn process starts one lease-coordinated consumer, so increasing the process count increases both HTTP capacity and maximum concurrent batch execution. Deploy only one RC-API container unless you intentionally scale replicas against the same database.
 
 ### Tooling Flow
 
@@ -290,7 +292,7 @@ Dependency changes should be committed with the updated project metadata files g
 
 ### Prompts Directory
 
-If Langfuse is not configured, or if it is configured but unreachable at startup, LLM prompts are loaded from `./prompts/` using the path structure defined in Questionnaire `unstructuredTask` extensions:
+If Langfuse is not configured or is unreachable at startup, LLM prompts are loaded from `./prompts/`. During batch execution, each synchronous Langfuse SDK read runs outside the API event loop with bounded timeout and retries. If an individual read fails, RC-API loads the matching local file instead, using the path structure defined in Questionnaire `unstructuredTask` extensions:
 
 ```
 prompts/
@@ -322,7 +324,7 @@ pixi run serve
 pixi run serve-prod
 ```
 
-The server binds to `:8080` by default (configured in `hypercorn_config.toml`).
+The server binds to `:8080` and starts two Hypercorn worker processes by default (configured in `hypercorn_config.toml`). Each process can serve requests independently and runs one embedded durable batch consumer coordinated through database leases.
 
 Docker builds install dependencies with `uv` from the committed `uv.lock` file, while local development uses `pixi` tasks that wrap the same `uv`-managed environment. Local `.env` files are for developer machines only and are not copied into the image.
 
