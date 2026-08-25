@@ -64,6 +64,20 @@ if any([litellm_model, litellm_api_base, litellm_api_key]) and not use_llm:
     logger.warning("Partial LiteLLM config — set LITELLM_MODEL, LITELLM_API_BASE, and LITELLM_API_KEY together.")
 
 
+def _bool(var: str, default: bool) -> bool:
+    """Read a boolean environment variable with a safe default."""
+    raw = _get(var)
+    if raw is None:
+        return default
+    normalized = raw.casefold()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    logger.warning(f"{var}='{raw}' is not a valid boolean — using default {default}.")
+    return default
+
+
 def _positive_int(var: str, default: int) -> int:
     """Read a positive-integer env var, falling back to default on missing/invalid input."""
     raw = _get(var)
@@ -86,11 +100,15 @@ llm_max_concurrency: int = _positive_int("LLM_MAX_CONCURRENCY", 8)
 doc_fetch_max_concurrency: int = _positive_int("DOC_FETCH_MAX_CONCURRENCY", 8)
 
 
-# Batch recovery
+# Embedded durable batch worker
+batch_worker_enabled: bool = _bool("BATCH_WORKER_ENABLED", True)
+batch_worker_poll_interval_seconds: int = _positive_int("BATCH_WORKER_POLL_INTERVAL_SECONDS", 2)
+batch_worker_lease_seconds: int = _positive_int("BATCH_WORKER_LEASE_SECONDS", 120)
 batch_job_heartbeat_interval_seconds: int = _positive_int("BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS", 30)
-batch_job_stale_after_seconds: int = _positive_int("BATCH_JOB_STALE_AFTER_SECONDS", 300)
-if batch_job_stale_after_seconds <= batch_job_heartbeat_interval_seconds:
-    logger.warning("BATCH_JOB_STALE_AFTER_SECONDS should be greater than BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS to avoid false stale-job detection.")
+batch_job_max_attempts: int = _positive_int("BATCH_JOB_MAX_ATTEMPTS", 3)
+batch_job_retry_delay_seconds: int = _positive_int("BATCH_JOB_RETRY_DELAY_SECONDS", 30)
+if batch_worker_lease_seconds <= batch_job_heartbeat_interval_seconds:
+    logger.warning("BATCH_WORKER_LEASE_SECONDS should be greater than BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS to avoid expired active leases.")
 
 # Langfuse (all three required together for prompt retrieval)
 langfuse_public_key: str | None = _get("LANGFUSE_PUBLIC_KEY")

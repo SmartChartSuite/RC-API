@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import BackgroundTasks, Response
+from fastapi import Response
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import BundleResource, ParametersResponse
@@ -82,10 +82,9 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
             JobRequestParameter(name="job", valueString="ig_hc"),
         ]
     )
-    background_tasks = BackgroundTasks()
     response = Response()
 
-    result = await batchjob.post_batch_job(body, background_tasks, response, claims={"sub": "user-123"})
+    result = await batchjob.post_batch_job(body, response, claims={"sub": "user-123"})
 
     assert isinstance(result, BatchJobAcceptedResponse)
     assert not isinstance(result, JSONResponse)
@@ -121,14 +120,6 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
     assert captured["job_package_version"] is None
     assert captured["requested_jobs"] == ["SyphilisHistory", "ig_hc"]
     assert response.headers["Location"].startswith("/batchjob/")
-    assert len(background_tasks.tasks) == 1
-    task = background_tasks.tasks[0]
-    assert task.func is batchjob.run_batch_job
-    assert task.args[1] == "patient-123"
-    assert task.args[2] == "SyphilisRegistry"
-    assert task.args[3] == "questionnaire-123"
-    assert task.args[4] is None
-    assert task.args[5] == ["SyphilisHistory", "ig_hc"]
 
 
 async def test_post_batch_job_rejects_multiple_questionnaire_matches(monkeypatch):
@@ -159,14 +150,12 @@ async def test_post_batch_job_rejects_multiple_questionnaire_matches(monkeypatch
         ]
     )
 
-    background_tasks = BackgroundTasks()
     response = Response()
 
-    result = await batchjob.post_batch_job(body, background_tasks, response, claims={})
+    result = await batchjob.post_batch_job(body, response, claims={})
 
     assert isinstance(result, JSONResponse)
     assert result.status_code == 409
-    assert len(background_tasks.tasks) == 0
 
 
 def test_filter_requested_jobs_supports_multiple_job_parameters():
