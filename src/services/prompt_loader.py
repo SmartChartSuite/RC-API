@@ -5,6 +5,7 @@ prompt loading and tracing should use Langfuse or the local prompts folder.
 All callers use load_prompts(prompt_paths) regardless of strategy.
 """
 
+import asyncio
 from pathlib import Path
 
 import httpx
@@ -13,8 +14,15 @@ import yaml
 from loguru import logger
 
 from src.models.prompt import Prompt, PromptMetadata
-from src.util.settings import langfuse_host, langfuse_public_key, langfuse_secret_key
-from src.util.settings import prompts_dir, use_langfuse
+from src.util.settings import (
+    langfuse_host,
+    langfuse_prompt_fetch_timeout_seconds,
+    langfuse_prompt_max_retries,
+    langfuse_public_key,
+    langfuse_secret_key,
+    prompts_dir,
+    use_langfuse,
+)
 
 
 def _disable_langfuse_tracing() -> None:
@@ -50,44 +58,44 @@ def _parse_md_frontmatter(text: str) -> tuple[dict, str]:
     return {}, text.strip()
 
 
+def _load_prompt_from_folder(path: str) -> Prompt | None:
+    """Load one prompt from the local prompt tree."""
+    file_path = Path(prompts_dir) / f"{path}.md"
+    if not file_path.exists():
+        logger.warning(f"Prompt file not found: {file_path}")
+        return None
+    try:
+        raw = file_path.read_text(encoding="utf-8")
+        meta_dict, body = _parse_md_frontmatter(raw)
+        prompt = Prompt(
+            metadata=PromptMetadata(
+                name=meta_dict.get("name") or Path(path).name,
+                path=path,
+                version=meta_dict.get("version"),
+                last_updated=meta_dict.get("last_updated"),
+                description=meta_dict.get("description"),
+            ),
+            content=body,
+        )
+        logger.debug(f"Loaded prompt from file: {file_path}")
+        return prompt
+    except Exception as exc:
+        logger.error(f"Failed to load prompt {file_path}: {exc}")
+        return None
+
+
 def _load_from_folder(prompt_paths: list[str]) -> list[Prompt]:
     """Load prompts from the local ./prompts/ directory tree."""
-    base = Path(prompts_dir)
-    prompts: list[Prompt] = []
-    for path in prompt_paths:
-        file_path = base / f"{path}.md"
-        if not file_path.exists():
-            logger.warning(f"Prompt file not found: {file_path}")
-            continue
-        try:
-            raw = file_path.read_text(encoding="utf-8")
-            meta_dict, body = _parse_md_frontmatter(raw)
-            name = meta_dict.get("name") or Path(path).name
-            prompts.append(
-                Prompt(
-                    metadata=PromptMetadata(
-                        name=name,
-                        path=path,
-                        version=meta_dict.get("version"),
-                        last_updated=meta_dict.get("last_updated"),
-                        description=meta_dict.get("description"),
-                    ),
-                    content=body,
-                )
-            )
-            logger.debug(f"Loaded prompt from file: {file_path}")
-        except Exception as exc:
-            logger.error(f"Failed to load prompt {file_path}: {exc}")
-    return prompts
+    return [prompt for path in prompt_paths if (prompt := _load_prompt_from_folder(path)) is not None]
 
 
-async def _load_from_langfuse(prompt_paths: list[str]) -> list[Prompt]:
-    """Load prompts from Langfuse using the Python SDK."""
+def _load_from_langfuse_sync(prompt_paths: list[str]) -> list[Prompt]:
+    """Synchronously load Langfuse prompts with per-prompt local fallback."""
     try:
         from langfuse import Langfuse  # type: ignore
     except ImportError:
-        logger.error("langfuse package not installed. Run: pip install langfuse")
-        return []
+        logger.error("langfuse package not installed. Falling back to local prompts.")
+        return _load_from_folder(prompt_paths)
 
     client = Langfuse(
         public_key=langfuse_public_key,
@@ -97,25 +105,37 @@ async def _load_from_langfuse(prompt_paths: list[str]) -> list[Prompt]:
     prompts: list[Prompt] = []
     for path in prompt_paths:
         try:
-            lf_prompt = client.get_prompt(path, label="latest")
-            body = lf_prompt.prompt  # Langfuse returns the compiled prompt string
-            # meta_dict, body = _parse_md_frontmatter(body)
-            name = Path(path).name
+            lf_prompt = client.get_prompt(
+                path,
+                label="latest",
+                max_retries=langfuse_prompt_max_retries,
+                fetch_timeout_seconds=langfuse_prompt_fetch_timeout_seconds,
+            )
             prompts.append(
                 Prompt(
                     metadata=PromptMetadata(
-                        name=name,
+                        name=Path(path).name,
                         path=path,
                         version=str(lf_prompt.version) if hasattr(lf_prompt, "version") else None,
                         description=lf_prompt.commit_message or "",
                     ),
-                    content=body,
+                    content=lf_prompt.prompt,
                 )
             )
             logger.debug(f"Loaded prompt from Langfuse: {path}")
         except Exception as exc:
-            logger.error(f"Failed to load prompt '{path}' from Langfuse: {exc}")
+            logger.warning(f"Failed to load prompt '{path}' from Langfuse: {exc}. Trying local fallback.")
+            fallback = _load_prompt_from_folder(path)
+            if fallback is not None:
+                prompts.append(fallback)
+            else:
+                logger.error(f"Prompt '{path}' is unavailable from both Langfuse and the local prompt folder.")
     return prompts
+
+
+async def _load_from_langfuse(prompt_paths: list[str]) -> list[Prompt]:
+    """Load prompts without running the synchronous Langfuse SDK on the API event loop."""
+    return await asyncio.to_thread(_load_from_langfuse_sync, prompt_paths)
 
 
 async def initialize_prompt_source() -> None:
@@ -145,4 +165,4 @@ async def load_prompts(prompt_paths: list[str]) -> list[Prompt]:
         return []
     if use_langfuse:
         return await _load_from_langfuse(prompt_paths)
-    return _load_from_folder(prompt_paths)
+    return await asyncio.to_thread(_load_from_folder, prompt_paths)
