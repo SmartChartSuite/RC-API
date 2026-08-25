@@ -28,17 +28,17 @@ from src.services.errorhandler import make_operation_outcome
 from src.services.fhir_context import fetch_patient_documents
 from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
-    create_job,
+    ensure_job,
     mark_unfinished_jobs_error,
+    renew_batch_job_lease,
     start_batch_job_attempt,
-    touch_batch_job_heartbeat,
     update_batch_job_result,
     update_batch_job_status,
     update_job_result,
 )
-from src.services.llm_executor import LlmResult, run_all_prompts
+from src.services.llm_executor import LlmDocumentResult, LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
-from src.util.settings import batch_job_heartbeat_interval_seconds, deploy_url, external_fhir_server_auth, external_fhir_server_url, use_llm
+from src.util.settings import batch_job_heartbeat_interval_seconds, batch_worker_lease_seconds, deploy_url, external_fhir_server_auth, external_fhir_server_url, use_llm
 
 # Questionnaire extension URLs
 _CQL_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/structured-form-job-list"
@@ -46,6 +46,10 @@ _LLM_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/unstructured-form-job-lis
 _STRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/structuredTask"
 _UNSTRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/unstructuredTask"
 _UNSTRUCTURED_COMPONENT_SYSTEM = "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label"
+
+
+class LeaseLostError(RuntimeError):
+    """Raised when a worker attempt no longer owns its batch lease."""
 
 
 # Questionnaire parsing
@@ -446,6 +450,47 @@ def _summarize_llm_result(llm_result: LlmResult) -> tuple[str, dict]:
     return "skipped", {"message": "llm execution produced no response", "document_results": [asdict(doc) for doc in llm_result.document_results]}
 
 
+def _cql_result_from_payload(library_name: str, patient_id: str, payload: dict | None) -> CqlResult | None:
+    if not isinstance(payload, dict):
+        return None
+    results = payload.get("results")
+    if not isinstance(results, dict):
+        return None
+    error = payload.get("error")
+    return CqlResult(
+        library_name=library_name,
+        patient_id=patient_id,
+        results=results,
+        error=error if isinstance(error, str) else None,
+    )
+
+
+def _llm_result_from_payload(prompt_path: str, payload: dict | None) -> LlmResult | None:
+    if not isinstance(payload, dict):
+        return None
+    raw_documents = payload.get("document_results")
+    if not isinstance(raw_documents, list):
+        return None
+    documents: list[LlmDocumentResult] = []
+    for raw in raw_documents:
+        if not isinstance(raw, dict):
+            return None
+        try:
+            documents.append(
+                LlmDocumentResult(
+                    doc_id=str(raw["doc_id"]),
+                    doc_type=str(raw.get("doc_type", "Unknown")),
+                    doc_date=str(raw.get("doc_date", "")),
+                    response=str(raw.get("response", "")),
+                    error=raw.get("error") if isinstance(raw.get("error"), str) else None,
+                    doc_text=raw.get("doc_text") if isinstance(raw.get("doc_text"), str) else None,
+                )
+            )
+        except KeyError:
+            return None
+    return LlmResult(prompt_path=prompt_path, document_results=documents)
+
+
 def _create_status_observation(overall_status: str) -> dict:
     """Create a status Observation (mirrors v0 create_results_status_observation)."""
     status_code = "complete" if overall_status == "complete" else "in-progress"
@@ -560,11 +605,19 @@ def _build_result_bundle(
     }
 
 
-async def _maintain_batch_heartbeat(batch_id: str) -> None:
-    """Refresh batch liveness while long-running external work is in flight."""
+async def _maintain_batch_lease(batch_id: str, worker_id: str, attempt_count: int) -> None:
+    """Renew an owned batch lease while long-running external work is in flight."""
     while True:
         await asyncio.sleep(batch_job_heartbeat_interval_seconds)
-        await asyncio.to_thread(touch_batch_job_heartbeat, batch_id)
+        renewed = await asyncio.to_thread(
+            renew_batch_job_lease,
+            batch_id,
+            worker_id,
+            attempt_count,
+            batch_worker_lease_seconds,
+        )
+        if not renewed:
+            raise LeaseLostError(f"Worker {worker_id} lost batch {batch_id} attempt {attempt_count}")
 
 
 # Main orchestrator
@@ -575,22 +628,32 @@ async def run_batch_job(
     questionnaire_id: str,
     job_package_version: str | None = None,
     requested_jobs: list[str] | None = None,
+    *,
+    worker_id: str | None = None,
+    attempt_count: int | None = None,
+    prior_bundle: dict | None = None,
 ) -> None:
-    """Run the full CQL + LLM pipeline for a batch job.
-
-    Called as a FastAPI BackgroundTask after POST /batchjob writes the DB record.
-    Updates batch_jobs_v1 status to 'running' then 'complete' (or 'error').
-    """
-    logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}")
+    """Run the full CQL + LLM pipeline for a direct or worker-owned batch attempt."""
+    if (worker_id is None) != (attempt_count is None):
+        raise ValueError("worker_id and attempt_count must be provided together")
+    worker_owned = worker_id is not None and attempt_count is not None
+    logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}, attempt={attempt_count or 'direct'}")
 
     task_results: list[dict] = []
     job_ids_by_task: dict[tuple[str, str], str] = {}
     partial_bundle_persisted = False
     heartbeat_task: asyncio.Task[None] | None = None
 
+    def _require_owned(updated: bool) -> None:
+        if worker_owned and not updated:
+            raise LeaseLostError(f"Worker {worker_id} lost batch {batch_id} attempt {attempt_count}")
+
     try:
-        start_batch_job_attempt(batch_id)
-        heartbeat_task = asyncio.create_task(_maintain_batch_heartbeat(batch_id))
+        if worker_owned:
+            assert worker_id is not None and attempt_count is not None
+            heartbeat_task = asyncio.create_task(_maintain_batch_lease(batch_id, worker_id, attempt_count))
+        else:
+            start_batch_job_attempt(batch_id)
 
         # 1. Fetch Questionnaire from HAPI FHIR
         questionnaire_data = await fhir_get("Questionnaire", questionnaire_id)
@@ -608,28 +671,79 @@ async def run_batch_job(
         cql_names, prompt_paths = _filter_requested_jobs(cql_names, prompt_paths, requested_jobs)
         logger.info(f"[batch={batch_id}] CQL libs={cql_names}, LLM prompts={prompt_paths}")
 
+        cql_names_to_run: list[str] = []
+        prompt_paths_to_run: list[str] = []
+        restored_cql_results: dict[str, CqlResult] = {}
+        restored_llm_results: dict[str, LlmResult] = {}
+
+        def _ensure_task(task_name: str, task_type: str):
+            task_job_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{batch_id}:{task_type}:{task_name}"))
+            snapshot = ensure_job(
+                task_job_id,
+                batch_id,
+                patient_id,
+                job_package,
+                task_name,
+                task_type,
+                worker_id=worker_id,
+                attempt_count=attempt_count,
+            )
+            if snapshot is None:
+                _require_owned(False)
+                raise RuntimeError(f"Could not create child job for {task_type}:{task_name}")
+            job_ids_by_task[(task_type, task_name)] = snapshot.job_id
+            return snapshot
+
+        def _update_task(job_id: str, status: str, result: dict | None = None) -> None:
+            if worker_owned:
+                _require_owned(
+                    update_job_result(
+                        job_id,
+                        status,
+                        result,
+                        batch_id=batch_id,
+                        worker_id=worker_id,
+                        attempt_count=attempt_count,
+                    )
+                )
+            else:
+                update_job_result(job_id, status, result)
+
         for library_name in cql_names:
-            task_job_id = str(uuid.uuid4())
-            if create_job(task_job_id, batch_id, patient_id, job_package, library_name, "structured", status="running"):
-                job_ids_by_task[("structured", library_name)] = task_job_id
+            snapshot = _ensure_task(library_name, "structured")
+            restored = _cql_result_from_payload(library_name, patient_id, snapshot.result) if snapshot.status == "complete" else None
+            if restored is not None:
+                restored_cql_results[library_name] = restored
+                task_results.append({"task_name": library_name, "task_type": "structured", "status": snapshot.status})
+            elif snapshot.status in {"error", "skipped"}:
+                task_results.append({"task_name": library_name, "task_type": "structured", "status": snapshot.status})
+            else:
+                cql_names_to_run.append(library_name)
+
         for prompt_path in prompt_paths:
-            task_job_id = str(uuid.uuid4())
-            if create_job(task_job_id, batch_id, patient_id, job_package, prompt_path, "unstructured", status="running"):
-                job_ids_by_task[("unstructured", prompt_path)] = task_job_id
+            snapshot = _ensure_task(prompt_path, "unstructured")
+            restored = _llm_result_from_payload(prompt_path, snapshot.result) if snapshot.status == "complete" else None
+            if restored is not None:
+                restored_llm_results[prompt_path] = restored
+                task_results.append({"task_name": prompt_path, "task_type": "unstructured", "status": snapshot.status})
+            elif snapshot.status in {"error", "skipped"}:
+                task_results.append({"task_name": prompt_path, "task_type": "unstructured", "status": snapshot.status})
+            else:
+                prompt_paths_to_run.append(prompt_path)
 
         # 3. Concurrently load prompts and fetch patient documents when LLM jobs were requested.
         prompts = documents = []
         if prompt_paths:
             prompts, documents = await asyncio.gather(
-                load_prompts(prompt_paths),
+                load_prompts(prompt_paths_to_run),
                 fetch_patient_documents(patient_id),
             )
             if not documents:
                 logger.info(f"[batch={batch_id}] No DocumentReferences found — skipping LLM execution")
-                for path in prompt_paths:
+                for path in prompt_paths_to_run:
                     job_id = job_ids_by_task.get(("unstructured", path))
                     if job_id:
-                        update_job_result(job_id, "skipped", {"message": "skipped — no supporting documents"})
+                        _update_task(job_id, "skipped", {"message": "skipped — no supporting documents"})
                     task_results.append(
                         {
                             "task_name": path,
@@ -640,10 +754,10 @@ async def run_batch_job(
                     )
             elif not use_llm:
                 logger.info(f"[batch={batch_id}] LiteLLM is not configured — skipping LLM execution")
-                for path in prompt_paths:
+                for path in prompt_paths_to_run:
                     job_id = job_ids_by_task.get(("unstructured", path))
                     if job_id:
-                        update_job_result(job_id, "skipped", {"message": "skipped — llm not configured"})
+                        _update_task(job_id, "skipped", {"message": "skipped — llm not configured"})
                     task_results.append(
                         {
                             "task_name": path,
@@ -653,10 +767,11 @@ async def run_batch_job(
                         }
                     )
 
-        # 4. Persist an initial partial Bundle, then checkpoint it as each task finishes.
-        bundle_id = str(uuid.uuid4())
-        cql_entries_by_name: dict[str, list[dict]] = {}
-        llm_entries_by_path: dict[str, list[dict]] = {}
+        # 4. Rebuild terminal task output, then checkpoint the retry-safe partial Bundle.
+        prior_bundle_id = prior_bundle.get("id") if isinstance(prior_bundle, dict) else None
+        bundle_id = prior_bundle_id if isinstance(prior_bundle_id, str) and prior_bundle_id else str(uuid.uuid4())
+        cql_entries_by_name: dict[str, list[dict]] = {name: _build_cql_observations([result], questionnaire, form_name, patient_id) for name, result in restored_cql_results.items()}
+        llm_entries_by_path: dict[str, list[dict]] = {path: _build_llm_observations([result], questionnaire, form_name, patient_id) for path, result in restored_llm_results.items()}
         document_entries = _build_document_entries(documents, patient_id, batch_id)
 
         def _current_result_entries() -> tuple[list[dict], list[dict]]:
@@ -675,7 +790,14 @@ async def run_batch_job(
                 "preliminary",
                 bundle_id,
             )
-            update_batch_job_result(batch_id, partial_bundle)
+            _require_owned(
+                update_batch_job_result(
+                    batch_id,
+                    partial_bundle,
+                    worker_id=worker_id,
+                    attempt_count=attempt_count,
+                )
+            )
             partial_bundle_persisted = True
 
         _persist_partial_bundle()
@@ -688,7 +810,7 @@ async def run_batch_job(
                 status = "error" if cql_result.error else "complete"
                 job_id = job_ids_by_task.get(("structured", task_name))
                 if job_id:
-                    update_job_result(job_id, status, {"error": cql_result.error, "results": cql_result.results})
+                    _update_task(job_id, status, {"error": cql_result.error, "results": cql_result.results})
                 task_results.append(
                     {
                         "task_name": task_name,
@@ -706,7 +828,7 @@ async def run_batch_job(
                 status, result_payload = _summarize_llm_result(llm_result)
                 job_id = job_ids_by_task.get(("unstructured", task_name))
                 if job_id:
-                    update_job_result(job_id, status, result_payload)
+                    _update_task(job_id, status, result_payload)
                 task_results.append({"task_name": task_name, "task_type": "unstructured", "status": status})
                 llm_entries_by_path[task_name] = _build_llm_observations([llm_result], questionnaire, form_name, patient_id)
                 _persist_partial_bundle()
@@ -714,30 +836,30 @@ async def run_batch_job(
         async def _empty() -> list:
             return []
 
-        cql_task = run_cql_libraries(cql_names, patient_id, on_result=_record_cql_result) if cql_names else _empty()
-        llm_task = run_all_prompts(prompts, documents, on_result=_record_llm_result) if (prompt_paths and documents and use_llm) else _empty()
+        cql_task = run_cql_libraries(cql_names_to_run, patient_id, on_result=_record_cql_result) if cql_names_to_run else _empty()
+        llm_task = run_all_prompts(prompts, documents, on_result=_record_llm_result) if (prompt_paths_to_run and documents and use_llm) else _empty()
         cql_results, llm_results = await asyncio.gather(cql_task, llm_task)
 
         completed_cql_names = {result.library_name for result in cql_results}
-        for library_name in cql_names:
+        for library_name in cql_names_to_run:
             if library_name in completed_cql_names:
                 continue
             logger.warning(f"[batch={batch_id}] No CQL result returned for library '{library_name}'")
             job_id = job_ids_by_task.get(("structured", library_name))
             if job_id:
-                update_job_result(job_id, "error", {"message": "no cql result returned for library"})
+                _update_task(job_id, "error", {"message": "no cql result returned for library"})
             task_results.append({"task_name": library_name, "task_type": "structured", "status": "error"})
             _persist_partial_bundle()
 
-        if prompt_paths and documents and use_llm:
+        if prompt_paths_to_run and documents and use_llm:
             completed_llm_paths = {result.prompt_path for result in llm_results}
-            for prompt_path in prompt_paths:
+            for prompt_path in prompt_paths_to_run:
                 if prompt_path in completed_llm_paths:
                     continue
                 logger.warning(f"[batch={batch_id}] No LLM result returned for prompt '{prompt_path}'")
                 job_id = job_ids_by_task.get(("unstructured", prompt_path))
                 if job_id:
-                    update_job_result(job_id, "error", {"message": "no llm result returned for prompt"})
+                    _update_task(job_id, "error", {"message": "no llm result returned for prompt"})
                 task_results.append({"task_name": prompt_path, "task_type": "unstructured", "status": "error"})
                 _persist_partial_bundle()
 
@@ -755,11 +877,26 @@ async def run_batch_job(
         )
 
         # 6. Persist the final result.
-        update_batch_job_status(batch_id, "complete", result_bundle)
+        _require_owned(
+            update_batch_job_status(
+                batch_id,
+                "complete",
+                result_bundle,
+                worker_id=worker_id,
+                attempt_count=attempt_count,
+            )
+        )
         logger.info(f"[batch={batch_id}] Completed. Bundle entries: {result_bundle['total']}")
 
+    except asyncio.CancelledError:
+        raise
+    except LeaseLostError:
+        logger.warning(f"[batch={batch_id}] Stopping work after losing lease ownership")
+        raise
     except Exception as exc:
         logger.exception(f"[batch={batch_id}] Unhandled error in run_batch_job: {exc}")
+        if worker_owned:
+            raise
         error_bundle = make_operation_outcome("exception", str(exc))
         mark_unfinished_jobs_error(batch_id, str(exc))
         if partial_bundle_persisted:
@@ -769,5 +906,5 @@ async def run_batch_job(
     finally:
         if heartbeat_task is not None:
             heartbeat_task.cancel()
-            with suppress(asyncio.CancelledError):
+            with suppress(asyncio.CancelledError, LeaseLostError):
                 await heartbeat_task

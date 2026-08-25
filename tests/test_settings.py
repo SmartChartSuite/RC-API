@@ -23,6 +23,9 @@ def test_root_path_falls_back_to_deploy_url_path(monkeypatch):
     importlib.reload(reloaded)
 
 
-def test_batch_recovery_settings_use_safe_positive_defaults():
-    assert settings.batch_job_heartbeat_interval_seconds > 0
-    assert settings.batch_job_stale_after_seconds > settings.batch_job_heartbeat_interval_seconds
+def test_batch_worker_settings_use_safe_positive_defaults():
+    assert settings.batch_worker_enabled is True
+    assert settings.batch_worker_poll_interval_seconds > 0
+    assert settings.batch_worker_lease_seconds > settings.batch_job_heartbeat_interval_seconds
+    assert settings.batch_job_retry_delay_seconds > 0
+    assert settings.batch_job_max_attempts > 0

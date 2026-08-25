@@ -8,6 +8,7 @@ Tables:
 Uses SQLAlchemy Core + ORM with the same engine/session pattern as v0.
 """
 
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
@@ -22,11 +23,14 @@ from sqlalchemy import (
     CursorResult,
     exists,
     ForeignKey,
+    Index,
     MetaData,
     String,
+    Text,
     create_engine,
     delete,
     func,
+    or_,
     select,
     update,
 )
@@ -34,7 +38,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.schema import CreateSchema
 
 from src.services.errorhandler import make_operation_outcome
-from src.util.settings import db_connection_string, db_schema
+from src.util.settings import batch_job_max_attempts, db_connection_string, db_schema
 
 # ── ORM base ──────────────────────────────────────────────────────────────────
 
@@ -54,6 +58,10 @@ class Base(DeclarativeBase):
 
 class BatchJobs(Base):
     __tablename__ = "batch_jobs_v1"
+    __table_args__ = (
+        Index("ix_batch_jobs_v1_worker_queue", "status", "next_attempt_at", "created_at"),
+        Index("ix_batch_jobs_v1_worker_lease", "status", "lease_expires_at"),
+    )
 
     batch_id: Mapped[str] = mapped_column(primary_key=True)
     patient_id: Mapped[str]
@@ -69,10 +77,40 @@ class BatchJobs(Base):
     attempt_count: Mapped[int] = mapped_column(default=0)
     heartbeat_at: Mapped[datetime | None]
     updated_at: Mapped[datetime | None] = mapped_column(default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    worker_id: Mapped[str | None]
+    lease_expires_at: Mapped[datetime | None]
+    next_attempt_at: Mapped[datetime | None]
+    max_attempts: Mapped[int] = mapped_column(default=batch_job_max_attempts)
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+@dataclass(frozen=True)
+class ClaimedBatchJob:
+    """Detached execution inputs and lease identity for one claimed batch."""
+
+    batch_id: str
+    patient_id: str
+    job_package: str
+    questionnaire_id: str | None
+    job_package_version: str | None
+    requested_jobs: list[str] | None
+    worker_id: str
+    attempt_count: int
+    result_bundle: dict | None
+
+
+@dataclass(frozen=True)
+class LogicalJob:
+    """Detached state for one logical structured or unstructured task."""
+
+    job_id: str
+    status: str
+    result: dict | None
 
 
 class Jobs(Base):
     __tablename__ = "jobs_v1"
+    __table_args__ = (Index("ux_jobs_v1_logical_task", "batch_id", "task_type", "task_name", unique=True),)
 
     job_id: Mapped[str] = mapped_column(primary_key=True)
     batch_id = Column(String, ForeignKey("batch_jobs_v1.batch_id"), nullable=False)
@@ -227,6 +265,7 @@ def create_batch_job_with_response(
                     job_package_version=job_package_version,
                     requested_jobs=requested_jobs or None,
                     attempt_count=0,
+                    max_attempts=batch_job_max_attempts,
                     updated_at=now,
                 )
             )
@@ -249,7 +288,7 @@ def create_batch_job_with_response(
 
 
 def start_batch_job_attempt(batch_id: str) -> None:
-    """Mark a batch running and atomically increment its execution attempt."""
+    """Legacy direct-execution helper retained for callers outside the worker."""
     now = datetime.now(timezone.utc)
     with Session(db_engine) as session:
         session.execute(
@@ -263,81 +302,326 @@ def start_batch_job_attempt(batch_id: str) -> None:
             )
         )
         session.commit()
-    logger.info(f"Started execution attempt for batch job {batch_id}")
+    logger.info(f"Started direct execution attempt for batch job {batch_id}")
 
 
-def touch_batch_job_heartbeat(batch_id: str) -> None:
-    """Refresh liveness metadata for a running batch job."""
-    now = datetime.now(timezone.utc)
-    with Session(db_engine) as session:
-        session.execute(update(BatchJobs).where(BatchJobs.batch_id == batch_id, BatchJobs.status == "running").values(heartbeat_at=now, updated_at=now))
-        session.commit()
+def _claimed_batch_snapshot(job: BatchJobs, worker_id: str) -> ClaimedBatchJob:
+    return ClaimedBatchJob(
+        batch_id=job.batch_id,
+        patient_id=job.patient_id,
+        job_package=job.job_package,
+        questionnaire_id=job.questionnaire_id,
+        job_package_version=job.job_package_version,
+        requested_jobs=job.requested_jobs,
+        worker_id=worker_id,
+        attempt_count=job.attempt_count,
+        result_bundle=job.result_bundle,
+    )
 
 
-def reconcile_stale_batch_jobs(stale_after_seconds: int) -> list[str]:
-    """Mark stale pending/running batches and their unfinished child jobs as interrupted."""
-    now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(seconds=stale_after_seconds)
-    stale_reference = func.coalesce(BatchJobs.heartbeat_at, BatchJobs.updated_at, BatchJobs.created_at)
-    message = "Batch execution was interrupted before completion."
-
-    with Session(db_engine) as session:
-        stale_jobs = list(
-            session.execute(
-                select(BatchJobs).where(
-                    BatchJobs.status.in_(("pending", "running")),
-                    stale_reference < cutoff,
+def claim_next_batch_job(worker_id: str, lease_seconds: int) -> ClaimedBatchJob | None:
+    """Atomically claim the oldest runnable pending batch for this worker."""
+    for _ in range(5):
+        now = datetime.now(timezone.utc)
+        lease_expires_at = now + timedelta(seconds=lease_seconds)
+        with Session(db_engine) as session:
+            candidate_id = session.scalar(
+                select(BatchJobs.batch_id)
+                .where(
+                    BatchJobs.status == "pending",
+                    BatchJobs.attempt_count < BatchJobs.max_attempts,
+                    or_(BatchJobs.next_attempt_at.is_(None), BatchJobs.next_attempt_at <= now),
                 )
+                .order_by(BatchJobs.created_at, BatchJobs.batch_id)
+                .limit(1)
             )
-            .scalars()
-            .all()
-        )
-        stale_ids = [job.batch_id for job in stale_jobs]
-        for job in stale_jobs:
-            job.status = "error"
-            job.completed_at = now
-            job.updated_at = now
-            if job.result_bundle is None:
-                job.result_bundle = make_operation_outcome("exception", message)
+            if candidate_id is None:
+                return None
 
-        if stale_ids:
+            result: CursorResult = session.execute(
+                update(BatchJobs)
+                .where(
+                    BatchJobs.batch_id == candidate_id,
+                    BatchJobs.status == "pending",
+                    BatchJobs.attempt_count < BatchJobs.max_attempts,
+                    or_(BatchJobs.next_attempt_at.is_(None), BatchJobs.next_attempt_at <= now),
+                )
+                .values(
+                    status="running",
+                    worker_id=worker_id,
+                    attempt_count=BatchJobs.attempt_count + 1,
+                    heartbeat_at=now,
+                    lease_expires_at=lease_expires_at,
+                    next_attempt_at=None,
+                    updated_at=now,
+                )
+            )  # type: ignore
+            if result.rowcount != 1:
+                session.rollback()
+                continue
+
+            claimed = session.get(BatchJobs, candidate_id)
+            if claimed is None:
+                session.rollback()
+                continue
+            snapshot = _claimed_batch_snapshot(claimed, worker_id)
+            session.commit()
+            logger.info(f"Worker {worker_id} claimed batch {candidate_id} attempt {snapshot.attempt_count}")
+            return snapshot
+    return None
+
+
+def renew_batch_job_lease(batch_id: str, worker_id: str, attempt_count: int, lease_seconds: int) -> bool:
+    """Extend a lease only while its worker and attempt still own the batch."""
+    now = datetime.now(timezone.utc)
+    with Session(db_engine) as session:
+        result: CursorResult = session.execute(
+            update(BatchJobs)
+            .where(
+                BatchJobs.batch_id == batch_id,
+                BatchJobs.status == "running",
+                BatchJobs.worker_id == worker_id,
+                BatchJobs.attempt_count == attempt_count,
+            )
+            .values(
+                heartbeat_at=now,
+                lease_expires_at=now + timedelta(seconds=lease_seconds),
+                updated_at=now,
+            )
+        )  # type: ignore
+        session.commit()
+    return result.rowcount == 1
+
+
+def release_batch_job_attempt(batch_id: str, worker_id: str, attempt_count: int) -> bool:
+    """Return an owned attempt to the queue during graceful worker shutdown."""
+    now = datetime.now(timezone.utc)
+    with Session(db_engine) as session:
+        result: CursorResult = session.execute(
+            update(BatchJobs)
+            .where(
+                BatchJobs.batch_id == batch_id,
+                BatchJobs.status == "running",
+                BatchJobs.worker_id == worker_id,
+                BatchJobs.attempt_count == attempt_count,
+            )
+            .values(
+                status="pending",
+                worker_id=None,
+                attempt_count=max(0, attempt_count - 1),
+                heartbeat_at=None,
+                lease_expires_at=None,
+                next_attempt_at=now,
+                updated_at=now,
+            )
+        )  # type: ignore
+        if result.rowcount == 1:
             session.execute(
                 update(Jobs)
                 .where(
-                    Jobs.batch_id.in_(stale_ids),
+                    Jobs.batch_id == batch_id,
+                    Jobs.status.not_in(("complete", "skipped")),
+                )
+                .values(status="pending", result=None, completed_at=None)
+            )
+        session.commit()
+    released = result.rowcount == 1
+    if released:
+        logger.info(f"Released batch {batch_id} attempt {attempt_count} during worker shutdown")
+    return released
+
+
+def fail_batch_job_attempt(
+    batch_id: str,
+    worker_id: str,
+    attempt_count: int,
+    message: str,
+    retry_delay_seconds: int,
+) -> str:
+    """Release a failed owned attempt for retry, or terminally fail it."""
+    now = datetime.now(timezone.utc)
+    with Session(db_engine) as session:
+        job = session.scalar(
+            select(BatchJobs)
+            .where(
+                BatchJobs.batch_id == batch_id,
+                BatchJobs.status == "running",
+                BatchJobs.worker_id == worker_id,
+                BatchJobs.attempt_count == attempt_count,
+            )
+            .with_for_update()
+        )
+        if job is None:
+            return "lost"
+
+        retrying = job.attempt_count < job.max_attempts
+        job.worker_id = None
+        job.lease_expires_at = None
+        job.heartbeat_at = None
+        job.last_error = message
+        job.updated_at = now
+        if retrying:
+            job.status = "pending"
+            job.next_attempt_at = now + timedelta(seconds=retry_delay_seconds)
+            job.completed_at = None
+            session.execute(
+                update(Jobs)
+                .where(
+                    Jobs.batch_id == batch_id,
+                    Jobs.status.not_in(("complete", "skipped")),
+                )
+                .values(status="pending", result=None, completed_at=None)
+            )
+            outcome = "retry"
+        else:
+            job.status = "error"
+            job.next_attempt_at = None
+            job.completed_at = now
+            if job.result_bundle is None:
+                job.result_bundle = make_operation_outcome("exception", message)
+            session.execute(
+                update(Jobs)
+                .where(
+                    Jobs.batch_id == batch_id,
                     Jobs.status.not_in(("complete", "error", "skipped")),
                 )
                 .values(status="error", result={"message": message}, completed_at=now)
             )
+            outcome = "error"
+        session.commit()
+    logger.warning(f"Batch {batch_id} attempt {attempt_count} ended with {outcome}: {message}")
+    return outcome
+
+
+def recover_expired_batch_job_leases(retry_delay_seconds: int) -> tuple[list[str], list[str]]:
+    """Requeue expired attempts, terminally failing batches with no attempts left."""
+    now = datetime.now(timezone.utc)
+    message = "Batch worker lease expired before completion."
+    retried: list[str] = []
+    failed: list[str] = []
+    with Session(db_engine) as session:
+        expired = list(
+            session.execute(
+                select(BatchJobs)
+                .where(
+                    BatchJobs.status == "running",
+                    or_(
+                        BatchJobs.lease_expires_at.is_(None),
+                        BatchJobs.lease_expires_at <= now,
+                    ),
+                )
+                .with_for_update(skip_locked=True)
+            )
+            .scalars()
+            .all()
+        )
+        for job in expired:
+            job.worker_id = None
+            job.lease_expires_at = None
+            job.heartbeat_at = None
+            job.last_error = message
+            job.updated_at = now
+            if job.attempt_count < job.max_attempts:
+                job.status = "pending"
+                job.next_attempt_at = now + timedelta(seconds=retry_delay_seconds)
+                job.completed_at = None
+                retried.append(job.batch_id)
+                session.execute(
+                    update(Jobs)
+                    .where(
+                        Jobs.batch_id == job.batch_id,
+                        Jobs.status.not_in(("complete", "skipped")),
+                    )
+                    .values(status="pending", result=None, completed_at=None)
+                )
+            else:
+                job.status = "error"
+                job.next_attempt_at = None
+                job.completed_at = now
+                if job.result_bundle is None:
+                    job.result_bundle = make_operation_outcome("exception", message)
+                failed.append(job.batch_id)
+                session.execute(
+                    update(Jobs)
+                    .where(
+                        Jobs.batch_id == job.batch_id,
+                        Jobs.status.not_in(("complete", "error", "skipped")),
+                    )
+                    .values(status="error", result={"message": message}, completed_at=now)
+                )
+        if expired:
             session.commit()
+    if retried or failed:
+        logger.warning(f"Recovered expired batch leases: retry={retried}, error={failed}")
+    return retried, failed
 
-    if stale_ids:
-        logger.warning(f"Marked {len(stale_ids)} stale batch job(s) as interrupted: {stale_ids}")
-    return stale_ids
 
-
-def update_batch_job_status(batch_id: str, status: str, result_bundle: dict | None = None) -> None:
+def update_batch_job_status(
+    batch_id: str,
+    status: str,
+    result_bundle: dict | None = None,
+    *,
+    worker_id: str | None = None,
+    attempt_count: int | None = None,
+) -> bool:
+    """Update batch status, optionally fenced to the currently owned worker attempt."""
     now = datetime.now(timezone.utc)
     vals: dict = {"status": status, "updated_at": now}
     if status == "running":
         vals["heartbeat_at"] = now
     if status in {"complete", "error"}:
-        vals["completed_at"] = now
+        vals.update(
+            completed_at=now,
+            worker_id=None,
+            lease_expires_at=None,
+            next_attempt_at=None,
+        )
     if result_bundle is not None:
         vals["result_bundle"] = result_bundle
+
+    stmt = update(BatchJobs).where(BatchJobs.batch_id == batch_id)
+    if worker_id is not None or attempt_count is not None:
+        if worker_id is None or attempt_count is None:
+            raise ValueError("worker_id and attempt_count must be provided together")
+        stmt = stmt.where(
+            BatchJobs.status == "running",
+            BatchJobs.worker_id == worker_id,
+            BatchJobs.attempt_count == attempt_count,
+        )
     with Session(db_engine) as session:
-        session.execute(update(BatchJobs).where(BatchJobs.batch_id == batch_id).values(**vals))
+        result: CursorResult = session.execute(stmt.values(**vals))  # type: ignore
         session.commit()
-    logger.info(f"Updated batch job {batch_id} → status={status}")
+    updated = result.rowcount == 1
+    if updated:
+        logger.info(f"Updated batch job {batch_id} → status={status}")
+    return updated
 
 
-def update_batch_job_result(batch_id: str, result_bundle: dict) -> None:
-    """Persist a partial result snapshot and refresh batch liveness metadata."""
+def update_batch_job_result(
+    batch_id: str,
+    result_bundle: dict,
+    *,
+    worker_id: str | None = None,
+    attempt_count: int | None = None,
+) -> bool:
+    """Persist a partial result snapshot, optionally fenced to one worker attempt."""
     now = datetime.now(timezone.utc)
+    stmt = update(BatchJobs).where(BatchJobs.batch_id == batch_id)
+    if worker_id is not None or attempt_count is not None:
+        if worker_id is None or attempt_count is None:
+            raise ValueError("worker_id and attempt_count must be provided together")
+        stmt = stmt.where(
+            BatchJobs.status == "running",
+            BatchJobs.worker_id == worker_id,
+            BatchJobs.attempt_count == attempt_count,
+        )
     with Session(db_engine) as session:
-        session.execute(update(BatchJobs).where(BatchJobs.batch_id == batch_id).values(result_bundle=result_bundle, heartbeat_at=now, updated_at=now))
+        result: CursorResult = session.execute(stmt.values(result_bundle=result_bundle, heartbeat_at=now, updated_at=now))  # type: ignore
         session.commit()
-    logger.debug(f"Updated partial result Bundle for batch job {batch_id}")
+    updated = result.rowcount == 1
+    if updated:
+        logger.debug(f"Updated partial result Bundle for batch job {batch_id}")
+    return updated
 
 
 def delete_batch_job_record(batch_id: str) -> JSONResponse:
@@ -356,26 +640,75 @@ def delete_batch_job_record(batch_id: str) -> JSONResponse:
 # ── Job CRUD ──────────────────────────────────────────────────────────────────
 
 
-def create_job(job_id: str, batch_id: str, patient_id: str, job_package: str, task_name: str, task_type: str, status: str = "pending") -> bool:
+def _ownership_exists(batch_id: str, worker_id: str, attempt_count: int):
+    return exists(
+        select(BatchJobs.batch_id).where(
+            BatchJobs.batch_id == batch_id,
+            BatchJobs.status == "running",
+            BatchJobs.worker_id == worker_id,
+            BatchJobs.attempt_count == attempt_count,
+        )
+    )
+
+
+def ensure_job(
+    job_id: str,
+    batch_id: str,
+    patient_id: str,
+    job_package: str,
+    task_name: str,
+    task_type: str,
+    *,
+    worker_id: str | None = None,
+    attempt_count: int | None = None,
+) -> LogicalJob | None:
+    """Create or reuse one logical child task without resetting terminal state."""
+    if (worker_id is None) != (attempt_count is None):
+        raise ValueError("worker_id and attempt_count must be provided together")
     try:
         with Session(db_engine) as session:
-            session.add(
-                Jobs(
+            if worker_id is not None and attempt_count is not None:
+                owned = session.scalar(select(_ownership_exists(batch_id, worker_id, attempt_count)))
+                if not owned:
+                    return None
+            existing = session.scalar(
+                select(Jobs).where(
+                    Jobs.batch_id == batch_id,
+                    Jobs.task_type == task_type,
+                    Jobs.task_name == task_name,
+                )
+            )
+            if existing is None:
+                existing = Jobs(
                     job_id=job_id,
                     batch_id=batch_id,
                     patient_id=patient_id,
                     job_package=job_package,
                     task_name=task_name,
                     task_type=task_type,
-                    status=status,
+                    status="running",
                 )
-            )
+                session.add(existing)
+            elif existing.status not in {"complete", "error", "skipped"}:
+                existing.status = "running"
+                existing.completed_at = None
+            session.flush()
+            snapshot = LogicalJob(existing.job_id, existing.status, existing.result)
             session.commit()
-        logger.debug(f"Created job {job_id} under batch {batch_id} for task {task_type}:{task_name}")
-        return True
+        return snapshot
     except Exception as exc:
-        logger.error(f"Failed to create job {job_id}: {exc}")
+        logger.error(f"Failed to ensure job {job_id}: {exc}")
+        return None
+
+
+def create_job(job_id: str, batch_id: str, patient_id: str, job_package: str, task_name: str, task_type: str, status: str = "pending") -> bool:
+    """Compatibility wrapper around logical child creation."""
+    snapshot = ensure_job(job_id, batch_id, patient_id, job_package, task_name, task_type)
+    if snapshot is None:
         return False
+    if status != "running":
+        update_job_result(snapshot.job_id, status)
+    return True
 
 
 def get_jobs_for_batch(batch_id: str) -> list[Jobs]:
@@ -384,14 +717,31 @@ def get_jobs_for_batch(batch_id: str) -> list[Jobs]:
         return list(session.execute(select(Jobs).where(Jobs.batch_id == batch_id)).scalars().all())
 
 
-def update_job_result(job_id: str, status: str, result: dict | None = None) -> None:
+def update_job_result(
+    job_id: str,
+    status: str,
+    result: dict | None = None,
+    *,
+    batch_id: str | None = None,
+    worker_id: str | None = None,
+    attempt_count: int | None = None,
+) -> bool:
+    """Update a child result, optionally fenced to its owning batch attempt."""
+    if any(value is not None for value in (batch_id, worker_id, attempt_count)) and any(value is None for value in (batch_id, worker_id, attempt_count)):
+        raise ValueError("batch_id, worker_id, and attempt_count must be provided together")
     values: dict = {"status": status, "result": result}
     if status in {"complete", "error", "skipped"}:
         values["completed_at"] = datetime.now(timezone.utc)
+    stmt = update(Jobs).where(Jobs.job_id == job_id)
+    if batch_id is not None and worker_id is not None and attempt_count is not None:
+        stmt = stmt.where(_ownership_exists(batch_id, worker_id, attempt_count))
     with Session(db_engine) as session:
-        session.execute(update(Jobs).where(Jobs.job_id == job_id).values(**values))
+        update_result: CursorResult = session.execute(stmt.values(**values))  # type: ignore
         session.commit()
-    logger.debug(f"Updated job {job_id} → status={status}")
+    updated = update_result.rowcount == 1
+    if updated:
+        logger.debug(f"Updated job {job_id} → status={status}")
+    return updated
 
 
 def mark_unfinished_jobs_error(batch_id: str, message: str) -> int:

@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from typing import Annotated, Any, cast
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Query, Response, Security
+from fastapi import APIRouter, Query, Response, Security
 from fastapi.responses import JSONResponse
 from loguru import logger
 
@@ -16,7 +16,6 @@ from src.models.job_request import JobRequest
 from src.models.job_response import BatchJobAcceptedResponse
 from src.services.errorhandler import config_error_response, operation_outcome_response, operation_outcome_responses
 from src.services.fhir_proxy import fhir_get
-from src.services.job_orchestrator import run_batch_job
 from src.services.job_state import (
     BatchJobs,
     create_batch_job_with_response,
@@ -256,7 +255,6 @@ async def _resolve_questionnaire(job_package: str, job_package_version: str | No
 )
 async def post_batch_job(
     body: JobRequest,
-    background_tasks: BackgroundTasks,
     response: Response,
     claims: dict = Security(validate_token),
 ) -> BatchJobAcceptedResponse | JSONResponse:
@@ -270,7 +268,8 @@ async def post_batch_job(
     On success, the API creates an initial local ``QuestionnaireResponse`` with
     ``status = in-progress`` and returns a FHIR ``Parameters`` resource with the
     new ``batchId`` and a ``batchJobQuestionnaireResponse`` reference.
-    Execution then continues asynchronously in the background.
+    Execution is persisted to the database and claimed asynchronously by the
+    embedded durable batch worker.
     """
     missing = _required_config()
     if missing:
@@ -327,8 +326,6 @@ async def post_batch_job(
             "processing",
             "The batch job and QuestionnaireResponse could not be saved to the database. See logs for details.",
         )
-
-    background_tasks.add_task(run_batch_job, batch_id, patient_id, job_package, questionnaire_id, job_package_version, job_names)
 
     response.headers["Location"] = f"/batchjob/{batch_id}"
     return BatchJobAcceptedResponse(

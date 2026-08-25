@@ -17,9 +17,9 @@ unstructured side). The LLM prompt content itself is loaded for real from
 ./prompts/ on disk, and each captured LiteLLM completion is the real answer that
 note produced.
 
-Because Starlette's TestClient runs the ASGI app in-process, the batch job's
-BackgroundTask (run_batch_job) completes synchronously before client.post()
-returns -- no polling loop is needed to observe the finished result.
+The TestClient runs the API lifespan and embedded durable worker in-process.
+The POST remains enqueue-only, so the test polls the status endpoint until the
+worker completes the persisted batch.
 
 DB state is isolated to a throwaway SQLite file per test (see _isolated_db)
 so this test never touches the shared dev DB file.
@@ -27,6 +27,7 @@ so this test never touches the shared dev DB file.
 
 import json
 from pathlib import Path
+import time
 
 import httpx
 import pytest
@@ -34,9 +35,10 @@ import respx
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 
+import main as main_module
 from main import app
 from src.routers import batchjob
-from src.services import cql_executor, fhir_context, fhir_proxy, job_state, llm_executor, prompt_loader
+from src.services import batch_worker, cql_executor, fhir_context, fhir_proxy, job_state, llm_executor, prompt_loader
 from src.services import job_orchestrator
 from src.util import auth
 
@@ -94,6 +96,9 @@ def _configure_services(monkeypatch):
     here so this test is deterministic regardless of what else has been
     imported in the process.
     """
+    monkeypatch.setattr(main_module, "initialize_db", lambda: None)
+    monkeypatch.setattr(main_module, "batch_worker_enabled", True)
+    monkeypatch.setattr(batch_worker, "batch_worker_poll_interval_seconds", 0.01)
     monkeypatch.setattr(auth, "oauth2_enabled", False)
     monkeypatch.setattr(prompt_loader, "use_langfuse", False)
 
@@ -163,36 +168,40 @@ def test_post_batch_job_end_to_end_builds_expected_result_bundle():
         # One LLM call per document; the side effect returns each note's real answer.
         mock.post(f"{LITELLM_BASE}/chat/completions").mock(side_effect=_llm_side_effect)
 
-        client = TestClient(app)
+        with TestClient(app) as client:
+            post_response = client.post(
+                "/batchjob",
+                json={
+                    "resourceType": "Parameters",
+                    "parameter": [
+                        {"name": "patientId", "valueString": PATIENT_ID},
+                        {"name": "jobPackage", "valueString": JOB_PACKAGE},
+                    ],
+                },
+            )
 
-        post_response = client.post(
-            "/batchjob",
-            json={
-                "resourceType": "Parameters",
-                "parameter": [
-                    {"name": "patientId", "valueString": PATIENT_ID},
-                    {"name": "jobPackage", "valueString": JOB_PACKAGE},
-                ],
-            },
-        )
+            assert post_response.status_code == 200, post_response.text
+            accepted = post_response.json()
+            accepted_params = {p["name"]: p for p in accepted["parameter"]}
+            assert accepted_params["batchJobStatus"]["valueString"] == "pending"
+            batch_id = accepted_params["batchId"]["valueString"]
 
-        assert post_response.status_code == 200, post_response.text
-        accepted = post_response.json()
-        accepted_params = {p["name"]: p for p in accepted["parameter"]}
-        assert accepted_params["batchJobStatus"]["valueString"] == "pending"
-        batch_id = accepted_params["batchId"]["valueString"]
+            deadline = time.monotonic() + 5
+            while True:
+                status_response = client.get(f"/batchjob/{batch_id}/status")
+                assert status_response.status_code == 200, status_response.text
+                status_params = {p["name"]: p for p in status_response.json()["parameter"]}
+                status = status_params["batchJobStatus"]["valueString"]
+                if status in {"complete", "error"}:
+                    break
+                assert time.monotonic() < deadline, f"batch remained {status}"
+                time.sleep(0.01)
 
-        # BackgroundTasks (including run_batch_job) run synchronously within
-        # TestClient's in-process ASGI call, so the pipeline has already
-        # finished by the time post_response comes back.
-        status_response = client.get(f"/batchjob/{batch_id}/status")
-        assert status_response.status_code == 200, status_response.text
-        status_params = {p["name"]: p for p in status_response.json()["parameter"]}
-        assert status_params["batchJobStatus"]["valueString"] == "complete"
-        assert status_params["questionnaireResponseStatus"]["valueString"] == "in-progress"
+            assert status == "complete"
+            assert status_params["questionnaireResponseStatus"]["valueString"] == "in-progress"
 
-        result_response = client.get(f"/batchjob/{batch_id}")
-        assert result_response.status_code == 200, result_response.text
+            result_response = client.get(f"/batchjob/{batch_id}")
+            assert result_response.status_code == 200, result_response.text
 
     bundle = result_response.json()
     entries = bundle["entry"]

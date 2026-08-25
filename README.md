@@ -50,7 +50,7 @@ RC-API (this service)
   └── /response    ─── QuestionnaireResponse CRUD ────────── Local DB (patient data)
 ```
 
-Batch jobs run **asynchronously** in a background task. Clients poll `GET /batchjob/{id}/status` for lightweight status and use `GET /batchjob/{id}` for the latest result snapshot. Once individual tasks finish, running jobs return a preliminary Bundle containing the results completed so far; the same endpoint returns the final Bundle when processing completes. On each results request, the status Observation text reports live task progress as `Batch job status: x% (m/n)`.
+Batch jobs run **asynchronously** through a durable database-backed worker embedded in the API container. `POST /batchjob` commits the request as `pending`; the worker claims it under a renewable lease and resumes unfinished work after retry or restart without rerunning completed child tasks. Clients poll `GET /batchjob/{id}/status` for lightweight status and use `GET /batchjob/{id}` for the latest result snapshot. Once individual tasks finish, running jobs return a preliminary Bundle containing the results completed so far; the same endpoint returns the final Bundle when processing completes. On each results request, the status Observation text reports live task progress as `Batch job status: x% (m/n)`.
 
 ---
 
@@ -175,8 +175,12 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `OAUTH2_AUDIENCE` | *(none)* | Expected `aud` claim in JWT |
 | `DB_CONNECTION_STRING` | `sqlite+pysqlite:///rcapi_jobs.sqlite` | SQLAlchemy connection string |
 | `DB_SCHEMA` | `rcapi` | DB schema name (ignored for SQLite) |
-| `BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS` | `30` | Seconds between database heartbeat updates while a batch is executing |
-| `BATCH_JOB_STALE_AFTER_SECONDS` | `300` | Age after which a pending/running batch is marked interrupted during startup |
+| `BATCH_WORKER_ENABLED` | `true` | Run the durable batch consumer inside the API process |
+| `BATCH_WORKER_POLL_INTERVAL_SECONDS` | `2` | Seconds between checks for runnable and expired jobs |
+| `BATCH_WORKER_LEASE_SECONDS` | `120` | Seconds a worker owns a claimed batch without renewal; keep this greater than the heartbeat interval |
+| `BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS` | `30` | Seconds between lease renewals while a batch is executing |
+| `BATCH_JOB_MAX_ATTEMPTS` | `3` | Maximum claimed execution attempts before terminal error |
+| `BATCH_JOB_RETRY_DELAY_SECONDS` | `30` | Seconds before a failed or expired attempt is runnable again |
 | `DEPLOY_URL` | `http://example.org/` | Base URL used in Observation identifiers as well as determining root_path |
 | `ROOT_PATH` | *(derived from `DEPLOY_URL` path, or empty)* | FastAPI `root_path` for deployments behind a URL prefix, e.g. `/rc-api` |
 | `PRIMARYIDENTIFIER_SYSTEM` | *(none)* | If set, enables `/config.primaryIdentifier.system` in the public config response |
@@ -232,7 +236,7 @@ uv run alembic upgrade head
 
 Do not stamp a fresh empty database because stamping records a revision without creating its tables. The API verifies that the database is at Alembic head during startup and exits with a migration instruction when it is not. Useful inspection commands are `pixi run migration-current` and `pixi run migration-history`.
 
-Running batches write periodic heartbeats. During startup, batches left in `pending` or `running` beyond `BATCH_JOB_STALE_AFTER_SECONDS` are marked `error`; existing partial result Bundles and already-terminal child task statuses are preserved.
+Revision `0003` adds the embedded-worker queue, lease, retry, and logical-child uniqueness fields. Running batches renew their leases periodically. The worker continuously requeues expired attempts while retry capacity remains and marks a batch `error` only after `BATCH_JOB_MAX_ATTEMPTS` is exhausted. Partial result Bundles and already-completed or skipped child tasks are preserved across claims, retries, graceful shutdowns, and container restarts. The API and worker run in the same container; deploy only one RC-API container unless you intentionally scale replicas against the same database.
 
 ### Tooling Flow
 
@@ -383,6 +387,7 @@ RC-API/
 │   │   └── response.py            # CRUD /response → local DB
 │   │
 │   ├── services/
+│   │   ├── batch_worker.py         # Embedded durable database-backed worker
 │   │   ├── job_orchestrator.py    # Async batch job pipeline
 │   │   ├── cql_executor.py        # HAPI FHIR Library/$evaluate wrapper
 │   │   ├── llm_executor.py        # LiteLLM per-document execution
