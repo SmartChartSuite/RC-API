@@ -166,6 +166,7 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `LITELLM_MODEL` | *(none)* | LiteLLM model string (e.g. `openai/gpt-4o`). All three `LITELLM_*` vars required together |
 | `LITELLM_API_BASE` | *(none)* | LiteLLM proxy base URL |
 | `LITELLM_API_KEY` | *(none)* | LiteLLM API key |
+| `LITELLM_MODEL_REASONING_EFFORT` | *(none)* | Optional reasoning effort forwarded to models that support it (e.g. `low`, `medium`, `high`) |
 | `LANGFUSE_PUBLIC_KEY` | *(none)* | Langfuse public key. All three `LANGFUSE_*` vars required together |
 | `LANGFUSE_SECRET_KEY` | *(none)* | Langfuse secret key |
 | `LANGFUSE_HOST` | *(none)* | Langfuse host URL |

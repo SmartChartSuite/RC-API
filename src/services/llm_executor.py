@@ -14,7 +14,14 @@ import litellm
 from loguru import logger
 
 from src.models.prompt import Prompt
-from src.util.settings import litellm_api_base, litellm_api_key, llm_max_concurrency, litellm_model, use_llm
+from src.util.settings import (
+    litellm_api_base,
+    litellm_api_key,
+    litellm_model,
+    litellm_model_reasoning_effort,
+    llm_max_concurrency,
+    use_llm,
+)
 
 litellm.suppress_debug_info = True
 
@@ -59,13 +66,17 @@ async def run_prompt_on_document(prompt: Prompt, document: dict) -> LlmDocumentR
 
     try:
         assert litellm_model
+        completion_kwargs = {
+            "model": litellm_model,
+            "api_base": litellm_api_base,
+            "api_key": litellm_api_key,
+            "messages": [{"role": "system", "content": prompt.content}, {"role": "user", "content": document["text"]}],
+        }
+        if litellm_model_reasoning_effort:
+            completion_kwargs["reasoning_effort"] = litellm_model_reasoning_effort
+
         async with _llm_semaphore:
-            response = await litellm.acompletion(
-                model=litellm_model,
-                api_base=litellm_api_base,
-                api_key=litellm_api_key,
-                messages=[{"role": "system", "content": prompt.content}, {"role": "user", "content": document["text"]}],
-            )
+            response = await litellm.acompletion(**completion_kwargs)
         answer = response.choices[0].message.content or ""  # type: ignore
         logger.debug(f"LLM response received for prompt '{prompt.metadata.path}' / doc {doc_id}")
         return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response=answer, doc_text=document.get("text"))
