@@ -15,7 +15,7 @@ import json
 import re
 import uuid
 from collections.abc import Callable
-from contextlib import suppress
+from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +24,7 @@ from typing import Any, ParamSpec, TypeVar, cast
 import httpx
 from loguru import logger
 
+from src.services import prompt_loader
 from src.services.cql_executor import CqlResult, run_cql_libraries
 from src.services.errorhandler import make_operation_outcome
 from src.services.fhir_context import fetch_patient_documents
@@ -64,6 +65,58 @@ async def _run_state_call(
 ) -> _StateResult:
     """Run synchronous persistence work outside the API event loop."""
     return await asyncio.to_thread(function, *args, **kwargs)
+
+
+@asynccontextmanager
+async def _langfuse_batch_parent(
+    batch_id: str,
+    job_package: str,
+    questionnaire_id: str,
+    job_package_version: str | None,
+    requested_jobs: list[str] | None,
+):
+    """Create a Langfuse root span for one batch and expose its OTel parent."""
+    if not prompt_loader.use_langfuse:
+        yield None
+        return
+
+    trace_id = batch_id.replace("-", "")
+    if len(trace_id) != 32 or any(char not in "0123456789abcdefABCDEF" for char in trace_id):
+        logger.warning(f"[batch={batch_id}] Skipping Langfuse parent span because the batch ID is not a valid trace ID")
+        yield None
+        return
+
+    try:
+        client = prompt_loader.get_langfuse_client()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"[batch={batch_id}] Could not initialize Langfuse parent span: {exc}")
+        yield None
+        return
+
+    if client is None:
+        yield None
+        return
+
+    from opentelemetry import trace as otel_trace
+
+    with client.start_as_current_observation(
+        trace_context={"trace_id": trace_id},
+        name="process-patient-batch",
+        as_type="span",
+        input={
+            "batch_id": batch_id,
+            "job_package": job_package,
+            "questionnaire_id": questionnaire_id,
+            "job_package_version": job_package_version,
+            "requested_jobs": requested_jobs or [],
+        },
+        metadata={
+            "batch_id": batch_id,
+            "job_package": job_package,
+            "questionnaire_id": questionnaire_id,
+        },
+    ):
+        yield otel_trace.get_current_span()
 
 
 # Questionnaire parsing
@@ -851,9 +904,30 @@ async def run_batch_job(
         async def _empty() -> list:
             return []
 
-        cql_task = run_cql_libraries(cql_names_to_run, patient_id, on_result=_record_cql_result) if cql_names_to_run else _empty()
-        llm_task = run_all_prompts(prompts, documents, on_result=_record_llm_result) if (prompt_paths_to_run and documents and use_llm) else _empty()
-        cql_results, llm_results = await asyncio.gather(cql_task, llm_task)
+        async def _run_concurrent_tasks(parent_otel_span: Any | None):
+            cql_task = run_cql_libraries(cql_names_to_run, patient_id, on_result=_record_cql_result) if cql_names_to_run else _empty()
+            llm_task = (
+                run_all_prompts(
+                    prompts,
+                    documents,
+                    on_result=_record_llm_result,
+                    trace_id=batch_id,
+                    job_package=job_package,
+                    parent_otel_span=parent_otel_span,
+                )
+                if (prompt_paths_to_run and documents and use_llm)
+                else _empty()
+            )
+            return await asyncio.gather(cql_task, llm_task)
+
+        async with _langfuse_batch_parent(
+            batch_id,
+            job_package,
+            questionnaire_id,
+            job_package_version,
+            requested_jobs,
+        ) as parent_otel_span:
+            cql_results, llm_results = await _run_concurrent_tasks(parent_otel_span)
 
         completed_cql_names = {result.library_name for result in cql_results}
         for library_name in cql_names_to_run:

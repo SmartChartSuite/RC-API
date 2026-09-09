@@ -369,7 +369,10 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
     async def _fake_fetch_patient_documents(patient_id):
         return [{"id": "doc-1", "text": "note", "date": "2026-05-22"}]
 
-    async def _fake_run_all_prompts(prompts, documents, on_result=None):
+    trace_context: dict = {}
+
+    async def _fake_run_all_prompts(prompts, documents, on_result=None, **kwargs):
+        trace_context.update(kwargs)
         return []
 
     async def _fake_fetch_patient_resource(patient_id):
@@ -384,6 +387,8 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
 
     await job_orchestrator.run_batch_job("batch-1", "patient-1", "RegistryForm", "questionnaire-1")
 
+    assert trace_context["trace_id"] == "batch-1"
+    assert trace_context["job_package"] == "RegistryForm"
     assert updates == [(("job-123", "error", {"message": "no llm result returned for prompt"}), {})]
 
 

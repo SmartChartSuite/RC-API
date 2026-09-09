@@ -167,9 +167,13 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `LITELLM_API_BASE` | *(none)* | LiteLLM proxy base URL |
 | `LITELLM_API_KEY` | *(none)* | LiteLLM API key |
 | `LITELLM_MODEL_REASONING_EFFORT` | *(none)* | Optional reasoning effort forwarded to models that support it (e.g. `low`, `medium`, `high`) |
+| `LITELLM_PROMPT_CACHE_ENABLED` | `true` | Forward a stable provider-side `prompt_cache_key` for supported models; one key is shared across documents for the same model/prompt template |
 | `LANGFUSE_PUBLIC_KEY` | *(none)* | Langfuse public key. All three `LANGFUSE_*` vars required together |
 | `LANGFUSE_SECRET_KEY` | *(none)* | Langfuse secret key |
-| `LANGFUSE_HOST` | *(none)* | Langfuse host URL |
+| `LANGFUSE_HOST` | *(none)* | Langfuse host URL for prompt retrieval and, by default, OTEL ingestion |
+| `LANGFUSE_OTEL_HOST` | *(none)* | Optional separate Langfuse OTEL ingestion host; defaults to `LANGFUSE_HOST` |
+| `LANGFUSE_TRACING_ENVIRONMENT` | *(none)* | Optional environment label attached to Langfuse traces, such as `production` or `staging` |
+| `OTEL_SEMCONV_STABILITY_OPT_IN` | *(none)* | Set to `gen_ai_latest_experimental` to remove LiteLLM's non-standard raw child span while retaining generation telemetry |
 | `LANGFUSE_PROMPT_FETCH_TIMEOUT_SECONDS` | `5` | Maximum duration of each synchronous Langfuse prompt fetch attempt, executed outside the API event loop |
 | `LANGFUSE_PROMPT_MAX_RETRIES` | `1` | Retries after a failed Langfuse prompt fetch before using the matching local prompt |
 | `PROMPTS_DIR` | `./prompts` | Local prompt directory used when Langfuse is disabled, unavailable, or fails to return an individual prompt |
@@ -316,6 +320,11 @@ description: "Breastfeeding abstraction criteria for syphilis case investigation
 ---
 
 ## Running the Server
+When running locally, load `.env` into the shell before starting Hypercorn so LiteLLM receives the tracing settings:
+
+```bash
+set -a; source .env; set +a
+```
 
 ```bash
 # Development (auto-reload)
