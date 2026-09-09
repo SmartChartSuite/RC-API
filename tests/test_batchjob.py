@@ -4,8 +4,7 @@ from fastapi import Response
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import BundleResource, ParametersResponse
-from src.models.job_request import JobRequest
-from src.models.job_request import JobRequestParameter
+from src.models.job_request import JobRequest, JobRequestParameter
 from src.models.job_response import BatchJobAcceptedResponse
 from src.routers import batchjob
 from src.services import job_orchestrator

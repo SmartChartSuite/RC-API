@@ -1,10 +1,10 @@
 """Embedded durable consumer for database-backed batch jobs."""
 
 import asyncio
-from contextlib import suppress
 import os
 import socket
 import uuid
+from contextlib import suppress
 
 from loguru import logger
 
@@ -109,7 +109,8 @@ class EmbeddedBatchWorker:
                     raise
                 except LeaseLostError:
                     logger.warning(f"Worker {self.worker_id} stopped batch {claim.batch_id} after losing attempt {claim.attempt_count}")
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001
+                    # Convert any batch execution failure into a retryable attempt failure.
                     await asyncio.to_thread(
                         fail_batch_job_attempt,
                         claim.batch_id,
@@ -122,6 +123,7 @@ class EmbeddedBatchWorker:
                     self._active_claim = None
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
+                # Keep the long-lived worker polling after an unexpected loop failure.
                 logger.exception(f"Embedded batch worker {self.worker_id} loop failed: {exc}")
                 await self._wait_for_poll()

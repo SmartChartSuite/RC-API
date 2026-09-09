@@ -8,6 +8,7 @@ Dependencies:
     require_admin  — required on DELETE endpoints; asserts 'admin' in scope claim.
 """
 
+import httpx
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -15,8 +16,6 @@ from loguru import logger
 
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import oauth2_audience, oauth2_enabled, oauth2_issuer, oauth2_jwks_url
-
-import httpx
 
 bearer_scheme = HTTPBearer(auto_error=False)
 

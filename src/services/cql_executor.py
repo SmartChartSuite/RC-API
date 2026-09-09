@@ -8,8 +8,8 @@ The dataEndpoint.header is conditionally populated with the auth token when
 settings.external_fhir_server_auth is set.
 """
 
-from collections.abc import Awaitable, Callable
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 import httpx
@@ -138,7 +138,7 @@ async def _evaluate_library(client: httpx.AsyncClient, library_name: str, patien
 
     try:
         data = resp.json()
-    except Exception as exc:
+    except ValueError as exc:
         logger.error(f"Failed to parse JSON from CQL response for {library_name}: {exc}")
         return CqlResult(library_name=library_name, patient_id=patient_id, error="invalid json")
 

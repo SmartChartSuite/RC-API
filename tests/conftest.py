@@ -3,9 +3,10 @@
 import os
 from pathlib import Path
 
-from alembic import command
-from alembic.config import Config
 import pytest
+from alembic.config import Config
+
+from alembic import command
 
 _ROOT = Path(__file__).resolve().parents[1]
 _TEST_DATABASE = _ROOT / "rcapi_test.sqlite"

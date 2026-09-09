@@ -2,10 +2,10 @@
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.schema import CreateSchema
 
+from alembic import context
 from src.services.job_state import Base
 from src.util.settings import db_connection_string
 

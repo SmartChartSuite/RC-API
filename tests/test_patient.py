@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import httpx
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
@@ -25,8 +27,8 @@ class _FakeResponse:
 
 
 class _FakeAsyncClient:
-    queued_responses: list[list[_FakeResponse]] = []
-    calls: list[dict] = []
+    queued_responses: ClassVar[list[list[_FakeResponse]]] = []
+    calls: ClassVar[list[dict]] = []
 
     def __init__(self, timeout=60):
         self._responses = _FakeAsyncClient.queued_responses.pop(0)

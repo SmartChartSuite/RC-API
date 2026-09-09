@@ -11,6 +11,7 @@ Uses SQLAlchemy Core + ORM with the same engine/session pattern as v0.
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
+from typing import ClassVar
 
 from alembic.config import Config
 from alembic.migration import MigrationContext
@@ -21,7 +22,6 @@ from sqlalchemy import (
     JSON,
     Column,
     CursorResult,
-    exists,
     ForeignKey,
     Index,
     MetaData,
@@ -29,11 +29,13 @@ from sqlalchemy import (
     Text,
     create_engine,
     delete,
+    exists,
     func,
     or_,
     select,
     update,
 )
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.schema import CreateSchema
 
@@ -53,7 +55,7 @@ def _metadata_schema(connection_string: str, schema: str | None) -> str | None:
 
 class Base(DeclarativeBase):
     metadata = MetaData(schema=_metadata_schema(db_connection_string, db_schema))
-    type_annotation_map = {dict: JSON}
+    type_annotation_map: ClassVar = {dict: JSON}
 
 
 class BatchJobs(Base):
@@ -189,7 +191,7 @@ def create_batch_job(batch_id: str, patient_id: str, job_package: str, started_b
             session.commit()
         logger.info(f"Created batch job {batch_id}")
         return True
-    except Exception as exc:
+    except SQLAlchemyError as exc:
         logger.error(f"Failed to create batch job {batch_id}: {exc}")
         return False
 
@@ -282,7 +284,7 @@ def create_batch_job_with_response(
             session.commit()
         logger.info(f"Created batch job {batch_id} with questionnaire response {response_id}")
         return True
-    except Exception as exc:
+    except SQLAlchemyError as exc:
         logger.error(f"Failed to create batch job {batch_id} with questionnaire response {response_id}: {exc}")
         return False
 
@@ -696,7 +698,7 @@ def ensure_job(
             snapshot = LogicalJob(existing.job_id, existing.status, existing.result)
             session.commit()
         return snapshot
-    except Exception as exc:
+    except SQLAlchemyError as exc:
         logger.error(f"Failed to ensure job {job_id}: {exc}")
         return None
 
@@ -784,7 +786,7 @@ def create_response(response_id: str, batch_job_id: str, job_package: str, patie
             session.commit()
         logger.info(f"Created questionnaire response {response_id}")
         return True
-    except Exception as exc:
+    except SQLAlchemyError as exc:
         logger.error(f"Failed to create response {response_id}: {exc}")
         return False
 

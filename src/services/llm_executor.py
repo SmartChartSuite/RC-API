@@ -6,8 +6,8 @@ All calls use asyncio.gather for concurrency.
 Guarded by use_llm — if LiteLLM is not configured, run_all_prompts() should not be called.
 """
 
-from collections.abc import Awaitable, Callable
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 import litellm
@@ -80,7 +80,8 @@ async def run_prompt_on_document(prompt: Prompt, document: dict) -> LlmDocumentR
         answer = response.choices[0].message.content or ""  # type: ignore
         logger.debug(f"LLM response received for prompt '{prompt.metadata.path}' / doc {doc_id}")
         return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response=answer, doc_text=document.get("text"))
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
+        # Isolate provider failures to this document so other calls can complete.
         logger.error(f"LLM call failed for prompt '{prompt.metadata.path}' / doc {doc_id}: {exc}")
         return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response="", error=str(exc))
 

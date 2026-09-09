@@ -1,6 +1,6 @@
 import importlib
 
-import src.util.settings as settings
+from src.util import settings
 
 
 def test_root_path_uses_env_var(monkeypatch):

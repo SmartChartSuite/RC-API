@@ -28,7 +28,7 @@ dev = [
     "pytest-asyncio>=1.4.0,<2",
     "pytest-env>=1.2.0,<2",
     "respx>=0.23.1",
-    "ruff>=0.15.21,<1",
+    "ruff>=0.16.5,<1",
     "uv-bump>=0.6.0,<1",
 ]
 
@@ -38,6 +38,13 @@ exclude-newer = "7 days"
 
 [tool.ruff]
 line-length = 200
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Query",
+    "fastapi.Security",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

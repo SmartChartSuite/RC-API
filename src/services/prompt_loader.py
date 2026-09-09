@@ -79,7 +79,7 @@ def _load_prompt_from_folder(path: str) -> Prompt | None:
         )
         logger.debug(f"Loaded prompt from file: {file_path}")
         return prompt
-    except Exception as exc:
+    except (AttributeError, OSError, TypeError, ValueError) as exc:
         logger.error(f"Failed to load prompt {file_path}: {exc}")
         return None
 
@@ -123,7 +123,8 @@ def _load_from_langfuse_sync(prompt_paths: list[str]) -> list[Prompt]:
                 )
             )
             logger.debug(f"Loaded prompt from Langfuse: {path}")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
+            # Langfuse SDK failures must fall back to the matching local prompt.
             logger.warning(f"Failed to load prompt '{path}' from Langfuse: {exc}. Trying local fallback.")
             fallback = _load_prompt_from_folder(path)
             if fallback is not None:
@@ -153,7 +154,8 @@ async def initialize_prompt_source() -> None:
         response.raise_for_status()
         _enable_langfuse_tracing()
         logger.info(f"Langfuse is configured and reachable at {langfuse_host}")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
+        # Any initialization failure disables Langfuse and preserves local fallback.
         use_langfuse = False
         _disable_langfuse_tracing()
         logger.warning(f"Langfuse is configured but not reachable at {langfuse_host}: {exc}. Falling back to local prompts folder: {prompts_dir}")

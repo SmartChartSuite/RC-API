@@ -1,9 +1,10 @@
 import threading
-from src.services.cql_executor import CqlResult
+
 from src.models.prompt import Prompt, PromptMetadata
-from src.services.llm_executor import LlmDocumentResult, LlmResult
-from src.services.job_state import LogicalJob
 from src.services import job_orchestrator
+from src.services.cql_executor import CqlResult
+from src.services.job_state import LogicalJob
+from src.services.llm_executor import LlmDocumentResult, LlmResult
 
 
 def test_extract_job_lists_reads_both_extension_types():

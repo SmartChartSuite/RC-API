@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta, timezone
 import importlib
+from datetime import datetime, timedelta, timezone
 
 import sqlalchemy
 from sqlalchemy.orm import Session
 
-import src.services.job_state as job_state
-import src.util.settings as settings
+from src.services import job_state
+from src.util import settings
 
 
 def test_metadata_schema_uses_non_sqlite_schema():
