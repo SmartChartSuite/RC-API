@@ -26,8 +26,8 @@ so this test never touches the shared dev DB file.
 """
 
 import json
-from pathlib import Path
 import time
+from pathlib import Path
 
 import httpx
 import pytest
@@ -38,8 +38,7 @@ from sqlalchemy import create_engine
 import main as main_module
 from main import app
 from src.routers import batchjob
-from src.services import batch_worker, cql_executor, fhir_context, fhir_proxy, job_state, llm_executor, prompt_loader
-from src.services import job_orchestrator
+from src.services import batch_worker, cql_executor, fhir_context, fhir_proxy, job_orchestrator, job_state, llm_executor, prompt_loader
 from src.util import auth
 
 FIXTURES = Path(__file__).parent / "fixtures" / "batchjob_integration"

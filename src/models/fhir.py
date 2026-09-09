@@ -1,6 +1,6 @@
 """Shared FHIR response models used by router output typing."""
 
-from typing import Any, Literal, TypedDict, TypeAlias
+from typing import Any, Literal, TypeAlias, TypedDict
 
 from pydantic import BaseModel, ConfigDict, model_validator
 

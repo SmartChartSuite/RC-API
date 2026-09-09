@@ -1,12 +1,16 @@
 """Response models for /batchjob endpoints."""
 
+from typing import ClassVar
+
+from pydantic import ConfigDict
+
 from src.models.fhir import ParametersResponse
 
 
 class BatchJobAcceptedResponse(ParametersResponse):
     """FHIR Parameters body returned when a batch job is accepted."""
 
-    model_config = {
+    model_config: ClassVar[ConfigDict] = {
         "json_schema_extra": {
             "examples": [
                 {

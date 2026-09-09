@@ -7,7 +7,8 @@ skips all LLM prompt execution.
 
 import asyncio
 import base64
-from datetime import datetime
+import binascii
+from datetime import datetime, timezone
 
 import httpx
 from loguru import logger
@@ -71,7 +72,7 @@ async def fetch_patient_documents(patient_id: str) -> list[dict]:
             if doc_ref.get("resourceType") != "DocumentReference":
                 return None
             doc_id = doc_ref.get("id", "unknown")
-            doc_date = doc_ref.get("date", datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"))
+            doc_date = doc_ref.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
 
             # Best-effort type display
             try:
@@ -91,7 +92,7 @@ async def fetch_patient_documents(patient_id: str) -> list[dict]:
                 if "data" in attachment:
                     try:
                         plain_text = base64.b64decode(attachment["data"]).decode("utf-8")
-                    except Exception as exc:
+                    except (binascii.Error, TypeError, UnicodeError, ValueError) as exc:
                         logger.warning(f"Failed to decode base64 data for DocRef {doc_id}: {exc}")
 
                 # External URL

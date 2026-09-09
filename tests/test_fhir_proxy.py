@@ -1,12 +1,13 @@
+from typing import ClassVar, cast
+
 import httpx
-from typing import cast
 
 from src.services import fhir_proxy
 
 
 class _FakeAsyncClient:
     queued_response: httpx.Response | None = None
-    calls: list[dict] = []
+    calls: ClassVar[list[dict]] = []
 
     def __init__(self, timeout=None, transport=None):
         self.timeout = timeout

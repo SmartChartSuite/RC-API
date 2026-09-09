@@ -73,7 +73,7 @@ def _handle(resp: httpx.Response, method: str, url: str) -> FHIRProxyResult:
     """Parse the FHIR response, wrapping errors as OperationOutcome."""
     try:
         data = resp.json()
-    except Exception:
+    except ValueError:
         data = {}
 
     if not isinstance(data, dict):

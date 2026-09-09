@@ -10,19 +10,19 @@ Orchestrates the full CQL + LLM pipeline for a batch job submission:
 """
 
 import asyncio
-from collections.abc import Callable
-from contextlib import suppress
-from dataclasses import asdict
+import base64
 import json
 import re
 import uuid
-from typing import Any, ParamSpec, TypeVar, cast
+from collections.abc import Callable
+from contextlib import suppress
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, ParamSpec, TypeVar, cast
 
 import httpx
 from loguru import logger
-import base64
 
 from src.services.cql_executor import CqlResult, run_cql_libraries
 from src.services.errorhandler import make_operation_outcome
@@ -532,7 +532,7 @@ async def _fetch_patient_resource(patient_id: str) -> dict | None:
             resp = await client.get(url, headers=headers)
         if resp.is_success:
             return resp.json()
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning(f"Could not fetch Patient/{patient_id}: {exc}")
     return None
 
@@ -587,7 +587,7 @@ def _build_document_entries(documents: list[dict], patient_id: str, batch_id: st
                     logger.warning(f"[batch={batch_id}] Failed to base64-encode text for DocumentReference/{doc_id}: {exc}")
 
             entries.append({"fullUrl": f"DocumentReference/{doc_id}", "resource": supporting_doc})
-        except Exception as exc:
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
             logger.warning(f"[batch={batch_id}] Skipping malformed document entry (id={doc.get('id', 'unknown')}): {exc}")
 
     return entries

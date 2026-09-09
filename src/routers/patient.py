@@ -52,7 +52,7 @@ async def _external_patient_get(resource_id: str | None = None, params: Sequence
 
     try:
         data = resp.json()
-    except Exception:
+    except ValueError:
         data = {}
 
     if not isinstance(data, dict):

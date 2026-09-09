@@ -1,8 +1,8 @@
 """POST/GET/DELETE /batchjob — batch job submission and status/results retrieval."""
 
 import asyncio
-from copy import deepcopy
 import uuid
+from copy import deepcopy
 from datetime import date, datetime, timezone
 from typing import Annotated, Any, cast
 
@@ -112,9 +112,7 @@ def _matches_date_range(value: date | None, start: date | None, end: date | None
         return False
     if start is not None and value < start:
         return False
-    if end is not None and value > end:
-        return False
-    return True
+    return not (end is not None and value > end)
 
 
 def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = None, include_patient_resource: bool = False) -> ParametersResponse:
@@ -168,7 +166,7 @@ async def _fetch_patient(patient_id: str) -> dict | None:
             resp = await client.get(url, headers=headers)
         if resp.is_success:
             return resp.json()
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning(f"Could not fetch Patient/{patient_id}: {exc}")
     return None
 
