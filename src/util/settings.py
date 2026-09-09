@@ -59,6 +59,7 @@ hapi_fhir_cql_execution_url: str | None = _require("HAPI_FHIR_CQL_EXECUTION_URL"
 litellm_model: str | None = _get("LITELLM_MODEL")
 litellm_api_base: str | None = _get("LITELLM_API_BASE")
 litellm_api_key: str | None = _get("LITELLM_API_KEY")
+litellm_model_reasoning_effort: str | None = _get("LITELLM_MODEL_REASONING_EFFORT")
 use_llm: bool = bool(litellm_model and litellm_api_base and litellm_api_key)
 if any([litellm_model, litellm_api_base, litellm_api_key]) and not use_llm:
     logger.warning("Partial LiteLLM config — set LITELLM_MODEL, LITELLM_API_BASE, and LITELLM_API_KEY together.")

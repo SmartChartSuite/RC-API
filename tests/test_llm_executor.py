@@ -21,6 +21,7 @@ async def test_run_prompt_on_document_returns_config_error_when_llm_disabled(mon
 async def test_run_prompt_on_document_calls_litellm_completion(monkeypatch):
     monkeypatch.setattr(llm_executor, "use_llm", True)
     monkeypatch.setattr(llm_executor, "litellm_model", "gpt-test")
+    monkeypatch.setattr(llm_executor, "litellm_model_reasoning_effort", None)
     captured: dict = {}
 
     async def _fake_acompletion(**kwargs):
@@ -35,6 +36,25 @@ async def test_run_prompt_on_document_calls_litellm_completion(monkeypatch):
     assert captured["model"] == "gpt-test"
     assert captured["messages"][0]["content"] == "system instructions"
     assert captured["messages"][1]["content"] == "patient text"
+    assert "reasoning_effort" not in captured
+
+
+async def test_run_prompt_on_document_passes_configured_reasoning_effort(monkeypatch):
+    monkeypatch.setattr(llm_executor, "use_llm", True)
+    monkeypatch.setattr(llm_executor, "litellm_model", "gpt-test")
+    monkeypatch.setattr(llm_executor, "litellm_model_reasoning_effort", "high")
+    captured: dict = {}
+
+    async def _fake_acompletion(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="answer text"))])
+
+    monkeypatch.setattr(llm_executor.litellm, "acompletion", _fake_acompletion)
+
+    result = await llm_executor.run_prompt_on_document(_prompt(), {"id": "doc-1", "type": "Visit Note", "date": "2026-05-22", "text": "patient text"})
+
+    assert result.response == "answer text"
+    assert captured["reasoning_effort"] == "high"
 
 
 async def test_run_prompt_across_documents_collects_all_document_results(monkeypatch):
