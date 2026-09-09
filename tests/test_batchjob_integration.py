@@ -5,7 +5,7 @@ real HTTP endpoints (via FastAPI's TestClient), mocking only the true external
 network boundaries with respx:
     - HAPI FHIR (Questionnaire search/get, Library/$evaluate)
     - External FHIR server (Patient, DocumentReference)
-    - LiteLLM proxy (chat completions)
+    - LiteLLM proxy (Responses API)
 
 All mocked response bodies under tests/fixtures/batchjob_integration/ are real
 captures from the project's dev environment: the Questionnaire
@@ -64,13 +64,42 @@ def _load_fixture(name: str) -> dict:
 
 
 def _llm_side_effect(request: httpx.Request) -> httpx.Response:
-    """Return the captured completion matching the document in the request body."""
+    """Return a Responses API envelope matching the document in the request body."""
     body = json.loads(request.content)
-    user_message = body["messages"][-1]["content"]
+    assert body["prompt_cache_key"].startswith("rcapi-")
+    user_message = body["input"]
     for marker, fixture in LLM_COMPLETION_BY_DOC_MARKER.items():
         if marker in user_message:
-            return httpx.Response(200, json=_load_fixture(fixture))
-    raise AssertionError("Unexpected LiteLLM request: no known document marker matched")
+            completion = _load_fixture(fixture)
+            answer = completion["choices"][0]["message"]["content"]
+            usage = completion["usage"]
+            return httpx.Response(
+                200,
+                json={
+                    "id": f"resp-{completion['id']}",
+                    "object": "response",
+                    "created_at": completion["created"],
+                    "model": completion["model"],
+                    "status": "completed",
+                    "output": [
+                        {
+                            "type": "message",
+                            "id": f"msg-{completion['id']}",
+                            "status": "completed",
+                            "role": "assistant",
+                            "content": [{"type": "output_text", "text": answer, "annotations": []}],
+                        }
+                    ],
+                    "usage": {
+                        "input_tokens": usage["prompt_tokens"],
+                        "input_tokens_details": {"cached_tokens": usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)},
+                        "output_tokens": usage["completion_tokens"],
+                        "output_tokens_details": {},
+                        "total_tokens": usage["total_tokens"],
+                    },
+                },
+            )
+    raise AssertionError("Unexpected LiteLLM Responses API request: no known document marker matched")
 
 
 @pytest.fixture(autouse=True)
@@ -114,6 +143,7 @@ def _configure_services(monkeypatch):
     monkeypatch.setattr(llm_executor, "litellm_model", "openai/test-model")
     monkeypatch.setattr(llm_executor, "litellm_api_base", LITELLM_BASE)
     monkeypatch.setattr(llm_executor, "litellm_api_key", "test-key")
+    monkeypatch.setattr(llm_executor, "litellm_prompt_cache_enabled", True)
 
     # litellm defaults to its own aiohttp-backed transport, which bypasses
     # respx (respx only patches httpx's native transport classes). Force
@@ -165,7 +195,7 @@ def test_post_batch_job_end_to_end_builds_expected_result_bundle():
         mock.get(f"{EXTERNAL_BASE}/DocumentReference", params={"subject": f"Patient/{PATIENT_ID}", "_count": "500"}).mock(return_value=httpx.Response(200, json=document_references))
         mock.get(f"{EXTERNAL_BASE}/Patient/{PATIENT_ID}").mock(return_value=httpx.Response(200, json=patient))
         # One LLM call per document; the side effect returns each note's real answer.
-        mock.post(f"{LITELLM_BASE}/chat/completions").mock(side_effect=_llm_side_effect)
+        mock.post(f"{LITELLM_BASE}/responses").mock(side_effect=_llm_side_effect)
 
         with TestClient(app) as client:
             post_response = client.post(

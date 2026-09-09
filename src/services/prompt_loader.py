@@ -7,6 +7,7 @@ All callers use load_prompts(prompt_paths) regardless of strategy.
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 import httpx
 import litellm
@@ -23,6 +24,28 @@ from src.util.settings import (
     prompts_dir,
     use_langfuse,
 )
+
+_langfuse_client: Any | None = None
+
+
+def get_langfuse_client() -> Any | None:
+    """Return the process-wide Langfuse client used for prompts and tracing."""
+    global _langfuse_client
+    if _langfuse_client is not None:
+        return _langfuse_client
+
+    try:
+        from langfuse import Langfuse  # type: ignore
+    except ImportError:
+        logger.error("langfuse package not installed. Langfuse features are unavailable.")
+        return None
+
+    _langfuse_client = Langfuse(
+        public_key=langfuse_public_key,
+        secret_key=langfuse_secret_key,
+        host=langfuse_host,
+    )
+    return _langfuse_client
 
 
 def _disable_langfuse_tracing() -> None:
@@ -91,17 +114,9 @@ def _load_from_folder(prompt_paths: list[str]) -> list[Prompt]:
 
 def _load_from_langfuse_sync(prompt_paths: list[str]) -> list[Prompt]:
     """Synchronously load Langfuse prompts with per-prompt local fallback."""
-    try:
-        from langfuse import Langfuse  # type: ignore
-    except ImportError:
-        logger.error("langfuse package not installed. Falling back to local prompts.")
+    client = get_langfuse_client()
+    if client is None:
         return _load_from_folder(prompt_paths)
-
-    client = Langfuse(
-        public_key=langfuse_public_key,
-        secret_key=langfuse_secret_key,
-        host=langfuse_host,
-    )
     prompts: list[Prompt] = []
     for path in prompt_paths:
         try:

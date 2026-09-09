@@ -79,6 +79,10 @@ def _bool(var: str, default: bool) -> bool:
     return default
 
 
+# Enable provider-side prompt caching for models that support it.
+litellm_prompt_cache_enabled: bool = _bool("LITELLM_PROMPT_CACHE_ENABLED", True)
+
+
 def _positive_int(var: str, default: int) -> int:
     """Read a positive-integer env var, falling back to default on missing/invalid input."""
     raw = _get(var)
