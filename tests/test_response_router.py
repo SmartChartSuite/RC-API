@@ -89,6 +89,7 @@ async def test_create_response_record_sets_location_and_returns_questionnaire_re
     assert result.id == "response-123"
     assert result.resourceType == "QuestionnaireResponse"
     assert captured["response"]["id"] == "response-123"
+    assert captured["response"]["meta"]["lastUpdated"] == result.meta["lastUpdated"]
 
 
 async def test_create_response_record_returns_400_when_required_fields_missing(monkeypatch):

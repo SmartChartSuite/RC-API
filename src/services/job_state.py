@@ -252,9 +252,10 @@ def create_batch_job_with_response(
     questionnaire_id: str,
     job_package_version: str | None = None,
     requested_jobs: list[str] | None = None,
+    response_timestamp: datetime | None = None,
 ) -> bool:
     try:
-        now = datetime.now(timezone.utc)
+        now = response_timestamp or datetime.now(timezone.utc)
         with Session(db_engine) as session:
             session.add(
                 BatchJobs(
@@ -770,8 +771,17 @@ def mark_unfinished_jobs_error(batch_id: str, message: str) -> int:
 # ── Questionnaire Response CRUD ────────────────────────────────────────────────
 
 
-def create_response(response_id: str, batch_job_id: str, job_package: str, patient_id: str, last_updated_by: str, response_body: dict) -> bool:
+def create_response(
+    response_id: str,
+    batch_job_id: str,
+    job_package: str,
+    patient_id: str,
+    last_updated_by: str,
+    response_body: dict,
+    response_timestamp: datetime | None = None,
+) -> bool:
     try:
+        timestamp = response_timestamp or datetime.now(timezone.utc)
         with Session(db_engine) as session:
             session.add(
                 QuestionnaireResponses(
@@ -781,6 +791,8 @@ def create_response(response_id: str, batch_job_id: str, job_package: str, patie
                     patient_id=patient_id,
                     last_updated_by=last_updated_by,
                     response=response_body,
+                    created_at=timestamp,
+                    updated_at=timestamp,
                 )
             )
             session.commit()

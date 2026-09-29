@@ -293,6 +293,7 @@ async def post_batch_job(
     batch_id = str(uuid.uuid4())
     response_id = str(uuid.uuid4())
     start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    response_timestamp = datetime.now(timezone.utc)
     questionnaire_id = questionnaire.get("id")
 
     if not questionnaire_id:
@@ -304,6 +305,7 @@ async def post_batch_job(
         "status": "in-progress",
         "questionnaire": questionnaire_reference,
         "subject": {"reference": f"Patient/{patient_id}"},
+        "meta": {"lastUpdated": response_timestamp.isoformat()},
         "item": _prefill_questionnaire_response_items(questionnaire.get("item")),
     }
 
@@ -317,6 +319,7 @@ async def post_batch_job(
         questionnaire_id,
         job_package_version,
         job_names or None,
+        response_timestamp,
     )
     if not created:
         return operation_outcome_response(

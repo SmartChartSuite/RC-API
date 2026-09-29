@@ -58,6 +58,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         questionnaire_id,
         job_package_version,
         requested_jobs,
+        response_timestamp,
     ):
         captured["batch_id"] = batch_id
         captured["patient_id"] = patient_id
@@ -68,6 +69,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         captured["questionnaire_id"] = questionnaire_id
         captured["job_package_version"] = job_package_version
         captured["requested_jobs"] = requested_jobs
+        captured["response_timestamp"] = response_timestamp
         return True
 
     monkeypatch.setattr(batchjob, "_resolve_questionnaire", _fake_resolve_questionnaire)
@@ -98,6 +100,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         "status": "in-progress",
         "questionnaire": "http://example.org/Questionnaire/questionnaire-123",
         "subject": {"reference": "Patient/patient-123"},
+        "meta": {"lastUpdated": captured["response_timestamp"].isoformat()},
         "item": [
             {
                 "linkId": "General",
@@ -118,6 +121,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
     assert captured["questionnaire_id"] == "questionnaire-123"
     assert captured["job_package_version"] is None
     assert captured["requested_jobs"] == ["SyphilisHistory", "ig_hc"]
+    assert captured["response_timestamp"].isoformat() == captured["response_body"]["meta"]["lastUpdated"]
     assert response.headers["Location"].startswith("/batchjob/")
 
 

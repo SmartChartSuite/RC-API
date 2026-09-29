@@ -109,6 +109,28 @@ def test_start_batch_job_attempt_updates_attempt_and_heartbeat(monkeypatch):
     assert batch.updated_at is not None
 
 
+def test_create_response_uses_explicit_timestamp(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+    timestamp = datetime(2026, 9, 29, 17, 50, 21, 123456, tzinfo=timezone.utc)
+
+    assert job_state.create_response(
+        "response-1",
+        "batch-1",
+        "Registry",
+        "patient-1",
+        "user-1",
+        {"resourceType": "QuestionnaireResponse", "meta": {"lastUpdated": timestamp.isoformat()}},
+        timestamp,
+    )
+
+    response = job_state.get_response("response-1")
+    assert response is not None
+    assert response.created_at == timestamp.replace(tzinfo=None)
+    assert response.updated_at == timestamp.replace(tzinfo=None)
+
+
 def test_recover_expired_batch_job_leases_preserves_partial_and_terminal_results(monkeypatch):
     engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
     monkeypatch.setattr(job_state, "db_engine", engine)
