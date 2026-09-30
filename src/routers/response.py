@@ -142,6 +142,7 @@ async def create_response_record(
     normalized_meta = dict(meta) if isinstance(meta, dict) else {}
     normalized_meta["lastUpdated"] = now.isoformat()
     normalized_response["meta"] = normalized_meta
+    normalized_response["authored"] = now.isoformat()
     created = create_response(
         response_id,
         batch_job_id,
@@ -168,7 +169,14 @@ async def update_response_record(
     The request body should be the full FHIR ``QuestionnaireResponse`` resource
     to persist for the given local ``response_id``.
     """
-    updated = update_response_body(response_id, _normalize_questionnaire_response(response_id, body), claims.get("sub", "unknown"))
+    now = datetime.now(timezone.utc)
+    normalized_response = _normalize_questionnaire_response(response_id, body)
+    meta = normalized_response.get("meta")
+    normalized_meta = dict(meta) if isinstance(meta, dict) else {}
+    normalized_meta["lastUpdated"] = now.isoformat()
+    normalized_response["meta"] = normalized_meta
+    normalized_response["authored"] = now.isoformat()
+    updated = update_response_body(response_id, normalized_response, claims.get("sub", "unknown"), now)
     if not updated:
         return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
     return OperationOutcome(issue=[OperationOutcomeIssue(severity="information", code="informational", diagnostics=f"Response {response_id} updated.")])

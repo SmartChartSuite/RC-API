@@ -52,18 +52,24 @@ def _patient_name(patient: dict[str, Any] | None) -> str | None:
     return family or first
 
 
-def _questionnaire_response_info(batch_id: str) -> tuple[str | None, str | None]:
-    """Return (response_id, status) for a batch job's QuestionnaireResponse, if any."""
+def _questionnaire_response_info(batch_id: str) -> tuple[str | None, str | None, str | None]:
+    """Return (response_id, status, last_updated) for a batch response, if any."""
     responses = get_responses(batch_job_id=batch_id)
     if not responses:
-        return None, None
+        return None, None, None
     response = responses[0]
     response_id = getattr(response, "response_id", None)
     response_id = response_id if isinstance(response_id, str) and response_id else None
     response_resource = response.response
     status = response_resource.get("status") if isinstance(response_resource, dict) else None
     status = status if isinstance(status, str) and status else None
-    return response_id, status
+    meta = response_resource.get("meta") if isinstance(response_resource, dict) else None
+    last_updated = meta.get("lastUpdated") if isinstance(meta, dict) else None
+    last_updated = last_updated if isinstance(last_updated, str) and last_updated else None
+    if last_updated is None:
+        database_timestamp = getattr(response, "updated_at", None)
+        last_updated = database_timestamp.isoformat() if database_timestamp is not None else None
+    return response_id, status, last_updated
 
 
 def _matches_filter(value: str | None, expected: str | None, *, partial: bool = False) -> bool:
@@ -124,9 +130,11 @@ def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = No
         ParametersParameter(name="batchJobStatus", valueString=cast(Any, job.status)),
         ParametersParameter(name="jobStartDateTime", valueDateTime=job.created_at.isoformat()),
     ]
-    form_response_id, form_status = _questionnaire_response_info(job.batch_id)
+    form_response_id, form_status, response_last_updated = _questionnaire_response_info(job.batch_id)
     if form_status:
         parameters.append(ParametersParameter(name="questionnaireResponseStatus", valueString=form_status))
+    if response_last_updated:
+        parameters.append(ParametersParameter(name="responseLastUpdated", valueDateTime=response_last_updated))
     if form_response_id:
         parameters.append(
             ParametersParameter(
@@ -306,6 +314,7 @@ async def post_batch_job(
         "questionnaire": questionnaire_reference,
         "subject": {"reference": f"Patient/{patient_id}"},
         "meta": {"lastUpdated": response_timestamp.isoformat()},
+        "authored": response_timestamp.isoformat(),
         "item": _prefill_questionnaire_response_items(questionnaire.get("item")),
     }
 

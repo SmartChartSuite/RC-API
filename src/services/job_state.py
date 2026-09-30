@@ -818,12 +818,13 @@ def get_responses(batch_job_id: str | None = None, job_package: str | None = Non
         return list(session.execute(stmt).scalars().all())
 
 
-def update_response_body(response_id: str, response_body: dict, last_updated_by: str) -> bool:
+def update_response_body(response_id: str, response_body: dict, last_updated_by: str, updated_at: datetime | None = None) -> bool:
+    timestamp = updated_at or datetime.now(timezone.utc)
     with Session(db_engine) as session:
         result: CursorResult = session.execute(
             update(QuestionnaireResponses)
             .where(QuestionnaireResponses.response_id == response_id)
-            .values(response=response_body, last_updated_by=last_updated_by, updated_at=datetime.now(timezone.utc))
+            .values(response=response_body, last_updated_by=last_updated_by, updated_at=timestamp)
         )  # type: ignore
         session.commit()
     updated = result.rowcount > 0

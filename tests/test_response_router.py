@@ -90,6 +90,7 @@ async def test_create_response_record_sets_location_and_returns_questionnaire_re
     assert result.resourceType == "QuestionnaireResponse"
     assert captured["response"]["id"] == "response-123"
     assert captured["response"]["meta"]["lastUpdated"] == result.meta["lastUpdated"]
+    assert captured["response"]["authored"] == result.authored
 
 
 async def test_create_response_record_returns_400_when_required_fields_missing(monkeypatch):
@@ -105,10 +106,11 @@ async def test_create_response_record_returns_400_when_required_fields_missing(m
 async def test_update_response_record_returns_operation_outcome(monkeypatch):
     captured: dict = {}
 
-    def _fake_update_response_body(response_id, body, last_updated_by):
+    def _fake_update_response_body(response_id, body, last_updated_by, updated_at):
         captured["response_id"] = response_id
         captured["body"] = body
         captured["last_updated_by"] = last_updated_by
+        captured["updated_at"] = updated_at
         return True
 
     monkeypatch.setattr(response_router, "update_response_body", _fake_update_response_body)
@@ -119,6 +121,7 @@ async def test_update_response_record_returns_operation_outcome(monkeypatch):
     assert result.issue[0].diagnostics == "Response response-1 updated."
     assert captured["last_updated_by"] == "user-456"
     assert captured["body"]["id"] == "response-1"
+    assert captured["body"]["meta"]["lastUpdated"] == captured["body"]["authored"]
 
 
 async def test_delete_response_delegates_to_job_state(monkeypatch):
