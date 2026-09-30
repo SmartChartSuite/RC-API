@@ -20,6 +20,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
             "resourceType": "Questionnaire",
             "id": "questionnaire-123",
             "url": "http://example.org/Questionnaire/questionnaire-123",
+            "title": "Syphilis Registry",
             "item": [
                 {
                     "linkId": "General",
@@ -56,6 +57,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         response_id,
         response_body,
         questionnaire_id,
+        questionnaire_title,
         job_package_version,
         requested_jobs,
         response_timestamp,
@@ -67,6 +69,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         captured["response_id"] = response_id
         captured["response_body"] = response_body
         captured["questionnaire_id"] = questionnaire_id
+        captured["questionnaire_title"] = questionnaire_title
         captured["job_package_version"] = job_package_version
         captured["requested_jobs"] = requested_jobs
         captured["response_timestamp"] = response_timestamp
@@ -120,6 +123,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         ],
     }
     assert captured["questionnaire_id"] == "questionnaire-123"
+    assert captured["questionnaire_title"] == "Syphilis Registry"
     assert captured["job_package_version"] is None
     assert captured["requested_jobs"] == ["SyphilisHistory", "ig_hc"]
     assert captured["response_timestamp"].isoformat() == captured["response_body"]["meta"]["lastUpdated"]
@@ -209,6 +213,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
                 result_bundle=None,
                 created_at=created_at,
                 completed_at=completed_at,
+                questionnaire_title="Syphilis Registry",
             ),
             BatchJobs(
                 batch_id="batch-456",
@@ -254,6 +259,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
     assert values["batchId"].valueString == "batch-123"
     assert values["patientId"].valueString == "patient-123"
     assert values["jobPackage"].valueString == "SyphilisRegistry"
+    assert values["jobPackageTitle"].valueString == "Syphilis Registry"
     assert values["startedBy"].valueString == "user-123"
     assert values["batchJobStatus"].valueString == "complete"
     assert values["questionnaireResponseStatus"].valueString == "in-progress"

@@ -74,6 +74,7 @@ class BatchJobs(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
     completed_at: Mapped[datetime | None]
     questionnaire_id: Mapped[str | None]
+    questionnaire_title: Mapped[str | None]
     job_package_version: Mapped[str | None]
     requested_jobs: Mapped[list[str] | None] = mapped_column(JSON)
     attempt_count: Mapped[int] = mapped_column(default=0)
@@ -250,6 +251,7 @@ def create_batch_job_with_response(
     response_id: str,
     response_body: dict,
     questionnaire_id: str,
+    questionnaire_title: str | None = None,
     job_package_version: str | None = None,
     requested_jobs: list[str] | None = None,
     response_timestamp: datetime | None = None,
@@ -265,6 +267,7 @@ def create_batch_job_with_response(
                     started_by=started_by,
                     status="pending",
                     questionnaire_id=questionnaire_id,
+                    questionnaire_title=questionnaire_title,
                     job_package_version=job_package_version,
                     requested_jobs=requested_jobs or None,
                     attempt_count=0,
