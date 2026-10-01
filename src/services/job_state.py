@@ -42,6 +42,12 @@ from sqlalchemy.schema import CreateSchema
 from src.services.errorhandler import make_operation_outcome
 from src.util.settings import batch_job_max_attempts, db_connection_string, db_schema
 
+
+def _utc_now() -> datetime:
+    """Return the current UTC time for Python-side ORM defaults."""
+    return datetime.now(timezone.utc)
+
+
 # ── ORM base ──────────────────────────────────────────────────────────────────
 
 
@@ -71,14 +77,14 @@ class BatchJobs(Base):
     started_by: Mapped[str] = mapped_column(default="unknown")
     status: Mapped[str] = mapped_column(default="pending")
     result_bundle: Mapped[dict | None]
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(default=_utc_now)
     completed_at: Mapped[datetime | None]
     questionnaire_id: Mapped[str | None]
     job_package_version: Mapped[str | None]
     requested_jobs: Mapped[list[str] | None] = mapped_column(JSON)
     attempt_count: Mapped[int] = mapped_column(default=0)
     heartbeat_at: Mapped[datetime | None]
-    updated_at: Mapped[datetime | None] = mapped_column(default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    updated_at: Mapped[datetime | None] = mapped_column(default=_utc_now, onupdate=_utc_now)
     worker_id: Mapped[str | None]
     lease_expires_at: Mapped[datetime | None]
     next_attempt_at: Mapped[datetime | None]
@@ -122,7 +128,7 @@ class Jobs(Base):
     task_type: Mapped[str]
     status: Mapped[str] = mapped_column(default="pending")
     result: Mapped[dict | None]
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(default=_utc_now)
     completed_at: Mapped[datetime | None]
 
 
@@ -135,8 +141,8 @@ class QuestionnaireResponses(Base):
     patient_id: Mapped[str]
     last_updated_by: Mapped[str] = mapped_column(default="unknown")
     response: Mapped[dict]
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(default=_utc_now)
+    updated_at: Mapped[datetime] = mapped_column(default=_utc_now, onupdate=_utc_now)
 
 
 # ── Engine + table creation ────────────────────────────────────────────────────

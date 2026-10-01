@@ -1,4 +1,5 @@
 import importlib
+import time
 from datetime import datetime, timedelta, timezone
 
 import sqlalchemy
@@ -107,6 +108,28 @@ def test_start_batch_job_attempt_updates_attempt_and_heartbeat(monkeypatch):
     assert batch.attempt_count == 1
     assert batch.heartbeat_at is not None
     assert batch.updated_at is not None
+
+
+def test_orm_timestamp_defaults_are_evaluated_per_insert(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+
+    before = datetime.now(timezone.utc)
+    assert job_state.create_batch_job("batch-1", "patient-1", "Registry")
+    first = job_state.get_batch_job("batch-1")
+    assert first is not None
+    time.sleep(0.01)
+    assert job_state.create_batch_job("batch-2", "patient-2", "Registry")
+    second = job_state.get_batch_job("batch-2")
+    after = datetime.now(timezone.utc)
+
+    assert second is not None
+    first_created_at = first.created_at.replace(tzinfo=timezone.utc) if first.created_at.tzinfo is None else first.created_at
+    second_created_at = second.created_at.replace(tzinfo=timezone.utc) if second.created_at.tzinfo is None else second.created_at
+    assert before <= first_created_at <= after
+    assert before <= second_created_at <= after
+    assert first_created_at < second_created_at
 
 
 def test_recover_expired_batch_job_leases_preserves_partial_and_terminal_results(monkeypatch):
