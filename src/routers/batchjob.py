@@ -142,6 +142,8 @@ def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = No
                 valueReference={"reference": f"QuestionnaireResponse/{form_response_id}"},
             )
         )
+    if job.questionnaire_title:
+        parameters.append(ParametersParameter(name="jobPackageTitle", valueString=job.questionnaire_title))
     patient_name = _patient_name(patient)
     if patient_name:
         parameters.append(ParametersParameter(name="patientName", valueString=patient_name))
@@ -326,6 +328,7 @@ async def post_batch_job(
         response_id,
         response_resource,
         questionnaire_id,
+        questionnaire.get("title") if isinstance(questionnaire.get("title"), str) else None,
         job_package_version,
         job_names or None,
         response_timestamp,
