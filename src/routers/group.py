@@ -9,16 +9,15 @@ from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-from src.models.fhir import GroupResource, OperationOutcome, PatientResource
+from src.models.fhir import BundleResource, GroupResource, OperationOutcome, PatientResource
 from src.services.errorhandler import config_error_for, model_or_operation_outcome, operation_outcome_responses
-from src.services.fhir_proxy import fhir_delete, fhir_post, fhir_put
+from src.services.fhir_proxy import fhir_delete, fhir_get, fhir_post, fhir_put
 from src.util.auth import require_admin, validate_token
 from src.util.outbound_url import is_same_origin, resolve_http_reference
 from src.util.settings import (
     config_errors,
     external_fhir_server_auth,
     external_fhir_server_url,
-    hapi_fhir_cql_execution_url,
 )
 
 router = APIRouter(tags=["Groups"])
@@ -53,37 +52,29 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
 
-    # Fetch groups from HAPI FHIR
-    assert hapi_fhir_cql_execution_url
+    # Fetch groups from HAPI FHIR using the shared proxy transport.
     assert external_fhir_server_url
-    url = f"{hapi_fhir_cql_execution_url.rstrip('/')}/Group"
     params = {}
     if name:
         params["name"] = name
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        try:
-            resp = await client.get(
-                url,
-                params=params,
-                headers={"Accept": "application/fhir+json"},
-            )
-            logger.info(f"FHIR GET {url} → {resp.status_code}")
-        except httpx.RequestError as exc:
-            logger.error(f"Failed to search Groups: {exc}")
-            return []
-
-    if not resp.is_success:
-        logger.error(f"Group search returned {resp.status_code}")
+    try:
+        bundle = await fhir_get("Group", params=params)
+    except httpx.RequestError as exc:
+        logger.error(f"Failed to search Groups: {exc}")
         return []
 
-    bundle = resp.json()
-    entries = bundle.get("entry", [])
+    bundle_response = model_or_operation_outcome(bundle, BundleResource)
+    if isinstance(bundle_response, OperationOutcome):
+        logger.error("Group search returned an OperationOutcome")
+        return []
+
+    entries = bundle_response.entry or []
 
     result: list[GroupSearchResult] = []
     async with httpx.AsyncClient(timeout=60) as client:
         for entry in entries:
-            group = entry.get("resource", {})
+            group = entry.resource
             if group.get("resourceType") != "Group":
                 continue
             result.append(GroupResource.model_validate(group))
@@ -117,12 +108,7 @@ async def get_group(resource_id: str, claims: dict = Security(validate_token)) -
     """Get a specific Group resource by ID from HAPI FHIR."""
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    assert hapi_fhir_cql_execution_url
-    async with httpx.AsyncClient(timeout=60) as client:
-        url = f"{hapi_fhir_cql_execution_url.rstrip('/')}/Group/{resource_id}"
-        resp = await client.get(url, headers={"Accept": "application/fhir+json"})
-    logger.info(f"FHIR GET {url} → {resp.status_code}")
-    data = resp.json()
+    data = await fhir_get("Group", resource_id)
     return model_or_operation_outcome(data, GroupResource)
 
 
