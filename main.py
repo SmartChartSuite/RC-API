@@ -1,67 +1,93 @@
-"""Main application file"""
-
+import logging
+import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.docs import (
-    get_redoc_html,
-    get_swagger_ui_html,
-    get_swagger_ui_oauth2_redirect_html,
-)
-from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from loguru import logger
-from pydantic import ValidationError
 
-from src.models.functions import make_operation_outcome
-from src.routers import cql_router, forms_router, main_router, nlpql_router, smartchartui, webhook
-from src.routers.forms_router import init_jobs_array
-from src.util.databaseclient import startup_connect
-from src.util.git import clone_repo_to_temp_folder
-from src.util.settings import api_docs, deploy_url, docs_prepend_url, knowledgebase_repo_url
+from src.routers.batchjob import router as batchjob_router
+from src.routers.config import router as config_router
+from src.routers.group import router as group_router
+from src.routers.jobpackage import router as jobpackage_router
+from src.routers.library import router as library_router
+from src.routers.patient import router as patient_router
+from src.routers.response import router as response_router
+from src.services.batch_worker import EmbeddedBatchWorker
+from src.services.errorhandler import make_operation_outcome
+from src.services.job_state import initialize_db
+from src.services.prompt_loader import initialize_prompt_source
+from src.util.settings import batch_worker_enabled, log_level, root_path
 
-title: str = "SmartChart Suite Results Combining (RC) API"
-version: str = "0.13.0"
+LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
+_NOISY_LOGGER_LEVELS = {"httpcore": logging.WARNING, "httpx": logging.WARNING, "LiteLLM": logging.WARNING, "urllib3": logging.WARNING, "openai": logging.WARNING, "asyncio": logging.WARNING}
 
 
-# ========================== Lifespan Function ===========================
+def _patch_log_record(record) -> None:
+    record["extra"].setdefault("source_name", record["name"])
+    record["extra"].setdefault("source_function", record["function"])
+    record["extra"].setdefault("source_line", record["line"])
+
+
+class InterceptHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level: str | int = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        logger.bind(
+            source_name=record.name,
+            source_function=record.funcName,
+            source_line=record.lineno,
+        ).opt(exception=record.exc_info).log(level, record.getMessage())
+
+
+def _configure_noisy_loggers() -> None:
+    for logger_name, level in _NOISY_LOGGER_LEVELS.items():
+        logging.getLogger(logger_name).setLevel(level)
+
+
+def configure_logging() -> None:
+    logger.remove()
+    logger.configure(patcher=_patch_log_record)
+    logger.add(sys.stderr, level=log_level, colorize=True, format=LOG_FORMAT)
+
+    intercept_handler = InterceptHandler()
+    logging.basicConfig(handlers=[intercept_handler], level=log_level, force=True)
+
+    for logger_name in ("hypercorn.access", "hypercorn.error", "hypercorn", "LiteLLM"):
+        stdlib_logger = logging.getLogger(logger_name)
+        stdlib_logger.handlers = [intercept_handler]
+        stdlib_logger.propagate = False
+
+    _configure_noisy_loggers()
+
+
+configure_logging()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """On startup, check for knowledgebase repo variables and if found, update the libraries on CQF Ruler, and check that database contains required tables"""
-    # Check for private key and known hosts in secrets
-    # Set these (required for both hook clone and startup clone)
-    # setup_keys()
-    # Check for repo ssh env
-    # if present do startup
-    # pre_load_scripts(ssh_url_from_env)
-    if knowledgebase_repo_url:
-        # TODO: Add error handling.
-        logger.info("Knowledgebase Repo configuration detected.")
-        logger.info("Loading libraries from Knowledgebase Repository...")
-        clone_repo_to_temp_folder(knowledgebase_repo_url)
-    else:
-        logger.info("Knowledgebase Repo configuration not detected.")
-        logger.info("Skipping initial library load.")
-
+    initialize_db()
+    await initialize_prompt_source()
+    worker = EmbeddedBatchWorker() if batch_worker_enabled else None
+    app.state.batch_worker = worker
+    if worker is not None:
+        await worker.start()
     try:
-        startup_connect()
-    except Exception as error:
-        logger.error("There was an issue with your database connection, see below for error:")
-        raise ValueError(error)
-
-    init_jobs_array()
-
-    yield
+        yield
+    finally:
+        if worker is not None:
+            await worker.stop()
 
 
-# ================= FastAPI variable ===================================
-if api_docs.lower() == "true":
-    app = FastAPI(title=title, version=version, include_in_schema=True, docs_url=None, redoc_url=None, lifespan=lifespan)
-else:
-    app = FastAPI(title=title, version=version, include_in_schema=False, docs_url=None, redoc_url=None, lifespan=lifespan)
+# App
+app = FastAPI(title="RC-API", description="SmartChart Suite Results Combining API — v1.0", version="1.0.0", root_path=root_path, lifespan=lifespan)
 
+# CORS stuff
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -70,72 +96,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ================= Routers inclusion from src directory ===============
-app.include_router(main_router.router, tags=["Main API"])
-app.include_router(cql_router.router, tags=["CQL APIs"])
-app.include_router(nlpql_router.router, tags=["NLPQL APIs"])
-app.include_router(forms_router.router, tags=["Forms APIs"])
-app.include_router(webhook.router, tags=["Webhook"])
-app.include_router(smartchartui.smartchart_router, tags=["SmartChart UI"])
 
-
-# ================= Invalid Request Exception Handling =================
+# Exception handlers
 @app.exception_handler(RequestValidationError)
-@app.exception_handler(ValidationError)
-async def validation_exception_handler(request, exc) -> JSONResponse:
-    """Formats all invalidated requests to return as OperationOutcomes"""
-    return JSONResponse(make_operation_outcome("invalid", str(exc)), status_code=400)
-
-
-# ================== Custom OpenAPI ===========================
-def custom_openapi():
-    """Defines the custom OpenAPI schema handling"""
-    if app.openapi_schema:
-        return app.openapi_schema
-    openapi_schema = get_openapi(
-        title=title,
-        version=version,
-        description="This is a custom Open API Schema to align with SmartChart Suite's RC-API.",
-        routes=app.routes,
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return FHIR OperationOutcome for Pydantic validation failures (e.g. missing params)."""
+    detail = "; ".join(err.get("msg", str(err)) for err in exc.errors())
+    return JSONResponse(
+        status_code=400,
+        content=make_operation_outcome("structure", detail),
     )
-    openapi_schema["servers"] = [{"url": deploy_url}]
-    openapi_schema["paths"]["/forms/cql"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
-    openapi_schema["paths"]["/forms/nlpql"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
-    openapi_schema["paths"]["/forms/cql/{library_name}"]["put"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
-    openapi_schema["paths"]["/forms/nlpql/{library_name}"]["put"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
-    openapi_schema["paths"]["/forms/jobPackageToQuestionnaire"]["post"]["requestBody"]["content"] = {"text/plain": {"schema": {}}}
-    # openapi_schema["paths"]["/formns/start"]["post"]["responses"]["200"] TODO: this is going to be example of the results output when I get there
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
 
 
-app.openapi = custom_openapi
+# Routers
+app.include_router(batchjob_router)
+app.include_router(jobpackage_router)
+app.include_router(config_router)
+app.include_router(group_router)
+app.include_router(library_router)
+app.include_router(patient_router)
+app.include_router(response_router)
 
 
-if api_docs.lower() == "true":
+# Health
+@app.get("/health", tags=["Health"])
+async def health():
+    """Basic health check."""
+    from src.util.settings import config_errors
 
-    @app.get("/docs", include_in_schema=False)
-    async def custom_swagger_ui_html():
-        """Custom Swagger UI HTML"""
-        assert app.openapi_url
-        return get_swagger_ui_html(
-            openapi_url=docs_prepend_url + app.openapi_url,
-            title=app.title + " - Swagger UI",
-            oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
-        )
-
-    assert app.swagger_ui_oauth2_redirect_url
-
-    @app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)
-    async def swagger_ui_redirect():
-        """Custom Swagger UI Redirect"""
-        return get_swagger_ui_oauth2_redirect_html()
-
-    @app.get("/redoc", include_in_schema=False)
-    async def redoc_html():
-        """Custom Redoc HTML"""
-        assert app.openapi_url
-        return get_redoc_html(
-            openapi_url=docs_prepend_url + app.openapi_url,
-            title=app.title + " - ReDoc",
-        )
+    return {
+        "status": "ok" if not config_errors else "degraded",
+        "version": "1.0.0",
+        "configErrors": list(config_errors.keys()) if config_errors else [],
+    }

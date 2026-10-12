@@ -1,20 +1,61 @@
+[project]
+name = "rc-api"
+version = "1.0.0"
+description = "SmartChart Suite Results Combining API"
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "alembic>=1.16,<2",
+    "boto3>=1.43.86,<2",
+    "fastapi>=0.141.1,<1",
+    "httpx>=0.28.1,<1",
+    "hypercorn>=0.18.0,<1",
+    "langfuse>=4.15.1,<5",
+    "litellm>=1.99.0,<2",
+    "loguru>=0.7.3,<1",
+    "psycopg[binary,pool]>=3.3.5,<4",
+    "pydantic>=2.13.5,<3",
+    "pydantic-settings>=2.15.0",
+    "python-jose[cryptography]>=3.5.0,<4",
+    "PyYAML>=6.0.3,<7",
+    "SQLAlchemy>=2.0.52,<3",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2,<5",
+    "pyright>=1.1.407,<2",
+    "pytest>=8.4.2,<9",
+    "pytest-asyncio>=1.4.0,<2",
+    "pytest-env>=1.2.0,<2",
+    "respx>=0.23.1",
+    "ruff>=0.16.5,<1",
+    "uv-bump>=0.6.0,<1",
+]
+
+[tool.uv]
+package = false
+exclude-newer = "7 days"
+
 [tool.ruff]
 line-length = 200
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Query",
+    "fastapi.Security",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-markers = [
-    "integration: end-to-end tests that require real external services (CQF Ruler, FHIR server). Run with: pytest -m integration",
-]
 
 [tool.pytest.ini_options.env]
-CQF_RULER_R4 = "http://localhost:8080/fhir"
+HAPI_FHIR_CQL_EXECUTION_URL = "http://localhost:8080/fhir"
 EXTERNAL_FHIR_SERVER_URL = "http://localhost:9090/fhir"
 EXTERNAL_FHIR_SERVER_AUTH = ""
 NLPAAS_URL = "False"
 LOG_LEVEL = "WARNING"
-API_DOCS = "false"
 KNOWLEDGEBASE_REPO_URL = ""
 DOCS_PREPEND_URL = ""
 DEPLOY_URL = "http://localhost/"
