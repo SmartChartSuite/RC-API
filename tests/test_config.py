@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from main import app
 from src.models.config import ConfigEndpointModel
 from src.routers import config
+from src.util import auth
 
 
 async def test_get_config_returns_empty_dict_when_primary_identifier_is_unset(monkeypatch):
@@ -33,6 +34,7 @@ async def test_get_config_returns_primary_identifier_payload(monkeypatch):
 
 
 def test_config_endpoint_is_registered(monkeypatch):
+    monkeypatch.setattr(auth, "oauth2_enabled", False)
     monkeypatch.setattr(
         config,
         "config_endpoint",
@@ -56,3 +58,13 @@ def test_config_endpoint_is_registered(monkeypatch):
             "label": "MRN",
         }
     }
+
+
+def test_config_requires_auth_but_health_and_docs_remain_public(monkeypatch):
+    monkeypatch.setattr(auth, "oauth2_enabled", True)
+    client = TestClient(app)
+
+    assert client.get("/config").status_code == 401
+    assert client.get("/health").status_code == 200
+    assert client.get("/docs").status_code == 200
+    assert client.get("/openapi.json").status_code == 200

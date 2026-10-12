@@ -208,11 +208,6 @@ def get_batch_job(batch_id: str) -> BatchJobs | None:
         return session.get(BatchJobs, batch_id)
 
 
-def get_all_batch_jobs() -> list[BatchJobs]:
-    with Session(db_engine) as session:
-        return list(session.execute(select(BatchJobs)).scalars().all())
-
-
 def query_batch_jobs(
     *,
     statuses: list[str] | None = None,

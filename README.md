@@ -171,9 +171,7 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `LANGFUSE_PUBLIC_KEY` | *(none)* | Langfuse public key. All three `LANGFUSE_*` vars required together |
 | `LANGFUSE_SECRET_KEY` | *(none)* | Langfuse secret key |
 | `LANGFUSE_HOST` | *(none)* | Langfuse host URL for prompt retrieval and, by default, OTEL ingestion |
-| `LANGFUSE_OTEL_HOST` | *(none)* | Optional separate Langfuse OTEL ingestion host; defaults to `LANGFUSE_HOST` |
-| `LANGFUSE_TRACING_ENVIRONMENT` | *(none)* | Optional environment label attached to Langfuse traces, such as `production` or `staging` |
-| `OTEL_SEMCONV_STABILITY_OPT_IN` | *(none)* | Set to `gen_ai_latest_experimental` to remove LiteLLM's non-standard raw child span while retaining generation telemetry |
+| `OTEL_SEMCONV_STABILITY_OPT_IN` | *(none)* | Provider-level LiteLLM/OpenTelemetry setting; `gen_ai_latest_experimental` opts into the latest GenAI conventions |
 | `LANGFUSE_PROMPT_FETCH_TIMEOUT_SECONDS` | `5` | Maximum duration of each synchronous Langfuse prompt fetch attempt, executed outside the API event loop |
 | `LANGFUSE_PROMPT_MAX_RETRIES` | `1` | Retries after a failed Langfuse prompt fetch before using the matching local prompt |
 | `PROMPTS_DIR` | `./prompts` | Local prompt directory used when Langfuse is disabled, unavailable, or fails to return an individual prompt |
@@ -243,7 +241,8 @@ uv run alembic upgrade head
 
 Do not stamp a fresh empty database because stamping records a revision without creating its tables. The API verifies that the database is at Alembic head during startup and exits with a migration instruction when it is not. Useful inspection commands are `pixi run migration-current` and `pixi run migration-history`.
 
-Revision `0003` adds the embedded-worker queue, lease, retry, and logical-child uniqueness fields. Running batches renew their leases periodically. Workers continuously requeue expired attempts while retry capacity remains and mark a batch `error` only after `BATCH_JOB_MAX_ATTEMPTS` is exhausted. Partial result Bundles and already-completed or skipped child tasks are preserved across claims, retries, graceful shutdowns, and container restarts. The API and workers run in the same container. Each Hypercorn process starts one lease-coordinated consumer, so increasing the process count increases both HTTP capacity and maximum concurrent batch execution. Deploy only one RC-API container unless you intentionally scale replicas against the same database.
+Revision `0003` adds the embedded-worker queue, lease, retry, and logical-child uniqueness fields. Revision `0004` adds the persisted human-readable Questionnaire title used in batch-job metadata. Running batches renew their leases periodically. Workers continuously requeue expired attempts while retry capacity remains and mark a batch `error` only after `BATCH_JOB_MAX_ATTEMPTS` is exhausted. Partial result Bundles and already-completed or skipped child tasks are preserved across claims, retries, graceful shutdowns, and container restarts. The API and workers run in the same container. Each Hypercorn process starts one lease-coordinated consumer, so increasing the process count increases both HTTP capacity and maximum concurrent batch execution. Deploy only one RC-API container unless you intentionally scale replicas against the same database.
+Offline SQL generation with `uv run alembic upgrade head --sql` is partially supported: it emits SQL through revisions `0001` and `0002`, but revision `0003` includes a data-dependent logical-job deduplication step that requires an online database connection. Use `uv run alembic upgrade head` for the actual upgrade.
 
 ### Tooling Flow
 
@@ -334,7 +333,7 @@ pixi run serve
 pixi run serve-prod
 ```
 
-The server binds to `:8080` and starts two Hypercorn worker processes by default (configured in `hypercorn_config.toml`). Each process can serve requests independently and runs one embedded durable batch consumer coordinated through database leases.
+The server binds to `:8080` and starts one Hypercorn worker process by default (configured in `hypercorn_config.toml`). Each process can serve requests independently and runs one embedded durable batch consumer coordinated through database leases.
 
 Docker builds install dependencies with `uv` from the committed `uv.lock` file, while local development uses `pixi` tasks that wrap the same `uv`-managed environment. Local `.env` files are for developer machines only and are not copied into the image.
 
@@ -350,6 +349,9 @@ pixi run lint
 # Format
 pixi run format
 
+# Full non-mutating verification (lint, format check, type check, tests)
+pixi run check
+
 # Run all pre-commit hooks
 uv run pre-commit run --all-files
 ```
@@ -358,9 +360,7 @@ uv run pre-commit run --all-files
 
 ## Authentication
 
-NOTE: generalized auth flow, should be able to support Auth0 and Keycloak using handlers
-
-OAuth 2 Bearer token authentication is **optional**. When `OAUTH2_JWKS_URL` is set, all endpoints require a valid JWT. When it is not set, all endpoints are fully open (useful for local development).
+Authentication uses an optional OAuth 2 Bearer/JWT dependency with JWKS-backed RS256 validation. When `OAUTH2_JWKS_URL` is set, protected application endpoints require a valid JWT. `/config` is protected by the same dependency, while `/health` and FastAPI’s `/docs`, `/redoc`, and `/openapi.json` routes remain public for operations and discovery. When OAuth is disabled, all application endpoints are open (useful for local development). Provider-specific handler abstractions are not currently implemented.
 
 ### Token Requirements
 
@@ -383,41 +383,45 @@ Authorization: Bearer <token>
 RC-API/
 ├── alembic.ini                     # Alembic configuration
 ├── alembic/                        # Versioned database migrations
-├── main.py                        # FastAPI app entry points
-├── hypercorn_config.toml          # ASGI server configuration (binds :8080)
-├── pyproject.toml                 # Python dependencies and tool configuration
-├── pixi.toml                      # Local developer tasks and bootstrap commands
-├── .env.example                   # Environment variable template
-├── prompts/                       # Local LLM prompt files (.md)
+├── main.py                         # FastAPI app entry point
+├── hypercorn_config.toml           # ASGI server configuration (binds :8080)
+├── pyproject.toml                  # Python dependencies and tool configuration
+├── pixi.toml                       # Local developer tasks and bootstrap commands
+├── .env.example                    # Environment variable template
+├── prompts/                        # Local LLM prompt files (.md)
 │
 ├── src/
+│   ├── models/
+│   │   ├── config.py               # Public /config response models
+│   │   ├── fhir.py                 # Shared FHIR response/resource models
+│   │   ├── job_request.py          # FHIR Parameters request model
+│   │   ├── job_response.py         # Batch job status/result models
+│   │   └── prompt.py               # Prompt metadata model
+│   │
 │   ├── routers/
-│   │   ├── batchjob.py            # POST/GET/DELETE /batchjob
-│   │   ├── jobpackage.py          # CRUD /jobpackage → HAPI FHIR Questionnaire
-│   │   ├── group.py               # CRUD /group → HAPI FHIR Group
-│   │   ├── library.py             # CRUD /library → HAPI FHIR Library
-│   │   └── response.py            # CRUD /response → local DB
+│   │   ├── batchjob.py             # POST/GET/DELETE /batchjob
+│   │   ├── config.py               # GET /config
+│   │   ├── group.py                # CRUD /group → HAPI FHIR Group
+│   │   ├── jobpackage.py           # CRUD /jobpackage → HAPI FHIR Questionnaire
+│   │   ├── library.py              # CRUD /library → HAPI FHIR Library
+│   │   ├── patient.py              # Patient search/read via external FHIR
+│   │   └── response.py             # CRUD /response → local DB
 │   │
 │   ├── services/
 │   │   ├── batch_worker.py         # Embedded durable database-backed worker
-│   │   ├── job_orchestrator.py    # Async batch job pipeline
-│   │   ├── cql_executor.py        # HAPI FHIR Library/$evaluate wrapper
-│   │   ├── llm_executor.py        # LiteLLM per-document execution
-│   │   ├── fhir_proxy.py          # HAPI FHIR CRUD proxy
-│   │   ├── fhir_context.py        # Patient DocumentReference fetcher
-│   │   ├── prompt_loader.py       # Langfuse + local ./prompts/ loader
-│   │   ├── job_state.py           # SQLAlchemy ORM + DB helpers
-│   │   └── errorhandler.py        # FHIR OperationOutcome helpers
-│   │
-│   ├── models/
-│   │   ├── job_request.py         # FHIR Parameters request model
-│   │   ├── job_response.py        # Batch job status/result models
-│   │   ├── response.py            # QuestionnaireResponse models
-│   │   └── prompt.py              # Prompt metadata model
+│   │   ├── cql_executor.py         # HAPI FHIR Library/$evaluate wrapper
+│   │   ├── errorhandler.py         # FHIR OperationOutcome helpers
+│   │   ├── fhir_context.py         # Patient DocumentReference fetcher
+│   │   ├── fhir_proxy.py           # HAPI FHIR CRUD proxy
+│   │   ├── job_orchestrator.py     # Async batch job pipeline
+│   │   ├── job_state.py            # SQLAlchemy ORM + DB helpers
+│   │   ├── llm_executor.py         # LiteLLM per-document execution
+│   │   └── prompt_loader.py        # Langfuse + local ./prompts/ loader
 │   │
 │   └── util/
-│       ├── settings.py            # Environment variable config
-│       └── auth.py                # OAuth 2 JWT validation dependencies
+│       ├── auth.py                 # OAuth 2 JWT validation dependencies
+│       ├── outbound_url.py         # Safe outbound URL helpers
+│       └── settings.py             # Environment variable configuration
 │
-└── tests/                         # Pytest coverage for routers, services, and models
+└── tests/                          # Pytest coverage for routers, services, and models
 ```
