@@ -9,6 +9,28 @@ from src.services import job_state
 from src.util import settings
 
 
+def _create_batch_job(batch_id: str, patient_id: str, job_package: str, started_by: str = "test-user") -> bool:
+    response_id = f"{batch_id}-response"
+    return job_state.create_batch_job_with_response(
+        batch_id,
+        patient_id,
+        job_package,
+        started_by,
+        response_id,
+        {"resourceType": "QuestionnaireResponse", "id": response_id},
+        "questionnaire-1",
+    )
+
+
+def _create_job(job_id: str, batch_id: str, patient_id: str, job_package: str, task_name: str, task_type: str, status: str = "pending") -> bool:
+    snapshot = job_state.ensure_job(job_id, batch_id, patient_id, job_package, task_name, task_type)
+    if snapshot is None:
+        return False
+    if status != "running":
+        return job_state.update_job_result(snapshot.job_id, status)
+    return True
+
+
 def test_metadata_schema_uses_non_sqlite_schema():
     assert job_state._metadata_schema("postgresql+psycopg://user:pass@host/db", "custom_schema") == "custom_schema"
     assert job_state._metadata_schema("sqlite+pysqlite:///rcapi_jobs.sqlite", "custom_schema") is None
@@ -55,32 +77,6 @@ def test_models_apply_configured_schema_for_named_schema_backends(monkeypatch):
     importlib.reload(reloaded)
 
 
-def test_mark_unfinished_jobs_error_preserves_terminal_jobs(monkeypatch):
-    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
-    monkeypatch.setattr(job_state, "db_engine", engine)
-    job_state.Base.metadata.create_all(engine)
-
-    assert job_state.create_batch_job("batch-1", "patient-1", "Registry")
-    for job_id, status in (
-        ("job-complete", "complete"),
-        ("job-running", "running"),
-        ("job-skipped", "skipped"),
-        ("job-pending", "pending"),
-    ):
-        assert job_state.create_job(job_id, "batch-1", "patient-1", "Registry", job_id, "structured", status=status)
-
-    updated = job_state.mark_unfinished_jobs_error("batch-1", "late failure")
-
-    jobs = {job.job_id: job for job in job_state.get_jobs_for_batch("batch-1")}
-    assert updated == 2
-    assert jobs["job-complete"].status == "complete"
-    assert jobs["job-skipped"].status == "skipped"
-    assert jobs["job-running"].status == "error"
-    assert jobs["job-running"].result == {"message": "late failure"}
-    assert jobs["job-pending"].status == "error"
-    assert jobs["job-pending"].result == {"message": "late failure"}
-
-
 def test_initialize_db_rejects_outdated_revision(monkeypatch):
     monkeypatch.setattr(job_state, "_ensure_schema_exists", lambda: None)
     monkeypatch.setattr(job_state, "_current_database_revision", lambda: "0001")
@@ -94,33 +90,17 @@ def test_initialize_db_rejects_outdated_revision(monkeypatch):
         raise AssertionError("Expected an outdated database revision to fail startup")
 
 
-def test_start_batch_job_attempt_updates_attempt_and_heartbeat(monkeypatch):
-    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
-    monkeypatch.setattr(job_state, "db_engine", engine)
-    job_state.Base.metadata.create_all(engine)
-    assert job_state.create_batch_job("batch-1", "patient-1", "Registry")
-
-    job_state.start_batch_job_attempt("batch-1")
-
-    batch = job_state.get_batch_job("batch-1")
-    assert batch is not None
-    assert batch.status == "running"
-    assert batch.attempt_count == 1
-    assert batch.heartbeat_at is not None
-    assert batch.updated_at is not None
-
-
 def test_orm_timestamp_defaults_are_evaluated_per_insert(monkeypatch):
     engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
     monkeypatch.setattr(job_state, "db_engine", engine)
     job_state.Base.metadata.create_all(engine)
 
     before = datetime.now(UTC)
-    assert job_state.create_batch_job("batch-1", "patient-1", "Registry")
+    assert _create_batch_job("batch-1", "patient-1", "Registry")
     first = job_state.get_batch_job("batch-1")
     assert first is not None
     time.sleep(0.01)
-    assert job_state.create_batch_job("batch-2", "patient-2", "Registry")
+    assert _create_batch_job("batch-2", "patient-2", "Registry")
     second = job_state.get_batch_job("batch-2")
     after = datetime.now(UTC)
 
@@ -137,7 +117,7 @@ def test_recover_expired_batch_job_leases_preserves_partial_and_terminal_results
     monkeypatch.setattr(job_state, "db_engine", engine)
     job_state.Base.metadata.create_all(engine)
     for batch_id in ("retry-running", "exhausted-running", "fresh-running"):
-        assert job_state.create_batch_job(batch_id, "patient-1", "Registry")
+        assert _create_batch_job(batch_id, "patient-1", "Registry")
 
     now = datetime.now(UTC)
     partial_bundle = {"resourceType": "Bundle", "id": "partial-1"}
@@ -176,8 +156,8 @@ def test_recover_expired_batch_job_leases_preserves_partial_and_terminal_results
         )
         session.commit()
 
-    assert job_state.create_job("job-complete", "retry-running", "patient-1", "Registry", "complete-task", "structured", status="complete")
-    assert job_state.create_job("job-running", "retry-running", "patient-1", "Registry", "running-task", "structured", status="running")
+    assert _create_job("job-complete", "retry-running", "patient-1", "Registry", "complete-task", "structured", status="complete")
+    assert _create_job("job-running", "retry-running", "patient-1", "Registry", "running-task", "structured", status="running")
 
     retried, failed = job_state.recover_expired_batch_job_leases(30)
 
@@ -203,7 +183,7 @@ def test_batch_claim_is_exclusive_and_writes_are_fenced(monkeypatch):
     engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
     monkeypatch.setattr(job_state, "db_engine", engine)
     job_state.Base.metadata.create_all(engine)
-    assert job_state.create_batch_job("batch-1", "patient-1", "Registry")
+    assert _create_batch_job("batch-1", "patient-1", "Registry")
 
     claim = job_state.claim_next_batch_job("worker-1", 60)
 
@@ -237,7 +217,7 @@ def test_failed_attempt_retries_then_exhausts(monkeypatch):
     engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
     monkeypatch.setattr(job_state, "db_engine", engine)
     job_state.Base.metadata.create_all(engine)
-    assert job_state.create_batch_job("batch-1", "patient-1", "Registry")
+    assert _create_batch_job("batch-1", "patient-1", "Registry")
     with Session(engine) as session:
         session.execute(sqlalchemy.update(job_state.BatchJobs).where(job_state.BatchJobs.batch_id == "batch-1").values(max_attempts=2))
         session.commit()
@@ -263,7 +243,7 @@ def test_ensure_job_reuses_one_logical_child_and_preserves_terminal_state(monkey
     engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
     monkeypatch.setattr(job_state, "db_engine", engine)
     job_state.Base.metadata.create_all(engine)
-    assert job_state.create_batch_job("batch-1", "patient-1", "Registry")
+    assert _create_batch_job("batch-1", "patient-1", "Registry")
 
     first = job_state.ensure_job("job-1", "batch-1", "patient-1", "Registry", "TaskA", "structured")
     assert first is not None

@@ -191,18 +191,6 @@ def initialize_db() -> None:
 # ── Batch Job CRUD ─────────────────────────────────────────────────────────────
 
 
-def create_batch_job(batch_id: str, patient_id: str, job_package: str, started_by: str = "unknown") -> bool:
-    try:
-        with Session(db_engine) as session:
-            session.add(BatchJobs(batch_id=batch_id, patient_id=patient_id, job_package=job_package, started_by=started_by, status="pending"))
-            session.commit()
-        logger.info(f"Created batch job {batch_id}")
-        return True
-    except SQLAlchemyError as exc:
-        logger.error(f"Failed to create batch job {batch_id}: {exc}")
-        return False
-
-
 def get_batch_job(batch_id: str) -> BatchJobs | None:
     with Session(db_engine) as session:
         return session.get(BatchJobs, batch_id)
@@ -292,24 +280,6 @@ def create_batch_job_with_response(
     except SQLAlchemyError as exc:
         logger.error(f"Failed to create batch job {batch_id} with questionnaire response {response_id}: {exc}")
         return False
-
-
-def start_batch_job_attempt(batch_id: str) -> None:
-    """Legacy direct-execution helper retained for callers outside the worker."""
-    now = datetime.now(UTC)
-    with Session(db_engine) as session:
-        session.execute(
-            update(BatchJobs)
-            .where(BatchJobs.batch_id == batch_id)
-            .values(
-                status="running",
-                attempt_count=BatchJobs.attempt_count + 1,
-                heartbeat_at=now,
-                updated_at=now,
-            )
-        )
-        session.commit()
-    logger.info(f"Started direct execution attempt for batch job {batch_id}")
 
 
 def _claimed_batch_snapshot(job: BatchJobs, worker_id: str) -> ClaimedBatchJob:
@@ -708,16 +678,6 @@ def ensure_job(
         return None
 
 
-def create_job(job_id: str, batch_id: str, patient_id: str, job_package: str, task_name: str, task_type: str, status: str = "pending") -> bool:
-    """Compatibility wrapper around logical child creation."""
-    snapshot = ensure_job(job_id, batch_id, patient_id, job_package, task_name, task_type)
-    if snapshot is None:
-        return False
-    if status != "running":
-        update_job_result(snapshot.job_id, status)
-    return True
-
-
 def get_jobs_for_batch(batch_id: str) -> list[Jobs]:
     """Return all child task jobs for a batch submission."""
     with Session(db_engine) as session:
@@ -748,27 +708,6 @@ def update_job_result(
     updated = update_result.rowcount == 1
     if updated:
         logger.debug(f"Updated job {job_id} → status={status}")
-    return updated
-
-
-def mark_unfinished_jobs_error(batch_id: str, message: str) -> int:
-    """Mark only pending/running child jobs as failed after a batch-level exception."""
-    with Session(db_engine) as session:
-        result: CursorResult = session.execute(
-            update(Jobs)
-            .where(
-                Jobs.batch_id == batch_id,
-                Jobs.status.not_in(("complete", "error", "skipped")),
-            )
-            .values(
-                status="error",
-                result={"message": message},
-                completed_at=datetime.now(UTC),
-            )
-        )  # type: ignore
-        session.commit()
-    updated = result.rowcount or 0
-    logger.debug(f"Marked {updated} unfinished job(s) as error for batch {batch_id}")
     return updated
 
 

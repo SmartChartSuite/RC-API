@@ -25,15 +25,12 @@ from loguru import logger
 
 from src.services import prompt_loader
 from src.services.cql_executor import CqlResult, run_cql_libraries
-from src.services.errorhandler import make_operation_outcome
 from src.services.external_fhir import fetch_patient as _fetch_patient_resource
 from src.services.fhir_context import fetch_patient_documents
 from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
     ensure_job,
-    mark_unfinished_jobs_error,
     renew_batch_job_lease,
-    start_batch_job_attempt,
     update_batch_job_result,
     update_batch_job_status,
     update_job_result,
@@ -679,31 +676,23 @@ async def run_batch_job(
     job_package_version: str | None = None,
     requested_jobs: list[str] | None = None,
     *,
-    worker_id: str | None = None,
-    attempt_count: int | None = None,
+    worker_id: str,
+    attempt_count: int,
     prior_bundle: dict | None = None,
 ) -> None:
-    """Run the full CQL + LLM pipeline for a direct or worker-owned batch attempt."""
-    if (worker_id is None) != (attempt_count is None):
-        raise ValueError("worker_id and attempt_count must be provided together")
-    worker_owned = worker_id is not None and attempt_count is not None
-    logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}, attempt={attempt_count or 'direct'}")
+    """Run the full CQL + LLM pipeline for one worker-owned batch attempt."""
+    logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}, attempt={attempt_count}")
 
     task_results: list[dict] = []
     job_ids_by_task: dict[tuple[str, str], str] = {}
-    partial_bundle_persisted = False
     heartbeat_task: asyncio.Task[None] | None = None
 
     def _require_owned(updated: bool) -> None:
-        if worker_owned and not updated:
+        if not updated:
             raise LeaseLostError(f"Worker {worker_id} lost batch {batch_id} attempt {attempt_count}")
 
     try:
-        if worker_owned:
-            assert worker_id is not None and attempt_count is not None
-            heartbeat_task = asyncio.create_task(_maintain_batch_lease(batch_id, worker_id, attempt_count))
-        else:
-            await _run_state_call(start_batch_job_attempt, batch_id)
+        heartbeat_task = asyncio.create_task(_maintain_batch_lease(batch_id, worker_id, attempt_count))
 
         # 1. Fetch Questionnaire from HAPI FHIR
         questionnaire_data = await fhir_get("Questionnaire", questionnaire_id)
@@ -746,19 +735,16 @@ async def run_batch_job(
             return snapshot
 
         async def _update_task(job_id: str, status: str, result: dict | None = None) -> None:
-            if worker_owned:
-                updated = await _run_state_call(
-                    update_job_result,
-                    job_id,
-                    status,
-                    result,
-                    batch_id=batch_id,
-                    worker_id=worker_id,
-                    attempt_count=attempt_count,
-                )
-                _require_owned(updated)
-            else:
-                await _run_state_call(update_job_result, job_id, status, result)
+            updated = await _run_state_call(
+                update_job_result,
+                job_id,
+                status,
+                result,
+                batch_id=batch_id,
+                worker_id=worker_id,
+                attempt_count=attempt_count,
+            )
+            _require_owned(updated)
 
         for library_name in cql_names:
             snapshot = await _ensure_task(library_name, "structured")
@@ -832,7 +818,6 @@ async def run_batch_job(
             )
 
         async def _persist_partial_bundle() -> None:
-            nonlocal partial_bundle_persisted
             current_cql_entries, current_llm_entries = _current_result_entries()
             partial_bundle = _build_result_bundle(
                 None,
@@ -849,7 +834,6 @@ async def run_batch_job(
                 attempt_count=attempt_count,
             )
             _require_owned(updated)
-            partial_bundle_persisted = True
 
         await _persist_partial_bundle()
 
@@ -967,14 +951,7 @@ async def run_batch_job(
         raise
     except Exception as exc:
         logger.exception(f"[batch={batch_id}] Unhandled error in run_batch_job: {exc}")
-        if worker_owned:
-            raise
-        error_bundle = make_operation_outcome("exception", str(exc))
-        await _run_state_call(mark_unfinished_jobs_error, batch_id, str(exc))
-        if partial_bundle_persisted:
-            await _run_state_call(update_batch_job_status, batch_id, "error")
-        else:
-            await _run_state_call(update_batch_job_status, batch_id, "error", error_bundle)
+        raise
     finally:
         if heartbeat_task is not None:
             heartbeat_task.cancel()

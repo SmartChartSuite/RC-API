@@ -312,7 +312,6 @@ async def test_run_batch_job_persists_completed_task_results_while_running(monke
         "update_batch_job_result",
         lambda batch_id, bundle, **kwargs: not partial_bundles.append(bundle),
     )
-    monkeypatch.setattr(job_orchestrator, "start_batch_job_attempt", lambda batch_id: status_updates.append(("running", None)))
     monkeypatch.setattr(
         job_orchestrator,
         "update_batch_job_status",
@@ -321,7 +320,14 @@ async def test_run_batch_job_persists_completed_task_results_while_running(monke
     monkeypatch.setattr(job_orchestrator, "run_cql_libraries", _fake_run_cql_libraries)
     monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
 
-    await job_orchestrator.run_batch_job("batch-1", "patient-1", "RegistryForm", "questionnaire-1")
+    await job_orchestrator.run_batch_job(
+        "batch-1",
+        "patient-1",
+        "RegistryForm",
+        "questionnaire-1",
+        worker_id="worker-1",
+        attempt_count=1,
+    )
 
     assert len(partial_bundles) == 2
     assert partial_bundles[0]["entry"][0]["resource"]["status"] == "preliminary"
@@ -330,7 +336,6 @@ async def test_run_batch_job_persists_completed_task_results_while_running(monke
     assert len(completed_observations) == 1
     assert completed_observations[0]["valueString"] == "positive"
 
-    assert status_updates[0] == ("running", None)
     final_status, final_bundle = status_updates[-1]
     assert final_status == "complete"
     assert final_bundle is not None
@@ -358,7 +363,6 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
 
     monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
     monkeypatch.setattr(job_orchestrator, "ensure_job", lambda *args, **kwargs: LogicalJob("job-123", "running", None))
-    monkeypatch.setattr(job_orchestrator, "start_batch_job_attempt", lambda batch_id: None)
     monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda *args, **kwargs: True)
     monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda *args, **kwargs: True)
     monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: not updates.append((args, kwargs)))
@@ -385,36 +389,23 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
     monkeypatch.setattr(job_orchestrator, "use_llm", True)
     monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "job-123")
 
-    await job_orchestrator.run_batch_job("batch-1", "patient-1", "RegistryForm", "questionnaire-1")
+    await job_orchestrator.run_batch_job(
+        "batch-1",
+        "patient-1",
+        "RegistryForm",
+        "questionnaire-1",
+        worker_id="worker-1",
+        attempt_count=1,
+    )
 
     assert trace_context["trace_id"] == "batch-1"
     assert trace_context["job_package"] == "RegistryForm"
-    assert updates == [(("job-123", "error", {"message": "no llm result returned for prompt"}), {})]
-
-
-async def test_run_batch_job_marks_only_unfinished_jobs_after_late_failure(monkeypatch):
-    marked_errors: list[tuple[str, str]] = []
-    status_updates: list[tuple[str, dict | None]] = []
-
-    async def _failing_fhir_get(resource_type, resource_id):
-        raise RuntimeError("late failure")
-
-    monkeypatch.setattr(job_orchestrator, "fhir_get", _failing_fhir_get)
-    monkeypatch.setattr(job_orchestrator, "mark_unfinished_jobs_error", lambda batch_id, message: marked_errors.append((batch_id, message)))
-    monkeypatch.setattr(job_orchestrator, "start_batch_job_attempt", lambda batch_id: status_updates.append(("running", None)))
-    monkeypatch.setattr(
-        job_orchestrator,
-        "update_batch_job_status",
-        lambda batch_id, status, bundle=None, **kwargs: not status_updates.append((status, bundle)),
-    )
-
-    await job_orchestrator.run_batch_job("batch-1", "patient-1", "RegistryForm", "questionnaire-1")
-
-    assert marked_errors == [("batch-1", "late failure")]
-    assert status_updates[0] == ("running", None)
-    assert status_updates[-1][0] == "error"
-    assert status_updates[-1][1] is not None
-    assert status_updates[-1][1]["resourceType"] == "OperationOutcome"
+    assert updates == [
+        (
+            ("job-123", "error", {"message": "no llm result returned for prompt"}),
+            {"batch_id": "batch-1", "worker_id": "worker-1", "attempt_count": 1},
+        )
+    ]
 
 
 async def test_worker_retry_restores_completed_cql_without_rerunning(monkeypatch):
