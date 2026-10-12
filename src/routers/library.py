@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import BundleResource, LibraryResource, OperationOutcome
-from src.services.errorhandler import config_error_for, operation_outcome_responses
+from src.services.errorhandler import config_error_for, model_or_operation_outcome, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete, fhir_get, fhir_post, fhir_put
 from src.util.auth import require_admin, validate_token
 from src.util.settings import config_errors
@@ -39,9 +39,7 @@ async def search_libraries(
     if name:
         params["name"] = name
     data = await fhir_get("Library", params=params)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return BundleResource.model_validate(data)
+    return model_or_operation_outcome(data, BundleResource)
 
 
 @router.get("/library/{resource_id}", summary="Get Library", response_model=LibraryResult, responses=operation_outcome_responses(503))
@@ -53,9 +51,7 @@ async def get_library(
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_get("Library", resource_id)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return LibraryResource.model_validate(data)
+    return model_or_operation_outcome(data, LibraryResource)
 
 
 @router.post("/library", summary="Create Library", response_model=LibraryResult, responses=operation_outcome_responses(503))
@@ -67,9 +63,7 @@ async def create_library(
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_post("Library", body)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return LibraryResource.model_validate(data)
+    return model_or_operation_outcome(data, LibraryResource)
 
 
 @router.put("/library/{resource_id}", summary="Update Library", response_model=LibraryResult, responses=operation_outcome_responses(503))
@@ -82,9 +76,7 @@ async def update_library(
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_put("Library", resource_id, body)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return LibraryResource.model_validate(data)
+    return model_or_operation_outcome(data, LibraryResource)
 
 
 @router.delete("/library/{resource_id}", summary="Delete Library", response_model=OperationOutcome, responses=operation_outcome_responses(503))

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import OperationOutcome, QuestionnaireResource
-from src.services.errorhandler import config_error_for, operation_outcome_responses
+from src.services.errorhandler import config_error_for, model_or_operation_outcome, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete, fhir_get, fhir_post, fhir_put
 from src.util.auth import require_admin, validate_token
 from src.util.settings import config_errors
@@ -58,9 +58,7 @@ async def get_job_package(
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_get("Questionnaire", resource_id)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return QuestionnaireResource.model_validate(data)
+    return model_or_operation_outcome(data, QuestionnaireResource)
 
 
 @router.post("/jobpackage", summary="Create Job Package", response_model=QuestionnaireResult, responses=operation_outcome_responses(503))
@@ -72,9 +70,7 @@ async def create_job_package(
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_post("Questionnaire", body)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return QuestionnaireResource.model_validate(data)
+    return model_or_operation_outcome(data, QuestionnaireResource)
 
 
 @router.put("/jobpackage/{resource_id}", summary="Update Job Package", response_model=QuestionnaireResult, responses=operation_outcome_responses(503))
@@ -87,9 +83,7 @@ async def update_job_package(
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_put("Questionnaire", resource_id, body)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return QuestionnaireResource.model_validate(data)
+    return model_or_operation_outcome(data, QuestionnaireResource)
 
 
 @router.delete("/jobpackage/{resource_id}", summary="Delete Job Package", response_model=OperationOutcome, responses=operation_outcome_responses(503))

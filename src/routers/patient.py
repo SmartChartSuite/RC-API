@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from src.models.fhir import BundleResource, OperationOutcome, PatientResource
-from src.services.errorhandler import config_error_response, make_operation_outcome, operation_outcome_responses
+from src.services.errorhandler import config_error_response, make_operation_outcome, model_or_operation_outcome, operation_outcome_responses
 from src.util.auth import validate_token
 from src.util.settings import config_errors, external_fhir_server_auth, external_fhir_server_url
 
@@ -78,9 +78,7 @@ async def search_patients(request: Request, claims: dict = Security(validate_tok
     if err := _check_config():
         return err
     data = await _external_patient_get(params=list(request.query_params.multi_items()))
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return BundleResource.model_validate(data)
+    return model_or_operation_outcome(data, BundleResource)
 
 
 @router.get("/patient/{resource_id}", summary="Get Patient", response_model=PatientReadResult, responses=operation_outcome_responses(503))
@@ -89,6 +87,4 @@ async def get_patient(resource_id: str, claims: dict = Security(validate_token))
     if err := _check_config():
         return err
     data = await _external_patient_get(resource_id=resource_id)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return PatientResource.model_validate(data)
+    return model_or_operation_outcome(data, PatientResource)

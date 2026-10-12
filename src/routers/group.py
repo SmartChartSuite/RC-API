@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from src.models.fhir import GroupResource, OperationOutcome, PatientResource
-from src.services.errorhandler import config_error_for, operation_outcome_responses
+from src.services.errorhandler import config_error_for, model_or_operation_outcome, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete, fhir_post, fhir_put
 from src.util.auth import require_admin, validate_token
 from src.util.outbound_url import is_same_origin, resolve_http_reference
@@ -123,9 +123,7 @@ async def get_group(resource_id: str, claims: dict = Security(validate_token)) -
         resp = await client.get(url, headers={"Accept": "application/fhir+json"})
     logger.info(f"FHIR GET {url} → {resp.status_code}")
     data = resp.json()
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return GroupResource.model_validate(data)
+    return model_or_operation_outcome(data, GroupResource)
 
 
 @router.post("/group", summary="Create Group", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
@@ -137,9 +135,7 @@ async def create_group(
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_post("Group", body)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return GroupResource.model_validate(data)
+    return model_or_operation_outcome(data, GroupResource)
 
 
 @router.put("/group/{resource_id}", summary="Update Group", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
@@ -152,9 +148,7 @@ async def update_group(
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_put("Group", resource_id, body)
-    if data.get("resourceType") == "OperationOutcome":
-        return OperationOutcome.model_validate(data)
-    return GroupResource.model_validate(data)
+    return model_or_operation_outcome(data, GroupResource)
 
 
 @router.delete("/group/{resource_id}", summary="Delete Group", response_model=OperationOutcome, responses=operation_outcome_responses(503))

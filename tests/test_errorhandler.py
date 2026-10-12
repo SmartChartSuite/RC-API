@@ -1,3 +1,4 @@
+from src.models.fhir import LibraryResource, OperationOutcome
 from src.services import errorhandler
 
 
@@ -46,3 +47,14 @@ def test_config_error_for_checks_required_variables():
     assert response is not None
     assert response.status_code == 503
     assert errorhandler.config_error_for({}, "HAPI_FHIR_CQL_EXECUTION_URL") is None
+
+
+def test_model_or_operation_outcome_validates_resource_or_error():
+    library = errorhandler.model_or_operation_outcome({"resourceType": "Library", "id": "lib-1"}, LibraryResource)
+    outcome = errorhandler.model_or_operation_outcome(
+        {"resourceType": "OperationOutcome", "issue": [{"severity": "error", "code": "not-found"}]},
+        LibraryResource,
+    )
+
+    assert isinstance(library, LibraryResource)
+    assert isinstance(outcome, OperationOutcome)
