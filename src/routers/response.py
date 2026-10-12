@@ -4,6 +4,7 @@ Patient-linked data is never sent to HAPI FHIR — always stored in the local DB
 """
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Body, Query, Response, Security
 from fastapi.responses import JSONResponse
@@ -136,6 +137,12 @@ async def create_response_record(
 
     response_id = str(uuid.uuid4())
     normalized_response = _normalize_questionnaire_response(response_id, response_resource)
+    now = datetime.now(timezone.utc)
+    meta = normalized_response.get("meta")
+    normalized_meta = dict(meta) if isinstance(meta, dict) else {}
+    normalized_meta["lastUpdated"] = now.isoformat()
+    normalized_response["meta"] = normalized_meta
+    normalized_response["authored"] = now.isoformat()
     created = create_response(
         response_id,
         batch_job_id,
@@ -143,6 +150,7 @@ async def create_response_record(
         patient_id,
         last_updated_by,
         normalized_response,
+        now,
     )
     if not created:
         return operation_outcome_response(500, "processing", "Failed to save response. See logs for details.")
@@ -161,7 +169,14 @@ async def update_response_record(
     The request body should be the full FHIR ``QuestionnaireResponse`` resource
     to persist for the given local ``response_id``.
     """
-    updated = update_response_body(response_id, _normalize_questionnaire_response(response_id, body), claims.get("sub", "unknown"))
+    now = datetime.now(timezone.utc)
+    normalized_response = _normalize_questionnaire_response(response_id, body)
+    meta = normalized_response.get("meta")
+    normalized_meta = dict(meta) if isinstance(meta, dict) else {}
+    normalized_meta["lastUpdated"] = now.isoformat()
+    normalized_response["meta"] = normalized_meta
+    normalized_response["authored"] = now.isoformat()
+    updated = update_response_body(response_id, normalized_response, claims.get("sub", "unknown"), now)
     if not updated:
         return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
     return OperationOutcome(issue=[OperationOutcomeIssue(severity="information", code="informational", diagnostics=f"Response {response_id} updated.")])
