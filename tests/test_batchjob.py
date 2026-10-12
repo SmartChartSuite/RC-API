@@ -9,6 +9,7 @@ from src.models.job_response import BatchJobAcceptedResponse
 from src.routers import batchjob
 from src.services import job_orchestrator
 from src.services.job_state import BatchJobs
+from tests.fakes import patient_resource
 
 
 async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
@@ -237,13 +238,12 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
 
     async def _fake_fetch_patient(patient_id):
         fetch_calls.append(patient_id)
-        return {
-            "resourceType": "Patient",
-            "id": patient_id,
-            "name": [{"family": "Doe", "given": ["Jane"]}],
-            "birthDate": "2020-01-01",
-            "gender": "female",
-        }
+        return patient_resource(
+            patient_id,
+            name=[{"family": "Doe", "given": ["Jane"]}],
+            birthDate="2020-01-01",
+            gender="female",
+        )
 
     monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
 
@@ -306,7 +306,7 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
 
     async def _fake_fetch_patient(patient_id):
         fetch_calls.append(patient_id)
-        return {"resourceType": "Patient", "id": patient_id}
+        return patient_resource(patient_id)
 
     monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
 
@@ -363,20 +363,18 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
 
     async def _fake_fetch_patient(patient_id):
         if patient_id == "patient-match":
-            return {
-                "resourceType": "Patient",
-                "id": patient_id,
-                "name": [{"family": "Doe", "given": ["Jane"]}],
-                "birthDate": "2020-01-01",
-                "gender": "female",
-            }
-        return {
-            "resourceType": "Patient",
-            "id": patient_id,
-            "name": [{"family": "Smith", "given": ["John"]}],
-            "birthDate": "2020-01-01",
-            "gender": "male",
-        }
+            return patient_resource(
+                patient_id,
+                name=[{"family": "Doe", "given": ["Jane"]}],
+                birthDate="2020-01-01",
+                gender="female",
+            )
+        return patient_resource(
+            patient_id,
+            name=[{"family": "Smith", "given": ["John"]}],
+            birthDate="2020-01-01",
+            gender="male",
+        )
 
     monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
 
@@ -426,7 +424,7 @@ async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypat
     )
 
     async def _fake_fetch_patient(patient_id):
-        return {"resourceType": "Patient", "id": patient_id}
+        return patient_resource(patient_id)
 
     monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
 
@@ -474,8 +472,8 @@ async def test_list_batch_jobs_supports_comma_separated_patient_gender_filter(mo
 
     async def _fake_fetch_patient(patient_id):
         if patient_id == "patient-match":
-            return {"resourceType": "Patient", "id": patient_id, "gender": "female"}
-        return {"resourceType": "Patient", "id": patient_id, "gender": "unknown"}
+            return patient_resource(patient_id, gender="female")
+        return patient_resource(patient_id, gender="unknown")
 
     monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
 
@@ -524,16 +522,8 @@ async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
 
     async def _fake_fetch_patient(patient_id):
         if patient_id == "patient-match":
-            return {
-                "resourceType": "Patient",
-                "id": patient_id,
-                "birthDate": "2020-01-01",
-            }
-        return {
-            "resourceType": "Patient",
-            "id": patient_id,
-            "birthDate": "2020-02-01",
-        }
+            return patient_resource(patient_id, birthDate="2020-01-01")
+        return patient_resource(patient_id, birthDate="2020-02-01")
 
     monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
 
@@ -685,13 +675,12 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
     )
 
     async def _fake_fetch_patient(patient_id):
-        return {
-            "resourceType": "Patient",
-            "id": patient_id,
-            "name": [{"family": "Doe", "given": ["Jane"]}],
-            "birthDate": "2020-01-01",
-            "gender": "female",
-        }
+        return patient_resource(
+            patient_id,
+            name=[{"family": "Doe", "given": ["Jane"]}],
+            birthDate="2020-01-01",
+            gender="female",
+        )
 
     monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
 

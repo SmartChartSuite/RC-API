@@ -1,47 +1,11 @@
-from typing import ClassVar
-
-import httpx
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import GroupResource, OperationOutcome, PatientResource
 from src.routers import group
 from src.services import fhir_proxy
-
-
-class _FakeResponse:
-    def __init__(self, payload, status_code=200):
-        self._payload = payload
-        self.status_code = status_code
-        self.text = str(payload)
-
-    @property
-    def is_success(self):
-        return 200 <= self.status_code < 300
-
-    def json(self):
-        return self._payload
-
-
-class _FakeAsyncClient:
-    queued_responses: ClassVar[list[list[_FakeResponse]]] = []
-    calls: ClassVar[list[dict]] = []
-
-    def __init__(self, timeout=60, transport=None):
-        self._responses = _FakeAsyncClient.queued_responses.pop(0)
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-    async def request(self, method, url, headers=None, params=None, json=None):
-        assert method == "GET"
-        return await self.get(url, params=params, headers=headers)
-
-    async def get(self, url, params=None, headers=None):
-        _FakeAsyncClient.calls.append({"url": url, "params": params, "headers": headers})
-        return self._responses.pop(0)
+from tests.fakes import FailingAsyncClient as _FailingClient
+from tests.fakes import FakeAsyncClient as _FakeAsyncClient
+from tests.fakes import FakeResponse as _FakeResponse
 
 
 async def test_search_groups_returns_group_and_patients(monkeypatch):
@@ -130,20 +94,10 @@ async def test_create_group_returns_group_resource(monkeypatch):
 
 
 async def test_search_groups_handles_request_errors(monkeypatch):
-    class _FailingClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def request(self, method, url, headers=None, params=None, json=None):
-            raise httpx.RequestError("boom")
-
     monkeypatch.setattr(group, "config_errors", {})
     monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(group, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", lambda timeout=60, transport=None: _FailingClient())
+    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FailingClient)
 
     result = await group.search_groups(name="Panel", claims={})
 

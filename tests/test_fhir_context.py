@@ -1,41 +1,9 @@
 import base64
-from typing import ClassVar
-
-import httpx
 
 from src.services import fhir_context
-
-
-class _FakeResponse:
-    def __init__(self, payload=None, status_code=200, text=""):
-        self._payload = payload if payload is not None else {}
-        self.status_code = status_code
-        self.text = text
-
-    @property
-    def is_success(self):
-        return 200 <= self.status_code < 300
-
-    def json(self):
-        return self._payload
-
-
-class _FakeAsyncClient:
-    queued_responses: ClassVar[list[list[_FakeResponse]]] = []
-    calls: ClassVar[list[dict]] = []
-
-    def __init__(self, timeout=None, transport=None):
-        self._responses = _FakeAsyncClient.queued_responses.pop(0)
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-    async def get(self, url, headers=None, params=None):
-        _FakeAsyncClient.calls.append({"url": url, "headers": headers, "params": params})
-        return self._responses.pop(0)
+from tests.fakes import FailingAsyncClient as _FailingClient
+from tests.fakes import FakeAsyncClient as _FakeAsyncClient
+from tests.fakes import FakeResponse as _FakeResponse
 
 
 async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypatch):
@@ -117,18 +85,8 @@ async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypa
 
 
 async def test_fetch_patient_documents_returns_empty_list_on_search_error(monkeypatch):
-    class _FailingClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def get(self, url, headers=None, params=None):
-            raise httpx.RequestError("boom")
-
     monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(fhir_context.httpx, "AsyncClient", lambda timeout=None, transport=None: _FailingClient())
+    monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FailingClient)
 
     result = await fhir_context.fetch_patient_documents("patient-123")
 
