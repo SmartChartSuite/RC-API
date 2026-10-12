@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from src.models.fhir import GroupResource, OperationOutcome, PatientResource
-from src.services.errorhandler import config_error_response, operation_outcome_responses
+from src.services.errorhandler import config_error_for, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete, fhir_post, fhir_put
 from src.util.auth import require_admin, validate_token
 from src.util.outbound_url import is_same_origin, resolve_http_reference
@@ -36,12 +36,6 @@ GroupSearchResult = GroupResource | PatientResource
 GroupWriteResult = GroupResource | OperationOutcome
 
 
-def _check_config():
-    if "HAPI_FHIR_CQL_EXECUTION_URL" in config_errors:
-        return config_error_response(["HAPI_FHIR_CQL_EXECUTION_URL"])
-    return None
-
-
 def _patient_headers() -> dict:
     headers = {"Accept": "application/fhir+json"}
     if external_fhir_server_auth:
@@ -56,7 +50,7 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
     Returns a flat list such as ``[Group, Patient, Patient, ..., Group, ...]``
     mirroring the legacy implicit-include behavior used by this API.
     """
-    if err := _check_config():
+    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
 
     # Fetch groups from HAPI FHIR
@@ -121,7 +115,7 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
 @router.get("/group/{resource_id}", summary="Get Group", response_model=GroupResource | OperationOutcome, responses=operation_outcome_responses(503))
 async def get_group(resource_id: str, claims: dict = Security(validate_token)) -> JSONResponse | GroupResource | OperationOutcome:
     """Get a specific Group resource by ID from HAPI FHIR."""
-    if err := _check_config():
+    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     assert hapi_fhir_cql_execution_url
     async with httpx.AsyncClient(timeout=60) as client:
@@ -140,7 +134,7 @@ async def create_group(
     claims: dict = Security(validate_token),
 ) -> JSONResponse | GroupWriteResult:
     """Create a new Group resource on HAPI FHIR."""
-    if err := _check_config():
+    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_post("Group", body)
     if data.get("resourceType") == "OperationOutcome":
@@ -155,7 +149,7 @@ async def update_group(
     claims: dict = Security(validate_token),
 ) -> JSONResponse | GroupWriteResult:
     """Update an existing Group resource."""
-    if err := _check_config():
+    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     data = await fhir_put("Group", resource_id, body)
     if data.get("resourceType") == "OperationOutcome":
@@ -166,6 +160,6 @@ async def update_group(
 @router.delete("/group/{resource_id}", summary="Delete Group", response_model=OperationOutcome, responses=operation_outcome_responses(503))
 async def delete_group(resource_id: str, claims: None = Security(require_admin)) -> JSONResponse | OperationOutcome:
     """Delete a Group resource. Requires 'admin' scope."""
-    if err := _check_config():
+    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     return OperationOutcome.model_validate(await fhir_delete("Group", resource_id))

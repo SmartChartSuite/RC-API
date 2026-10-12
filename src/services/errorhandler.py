@@ -1,5 +1,6 @@
 """Error handling utilities for v1."""
 
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi.responses import JSONResponse
@@ -42,3 +43,9 @@ def config_error_response(missing_vars: list[str]) -> JSONResponse:
         "not-supported",
         f"This endpoint is not available because the following required environment variable(s) are not configured: {var_list}. Please check the server logs for details.",
     )
+
+
+def config_error_for(errors: Mapping[str, str], *required_vars: str) -> JSONResponse | None:
+    """Return the standard 503 response when a required setting is missing."""
+    missing_vars = [var for var in required_vars if var in errors]
+    return config_error_response(missing_vars) if missing_vars else None

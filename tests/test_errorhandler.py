@@ -38,3 +38,11 @@ def test_config_error_response_returns_503_with_missing_vars():
     body = bytes(response.body).decode("utf-8")
     assert "FIRST_VAR, SECOND_VAR" in body
     assert '"code":"not-supported"' in body
+
+
+def test_config_error_for_checks_required_variables():
+    response = errorhandler.config_error_for({"HAPI_FHIR_CQL_EXECUTION_URL": "missing"}, "HAPI_FHIR_CQL_EXECUTION_URL")
+
+    assert response is not None
+    assert response.status_code == 503
+    assert errorhandler.config_error_for({}, "HAPI_FHIR_CQL_EXECUTION_URL") is None
