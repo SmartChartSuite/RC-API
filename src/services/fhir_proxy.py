@@ -29,44 +29,50 @@ def _base_url(resource_type: str, resource_id: str | None = None) -> str:
     return base
 
 
+async def _request(
+    method: str,
+    resource_type: str,
+    resource_id: str | None = None,
+    *,
+    params: dict[str, Any] | None = None,
+    body: dict[str, Any] | None = None,
+) -> FHIRProxyResult:
+    """Send one HAPI FHIR request using the shared proxy transport policy."""
+    url = _base_url(resource_type, resource_id)
+    request_kwargs: dict[str, Any] = {"headers": _headers()}
+    if method == "GET":
+        request_kwargs["params"] = params or {}
+    elif method in {"POST", "PUT"}:
+        request_kwargs["json"] = body
+
+    async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
+        resp = await client.request(method, url, **request_kwargs)
+    logger.debug(f"FHIR {method} {url} → {resp.status_code}")
+    return _handle(resp, method, url)
+
+
 async def fhir_get(
     resource_type: str,
     resource_id: str | None = None,
     params: dict[str, Any] | None = None,
 ) -> FHIRProxyResult:
     """GET a FHIR resource or execute a search."""
-    url = _base_url(resource_type, resource_id)
-    async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
-        resp = await client.get(url, headers=_headers(), params=params or {})
-    logger.debug(f"FHIR GET {url} → {resp.status_code}")
-    return _handle(resp, "GET", url)
+    return await _request("GET", resource_type, resource_id, params=params)
 
 
 async def fhir_post(resource_type: str, body: dict[str, Any]) -> FHIRProxyResult:
     """POST (create) a FHIR resource."""
-    url = _base_url(resource_type)
-    async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
-        resp = await client.post(url, headers=_headers(), json=body)
-    logger.debug(f"FHIR POST {url} → {resp.status_code}")
-    return _handle(resp, "POST", url)
+    return await _request("POST", resource_type, body=body)
 
 
 async def fhir_put(resource_type: str, resource_id: str, body: dict[str, Any]) -> FHIRProxyResult:
     """PUT (update) a FHIR resource."""
-    url = _base_url(resource_type, resource_id)
-    async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
-        resp = await client.put(url, headers=_headers(), json=body)
-    logger.debug(f"FHIR PUT {url} → {resp.status_code}")
-    return _handle(resp, "PUT", url)
+    return await _request("PUT", resource_type, resource_id, body=body)
 
 
 async def fhir_delete(resource_type: str, resource_id: str) -> FHIRProxyResult:
     """DELETE a FHIR resource."""
-    url = _base_url(resource_type, resource_id)
-    async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
-        resp = await client.delete(url, headers=_headers())
-    logger.debug(f"FHIR DELETE {url} → {resp.status_code}")
-    return _handle(resp, "DELETE", url)
+    return await _request("DELETE", resource_type, resource_id)
 
 
 def _handle(resp: httpx.Response, method: str, url: str) -> FHIRProxyResult:

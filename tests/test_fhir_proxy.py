@@ -19,13 +19,13 @@ class _FakeAsyncClient:
     async def __aexit__(self, exc_type, exc, tb):
         return False
 
-    async def get(self, url, headers=None, params=None):
-        _FakeAsyncClient.calls.append({"method": "GET", "url": url, "headers": headers, "params": params})
-        assert _FakeAsyncClient.queued_response is not None
-        return _FakeAsyncClient.queued_response
-
-    async def post(self, url, headers=None, json=None):
-        _FakeAsyncClient.calls.append({"method": "POST", "url": url, "headers": headers, "json": json})
+    async def request(self, method, url, headers=None, params=None, json=None):
+        call = {"method": method, "url": url, "headers": headers}
+        if params is not None:
+            call["params"] = params
+        if json is not None:
+            call["json"] = json
+        _FakeAsyncClient.calls.append(call)
         assert _FakeAsyncClient.queued_response is not None
         return _FakeAsyncClient.queued_response
 
@@ -103,3 +103,36 @@ async def test_fhir_post_sends_json_body(monkeypatch):
 
     assert result == {"resourceType": "Library", "id": "lib-1"}
     assert _FakeAsyncClient.calls[0]["json"] == {"resourceType": "Library", "name": "RiskLib"}
+
+
+async def test_fhir_put_sends_json_body(monkeypatch):
+    _FakeAsyncClient.calls = []
+    _FakeAsyncClient.queued_response = httpx.Response(200, json={"resourceType": "Questionnaire", "id": "q-1"}, request=httpx.Request("PUT", "http://example.test"))
+    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
+
+    result = await fhir_proxy.fhir_put("Questionnaire", "q-1", {"resourceType": "Questionnaire", "id": "q-1"})
+
+    assert result == {"resourceType": "Questionnaire", "id": "q-1"}
+    assert _FakeAsyncClient.calls[0] == {
+        "method": "PUT",
+        "url": "http://hapi.example/fhir/Questionnaire/q-1",
+        "headers": {"Content-Type": "application/fhir+json", "Accept": "application/fhir+json"},
+        "json": {"resourceType": "Questionnaire", "id": "q-1"},
+    }
+
+
+async def test_fhir_delete_sends_no_body(monkeypatch):
+    _FakeAsyncClient.calls = []
+    _FakeAsyncClient.queued_response = httpx.Response(204, request=httpx.Request("DELETE", "http://example.test"))
+    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
+
+    result = await fhir_proxy.fhir_delete("Library", "lib-1")
+
+    assert result == {}
+    assert _FakeAsyncClient.calls[0] == {
+        "method": "DELETE",
+        "url": "http://hapi.example/fhir/Library/lib-1",
+        "headers": {"Content-Type": "application/fhir+json", "Accept": "application/fhir+json"},
+    }
