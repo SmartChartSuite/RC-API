@@ -411,6 +411,7 @@ RC-API/
 │   │   ├── batch_worker.py         # Embedded durable database-backed worker
 │   │   ├── cql_executor.py         # HAPI FHIR Library/$evaluate wrapper
 │   │   ├── errorhandler.py         # FHIR OperationOutcome helpers
+│   │   ├── external_fhir.py        # Best-effort external FHIR resource fetches
 │   │   ├── fhir_context.py         # Patient DocumentReference fetcher
 │   │   ├── fhir_proxy.py           # HAPI FHIR CRUD proxy
 │   │   ├── job_orchestrator.py     # Async batch job pipeline

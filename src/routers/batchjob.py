@@ -6,15 +6,14 @@ from copy import deepcopy
 from datetime import UTC, date, datetime
 from typing import Annotated, Any, cast
 
-import httpx
 from fastapi import APIRouter, Query, Response, Security
 from fastapi.responses import JSONResponse
-from loguru import logger
 
 from src.models.fhir import BundleJSON, BundleResource, ParametersParameter, ParametersResponse
 from src.models.job_request import JobRequest
 from src.models.job_response import BatchJobAcceptedResponse
 from src.services.errorhandler import config_error_response, operation_outcome_response, operation_outcome_responses
+from src.services.external_fhir import fetch_patient as _fetch_patient
 from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
     BatchJobs,
@@ -26,11 +25,7 @@ from src.services.job_state import (
     query_batch_jobs,
 )
 from src.util.auth import require_admin, validate_token
-from src.util.settings import (
-    config_errors,
-    external_fhir_server_auth,
-    external_fhir_server_url,
-)
+from src.util.settings import config_errors
 
 router = APIRouter(tags=["Batch Jobs"])
 
@@ -162,23 +157,6 @@ def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = No
 
 def _required_config() -> list[str]:
     return [k for k in ("EXTERNAL_FHIR_SERVER_URL", "HAPI_FHIR_CQL_EXECUTION_URL") if k in config_errors]
-
-
-async def _fetch_patient(patient_id: str) -> dict | None:
-    """Fetch Patient resource from external FHIR server for include_patient support."""
-    assert external_fhir_server_url
-    url = f"{external_fhir_server_url.rstrip('/')}/Patient/{patient_id}"
-    headers = {"Accept": "application/fhir+json"}
-    if external_fhir_server_auth:
-        headers["Authorization"] = external_fhir_server_auth
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url, headers=headers)
-        if resp.is_success:
-            return resp.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        logger.warning(f"Could not fetch Patient/{patient_id}: {exc}")
-    return None
 
 
 _PATIENT_FETCH_MAX_CONCURRENCY = 8

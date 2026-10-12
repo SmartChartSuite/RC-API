@@ -21,12 +21,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ParamSpec, TypeVar, cast
 
-import httpx
 from loguru import logger
 
 from src.services import prompt_loader
 from src.services.cql_executor import CqlResult, run_cql_libraries
 from src.services.errorhandler import make_operation_outcome
+from src.services.external_fhir import fetch_patient as _fetch_patient_resource
 from src.services.fhir_context import fetch_patient_documents
 from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
@@ -40,7 +40,7 @@ from src.services.job_state import (
 )
 from src.services.llm_executor import LlmDocumentResult, LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
-from src.util.settings import batch_job_heartbeat_interval_seconds, batch_worker_lease_seconds, deploy_url, external_fhir_server_auth, external_fhir_server_url, use_llm
+from src.util.settings import batch_job_heartbeat_interval_seconds, batch_worker_lease_seconds, deploy_url, use_llm
 
 # Questionnaire extension URLs
 _CQL_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/structured-form-job-list"
@@ -571,23 +571,6 @@ def _create_status_observation(overall_status: str) -> dict:
             "text": f"Batch job status: {overall_status}",
         },
     }
-
-
-async def _fetch_patient_resource(patient_id: str) -> dict | None:
-    """Fetch the Patient resource from the external FHIR server."""
-    assert external_fhir_server_url
-    url = f"{external_fhir_server_url.rstrip('/')}/Patient/{patient_id}"
-    headers = {"Accept": "application/fhir+json"}
-    if external_fhir_server_auth:
-        headers["Authorization"] = external_fhir_server_auth
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url, headers=headers)
-        if resp.is_success:
-            return resp.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        logger.warning(f"Could not fetch Patient/{patient_id}: {exc}")
-    return None
 
 
 def _append_unique_entries(entries: list[dict], new_entries: list[dict]) -> None:

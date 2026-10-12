@@ -38,7 +38,7 @@ from sqlalchemy import create_engine
 import main as main_module
 from main import app
 from src.routers import batchjob
-from src.services import batch_worker, cql_executor, fhir_context, fhir_proxy, job_orchestrator, job_state, llm_executor, prompt_loader
+from src.services import batch_worker, cql_executor, external_fhir, fhir_context, fhir_proxy, job_orchestrator, job_state, llm_executor, prompt_loader
 from src.util import auth
 
 FIXTURES = Path(__file__).parent / "fixtures" / "batchjob_integration"
@@ -131,12 +131,12 @@ def _configure_services(monkeypatch):
     monkeypatch.setattr(prompt_loader, "use_langfuse", False)
 
     monkeypatch.setattr(batchjob, "config_errors", {})
-    monkeypatch.setattr(batchjob, "external_fhir_server_url", EXTERNAL_BASE)
+    monkeypatch.setattr(external_fhir, "external_fhir_server_url", EXTERNAL_BASE)
+    monkeypatch.setattr(external_fhir, "external_fhir_server_auth", "")
 
     monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", HAPI_BASE)
     monkeypatch.setattr(cql_executor, "hapi_fhir_cql_execution_url", HAPI_BASE)
     monkeypatch.setattr(fhir_context, "external_fhir_server_url", EXTERNAL_BASE)
-    monkeypatch.setattr(job_orchestrator, "external_fhir_server_url", EXTERNAL_BASE)
 
     monkeypatch.setattr(job_orchestrator, "use_llm", True)
     monkeypatch.setattr(llm_executor, "use_llm", True)
