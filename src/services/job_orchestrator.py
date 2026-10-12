@@ -17,7 +17,7 @@ import uuid
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ParamSpec, TypeVar, cast
 
@@ -379,7 +379,7 @@ def _build_tuple_observation(
     (e.g. "Condition_", "Observation_", "MedicationStatement_", etc.)
     """
     parts = pipe_value.split("|")
-    effective_dt = parts[0] if parts else datetime.now(timezone.utc).isoformat()
+    effective_dt = parts[0] if parts else datetime.now(UTC).isoformat()
     if len(effective_dt) == 19:
         effective_dt += "Z"
 

@@ -9,7 +9,7 @@ Uses SQLAlchemy Core + ORM with the same engine/session pattern as v0.
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import ClassVar
 
@@ -45,7 +45,7 @@ from src.util.settings import batch_job_max_attempts, db_connection_string, db_s
 
 def _utc_now() -> datetime:
     """Return the current UTC time for Python-side ORM defaults."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ── ORM base ──────────────────────────────────────────────────────────────────
@@ -241,9 +241,9 @@ def query_batch_jobs(
             )
         )
     if run_start_date is not None:
-        stmt = stmt.where(BatchJobs.created_at >= datetime.combine(run_start_date, time.min, tzinfo=timezone.utc))
+        stmt = stmt.where(BatchJobs.created_at >= datetime.combine(run_start_date, time.min, tzinfo=UTC))
     if run_end_date is not None:
-        stmt = stmt.where(BatchJobs.created_at < datetime.combine(run_end_date, time.min, tzinfo=timezone.utc) + timedelta(days=1))
+        stmt = stmt.where(BatchJobs.created_at < datetime.combine(run_end_date, time.min, tzinfo=UTC) + timedelta(days=1))
     stmt = stmt.order_by(BatchJobs.created_at.desc())
     with Session(db_engine) as session:
         return list(session.execute(stmt).scalars().all())
@@ -263,7 +263,7 @@ def create_batch_job_with_response(
     response_timestamp: datetime | None = None,
 ) -> bool:
     try:
-        now = response_timestamp or datetime.now(timezone.utc)
+        now = response_timestamp or datetime.now(UTC)
         with Session(db_engine) as session:
             session.add(
                 BatchJobs(
@@ -301,7 +301,7 @@ def create_batch_job_with_response(
 
 def start_batch_job_attempt(batch_id: str) -> None:
     """Legacy direct-execution helper retained for callers outside the worker."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with Session(db_engine) as session:
         session.execute(
             update(BatchJobs)
@@ -334,7 +334,7 @@ def _claimed_batch_snapshot(job: BatchJobs, worker_id: str) -> ClaimedBatchJob:
 def claim_next_batch_job(worker_id: str, lease_seconds: int) -> ClaimedBatchJob | None:
     """Atomically claim the oldest runnable pending batch for this worker."""
     for _ in range(5):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         lease_expires_at = now + timedelta(seconds=lease_seconds)
         with Session(db_engine) as session:
             candidate_id = session.scalar(
@@ -385,7 +385,7 @@ def claim_next_batch_job(worker_id: str, lease_seconds: int) -> ClaimedBatchJob 
 
 def renew_batch_job_lease(batch_id: str, worker_id: str, attempt_count: int, lease_seconds: int) -> bool:
     """Extend a lease only while its worker and attempt still own the batch."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with Session(db_engine) as session:
         result: CursorResult = session.execute(
             update(BatchJobs)
@@ -407,7 +407,7 @@ def renew_batch_job_lease(batch_id: str, worker_id: str, attempt_count: int, lea
 
 def release_batch_job_attempt(batch_id: str, worker_id: str, attempt_count: int) -> bool:
     """Return an owned attempt to the queue during graceful worker shutdown."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with Session(db_engine) as session:
         result: CursorResult = session.execute(
             update(BatchJobs)
@@ -451,7 +451,7 @@ def fail_batch_job_attempt(
     retry_delay_seconds: int,
 ) -> str:
     """Release a failed owned attempt for retry, or terminally fail it."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with Session(db_engine) as session:
         job = session.scalar(
             select(BatchJobs)
@@ -507,7 +507,7 @@ def fail_batch_job_attempt(
 
 def recover_expired_batch_job_leases(retry_delay_seconds: int) -> tuple[list[str], list[str]]:
     """Requeue expired attempts, terminally failing batches with no attempts left."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     message = "Batch worker lease expired before completion."
     retried: list[str] = []
     failed: list[str] = []
@@ -577,7 +577,7 @@ def update_batch_job_status(
     attempt_count: int | None = None,
 ) -> bool:
     """Update batch status, optionally fenced to the currently owned worker attempt."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     vals: dict = {"status": status, "updated_at": now}
     if status == "running":
         vals["heartbeat_at"] = now
@@ -617,7 +617,7 @@ def update_batch_job_result(
     attempt_count: int | None = None,
 ) -> bool:
     """Persist a partial result snapshot, optionally fenced to one worker attempt."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     stmt = update(BatchJobs).where(BatchJobs.batch_id == batch_id)
     if worker_id is not None or attempt_count is not None:
         if worker_id is None or attempt_count is None:
@@ -743,7 +743,7 @@ def update_job_result(
         raise ValueError("batch_id, worker_id, and attempt_count must be provided together")
     values: dict = {"status": status, "result": result}
     if status in {"complete", "error", "skipped"}:
-        values["completed_at"] = datetime.now(timezone.utc)
+        values["completed_at"] = datetime.now(UTC)
     stmt = update(Jobs).where(Jobs.job_id == job_id)
     if batch_id is not None and worker_id is not None and attempt_count is not None:
         stmt = stmt.where(_ownership_exists(batch_id, worker_id, attempt_count))
@@ -768,7 +768,7 @@ def mark_unfinished_jobs_error(batch_id: str, message: str) -> int:
             .values(
                 status="error",
                 result={"message": message},
-                completed_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(UTC),
             )
         )  # type: ignore
         session.commit()
@@ -790,7 +790,7 @@ def create_response(
     response_timestamp: datetime | None = None,
 ) -> bool:
     try:
-        timestamp = response_timestamp or datetime.now(timezone.utc)
+        timestamp = response_timestamp or datetime.now(UTC)
         with Session(db_engine) as session:
             session.add(
                 QuestionnaireResponses(
@@ -828,12 +828,10 @@ def get_responses(batch_job_id: str | None = None, job_package: str | None = Non
 
 
 def update_response_body(response_id: str, response_body: dict, last_updated_by: str, updated_at: datetime | None = None) -> bool:
-    timestamp = updated_at or datetime.now(timezone.utc)
+    timestamp = updated_at or datetime.now(UTC)
     with Session(db_engine) as session:
         result: CursorResult = session.execute(
-            update(QuestionnaireResponses)
-            .where(QuestionnaireResponses.response_id == response_id)
-            .values(response=response_body, last_updated_by=last_updated_by, updated_at=timestamp)
+            update(QuestionnaireResponses).where(QuestionnaireResponses.response_id == response_id).values(response=response_body, last_updated_by=last_updated_by, updated_at=timestamp)
         )  # type: ignore
         session.commit()
     updated = result.rowcount > 0

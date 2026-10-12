@@ -4,7 +4,7 @@ Patient-linked data is never sent to HAPI FHIR — always stored in the local DB
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Body, Query, Response, Security
 from fastapi.responses import JSONResponse
@@ -137,7 +137,7 @@ async def create_response_record(
 
     response_id = str(uuid.uuid4())
     normalized_response = _normalize_questionnaire_response(response_id, response_resource)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     meta = normalized_response.get("meta")
     normalized_meta = dict(meta) if isinstance(meta, dict) else {}
     normalized_meta["lastUpdated"] = now.isoformat()
@@ -169,7 +169,7 @@ async def update_response_record(
     The request body should be the full FHIR ``QuestionnaireResponse`` resource
     to persist for the given local ``response_id``.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     normalized_response = _normalize_questionnaire_response(response_id, body)
     meta = normalized_response.get("meta")
     normalized_meta = dict(meta) if isinstance(meta, dict) else {}

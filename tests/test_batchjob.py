@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import Response
 from fastapi.responses import JSONResponse
@@ -197,8 +197,8 @@ def test_filter_requested_jobs_rejects_unknown_names():
 
 
 async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
-    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
-    completed_at = datetime(2026, 5, 22, 12, 5, tzinfo=timezone.utc)
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    completed_at = datetime(2026, 5, 22, 12, 5, tzinfo=UTC)
     fetch_calls: list[str] = []
     monkeypatch.setattr(
         batchjob,
@@ -230,7 +230,9 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
     monkeypatch.setattr(
         batchjob,
         "get_responses",
-        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "in-progress", "meta": {"lastUpdated": "2026-05-22T12:00:00+00:00"}}})()],
+        lambda batch_job_id=None, job_package=None: [
+            type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "in-progress", "meta": {"lastUpdated": "2026-05-22T12:00:00+00:00"}}})()
+        ],
     )
 
     async def _fake_fetch_patient(patient_id):
@@ -281,7 +283,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
 
 
 async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
-    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     fetch_calls: list[str] = []
     monkeypatch.setattr(
         batchjob,
@@ -319,7 +321,7 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
 
 
 async def test_list_batch_jobs_applies_search_filters(monkeypatch):
-    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     captured_kwargs = {}
 
     def _fake_query_batch_jobs(**kwargs):
@@ -398,7 +400,7 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
 
 
 async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypatch):
-    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     captured_kwargs = {}
 
     def _fake_query_batch_jobs(**kwargs):
@@ -441,7 +443,7 @@ async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypat
 
 
 async def test_list_batch_jobs_supports_comma_separated_patient_gender_filter(monkeypatch):
-    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     monkeypatch.setattr(
         batchjob,
         "query_batch_jobs",
@@ -490,8 +492,8 @@ async def test_list_batch_jobs_supports_comma_separated_patient_gender_filter(mo
 
 
 async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
-    matching_created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
-    nonmatching_created_at = datetime(2026, 5, 25, 12, 0, tzinfo=timezone.utc)
+    matching_created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    nonmatching_created_at = datetime(2026, 5, 25, 12, 0, tzinfo=UTC)
     monkeypatch.setattr(
         batchjob,
         "query_batch_jobs",
@@ -561,7 +563,7 @@ async def test_list_batch_jobs_rejects_invalid_date_filters(monkeypatch):
 
 
 async def test_get_batch_job_results_returns_partial_bundle_while_running(monkeypatch):
-    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     partial_bundle = {
         "resourceType": "Bundle",
         "id": "bundle-123",
@@ -637,7 +639,7 @@ def test_with_batch_progress_reports_complete_zero_task_batch():
 
 
 async def test_get_batch_job_results_returns_202_when_running_without_snapshot(monkeypatch):
-    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     monkeypatch.setattr(
         batchjob,
         "get_batch_job",
@@ -660,8 +662,8 @@ async def test_get_batch_job_results_returns_202_when_running_without_snapshot(m
 
 
 async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
-    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
-    completed_at = datetime(2026, 5, 22, 12, 5, tzinfo=timezone.utc)
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    completed_at = datetime(2026, 5, 22, 12, 5, tzinfo=UTC)
     monkeypatch.setattr(
         batchjob,
         "get_batch_job",

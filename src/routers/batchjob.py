@@ -3,7 +3,7 @@
 import asyncio
 import uuid
 from copy import deepcopy
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Annotated, Any, cast
 
 import httpx
@@ -302,8 +302,8 @@ async def post_batch_job(
 
     batch_id = str(uuid.uuid4())
     response_id = str(uuid.uuid4())
-    start_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    response_timestamp = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    response_timestamp = datetime.now(UTC)
     questionnaire_id = questionnaire.get("id")
 
     if not questionnaire_id:

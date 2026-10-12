@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from fastapi import Response
@@ -9,7 +9,7 @@ from src.routers import response as response_router
 
 
 def _make_record(response_id: str = "response-1") -> SimpleNamespace:
-    timestamp = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     return SimpleNamespace(
         response_id=response_id,
         batch_job_id="batch-1",
@@ -89,6 +89,7 @@ async def test_create_response_record_sets_location_and_returns_questionnaire_re
     assert result.id == "response-123"
     assert result.resourceType == "QuestionnaireResponse"
     assert captured["response"]["id"] == "response-123"
+    assert result.meta is not None
     assert captured["response"]["meta"]["lastUpdated"] == result.meta["lastUpdated"]
     assert captured["response"]["authored"] == result.authored
 

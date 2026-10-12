@@ -1,6 +1,6 @@
 import importlib
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import sqlalchemy
 from sqlalchemy.orm import Session
@@ -115,18 +115,18 @@ def test_orm_timestamp_defaults_are_evaluated_per_insert(monkeypatch):
     monkeypatch.setattr(job_state, "db_engine", engine)
     job_state.Base.metadata.create_all(engine)
 
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
     assert job_state.create_batch_job("batch-1", "patient-1", "Registry")
     first = job_state.get_batch_job("batch-1")
     assert first is not None
     time.sleep(0.01)
     assert job_state.create_batch_job("batch-2", "patient-2", "Registry")
     second = job_state.get_batch_job("batch-2")
-    after = datetime.now(timezone.utc)
+    after = datetime.now(UTC)
 
     assert second is not None
-    first_created_at = first.created_at.replace(tzinfo=timezone.utc) if first.created_at.tzinfo is None else first.created_at
-    second_created_at = second.created_at.replace(tzinfo=timezone.utc) if second.created_at.tzinfo is None else second.created_at
+    first_created_at = first.created_at.replace(tzinfo=UTC) if first.created_at.tzinfo is None else first.created_at
+    second_created_at = second.created_at.replace(tzinfo=UTC) if second.created_at.tzinfo is None else second.created_at
     assert before <= first_created_at <= after
     assert before <= second_created_at <= after
     assert first_created_at < second_created_at
@@ -139,7 +139,7 @@ def test_recover_expired_batch_job_leases_preserves_partial_and_terminal_results
     for batch_id in ("retry-running", "exhausted-running", "fresh-running"):
         assert job_state.create_batch_job(batch_id, "patient-1", "Registry")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     partial_bundle = {"resourceType": "Bundle", "id": "partial-1"}
     with Session(engine) as session:
         session.execute(

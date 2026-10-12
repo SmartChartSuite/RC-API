@@ -8,7 +8,7 @@ skips all LLM prompt execution.
 import asyncio
 import base64
 import binascii
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from loguru import logger
@@ -72,7 +72,7 @@ async def fetch_patient_documents(patient_id: str) -> list[dict]:
             if doc_ref.get("resourceType") != "DocumentReference":
                 return None
             doc_id = doc_ref.get("id", "unknown")
-            doc_date = doc_ref.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+            doc_date = doc_ref.get("date", datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
 
             # Best-effort type display
             try:

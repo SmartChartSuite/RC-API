@@ -159,6 +159,8 @@ class QuestionnaireResponseResource(FHIRBaseModel):
     questionnaire: str | None = None
     status: str | None = None
     subject: dict[str, Any] | None = None
+    meta: dict[str, Any] | None = None
+    authored: str | None = None
 
 
 class LibraryResource(FHIRBaseModel):
