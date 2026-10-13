@@ -21,6 +21,7 @@ from loguru import logger
 from sqlalchemy import (
     JSON,
     Column,
+    ColumnElement,
     CursorResult,
     ForeignKey,
     Index,
@@ -297,6 +298,31 @@ def _claimed_batch_snapshot(job: BatchJobs, worker_id: str) -> ClaimedBatchJob:
     )
 
 
+def _owned_by(batch_id: str, worker_id: str, attempt_count: int, now: datetime) -> tuple[ColumnElement[bool], ...]:
+    """Predicates for "this worker attempt still holds an unexpired lease on the batch".
+
+    Every fenced write uses these, so once a lease expires only recovery can change the batch,
+    even if the old worker is still running. Times come from the application clock, the same
+    clock that wrote ``lease_expires_at``.
+    """
+    return (
+        BatchJobs.batch_id == batch_id,
+        BatchJobs.status == "running",
+        BatchJobs.worker_id == worker_id,
+        BatchJobs.attempt_count == attempt_count,
+        BatchJobs.lease_expires_at > now,
+    )
+
+
+def _lock_owned_batch(session: Session, batch_id: str, worker_id: str, attempt_count: int, now: datetime) -> BatchJobs | None:
+    """Lock the batch row for this transaction if the attempt still owns it, else return None.
+
+    Holding the row lock (PostgreSQL ``SELECT ... FOR UPDATE``) keeps recovery and reclaim from
+    taking the batch over between the ownership check and the writes that depend on it.
+    """
+    return session.scalar(select(BatchJobs).where(*_owned_by(batch_id, worker_id, attempt_count, now)).with_for_update())
+
+
 def claim_next_batch_job(worker_id: str, lease_seconds: int) -> ClaimedBatchJob | None:
     """Atomically claim the oldest runnable pending batch for this worker."""
     for _ in range(5):
@@ -350,17 +376,12 @@ def claim_next_batch_job(worker_id: str, lease_seconds: int) -> ClaimedBatchJob 
 
 
 def renew_batch_job_lease(batch_id: str, worker_id: str, attempt_count: int, lease_seconds: int) -> bool:
-    """Extend a lease only while its worker and attempt still own the batch."""
+    """Extend a lease only while its worker and attempt still own the batch and the lease is unexpired."""
     now = datetime.now(UTC)
     with Session(db_engine) as session:
         result: CursorResult = session.execute(
             update(BatchJobs)
-            .where(
-                BatchJobs.batch_id == batch_id,
-                BatchJobs.status == "running",
-                BatchJobs.worker_id == worker_id,
-                BatchJobs.attempt_count == attempt_count,
-            )
+            .where(*_owned_by(batch_id, worker_id, attempt_count, now))
             .values(
                 heartbeat_at=now,
                 lease_expires_at=now + timedelta(seconds=lease_seconds),
@@ -377,12 +398,7 @@ def release_batch_job_attempt(batch_id: str, worker_id: str, attempt_count: int)
     with Session(db_engine) as session:
         result: CursorResult = session.execute(
             update(BatchJobs)
-            .where(
-                BatchJobs.batch_id == batch_id,
-                BatchJobs.status == "running",
-                BatchJobs.worker_id == worker_id,
-                BatchJobs.attempt_count == attempt_count,
-            )
+            .where(*_owned_by(batch_id, worker_id, attempt_count, now))
             .values(
                 status="pending",
                 worker_id=None,
@@ -419,16 +435,7 @@ def fail_batch_job_attempt(
     """Release a failed owned attempt for retry, or terminally fail it."""
     now = datetime.now(UTC)
     with Session(db_engine) as session:
-        job = session.scalar(
-            select(BatchJobs)
-            .where(
-                BatchJobs.batch_id == batch_id,
-                BatchJobs.status == "running",
-                BatchJobs.worker_id == worker_id,
-                BatchJobs.attempt_count == attempt_count,
-            )
-            .with_for_update()
-        )
+        job = _lock_owned_batch(session, batch_id, worker_id, attempt_count, now)
         if job is None:
             return "lost"
 
@@ -561,11 +568,7 @@ def update_batch_job_status(
     if worker_id is not None or attempt_count is not None:
         if worker_id is None or attempt_count is None:
             raise ValueError("worker_id and attempt_count must be provided together")
-        stmt = stmt.where(
-            BatchJobs.status == "running",
-            BatchJobs.worker_id == worker_id,
-            BatchJobs.attempt_count == attempt_count,
-        )
+        stmt = stmt.where(*_owned_by(batch_id, worker_id, attempt_count, now))
     with Session(db_engine) as session:
         result: CursorResult = session.execute(stmt.values(**vals))  # type: ignore
         session.commit()
@@ -588,11 +591,7 @@ def update_batch_job_result(
     if worker_id is not None or attempt_count is not None:
         if worker_id is None or attempt_count is None:
             raise ValueError("worker_id and attempt_count must be provided together")
-        stmt = stmt.where(
-            BatchJobs.status == "running",
-            BatchJobs.worker_id == worker_id,
-            BatchJobs.attempt_count == attempt_count,
-        )
+        stmt = stmt.where(*_owned_by(batch_id, worker_id, attempt_count, now))
     with Session(db_engine) as session:
         result: CursorResult = session.execute(stmt.values(result_bundle=result_bundle, heartbeat_at=now, updated_at=now))  # type: ignore
         session.commit()
@@ -618,15 +617,8 @@ def delete_batch_job_record(batch_id: str) -> JSONResponse:
 # ── Job CRUD ──────────────────────────────────────────────────────────────────
 
 
-def _ownership_exists(batch_id: str, worker_id: str, attempt_count: int):
-    return exists(
-        select(BatchJobs.batch_id).where(
-            BatchJobs.batch_id == batch_id,
-            BatchJobs.status == "running",
-            BatchJobs.worker_id == worker_id,
-            BatchJobs.attempt_count == attempt_count,
-        )
-    )
+def _ownership_exists(batch_id: str, worker_id: str, attempt_count: int, now: datetime):
+    return exists(select(BatchJobs.batch_id).where(*_owned_by(batch_id, worker_id, attempt_count, now)))
 
 
 def ensure_job(
@@ -640,15 +632,17 @@ def ensure_job(
     worker_id: str | None = None,
     attempt_count: int | None = None,
 ) -> LogicalJob | None:
-    """Create or reuse one logical child task without resetting terminal state."""
+    """Create or reuse one logical child task without resetting terminal state.
+
+    When fenced, the ownership check locks the batch row, and the child upsert runs in the same
+    transaction, so a lost or expired attempt cannot create or reset children.
+    """
     if (worker_id is None) != (attempt_count is None):
         raise ValueError("worker_id and attempt_count must be provided together")
     try:
         with Session(db_engine) as session:
-            if worker_id is not None and attempt_count is not None:
-                owned = session.scalar(select(_ownership_exists(batch_id, worker_id, attempt_count)))
-                if not owned:
-                    return None
+            if worker_id is not None and attempt_count is not None and _lock_owned_batch(session, batch_id, worker_id, attempt_count, datetime.now(UTC)) is None:
+                return None
             existing = session.scalar(
                 select(Jobs).where(
                     Jobs.batch_id == batch_id,
@@ -698,11 +692,12 @@ def update_job_result(
     if any(value is not None for value in (batch_id, worker_id, attempt_count)) and any(value is None for value in (batch_id, worker_id, attempt_count)):
         raise ValueError("batch_id, worker_id, and attempt_count must be provided together")
     values: dict = {"status": status, "result": result}
+    now = datetime.now(UTC)
     if status in {"complete", "error", "skipped"}:
-        values["completed_at"] = datetime.now(UTC)
+        values["completed_at"] = now
     stmt = update(Jobs).where(Jobs.job_id == job_id)
     if batch_id is not None and worker_id is not None and attempt_count is not None:
-        stmt = stmt.where(_ownership_exists(batch_id, worker_id, attempt_count))
+        stmt = stmt.where(Jobs.batch_id == batch_id, _ownership_exists(batch_id, worker_id, attempt_count, now))
     with Session(db_engine) as session:
         update_result: CursorResult = session.execute(stmt.values(**values))  # type: ignore
         session.commit()

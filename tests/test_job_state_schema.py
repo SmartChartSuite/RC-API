@@ -305,3 +305,76 @@ def test_ensure_job_reuses_one_logical_child_and_preserves_terminal_state(monkey
     assert second.status == "complete"
     assert second.result == {"results": {"TaskA": "yes"}}
     assert len(job_state.get_jobs_for_batch("batch-1")) == 1
+
+
+def test_expired_lease_rejects_fenced_writes_until_recovery(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+    assert _create_batch_job("batch-1", "patient-1", "Registry")
+    claim = job_state.claim_next_batch_job("worker-1", 60)
+    assert claim is not None
+    fence = {"worker_id": "worker-1", "attempt_count": claim.attempt_count}
+
+    child = job_state.ensure_job("job-1", "batch-1", "patient-1", "Registry", "TaskA", "structured", **fence)
+    assert child is not None
+    assert job_state.renew_batch_job_lease("batch-1", "worker-1", claim.attempt_count, 60)
+
+    with Session(engine) as session:
+        session.execute(sqlalchemy.update(job_state.BatchJobs).where(job_state.BatchJobs.batch_id == "batch-1").values(lease_expires_at=datetime.now(UTC) - timedelta(seconds=1)))
+        session.commit()
+
+    assert not job_state.renew_batch_job_lease("batch-1", "worker-1", claim.attempt_count, 60)
+    assert not job_state.update_batch_job_result("batch-1", {"resourceType": "Bundle", "id": "late"}, **fence)
+    assert not job_state.update_batch_job_status("batch-1", "complete", {"resourceType": "Bundle", "id": "late"}, **fence)
+    assert not job_state.update_job_result(child.job_id, "complete", {"late": True}, batch_id="batch-1", **fence)
+    assert job_state.ensure_job("job-2", "batch-1", "patient-1", "Registry", "TaskB", "structured", **fence) is None
+    assert not job_state.release_batch_job_attempt("batch-1", "worker-1", claim.attempt_count)
+    assert job_state.fail_batch_job_attempt("batch-1", "worker-1", claim.attempt_count, "late failure", 0) == "lost"
+
+    batch = job_state.get_batch_job("batch-1")
+    assert batch is not None
+    assert batch.status == "running"
+    assert batch.result_bundle is None
+    assert [job.task_name for job in job_state.get_jobs_for_batch("batch-1")] == ["TaskA"]
+    assert job_state.get_jobs_for_batch("batch-1")[0].status == "running"
+
+    retried, failed = job_state.recover_expired_batch_job_leases(0)
+    assert (retried, failed) == (["batch-1"], [])
+
+
+def test_fenced_child_update_requires_matching_batch(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+    assert _create_batch_job("batch-1", "patient-1", "Registry")
+    assert _create_batch_job("batch-2", "patient-2", "Registry")
+
+    first = job_state.claim_next_batch_job("worker-1", 60)
+    second = job_state.claim_next_batch_job("worker-2", 60)
+    assert first is not None
+    assert second is not None
+    child = job_state.ensure_job(
+        "job-1",
+        "batch-1",
+        "patient-1",
+        "Registry",
+        "TaskA",
+        "structured",
+        worker_id="worker-1",
+        attempt_count=first.attempt_count,
+    )
+    assert child is not None
+
+    assert not job_state.update_job_result(
+        child.job_id,
+        "complete",
+        {"wrong_batch": True},
+        batch_id="batch-2",
+        worker_id="worker-2",
+        attempt_count=second.attempt_count,
+    )
+    unchanged = job_state.get_jobs_for_batch("batch-1")
+    assert len(unchanged) == 1
+    assert unchanged[0].status == "running"
+    assert unchanged[0].result is None
