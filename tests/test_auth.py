@@ -12,6 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from jose import jwk, jwt
 
 from src.util import auth
+from src.util.settings import settings
 
 ISSUER = "https://idp.example/"
 AUDIENCE = "rc-api"
@@ -77,11 +78,11 @@ def oauth(monkeypatch, key_a):
     auth._reset_jwks_cache()
     _JWKSClient.jwks = {"keys": [key_a[1]]}
     _JWKSClient.fetches = 0
-    monkeypatch.setattr(auth, "oauth2_enabled", True)
-    monkeypatch.setattr(auth, "oauth2_missing_config", [])
-    monkeypatch.setattr(auth, "oauth2_jwks_url", JWKS_URL)
-    monkeypatch.setattr(auth, "oauth2_issuer", ISSUER)
-    monkeypatch.setattr(auth, "oauth2_audience", AUDIENCE)
+    monkeypatch.setattr(settings, "oauth2_enabled", True)
+    monkeypatch.setattr(settings, "oauth2_missing_config", [])
+    monkeypatch.setattr(settings, "oauth2_jwks_url", JWKS_URL)
+    monkeypatch.setattr(settings, "oauth2_issuer", ISSUER)
+    monkeypatch.setattr(settings, "oauth2_audience", AUDIENCE)
     monkeypatch.setattr(auth, "_JWKS_MIN_REFRESH_SECONDS", 0)
     monkeypatch.setattr(auth.httpx, "AsyncClient", _JWKSClient)
     yield
@@ -130,7 +131,7 @@ async def test_jwks_outage_returns_503(oauth, key_a):
 
 
 async def test_partial_oauth_config_fails_closed_with_503(oauth, monkeypatch, key_a):
-    monkeypatch.setattr(auth, "oauth2_missing_config", ["OAUTH2_AUDIENCE"])
+    monkeypatch.setattr(settings, "oauth2_missing_config", ["OAUTH2_AUDIENCE"])
 
     with pytest.raises(HTTPException) as exc_info:
         await auth.validate_token(_creds(_token(key_a[0], "key-a")))
@@ -140,7 +141,7 @@ async def test_partial_oauth_config_fails_closed_with_503(oauth, monkeypatch, ke
 
 @pytest.mark.parametrize(("claims", "allowed"), [({"scope": "read admin"}, True), ({"scope": "administrator"}, False)])
 async def test_require_admin_scope(monkeypatch, claims, allowed):
-    monkeypatch.setattr(auth, "oauth2_enabled", True)
+    monkeypatch.setattr(settings, "oauth2_enabled", True)
 
     if allowed:
         assert await auth.require_admin(claims) is None

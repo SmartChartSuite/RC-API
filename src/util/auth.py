@@ -20,14 +20,7 @@ from jose import JWTError, jwt
 from loguru import logger
 
 from src.services.errorhandler import make_operation_outcome
-from src.util.settings import (
-    oauth2_audience,
-    oauth2_enabled,
-    oauth2_issuer,
-    oauth2_jwks_cache_seconds,
-    oauth2_jwks_url,
-    oauth2_missing_config,
-)
+from src.util.settings import settings
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -53,18 +46,18 @@ def _reset_jwks_cache() -> None:
 
 
 async def _fetch_jwks() -> dict:
-    if not oauth2_jwks_url:
+    if not settings.oauth2_jwks_url:
         raise JWKSUnavailableError("OAUTH2_JWKS_URL is not configured")
     try:
         async with httpx.AsyncClient(timeout=_JWKS_TIMEOUT, follow_redirects=False) as client:
-            resp = await client.get(oauth2_jwks_url)
+            resp = await client.get(settings.oauth2_jwks_url)
         resp.raise_for_status()
         data = resp.json()
     except (httpx.HTTPError, ValueError) as exc:
         raise JWKSUnavailableError(f"JWKS fetch failed: {exc}") from exc
     if not isinstance(data, dict) or not isinstance(data.get("keys"), list) or not data["keys"]:
         raise JWKSUnavailableError("JWKS response did not contain a non-empty 'keys' list")
-    logger.info(f"JWKS fetched from {oauth2_jwks_url} ({len(data['keys'])} key(s))")
+    logger.info(f"JWKS fetched from {settings.oauth2_jwks_url} ({len(data['keys'])} key(s))")
     return data
 
 
@@ -74,7 +67,7 @@ async def _get_jwks(*, force_refresh: bool = False) -> dict:
     async with _jwks_lock:
         now = time.monotonic()
         age = now - _jwks_fetched_at
-        expired = _jwks_cache is None or age >= oauth2_jwks_cache_seconds
+        expired = _jwks_cache is None or age >= settings.oauth2_jwks_cache_seconds
         refresh_allowed = force_refresh and age >= _JWKS_MIN_REFRESH_SECONDS
         if expired or refresh_allowed:
             try:
@@ -113,13 +106,13 @@ async def validate_token(
     Raises 401 for a missing/invalid token and 503 when auth is misconfigured
     or the identity provider's signing keys are unavailable.
     """
-    if not oauth2_enabled:
+    if not settings.oauth2_enabled:
         return {}
 
     if credentials is None:
         raise _unauthorized("Authorization header with Bearer token is required.")
 
-    if oauth2_missing_config:
+    if settings.oauth2_missing_config:
         raise HTTPException(
             status_code=503,
             detail=make_operation_outcome("not-supported", "Authentication is not configured on this server. See the server logs for details."),
@@ -135,8 +128,8 @@ async def validate_token(
             token,
             jwks,
             algorithms=["RS256"],
-            issuer=oauth2_issuer,
-            audience=oauth2_audience,
+            issuer=settings.oauth2_issuer,
+            audience=settings.oauth2_audience,
             options={"verify_aud": True, "verify_iss": True, "require_exp": True, "require_iss": True, "require_aud": True},
         )
     except JWKSUnavailableError as exc:
@@ -170,7 +163,7 @@ async def require_admin(
     Chains from validate_token. Raises HTTP 403 if 'admin' is not in the scope claim.
     Use as `Security(require_admin)` on DELETE endpoints.
     """
-    if not oauth2_enabled:
+    if not settings.oauth2_enabled:
         return
 
     scopes = _scopes(claims)

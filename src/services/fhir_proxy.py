@@ -12,7 +12,7 @@ from loguru import logger
 from src.models.fhir import FHIRProxyResponse, FHIRProxyResult, OperationOutcomeJSON
 from src.services.errorhandler import make_operation_outcome
 from src.util.outbound_url import is_valid_fhir_id, path_segment
-from src.util.settings import hapi_fhir_cql_execution_url, require_setting
+from src.util.settings import require_setting, settings
 
 _TIMEOUT = 60
 _TRANSPORT = httpx.AsyncHTTPTransport(retries=3)
@@ -23,7 +23,7 @@ def _headers() -> dict:
 
 
 def _base_url(resource_type: str, resource_id: str | None = None) -> str:
-    base_url = require_setting(hapi_fhir_cql_execution_url, "HAPI_FHIR_CQL_EXECUTION_URL")
+    base_url = require_setting(settings.hapi_fhir_cql_execution_url, "HAPI_FHIR_CQL_EXECUTION_URL")
     base = f"{base_url.rstrip('/')}/{path_segment(resource_type)}"
     if resource_id:
         base += f"/{path_segment(resource_id)}"

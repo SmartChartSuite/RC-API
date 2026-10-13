@@ -9,7 +9,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
-from src.util.settings import db_schema
+from src.util.settings import settings
 
 revision: str = "0004"
 down_revision: str | None = "0003"
@@ -18,7 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def _schema() -> str | None:
-    return None if op.get_bind().dialect.name == "sqlite" else db_schema
+    return None if op.get_bind().dialect.name == "sqlite" else settings.db_schema
 
 
 def upgrade() -> None:

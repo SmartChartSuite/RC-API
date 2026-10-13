@@ -9,7 +9,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
-from src.util.settings import db_schema
+from src.util.settings import settings
 
 revision: str = "0005"
 down_revision: str | None = "0004"
@@ -21,7 +21,7 @@ _INDEX_NAME = "ix_questionnaire_responses_batch_job_id"
 
 
 def _schema() -> str | None:
-    return None if op.get_bind().dialect.name == "sqlite" else db_schema
+    return None if op.get_bind().dialect.name == "sqlite" else settings.db_schema
 
 
 def upgrade() -> None:

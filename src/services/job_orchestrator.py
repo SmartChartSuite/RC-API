@@ -37,7 +37,7 @@ from src.services.job_state import (
 )
 from src.services.llm_executor import LlmDocumentResult, LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
-from src.util.settings import batch_job_heartbeat_interval_seconds, batch_worker_lease_seconds, deploy_url, use_llm
+from src.util.settings import settings
 
 # Questionnaire extension URLs
 _CQL_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/structured-form-job-list"
@@ -73,7 +73,7 @@ async def _langfuse_batch_parent(
     requested_jobs: list[str] | None,
 ):
     """Create a Langfuse root span for one batch and expose its OTel parent."""
-    if not prompt_loader.use_langfuse:
+    if not settings.use_langfuse:
         yield None
         return
 
@@ -265,7 +265,7 @@ def _obs_base(link_id: str, question_text: str, patient_id: str, form_name: str)
     return {
         "resourceType": "Observation",
         "id": obs_id,
-        "identifier": [{"system": deploy_url, "value": f"Observation/{obs_id}"}],
+        "identifier": [{"system": settings.deploy_url, "value": f"Observation/{obs_id}"}],
         "status": "final",
         "category": [
             {
@@ -403,7 +403,7 @@ def _build_tuple_observation(
         supporting = {
             "resourceType": "Condition",
             "id": res_id,
-            "identifier": [{"system": deploy_url, "value": f"Condition/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"Condition/{res_id}"}],
             "code": {"coding": _coding()},
             "onsetDateTime": effective_dt,
             "subject": {"reference": f"Patient/{patient_id}"},
@@ -413,7 +413,7 @@ def _build_tuple_observation(
         supporting = {
             "resourceType": "MedicationRequest",
             "id": res_id,
-            "identifier": [{"system": deploy_url, "value": f"MedicationRequest/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"MedicationRequest/{res_id}"}],
             "status": "active",
             "intent": "order",
             "medicationCodeableConcept": {"coding": _coding()},
@@ -425,7 +425,7 @@ def _build_tuple_observation(
         supporting = {
             "resourceType": "MedicationStatement",
             "id": res_id,
-            "identifier": [{"system": deploy_url, "value": f"MedicationStatement/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"MedicationStatement/{res_id}"}],
             "status": "active",
             "medicationCodeableConcept": {"coding": _coding()},
             "effectiveDateTime": effective_dt,
@@ -436,7 +436,7 @@ def _build_tuple_observation(
         supporting = {
             "resourceType": "Procedure",
             "id": res_id,
-            "identifier": [{"system": deploy_url, "value": f"Procedure/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"Procedure/{res_id}"}],
             "code": {"coding": _coding()},
             "performedDateTime": effective_dt,
             "subject": {"reference": f"Patient/{patient_id}"},
@@ -446,7 +446,7 @@ def _build_tuple_observation(
         supporting = {
             "resourceType": "Observation",
             "id": res_id,
-            "identifier": [{"system": deploy_url, "value": f"Observation/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"Observation/{res_id}"}],
             "status": "final",
             "code": {"coding": _coding()},
             "effectiveDateTime": effective_dt,
@@ -663,13 +663,13 @@ def _build_result_bundle(
 async def _maintain_batch_lease(batch_id: str, worker_id: str, attempt_count: int) -> None:
     """Renew an owned batch lease while long-running external work is in flight."""
     while True:
-        await asyncio.sleep(batch_job_heartbeat_interval_seconds)
+        await asyncio.sleep(settings.batch_job_heartbeat_interval_seconds)
         renewed = await asyncio.to_thread(
             renew_batch_job_lease,
             batch_id,
             worker_id,
             attempt_count,
-            batch_worker_lease_seconds,
+            settings.batch_worker_lease_seconds,
         )
         if not renewed:
             raise LeaseLostError(f"Worker {worker_id} lost batch {batch_id} attempt {attempt_count}")
@@ -832,7 +832,7 @@ async def run_batch_job(
                             }
                         )
                     )
-            elif not use_llm:
+            elif not settings.use_llm:
                 logger.info(f"[batch={batch_id}] LiteLLM is not configured — skipping LLM execution")
                 for path in prompt_paths_to_run:
                     job_id = job_ids_by_task.get(("unstructured", path))
@@ -928,7 +928,7 @@ async def run_batch_job(
                     job_package=job_package,
                     parent_otel_span=parent_otel_span,
                 )
-                if (prompt_paths_to_run and documents and use_llm)
+                if (prompt_paths_to_run and documents and settings.use_llm)
                 else _empty()
             )
             return await _gather_supervised(cql_task, llm_task)
@@ -953,7 +953,7 @@ async def run_batch_job(
             task_results.append({"task_name": library_name, "task_type": "structured", "status": "error"})
             await _persist_partial_bundle()
 
-        if prompt_paths_to_run and documents and use_llm:
+        if prompt_paths_to_run and documents and settings.use_llm:
             completed_llm_paths = {result.prompt_path for result in llm_results}
             for prompt_path in prompt_paths_to_run:
                 if prompt_path in completed_llm_paths:

@@ -16,11 +16,7 @@ from src.services.job_state import (
     recover_expired_batch_job_leases,
     release_batch_job_attempt,
 )
-from src.util.settings import (
-    batch_job_retry_delay_seconds,
-    batch_worker_lease_seconds,
-    batch_worker_poll_interval_seconds,
-)
+from src.util.settings import settings
 
 
 class EmbeddedBatchWorker:
@@ -54,7 +50,7 @@ class EmbeddedBatchWorker:
         with suppress(TimeoutError):
             await asyncio.wait_for(
                 self._stop_event.wait(),
-                timeout=batch_worker_poll_interval_seconds,
+                timeout=settings.batch_worker_poll_interval_seconds,
             )
 
     async def _release_active_claim(self) -> None:
@@ -90,12 +86,12 @@ class EmbeddedBatchWorker:
             try:
                 await asyncio.to_thread(
                     recover_expired_batch_job_leases,
-                    batch_job_retry_delay_seconds,
+                    settings.batch_job_retry_delay_seconds,
                 )
                 claim = await asyncio.to_thread(
                     claim_next_batch_job,
                     self.worker_id,
-                    batch_worker_lease_seconds,
+                    settings.batch_worker_lease_seconds,
                 )
                 if claim is None:
                     await self._wait_for_poll()
@@ -117,7 +113,7 @@ class EmbeddedBatchWorker:
                         claim.worker_id,
                         claim.attempt_count,
                         str(exc),
-                        batch_job_retry_delay_seconds,
+                        settings.batch_job_retry_delay_seconds,
                     )
                 finally:
                     self._active_claim = None

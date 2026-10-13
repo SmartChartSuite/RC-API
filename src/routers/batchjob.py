@@ -27,7 +27,7 @@ from src.services.job_state import (
 )
 from src.util.auth import require_admin, validate_token
 from src.util.outbound_url import is_valid_fhir_id
-from src.util.settings import config_errors
+from src.util.settings import settings
 
 router = APIRouter(tags=["Batch Jobs"])
 
@@ -161,7 +161,7 @@ def _to_batch_job_parameters(
 
 
 def _required_config() -> list[str]:
-    return [k for k in ("EXTERNAL_FHIR_SERVER_URL", "HAPI_FHIR_CQL_EXECUTION_URL") if k in config_errors]
+    return [k for k in ("EXTERNAL_FHIR_SERVER_URL", "HAPI_FHIR_CQL_EXECUTION_URL") if k in settings.config_errors]
 
 
 _PATIENT_FETCH_MAX_CONCURRENCY = 8

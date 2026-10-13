@@ -2,6 +2,7 @@ import asyncio
 
 from src.services import batch_worker
 from src.services.job_state import ClaimedBatchJob
+from src.util.settings import settings
 
 
 def _claim() -> ClaimedBatchJob:
@@ -73,7 +74,7 @@ async def test_worker_hands_execution_failure_to_retry_state(monkeypatch):
             "worker-1",
             2,
             "temporary failure",
-            batch_worker.batch_job_retry_delay_seconds,
+            settings.batch_job_retry_delay_seconds,
         )
     ]
 

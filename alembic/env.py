@@ -7,13 +7,13 @@ from sqlalchemy.schema import CreateSchema
 
 from alembic import context
 from src.services.job_state import Base
-from src.util.settings import db_connection_string
+from src.util.settings import settings
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", db_connection_string.replace("%", "%%"))
+config.set_main_option("sqlalchemy.url", settings.db_connection_string.replace("%", "%%"))
 target_metadata = Base.metadata
 
 

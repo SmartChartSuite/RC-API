@@ -6,7 +6,7 @@ import sqlalchemy
 from sqlalchemy.orm import Session
 
 from src.services import job_state
-from src.util import settings
+from src.util.settings import settings
 
 
 def _create_batch_job(batch_id: str, patient_id: str, job_package: str, started_by: str = "test-user") -> bool:

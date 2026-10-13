@@ -4,6 +4,7 @@ from src.models.fhir import GroupResource, PatientResource
 from src.routers import group
 from src.services import fhir_proxy
 from src.services.fhir_proxy import FHIRProxyResponse
+from src.util.settings import settings
 from tests.fakes import FailingAsyncClient as _FailingClient
 from tests.fakes import FakeAsyncClient as _FakeAsyncClient
 from tests.fakes import FakeResponse as _FakeResponse
@@ -32,9 +33,9 @@ async def test_search_groups_returns_group_and_patients(monkeypatch):
         [_FakeResponse({"resourceType": "Patient", "id": "patient-123"})],
     ]
 
-    monkeypatch.setattr(group, "config_errors", {})
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
-    monkeypatch.setattr(group, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "config_errors", {})
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await group.search_groups(name="Panel", claims={})
@@ -70,8 +71,8 @@ async def test_get_group_returns_operation_outcome(monkeypatch):
         ]
     ]
 
-    monkeypatch.setattr(group, "config_errors", {})
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "config_errors", {})
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await group.get_group("missing", claims={})
@@ -87,7 +88,7 @@ async def test_create_group_returns_group_resource(monkeypatch):
         assert body["name"] == "Panel"
         return FHIRProxyResponse(data={"resourceType": "Group", "id": "group-1", "name": "Panel"}, status_code=201)
 
-    monkeypatch.setattr(group, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(group, "fhir_post_with_status", _fake_fhir_post_with_status)
 
     result = await group.create_group({"resourceType": "Group", "name": "Panel"}, claims={})
@@ -97,9 +98,9 @@ async def test_create_group_returns_group_resource(monkeypatch):
 
 
 async def test_search_groups_handles_request_errors(monkeypatch):
-    monkeypatch.setattr(group, "config_errors", {})
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
-    monkeypatch.setattr(group, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "config_errors", {})
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FailingClient)
 
     result = await group.search_groups(name="Panel", claims={})
@@ -111,9 +112,9 @@ async def test_search_groups_returns_empty_for_upstream_error(monkeypatch):
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_responses = [[_FakeResponse({"error": "boom"}, status_code=500)]]
 
-    monkeypatch.setattr(group, "config_errors", {})
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
-    monkeypatch.setattr(group, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "config_errors", {})
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await group.search_groups(name="Panel", claims={})
@@ -122,7 +123,7 @@ async def test_search_groups_returns_empty_for_upstream_error(monkeypatch):
 
 
 async def test_delete_group_returns_config_error(monkeypatch):
-    monkeypatch.setattr(group, "config_errors", {"HAPI_FHIR_CQL_EXECUTION_URL": "missing"})
+    monkeypatch.setattr(settings, "config_errors", {"HAPI_FHIR_CQL_EXECUTION_URL": "missing"})
 
     result = await group.delete_group("group-1", claims=None)
 
@@ -152,10 +153,10 @@ async def test_search_groups_skips_cross_origin_patient_reference(monkeypatch):
         ],
         [],
     ]
-    monkeypatch.setattr(group, "config_errors", {})
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
-    monkeypatch.setattr(group, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(group, "external_fhir_server_auth", "Bearer token")
+    monkeypatch.setattr(settings, "config_errors", {})
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_auth", "Bearer token")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await group.search_groups(name="Panel", claims={})

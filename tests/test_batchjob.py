@@ -9,11 +9,12 @@ from src.models.job_response import BatchJobAcceptedResponse
 from src.routers import batchjob
 from src.services import job_orchestrator
 from src.services.job_state import BatchJobs
+from src.util.settings import settings
 from tests.fakes import patient_resource
 
 
 async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
-    monkeypatch.setattr(batchjob, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
     captured: dict = {}
 
     async def _fake_resolve_questionnaire(job_package, job_package_version):
@@ -133,7 +134,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
 
 
 async def test_post_batch_job_rejects_multiple_questionnaire_matches(monkeypatch):
-    monkeypatch.setattr(batchjob, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
 
     async def _fake_resolve_questionnaire(job_package, job_package_version):
         return JSONResponse(
@@ -762,7 +763,7 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
 
 
 async def test_post_batch_job_rejects_invalid_patient_id(monkeypatch):
-    monkeypatch.setattr(batchjob, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
 
     async def _must_not_resolve(*args):
         raise AssertionError("questionnaire resolution must not run for an invalid patientId")

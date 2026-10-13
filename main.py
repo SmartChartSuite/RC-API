@@ -19,7 +19,7 @@ from src.services.batch_worker import EmbeddedBatchWorker
 from src.services.errorhandler import make_operation_outcome
 from src.services.job_state import initialize_db
 from src.services.prompt_loader import initialize_prompt_source
-from src.util.settings import batch_worker_enabled, cors_allow_credentials, cors_allow_origins, log_level, root_path
+from src.util.settings import settings
 
 LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
 _NOISY_LOGGER_LEVELS = {"httpcore": logging.WARNING, "httpx": logging.WARNING, "LiteLLM": logging.WARNING, "urllib3": logging.WARNING, "openai": logging.WARNING, "asyncio": logging.WARNING}
@@ -53,10 +53,10 @@ def _configure_noisy_loggers() -> None:
 def configure_logging() -> None:
     logger.remove()
     logger.configure(patcher=_patch_log_record)
-    logger.add(sys.stderr, level=log_level, colorize=True, format=LOG_FORMAT)
+    logger.add(sys.stderr, level=settings.log_level, colorize=True, format=LOG_FORMAT)
 
     intercept_handler = InterceptHandler()
-    logging.basicConfig(handlers=[intercept_handler], level=log_level, force=True)
+    logging.basicConfig(handlers=[intercept_handler], level=settings.log_level, force=True)
 
     for logger_name in ("hypercorn.access", "hypercorn.error", "hypercorn", "LiteLLM"):
         stdlib_logger = logging.getLogger(logger_name)
@@ -73,7 +73,7 @@ configure_logging()
 async def lifespan(app: FastAPI):
     initialize_db()
     await initialize_prompt_source()
-    worker = EmbeddedBatchWorker() if batch_worker_enabled else None
+    worker = EmbeddedBatchWorker() if settings.batch_worker_enabled else None
     app.state.batch_worker = worker
     if worker is not None:
         await worker.start()
@@ -85,14 +85,14 @@ async def lifespan(app: FastAPI):
 
 
 # App
-app = FastAPI(title="RC-API", description="SmartChart Suite Results Combining API — v1.0", version="1.0.0", root_path=root_path, lifespan=lifespan)
+app = FastAPI(title="RC-API", description="SmartChart Suite Results Combining API — v1.0", version="1.0.0", root_path=settings.root_path, lifespan=lifespan)
 
 # CORS — explicit allowlist from CORS_ALLOW_ORIGINS. Credentials are only allowed with concrete origins.
-if cors_allow_origins:
+if settings.cors_allow_origins:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cors_allow_origins,
-        allow_credentials=cors_allow_credentials,
+        allow_origins=settings.cors_allow_origins,
+        allow_credentials=settings.cors_allow_credentials,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "Accept"],
         expose_headers=["Location"],
@@ -124,10 +124,8 @@ app.include_router(response_router)
 @app.get("/health", tags=["Health"])
 async def health():
     """Basic health check."""
-    from src.util.settings import config_errors
-
     return {
-        "status": "ok" if not config_errors else "degraded",
+        "status": "ok" if not settings.config_errors else "degraded",
         "version": "1.0.0",
-        "configErrors": list(config_errors.keys()) if config_errors else [],
+        "configErrors": list(settings.config_errors.keys()) if settings.config_errors else [],
     }

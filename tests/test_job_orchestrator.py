@@ -6,6 +6,7 @@ from src.services.cql_executor import CqlResult
 from src.services.fhir_context import DocumentFetchResult
 from src.services.job_state import LogicalJob
 from src.services.llm_executor import LlmDocumentResult, LlmResult
+from src.util.settings import settings
 
 
 def test_extract_job_lists_reads_both_extension_types():
@@ -387,7 +388,7 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
     monkeypatch.setattr(job_orchestrator, "fetch_patient_documents", _fake_fetch_patient_documents)
     monkeypatch.setattr(job_orchestrator, "run_all_prompts", _fake_run_all_prompts)
     monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
-    monkeypatch.setattr(job_orchestrator, "use_llm", True)
+    monkeypatch.setattr(settings, "use_llm", True)
     monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "job-123")
 
     await job_orchestrator.run_batch_job(
@@ -443,7 +444,7 @@ async def test_run_batch_job_records_excluded_documents_when_llm_is_skipped(monk
     monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda *args, **kwargs: True)
     monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda *args, **kwargs: True)
     monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
-    monkeypatch.setattr(job_orchestrator, "use_llm", True)
+    monkeypatch.setattr(settings, "use_llm", True)
 
     await job_orchestrator.run_batch_job(
         "batch-1",

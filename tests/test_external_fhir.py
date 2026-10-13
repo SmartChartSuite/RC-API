@@ -3,6 +3,7 @@ from typing import ClassVar
 import httpx
 
 from src.services import external_fhir
+from src.util.settings import settings
 
 
 class _FakeAsyncClient:
@@ -31,8 +32,8 @@ def _set_client(monkeypatch, response):
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_response = response
     monkeypatch.setattr(external_fhir.httpx, "AsyncClient", _FakeAsyncClient)
-    monkeypatch.setattr(external_fhir, "external_fhir_server_url", "https://external.example/fhir")
-    monkeypatch.setattr(external_fhir, "external_fhir_server_auth", "Bearer test-token")
+    monkeypatch.setattr(settings, "external_fhir_server_url", "https://external.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_auth", "Bearer test-token")
 
 
 async def test_fetch_patient_returns_resource_with_auth_headers(monkeypatch):

@@ -13,7 +13,7 @@ from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_r
 from src.services.fhir_proxy import FHIRProxyResponse
 from src.util.auth import validate_token
 from src.util.outbound_url import is_valid_fhir_id, path_segment
-from src.util.settings import config_errors, external_fhir_server_auth, external_fhir_server_url, require_setting
+from src.util.settings import require_setting, settings
 
 router = APIRouter(tags=["Patients"])
 
@@ -22,20 +22,20 @@ PatientReadResult = PatientResource | OperationOutcome
 
 
 def _check_config():
-    if "EXTERNAL_FHIR_SERVER_URL" in config_errors:
+    if "EXTERNAL_FHIR_SERVER_URL" in settings.config_errors:
         return config_error_response(["EXTERNAL_FHIR_SERVER_URL"])
     return None
 
 
 def _headers() -> dict[str, str]:
     headers = {"Accept": "application/fhir+json"}
-    if external_fhir_server_auth:
-        headers["Authorization"] = external_fhir_server_auth
+    if settings.external_fhir_server_auth:
+        headers["Authorization"] = settings.external_fhir_server_auth
     return headers
 
 
 def _base_url(resource_id: str | None = None) -> str:
-    base = f"{require_setting(external_fhir_server_url, 'EXTERNAL_FHIR_SERVER_URL').rstrip('/')}/Patient"
+    base = f"{require_setting(settings.external_fhir_server_url, 'EXTERNAL_FHIR_SERVER_URL').rstrip('/')}/Patient"
     if resource_id:
         base += f"/{path_segment(resource_id)}"
     return base

@@ -7,6 +7,7 @@ import pytest
 
 from src.services import prompt_loader
 from src.util.outbound_url import is_allowed_attachment_url, is_valid_fhir_id, resolves_to_internal_address
+from src.util.settings import settings
 
 FHIR_BASE = "https://fhir.example/fhir"
 
@@ -52,6 +53,6 @@ def test_load_prompt_from_folder_rejects_symlink_escape(tmp_path, monkeypatch):
     outside.mkdir()
     (outside / "leak.md").write_text("LEAKED", encoding="utf-8")
     (prompts_root / "linked").symlink_to(outside, target_is_directory=True)
-    monkeypatch.setattr(prompt_loader, "prompts_dir", str(prompts_root))
+    monkeypatch.setattr(settings, "prompts_dir", str(prompts_root))
 
     assert prompt_loader._load_prompt_from_folder("linked/leak") is None

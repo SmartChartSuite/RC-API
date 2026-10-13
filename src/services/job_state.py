@@ -40,7 +40,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.schema import CreateSchema
 
 from src.services.errorhandler import make_operation_outcome
-from src.util.settings import batch_job_max_attempts, db_connection_string, db_schema
+from src.util.settings import settings
 
 
 def _utc_now() -> datetime:
@@ -60,7 +60,7 @@ def _metadata_schema(connection_string: str, schema: str | None) -> str | None:
 
 
 class Base(DeclarativeBase):
-    metadata = MetaData(schema=_metadata_schema(db_connection_string, db_schema))
+    metadata = MetaData(schema=_metadata_schema(settings.db_connection_string, settings.db_schema))
     type_annotation_map: ClassVar = {dict: JSON}
 
 
@@ -89,7 +89,7 @@ class BatchJobs(Base):
     worker_id: Mapped[str | None]
     lease_expires_at: Mapped[datetime | None]
     next_attempt_at: Mapped[datetime | None]
-    max_attempts: Mapped[int] = mapped_column(default=batch_job_max_attempts)
+    max_attempts: Mapped[int] = mapped_column(default=settings.batch_job_max_attempts)
     last_error: Mapped[str | None] = mapped_column(Text)
 
 
@@ -149,7 +149,7 @@ class QuestionnaireResponses(Base):
 
 # ── Engine + table creation ────────────────────────────────────────────────────
 
-db_engine = create_engine(db_connection_string, pool_pre_ping=True)
+db_engine = create_engine(settings.db_connection_string, pool_pre_ping=True)
 _ALEMBIC_CONFIG_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 
@@ -261,7 +261,7 @@ def create_batch_job_with_response(
                     job_package_version=job_package_version,
                     requested_jobs=requested_jobs or None,
                     attempt_count=0,
-                    max_attempts=batch_job_max_attempts,
+                    max_attempts=settings.batch_job_max_attempts,
                     updated_at=now,
                 )
             )

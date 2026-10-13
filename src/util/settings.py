@@ -1,23 +1,22 @@
-"""v1 settings — all environment variables with graceful degraded-mode handling.
+"""Typed application settings with graceful degraded-mode handling.
 
-Required vars (EXTERNAL_FHIR_SERVER_URL, HAPI_FHIR_CQL_EXECUTION_URL) are loaded via
-_require() which records the error but does NOT raise, allowing the API to start inside
-Docker even with missing config. Endpoints check config_errors and return a FHIR
-OperationOutcome (HTTP 503) rather than crashing.
+Required FHIR URLs and OAuth settings are validated without raising during startup.
+Missing or invalid values are recorded in ``config_errors`` so protected endpoints
+can return a FHIR OperationOutcome (HTTP 503) rather than crashing the API.
 """
 
-import os
+from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from loguru import logger
+from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from src.models.config import ConfigEndpointModel
 
-config_errors: dict[str, str] = {}
-
 
 class ConfigurationError(RuntimeError):
-    """Raised when code needs a setting that was not configured (survives `python -O`, unlike assert)."""
+    """Raised when code needs a setting that was not configured (survives ``python -O``)."""
 
 
 def require_setting(value: str | None, name: str) -> str:
@@ -27,38 +26,14 @@ def require_setting(value: str | None, name: str) -> str:
     return value
 
 
-def _get(var: str, default: str | None = None) -> str | None:
-    """Read an env var and normalize common docker --env-file formatting artifacts."""
-    value = os.environ.get(var)
-    if value is None:
-        return default
+def _normalize_env_value(value: Any) -> Any:
+    """Normalize whitespace and docker ``--env-file`` quote artifacts."""
+    if not isinstance(value, str):
+        return value
     value = value.strip()
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
         value = value[1:-1]
     return value
-
-
-def _require(var: str) -> str | None:
-    """Load a required env var. Records error without raising if missing."""
-    val = _get(var)
-    if not val:
-        msg = f"Required environment variable '{var}' is not set."
-        logger.error(msg)
-        config_errors[var] = msg
-    return val
-
-
-def _require_url(var: str) -> str | None:
-    """Load a required http(s) URL env var. Records an error without raising if missing or malformed."""
-    val = _require(var)
-    if val:
-        parsed = urlparse(val)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            msg = f"Environment variable '{var}' must be an absolute http(s) URL."
-            logger.error(msg)
-            config_errors[var] = msg
-            return None
-    return val
 
 
 def _normalize_root_path(value: str | None) -> str:
@@ -70,153 +45,196 @@ def _normalize_root_path(value: str | None) -> str:
     return normalized.rstrip("/")
 
 
-# FHIR servers
-external_fhir_server_url: str | None = _require_url("EXTERNAL_FHIR_SERVER_URL")
-external_fhir_server_auth: str = _get("EXTERNAL_FHIR_SERVER_AUTH") or ""
-
-# HAPI FHIR CQL Execution Service
-# Library IDs are the CamelCase resource name (e.g. "SyphilisRegistry")
-# POST {hapi_fhir_cql_execution_url}/Library/{LibraryName}/$evaluate
-hapi_fhir_cql_execution_url: str | None = _require_url("HAPI_FHIR_CQL_EXECUTION_URL")
-
-# LiteLLM (all three required together for LLM operations)
-litellm_model: str | None = _get("LITELLM_MODEL")
-litellm_api_base: str | None = _get("LITELLM_API_BASE")
-litellm_api_key: str | None = _get("LITELLM_API_KEY")
-litellm_model_reasoning_effort: str | None = _get("LITELLM_MODEL_REASONING_EFFORT")
-use_llm: bool = bool(litellm_model and litellm_api_base and litellm_api_key)
-if any([litellm_model, litellm_api_base, litellm_api_key]) and not use_llm:
-    logger.warning("Partial LiteLLM config — set LITELLM_MODEL, LITELLM_API_BASE, and LITELLM_API_KEY together.")
+def _is_http_url(value: str) -> bool:
+    try:
+        parsed = urlparse(value)
+    except ValueError:
+        return False
+    return parsed.scheme in {"http", "https"} and bool(parsed.hostname)
 
 
-def _bool(var: str, default: bool) -> bool:
-    """Read a boolean environment variable with a safe default."""
-    raw = _get(var)
-    if raw is None:
-        return default
+def _parse_bool(raw: str, env_name: str, default: bool) -> bool:
     normalized = raw.casefold()
     if normalized in {"1", "true", "yes", "on"}:
         return True
     if normalized in {"0", "false", "no", "off"}:
         return False
-    logger.warning(f"{var}='{raw}' is not a valid boolean — using default {default}.")
+    logger.warning(f"{env_name}='{raw}' is not a valid boolean — using default {default}.")
     return default
 
 
-# Enable provider-side prompt caching for models that support it.
-litellm_prompt_cache_enabled: bool = _bool("LITELLM_PROMPT_CACHE_ENABLED", True)
-
-
-def _positive_int(var: str, default: int) -> int:
-    """Read a positive-integer env var, falling back to default on missing/invalid input."""
-    raw = _get(var)
-    if raw is None:
-        return default
+def _parse_positive_int(raw: str, env_name: str, default: int) -> int:
     try:
         parsed = int(raw)
     except ValueError:
-        logger.warning(f"{var}='{raw}' is not a valid integer — using default {default}.")
+        logger.warning(f"{env_name}='{raw}' is not a valid integer — using default {default}.")
         return default
     if parsed < 1:
-        logger.warning(f"{var}={parsed} must be >= 1 — using default {default}.")
+        logger.warning(f"{env_name}={parsed} must be >= 1 — using default {default}.")
         return default
     return parsed
 
 
-# Max concurrent in-flight LLM completion calls across all prompts/documents in a job.
-llm_max_concurrency: int = _positive_int("LLM_MAX_CONCURRENCY", 8)
-# Max concurrent attachment fetches when loading DocumentReference content.
-doc_fetch_max_concurrency: int = _positive_int("DOC_FETCH_MAX_CONCURRENCY", 8)
+class Settings(BaseSettings):
+    """Application configuration loaded from environment variables (field name upper-cased, unless aliased)."""
+
+    model_config = SettingsConfigDict(env_file=None, case_sensitive=False, extra="ignore", populate_by_name=True)
+
+    # FHIR servers (required; missing or invalid values degrade to None and are recorded in config_errors)
+    external_fhir_server_url: str | None = None
+    external_fhir_server_auth: str = ""
+    # HAPI FHIR CQL Execution Service: POST {hapi_fhir_cql_execution_url}/Library/{LibraryName}/$evaluate
+    hapi_fhir_cql_execution_url: str | None = None
+
+    # LiteLLM (all three required together for LLM operations)
+    litellm_model: str | None = None
+    litellm_api_base: str | None = None
+    litellm_api_key: str | None = None
+    litellm_model_reasoning_effort: str | None = None
+    # Enable provider-side prompt caching for models that support it.
+    litellm_prompt_cache_enabled: bool = True
+    # Max concurrent in-flight LLM completion calls across all prompts/documents in a job.
+    llm_max_concurrency: int = 8
+
+    # Outbound DocumentReference attachment fetching (SSRF protection and payload limits).
+    # Attachments are fetched only from the external FHIR server origin plus ATTACHMENT_ALLOWED_HOSTS.
+    doc_fetch_max_concurrency: int = 8
+    doc_max_count: int = 500
+    doc_max_bytes: int = 5_000_000
+    attachment_allowed_hosts: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    # Embedded durable batch worker
+    batch_worker_enabled: bool = True
+    batch_worker_poll_interval_seconds: int = 2
+    batch_worker_lease_seconds: int = 120
+    batch_job_heartbeat_interval_seconds: int = 30
+    batch_job_max_attempts: int = 3
+    batch_job_retry_delay_seconds: int = 30
+
+    # Langfuse (all three required together for prompt retrieval)
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str | None = None
+    langfuse_prompt_fetch_timeout_seconds: int = 5
+    langfuse_prompt_max_retries: int = 1
+
+    # Prompts folder (fallback when Langfuse is not configured) and database
+    prompts_dir: str = "./prompts"
+    db_connection_string: str = "sqlite+pysqlite:///rcapi_jobs.sqlite"
+    db_schema: str = "rcapi"
+
+    # OAuth 2 — fail closed. Enforced unless AUTH_DISABLED=true (local development only); when enforced,
+    # OAUTH2_JWKS_URL, OAUTH2_ISSUER, and OAUTH2_AUDIENCE are required or protected endpoints return 503.
+    auth_disabled: bool = False
+    oauth2_jwks_url: str | None = None
+    oauth2_issuer: str | None = None
+    oauth2_audience: str | None = None
+    oauth2_jwks_cache_seconds: int = 3600
+
+    # CORS — explicit allowlist. "*" is permitted but disables credentialed requests.
+    cors_allow_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    # Misc
+    deploy_url: str = "http://example.org/"
+    root_path: str = ""
+    log_level: str = "INFO"
+    primary_identifier_system: str | None = Field(default=None, validation_alias="PRIMARYIDENTIFIER_SYSTEM")
+    primary_identifier_label: str | None = Field(default=None, validation_alias="PRIMARYIDENTIFIER_LABEL")
+
+    # Derived in _derive_values; plain mutable fields so runtime code and tests can override them.
+    config_errors: dict[str, str] = Field(default_factory=dict, exclude=True)
+    use_llm: bool = False
+    use_langfuse: bool = False
+    oauth2_enabled: bool = True
+    oauth2_missing_config: list[str] = Field(default_factory=list)
+    cors_allow_credentials: bool = False
+    config_endpoint: ConfigEndpointModel | dict = Field(default_factory=dict)
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _coerce_env_value(cls, value: Any, info: ValidationInfo) -> Any:
+        """Normalize env strings; invalid booleans and positive integers warn and fall back to the default."""
+        if not isinstance(value, str) or info.field_name is None:
+            return value
+        value = _normalize_env_value(value)
+        field = cls.model_fields[info.field_name]
+        env_name = field.validation_alias if isinstance(field.validation_alias, str) else info.field_name.upper()
+        if field.annotation is bool:
+            return _parse_bool(value, env_name, field.default)
+        if field.annotation is int:
+            return _parse_positive_int(value, env_name, field.default)
+        return value
+
+    @field_validator("cors_allow_origins", "attachment_allowed_hosts", mode="before")
+    @classmethod
+    def _parse_csv(cls, value: Any) -> Any:
+        """Read the comma-separated env format instead of JSON."""
+        if isinstance(value, str):
+            return [item.strip() for item in _normalize_env_value(value).split(",") if item.strip()]
+        return value
+
+    @model_validator(mode="after")
+    def _derive_values(self) -> "Settings":
+        """Record config errors and derive dependent values without failing startup."""
+        self.config_errors = {}
+        for field_name in ("external_fhir_server_url", "hapi_fhir_cql_execution_url"):
+            env_name = field_name.upper()
+            value = getattr(self, field_name)
+            if not value:
+                message = f"Required environment variable '{env_name}' is not set."
+            elif not _is_http_url(value):
+                message = f"Environment variable '{env_name}' must be an absolute http(s) URL."
+                setattr(self, field_name, None)
+            else:
+                continue
+            logger.error(message)
+            self.config_errors[env_name] = message
+
+        self.use_llm = bool(self.litellm_model and self.litellm_api_base and self.litellm_api_key)
+        if any([self.litellm_model, self.litellm_api_base, self.litellm_api_key]) and not self.use_llm:
+            logger.warning("Partial LiteLLM config — set LITELLM_MODEL, LITELLM_API_BASE, and LITELLM_API_KEY together.")
+
+        if self.batch_worker_lease_seconds <= self.batch_job_heartbeat_interval_seconds * 2:
+            safe_lease = self.batch_job_heartbeat_interval_seconds * 3
+            logger.warning(
+                f"BATCH_WORKER_LEASE_SECONDS={self.batch_worker_lease_seconds} must exceed twice BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS="
+                f"{self.batch_job_heartbeat_interval_seconds} to avoid expired active leases — using {safe_lease}."
+            )
+            self.batch_worker_lease_seconds = safe_lease
+
+        self.use_langfuse = bool(self.langfuse_public_key and self.langfuse_secret_key and self.langfuse_host)
+        if any([self.langfuse_public_key, self.langfuse_secret_key, self.langfuse_host]) and not self.use_langfuse:
+            logger.warning("Partial Langfuse config — set LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, and LANGFUSE_HOST together.")
+
+        self.oauth2_enabled = not self.auth_disabled
+        self.oauth2_missing_config = []
+        if self.auth_disabled:
+            logger.warning("AUTH_DISABLED=true — all endpoints are accessible without authentication. Never use this in production.")
+        else:
+            oauth2_required = (("OAUTH2_JWKS_URL", self.oauth2_jwks_url), ("OAUTH2_ISSUER", self.oauth2_issuer), ("OAUTH2_AUDIENCE", self.oauth2_audience))
+            self.oauth2_missing_config = [name for name, value in oauth2_required if not value]
+            for name in self.oauth2_missing_config:
+                message = f"Authentication is enabled but '{name}' is not set. Protected endpoints will return 503 until configured (or set AUTH_DISABLED=true for local development)."
+                logger.error(message)
+                self.config_errors[name] = message
+
+        self.cors_allow_credentials = bool(self.cors_allow_origins) and "*" not in self.cors_allow_origins
+        self.attachment_allowed_hosts = [host.casefold() for host in self.attachment_allowed_hosts]
+
+        # Empty env values fall back to defaults, as before.
+        self.prompts_dir = self.prompts_dir or "./prompts"
+        self.db_connection_string = self.db_connection_string or "sqlite+pysqlite:///rcapi_jobs.sqlite"
+        self.db_schema = self.db_schema or "rcapi"
+        self.deploy_url = self.deploy_url or "http://example.org/"
+        if not self.deploy_url.endswith("/"):
+            self.deploy_url += "/"
+        self.root_path = _normalize_root_path(self.root_path or urlparse(self.deploy_url).path)
+        self.log_level = (self.log_level or "INFO").upper()
+        self.config_endpoint = (
+            ConfigEndpointModel.model_validate({"primaryIdentifier": {"system": self.primary_identifier_system, "label": self.primary_identifier_label}}) if self.primary_identifier_system else {}
+        )
+        return self
 
 
-# Embedded durable batch worker
-batch_worker_enabled: bool = _bool("BATCH_WORKER_ENABLED", True)
-batch_worker_poll_interval_seconds: int = _positive_int("BATCH_WORKER_POLL_INTERVAL_SECONDS", 2)
-batch_worker_lease_seconds: int = _positive_int("BATCH_WORKER_LEASE_SECONDS", 120)
-batch_job_heartbeat_interval_seconds: int = _positive_int("BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS", 30)
-batch_job_max_attempts: int = _positive_int("BATCH_JOB_MAX_ATTEMPTS", 3)
-batch_job_retry_delay_seconds: int = _positive_int("BATCH_JOB_RETRY_DELAY_SECONDS", 30)
-if batch_worker_lease_seconds <= batch_job_heartbeat_interval_seconds * 2:
-    _safe_lease = batch_job_heartbeat_interval_seconds * 3
-    logger.warning(
-        f"BATCH_WORKER_LEASE_SECONDS={batch_worker_lease_seconds} must exceed twice BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS="
-        f"{batch_job_heartbeat_interval_seconds} to avoid expired active leases — using {_safe_lease}."
-    )
-    batch_worker_lease_seconds = _safe_lease
-
-# Langfuse (all three required together for prompt retrieval)
-langfuse_public_key: str | None = _get("LANGFUSE_PUBLIC_KEY")
-langfuse_secret_key: str | None = _get("LANGFUSE_SECRET_KEY")
-langfuse_host: str | None = _get("LANGFUSE_HOST")
-langfuse_prompt_fetch_timeout_seconds: int = _positive_int("LANGFUSE_PROMPT_FETCH_TIMEOUT_SECONDS", 5)
-langfuse_prompt_max_retries: int = _positive_int("LANGFUSE_PROMPT_MAX_RETRIES", 1)
-use_langfuse: bool = bool(langfuse_public_key and langfuse_secret_key and langfuse_host)
-if any([langfuse_public_key, langfuse_secret_key, langfuse_host]) and not use_langfuse:
-    logger.warning("Partial Langfuse config — set LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, and LANGFUSE_HOST together.")
-
-# Prompts folder (fallback when Langfuse not configured)
-prompts_dir: str = _get("PROMPTS_DIR") or "./prompts"
-
-# Database
-db_connection_string: str = _get("DB_CONNECTION_STRING") or "sqlite+pysqlite:///rcapi_jobs.sqlite"
-db_schema: str = _get("DB_SCHEMA") or "rcapi"
-
-# OAuth 2 — fail closed. Authentication is enforced unless AUTH_DISABLED=true is set
-# explicitly (intended for local development only). When enforced, OAUTH2_JWKS_URL,
-# OAUTH2_ISSUER, and OAUTH2_AUDIENCE are all required; if any is missing, protected
-# endpoints reject every request with 503 rather than silently allowing anonymous access.
-auth_disabled: bool = _bool("AUTH_DISABLED", False)
-oauth2_jwks_url: str | None = _get("OAUTH2_JWKS_URL")
-oauth2_issuer: str | None = _get("OAUTH2_ISSUER")
-oauth2_audience: str | None = _get("OAUTH2_AUDIENCE")
-oauth2_jwks_cache_seconds: int = _positive_int("OAUTH2_JWKS_CACHE_SECONDS", 3600)
-oauth2_enabled: bool = not auth_disabled
-oauth2_missing_config: list[str] = []
-if auth_disabled:
-    logger.warning("AUTH_DISABLED=true — all endpoints are accessible without authentication. Never use this in production.")
-else:
-    oauth2_missing_config = [name for name, value in (("OAUTH2_JWKS_URL", oauth2_jwks_url), ("OAUTH2_ISSUER", oauth2_issuer), ("OAUTH2_AUDIENCE", oauth2_audience)) if not value]
-    for name in oauth2_missing_config:
-        msg = f"Authentication is enabled but '{name}' is not set. Protected endpoints will return 503 until configured (or set AUTH_DISABLED=true for local development)."
-        logger.error(msg)
-        config_errors[name] = msg
-
-
-def _csv(var: str) -> list[str]:
-    """Read a comma-separated env var into a list of trimmed, non-empty values."""
-    raw = _get(var)
-    if not raw:
-        return []
-    return [item.strip() for item in raw.split(",") if item.strip()]
-
-
-# CORS — explicit allowlist. "*" is permitted but disables credentialed requests.
-cors_allow_origins: list[str] = _csv("CORS_ALLOW_ORIGINS")
-cors_allow_credentials: bool = bool(cors_allow_origins) and "*" not in cors_allow_origins
-
-# Outbound DocumentReference attachment fetching (SSRF protection and payload limits).
-# Attachments are fetched only from the external FHIR server origin plus these extra hosts.
-attachment_allowed_hosts: list[str] = [host.casefold() for host in _csv("ATTACHMENT_ALLOWED_HOSTS")]
-doc_max_count: int = _positive_int("DOC_MAX_COUNT", 500)
-doc_max_bytes: int = _positive_int("DOC_MAX_BYTES", 5_000_000)
-
-# Misc
-deploy_url: str = _get("DEPLOY_URL") or "http://example.org/"
-if deploy_url[-1] != "/":
-    deploy_url += "/"
-root_path: str = _normalize_root_path(_get("ROOT_PATH") or urlparse(deploy_url).path)
-log_level: str = (_get("LOG_LEVEL") or "INFO").upper()
-primary_identifier_system: str | None = _get("PRIMARYIDENTIFIER_SYSTEM")
-primary_identifier_label: str | None = _get("PRIMARYIDENTIFIER_LABEL")
-config_endpoint: ConfigEndpointModel | dict = (
-    ConfigEndpointModel.model_validate(
-        {
-            "primaryIdentifier": {
-                "system": primary_identifier_system,
-                "label": primary_identifier_label,
-            }
-        }
-    )
-    if primary_identifier_system
-    else {}
-)
+# Process-wide settings. Read attributes at call time (settings.x) so overrides take effect everywhere.
+settings = Settings()

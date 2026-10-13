@@ -3,9 +3,9 @@
 Wraps POST {HAPI_FHIR_CQL_EXECUTION_URL}/Library/{LibraryName}/$evaluate.
 Library IDs are the CamelCase resource name — no numeric ID lookup needed.
 
-The dataEndpoint.address is always sourced from settings.external_fhir_server_url.
+The dataEndpoint.address is always sourced from settings.settings.external_fhir_server_url.
 The dataEndpoint.header is conditionally populated with the auth token when
-settings.external_fhir_server_auth is set.
+settings.settings.external_fhir_server_auth is set.
 """
 
 import asyncio
@@ -16,12 +16,7 @@ import httpx
 from loguru import logger
 
 from src.util.outbound_url import path_segment
-from src.util.settings import (
-    external_fhir_server_auth,
-    external_fhir_server_url,
-    hapi_fhir_cql_execution_url,
-    require_setting,
-)
+from src.util.settings import require_setting, settings
 
 _TIMEOUT = 300
 _TRANSPORT = httpx.AsyncHTTPTransport(retries=5)
@@ -67,11 +62,11 @@ def _build_parameters_body(patient_id: str) -> dict:
                 ]
             }
         ],
-        "address": external_fhir_server_url,
+        "address": settings.external_fhir_server_url,
     }
     # Inject auth header only when configured
-    if external_fhir_server_auth:
-        endpoint_resource["header"] = [f"Authorization: {external_fhir_server_auth}"]
+    if settings.external_fhir_server_auth:
+        endpoint_resource["header"] = [f"Authorization: {settings.external_fhir_server_auth}"]
 
     return {
         "resourceType": "Parameters",
@@ -118,7 +113,7 @@ def _parse_parameters_response(library_name: str, patient_id: str, data: dict) -
 
 
 async def _evaluate_library(client: httpx.AsyncClient, library_name: str, patient_id: str) -> CqlResult:
-    base_url = require_setting(hapi_fhir_cql_execution_url, "HAPI_FHIR_CQL_EXECUTION_URL")
+    base_url = require_setting(settings.hapi_fhir_cql_execution_url, "HAPI_FHIR_CQL_EXECUTION_URL")
     url = f"{base_url.rstrip('/')}/Library/{path_segment(library_name)}/$evaluate"
     body = _build_parameters_body(patient_id)
     try:

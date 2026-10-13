@@ -17,15 +17,7 @@ import httpx
 from loguru import logger
 
 from src.util.outbound_url import is_allowed_attachment_url, is_same_origin, resolve_http_reference, resolves_to_internal_address
-from src.util.settings import (
-    attachment_allowed_hosts,
-    doc_fetch_max_concurrency,
-    doc_max_bytes,
-    doc_max_count,
-    external_fhir_server_auth,
-    external_fhir_server_url,
-    require_setting,
-)
+from src.util.settings import require_setting, settings
 
 _TIMEOUT = 60
 _TRANSPORT = httpx.AsyncHTTPTransport(retries=3)
@@ -51,36 +43,36 @@ class _AttachmentTooLargeError(Exception):
 def _auth_headers(target_url: str) -> dict[str, str]:
     """Build FHIR headers without forwarding credentials to another origin."""
     headers = {"Accept": "application/fhir+json"}
-    if external_fhir_server_auth and external_fhir_server_url and is_same_origin(target_url, external_fhir_server_url):
-        headers["Authorization"] = external_fhir_server_auth
+    if settings.external_fhir_server_auth and settings.external_fhir_server_url and is_same_origin(target_url, settings.external_fhir_server_url):
+        headers["Authorization"] = settings.external_fhir_server_auth
     return headers
 
 
 async def _read_capped_text(client: httpx.AsyncClient, url: str) -> str | None:
-    """Stream an attachment body, aborting once it exceeds doc_max_bytes."""
+    """Stream an attachment body, aborting once it exceeds settings.doc_max_bytes."""
     async with client.stream("GET", url, headers=_auth_headers(url), follow_redirects=False) as resp:
         if not resp.is_success:
             logger.warning(f"Attachment fetch returned HTTP {resp.status_code}")
             return None
         declared = resp.headers.get("Content-Length")
-        if declared and declared.isdigit() and int(declared) > doc_max_bytes:
+        if declared and declared.isdigit() and int(declared) > settings.doc_max_bytes:
             raise _AttachmentTooLargeError
         chunks: list[bytes] = []
         received = 0
         async for chunk in resp.aiter_bytes():
             received += len(chunk)
-            if received > doc_max_bytes:
+            if received > settings.doc_max_bytes:
                 raise _AttachmentTooLargeError
             chunks.append(chunk)
     return b"".join(chunks).decode(resp.encoding or "utf-8", errors="replace")
 
 
 async def _search_document_entries(client: httpx.AsyncClient, base_url: str, patient_id: str) -> tuple[list[dict], dict | None]:
-    """Collect DocumentReference Bundle entries, following same-origin `next` links up to doc_max_count."""
+    """Collect DocumentReference Bundle entries, following same-origin `next` links up to settings.doc_max_count."""
     url: str | None = f"{base_url.rstrip('/')}/DocumentReference"
-    params: dict[str, str] | None = {"subject": f"Patient/{patient_id}", "_count": str(min(_PAGE_SIZE, doc_max_count))}
+    params: dict[str, str] | None = {"subject": f"Patient/{patient_id}", "_count": str(min(_PAGE_SIZE, settings.doc_max_count))}
     entries: list[dict] = []
-    while url and len(entries) < doc_max_count:
+    while url and len(entries) < settings.doc_max_count:
         try:
             resp = await client.get(url, headers=_auth_headers(url), params=params)
         except httpx.RequestError as exc:
@@ -107,12 +99,12 @@ async def _search_document_entries(client: httpx.AsyncClient, base_url: str, pat
                 logger.warning("Ignoring DocumentReference `next` link that is not on the FHIR server origin")
 
     count_exclusion: dict | None = None
-    if len(entries) > doc_max_count or url:
-        logger.warning(f"Patient/{patient_id} has more DocumentReferences than DOC_MAX_COUNT={doc_max_count}; processing only the first {doc_max_count}.")
+    if len(entries) > settings.doc_max_count or url:
+        logger.warning(f"Patient/{patient_id} has more DocumentReferences than DOC_MAX_COUNT={settings.doc_max_count}; processing only the first {settings.doc_max_count}.")
         count_exclusion = {"reason": "exceeds_max_count"}
-        if url is None and len(entries) > doc_max_count:
-            count_exclusion["count"] = len(entries) - doc_max_count
-    return entries[:doc_max_count], count_exclusion
+        if url is None and len(entries) > settings.doc_max_count:
+            count_exclusion["count"] = len(entries) - settings.doc_max_count
+    return entries[: settings.doc_max_count], count_exclusion
 
 
 async def fetch_patient_documents(patient_id: str) -> DocumentFetchResult:
@@ -130,10 +122,10 @@ async def fetch_patient_documents(patient_id: str) -> DocumentFetchResult:
     none have text/plain attachments. Raises DocumentFetchError if the search cannot be
     completed.
     """
-    base_url = require_setting(external_fhir_server_url, "EXTERNAL_FHIR_SERVER_URL")
+    base_url = require_setting(settings.external_fhir_server_url, "EXTERNAL_FHIR_SERVER_URL")
 
     documents: list[dict] = []
-    semaphore = asyncio.Semaphore(doc_fetch_max_concurrency)
+    semaphore = asyncio.Semaphore(settings.doc_fetch_max_concurrency)
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
         entries, count_exclusion = await _search_document_entries(client, base_url, patient_id)
         if not entries:
@@ -171,7 +163,7 @@ async def fetch_patient_documents(patient_id: str) -> DocumentFetchResult:
                 if "data" in attachment:
                     data = attachment["data"]
                     # base64 expands by 4/3; reject before decoding to bound memory.
-                    if isinstance(data, str) and len(data) > (doc_max_bytes * 4) // 3 + 4:
+                    if isinstance(data, str) and len(data) > (settings.doc_max_bytes * 4) // 3 + 4:
                         mark_excluded("exceeds_max_bytes")
                         logger.warning(f"Skipping inline attachment for DocRef {doc_id}: exceeds DOC_MAX_BYTES")
                         continue
@@ -188,7 +180,7 @@ async def fetch_patient_documents(patient_id: str) -> DocumentFetchResult:
                         mark_excluded("unsafe_url")
                         logger.warning(f"Skipping unsafe attachment URL for DocRef {doc_id}")
                         continue
-                    if not is_allowed_attachment_url(attachment_url, base_url, attachment_allowed_hosts):
+                    if not is_allowed_attachment_url(attachment_url, base_url, settings.attachment_allowed_hosts):
                         mark_excluded("host_not_allowed")
                         logger.warning(f"Skipping attachment for DocRef {doc_id}: host is not the FHIR server or in ATTACHMENT_ALLOWED_HOSTS")
                         continue

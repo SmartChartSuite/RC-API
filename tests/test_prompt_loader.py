@@ -3,6 +3,7 @@ import threading
 from types import SimpleNamespace
 
 from src.services import prompt_loader
+from src.util.settings import settings
 
 
 def test_parse_md_frontmatter_extracts_metadata_and_body():
@@ -20,7 +21,7 @@ def test_load_from_folder_reads_prompt_files(tmp_path, monkeypatch):
     prompt_file = nested / "example.md"
     prompt_file.write_text("---\nname: Prompt One\nversion: '2'\ndescription: Test prompt\n---\nPrompt body", encoding="utf-8")
 
-    monkeypatch.setattr(prompt_loader, "prompts_dir", str(prompt_root))
+    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
 
     prompts = prompt_loader._load_from_folder(["2025_08/example"])
 
@@ -31,7 +32,7 @@ def test_load_from_folder_reads_prompt_files(tmp_path, monkeypatch):
 
 
 async def test_load_prompts_uses_folder_loader_when_langfuse_disabled(monkeypatch):
-    monkeypatch.setattr(prompt_loader, "use_langfuse", False)
+    monkeypatch.setattr(settings, "use_langfuse", False)
     monkeypatch.setattr(prompt_loader, "_load_from_folder", lambda prompt_paths: ["folder-result"])
 
     result = await prompt_loader.load_prompts(["any/path"])
@@ -59,15 +60,15 @@ async def test_initialize_prompt_source_disables_langfuse_when_unreachable(monke
         async def get(self, url):
             raise RuntimeError("connection refused")
 
-    monkeypatch.setattr(prompt_loader, "use_langfuse", True)
-    monkeypatch.setattr(prompt_loader, "langfuse_host", "https://langfuse.example")
-    monkeypatch.setattr(prompt_loader, "prompts_dir", "./prompts")
+    monkeypatch.setattr(settings, "use_langfuse", True)
+    monkeypatch.setattr(settings, "langfuse_host", "https://langfuse.example")
+    monkeypatch.setattr(settings, "prompts_dir", "./prompts")
     monkeypatch.setattr(prompt_loader.httpx, "AsyncClient", _FailingClient)
     monkeypatch.setattr(prompt_loader.litellm, "callbacks", ["langfuse_otel", "other-callback"])
 
     await prompt_loader.initialize_prompt_source()
 
-    assert prompt_loader.use_langfuse is False
+    assert settings.use_langfuse is False
     assert prompt_loader.litellm.callbacks == ["other-callback"]
 
 
@@ -89,22 +90,22 @@ async def test_initialize_prompt_source_keeps_langfuse_when_reachable(monkeypatc
         async def get(self, url):
             return _Response()
 
-    monkeypatch.setattr(prompt_loader, "use_langfuse", True)
-    monkeypatch.setattr(prompt_loader, "langfuse_host", "https://langfuse.example")
+    monkeypatch.setattr(settings, "use_langfuse", True)
+    monkeypatch.setattr(settings, "langfuse_host", "https://langfuse.example")
     monkeypatch.setattr(prompt_loader.httpx, "AsyncClient", _HealthyClient)
     monkeypatch.setattr(prompt_loader.litellm, "callbacks", [])
     monkeypatch.setattr(prompt_loader.litellm, "suppress_debug_info", False)
 
     await prompt_loader.initialize_prompt_source()
 
-    assert prompt_loader.use_langfuse is True
+    assert settings.use_langfuse is True
     assert prompt_loader.litellm.callbacks == ["langfuse_otel"]
     assert prompt_loader.litellm.suppress_debug_info is True
 
 
 async def test_initialize_prompt_source_disables_langfuse_tracing_when_not_configured(monkeypatch):
-    monkeypatch.setattr(prompt_loader, "use_langfuse", False)
-    monkeypatch.setattr(prompt_loader, "prompts_dir", "./prompts")
+    monkeypatch.setattr(settings, "use_langfuse", False)
+    monkeypatch.setattr(settings, "prompts_dir", "./prompts")
     monkeypatch.setattr(prompt_loader.litellm, "callbacks", ["langfuse_otel"])
 
     await prompt_loader.initialize_prompt_source()
@@ -145,9 +146,9 @@ def test_langfuse_failure_uses_bounded_call_and_local_fallback(tmp_path, monkeyp
             raise RuntimeError("langfuse unavailable")
 
     monkeypatch.setitem(sys.modules, "langfuse", SimpleNamespace(Langfuse=_FailingLangfuse))
-    monkeypatch.setattr(prompt_loader, "prompts_dir", str(prompt_root))
-    monkeypatch.setattr(prompt_loader, "langfuse_prompt_fetch_timeout_seconds", 4)
-    monkeypatch.setattr(prompt_loader, "langfuse_prompt_max_retries", 1)
+    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
+    monkeypatch.setattr(settings, "langfuse_prompt_fetch_timeout_seconds", 4)
+    monkeypatch.setattr(settings, "langfuse_prompt_max_retries", 1)
 
     prompts = prompt_loader._load_from_langfuse_sync(["package/fallback"])
 

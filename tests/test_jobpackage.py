@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from src.models.fhir import QuestionnaireResource
 from src.routers import jobpackage
 from src.services.fhir_proxy import FHIRProxyResponse
+from src.util.settings import settings
 
 
 async def test_search_job_packages_passes_filters(monkeypatch):
@@ -22,7 +23,7 @@ async def test_search_job_packages_passes_filters(monkeypatch):
             status_code=200,
         )
 
-    monkeypatch.setattr(jobpackage, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(jobpackage, "fhir_get_with_status", _fake_fhir_get_with_status)
 
     result = await jobpackage.search_job_packages(name="Registry", version="1.0", claims={})
@@ -48,7 +49,7 @@ async def test_get_job_package_returns_operation_outcome(monkeypatch):
             status_code=404,
         )
 
-    monkeypatch.setattr(jobpackage, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(jobpackage, "fhir_get_with_status", _fake_fhir_get_with_status)
 
     result = await jobpackage.get_job_package("missing", claims={})
@@ -64,7 +65,7 @@ async def test_create_job_package_returns_questionnaire(monkeypatch):
         assert body["name"] == "Registry"
         return FHIRProxyResponse(data={"resourceType": "Questionnaire", "id": "q-1", "name": "Registry"}, status_code=201)
 
-    monkeypatch.setattr(jobpackage, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(jobpackage, "fhir_post_with_status", _fake_fhir_post_with_status)
 
     result = await jobpackage.create_job_package({"resourceType": "Questionnaire", "name": "Registry"}, claims={})
@@ -74,7 +75,7 @@ async def test_create_job_package_returns_questionnaire(monkeypatch):
 
 
 async def test_delete_job_package_returns_config_error(monkeypatch):
-    monkeypatch.setattr(jobpackage, "config_errors", {"HAPI_FHIR_CQL_EXECUTION_URL": "missing"})
+    monkeypatch.setattr(settings, "config_errors", {"HAPI_FHIR_CQL_EXECUTION_URL": "missing"})
 
     result = await jobpackage.delete_job_package("q-1", _=None)
 

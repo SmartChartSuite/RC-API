@@ -3,7 +3,7 @@
 Mirrors v0 NLPaaS approach: one LLM call per document per prompt, results collapsed.
 All calls use asyncio.gather for concurrency.
 
-Guarded by use_llm — if LiteLLM is not configured, run_all_prompts() should not be called.
+Guarded by settings.use_llm — if LiteLLM is not configured, run_all_prompts() should not be called.
 """
 
 import asyncio
@@ -16,22 +16,13 @@ import litellm
 from loguru import logger
 
 from src.models.prompt import Prompt
-from src.util.settings import (
-    litellm_api_base,
-    litellm_api_key,
-    litellm_model,
-    litellm_model_reasoning_effort,
-    litellm_prompt_cache_enabled,
-    llm_max_concurrency,
-    require_setting,
-    use_llm,
-)
+from src.util.settings import require_setting, settings
 
 litellm.suppress_debug_info = True
 
 # Bounds the number of concurrent in-flight LLM calls per job so large
 # prompt/document fan-outs don't overwhelm the provider or exhaust connections.
-_llm_semaphore = asyncio.Semaphore(llm_max_concurrency)
+_llm_semaphore = asyncio.Semaphore(settings.llm_max_concurrency)
 
 _LANGFUSE_GENERATION_NAME = "analyze-document"
 _LANGFUSE_TRACE_NAME = "rc-api-batch-job"
@@ -103,26 +94,26 @@ async def run_prompt_on_document(
     doc_type = document.get("type", "Unknown")
     doc_date = document.get("date", "")
 
-    if not use_llm:
+    if not settings.use_llm:
         logger.warning("LLM not configured — skipping prompt execution")
         return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response="", error="LLM not configured", doc_text=document.get("text"))
 
     try:
-        model = require_setting(litellm_model, "LITELLM_MODEL")
+        model = require_setting(settings.litellm_model, "LITELLM_MODEL")
         request_kwargs: dict[str, Any] = {
             "model": model,
-            "api_base": litellm_api_base,
-            "api_key": litellm_api_key,
+            "api_base": settings.litellm_api_base,
+            "api_key": settings.litellm_api_key,
             "input": document["text"],
             "instructions": prompt.content,
             "caching": False,
             "metadata": _langfuse_metadata(trace_id, trace_metadata, parent_otel_span),
         }
-        if litellm_prompt_cache_enabled:
+        if settings.litellm_prompt_cache_enabled:
             request_kwargs["extra_body"] = {"prompt_cache_key": _prompt_cache_key(model, prompt)}
             request_kwargs["allowed_openai_params"] = ["prompt_cache_key"]
-        if litellm_model_reasoning_effort:
-            request_kwargs["reasoning_effort"] = litellm_model_reasoning_effort
+        if settings.litellm_model_reasoning_effort:
+            request_kwargs["reasoning_effort"] = settings.litellm_model_reasoning_effort
 
         async with _llm_semaphore:
             response = await litellm.aresponses(**request_kwargs)

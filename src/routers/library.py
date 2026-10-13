@@ -7,7 +7,7 @@ from src.models.fhir import BundleResource, LibraryResource, OperationOutcome
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
-from src.util.settings import config_errors
+from src.util.settings import settings
 
 router = APIRouter(tags=["Libraries"])
 
@@ -33,7 +33,7 @@ async def search_libraries(
     When ``name`` is supplied, the query is forwarded as a standard FHIR search
     parameter and the raw search Bundle is returned.
     """
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     params = {}
     if name:
@@ -48,7 +48,7 @@ async def get_library(
     claims: dict = Security(validate_token),
 ) -> JSONResponse | LibraryResult:
     """Get a specific Library resource by ID."""
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_get_with_status("Library", resource_id)
     return fhir_result_response(result, LibraryResource)
@@ -60,7 +60,7 @@ async def create_library(
     claims: dict = Security(validate_token),
 ) -> JSONResponse | LibraryResult:
     """Create a new Library resource on HAPI FHIR."""
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_post_with_status("Library", body)
     return fhir_result_response(result, LibraryResource)
@@ -73,7 +73,7 @@ async def update_library(
     claims: dict = Security(validate_token),
 ) -> JSONResponse | LibraryResult:
     """Update a Library resource."""
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_put_with_status("Library", resource_id, body)
     return fhir_result_response(result, LibraryResource)
@@ -85,7 +85,7 @@ async def delete_library(
     _: None = Security(require_admin),
 ) -> JSONResponse | OperationOutcome:
     """Delete a Library resource. Requires 'admin' scope."""
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_delete_with_status("Library", resource_id)
     return fhir_result_response(result, OperationOutcome)

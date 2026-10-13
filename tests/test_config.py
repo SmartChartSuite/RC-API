@@ -3,11 +3,11 @@ from fastapi.testclient import TestClient
 from main import app
 from src.models.config import ConfigEndpointModel
 from src.routers import config
-from src.util import auth
+from src.util.settings import settings
 
 
 async def test_get_config_returns_empty_dict_when_primary_identifier_is_unset(monkeypatch):
-    monkeypatch.setattr(config, "config_endpoint", {})
+    monkeypatch.setattr(settings, "config_endpoint", {})
 
     result = await config.get_config()
 
@@ -15,9 +15,9 @@ async def test_get_config_returns_empty_dict_when_primary_identifier_is_unset(mo
 
 
 def test_config_endpoint_returns_primary_identifier(monkeypatch):
-    monkeypatch.setattr(auth, "oauth2_enabled", False)
+    monkeypatch.setattr(settings, "oauth2_enabled", False)
     monkeypatch.setattr(
-        config,
+        settings,
         "config_endpoint",
         ConfigEndpointModel.model_validate(
             {
@@ -42,7 +42,7 @@ def test_config_endpoint_returns_primary_identifier(monkeypatch):
 
 
 def test_config_requires_auth_but_health_and_docs_remain_public(monkeypatch):
-    monkeypatch.setattr(auth, "oauth2_enabled", True)
+    monkeypatch.setattr(settings, "oauth2_enabled", True)
     client = TestClient(app)
 
     assert client.get("/config").status_code == 401

@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from src.models.fhir import BundleResource, LibraryResource
 from src.routers import library
 from src.services.fhir_proxy import FHIRProxyResponse
+from src.util.settings import settings
 
 
 async def test_search_libraries_passes_name_filter(monkeypatch):
@@ -22,7 +23,7 @@ async def test_search_libraries_passes_name_filter(monkeypatch):
             status_code=200,
         )
 
-    monkeypatch.setattr(library, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(library, "fhir_get_with_status", _fake_fhir_get_with_status)
 
     result = await library.search_libraries(name="RiskLib", claims={})
@@ -46,7 +47,7 @@ async def test_get_library_returns_operation_outcome(monkeypatch):
             status_code=404,
         )
 
-    monkeypatch.setattr(library, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(library, "fhir_get_with_status", _fake_fhir_get_with_status)
 
     result = await library.get_library("missing", claims={})
@@ -62,7 +63,7 @@ async def test_create_library_returns_library_resource(monkeypatch):
         assert body["name"] == "RiskLib"
         return FHIRProxyResponse(data={"resourceType": "Library", "id": "lib-1", "name": "RiskLib"}, status_code=201)
 
-    monkeypatch.setattr(library, "config_errors", {})
+    monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(library, "fhir_post_with_status", _fake_fhir_post_with_status)
 
     result = await library.create_library({"resourceType": "Library", "name": "RiskLib"}, claims={})
@@ -72,7 +73,7 @@ async def test_create_library_returns_library_resource(monkeypatch):
 
 
 async def test_delete_library_returns_config_error(monkeypatch):
-    monkeypatch.setattr(library, "config_errors", {"HAPI_FHIR_CQL_EXECUTION_URL": "missing"})
+    monkeypatch.setattr(settings, "config_errors", {"HAPI_FHIR_CQL_EXECUTION_URL": "missing"})
 
     result = await library.delete_library("lib-1", _=None)
 

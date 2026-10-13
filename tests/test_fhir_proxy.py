@@ -3,6 +3,7 @@ from typing import ClassVar, cast
 import httpx
 
 from src.services import fhir_proxy
+from src.util.settings import settings
 
 
 class _FakeAsyncClient:
@@ -38,7 +39,7 @@ def _response(status_code: int, payload, text: str | None = None) -> httpx.Respo
 
 
 def test_base_url_builds_resource_path(monkeypatch):
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
 
     assert fhir_proxy._base_url("Library") == "http://hapi.example/fhir/Library"
     assert fhir_proxy._base_url("Library", "lib-1") == "http://hapi.example/fhir/Library/lib-1"
@@ -85,7 +86,7 @@ def test_handle_wraps_non_fhir_errors_without_leaking_upstream_details():
 async def test_fhir_get_uses_expected_headers_and_params(monkeypatch):
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_response = httpx.Response(200, json={"resourceType": "Bundle", "total": 1}, request=httpx.Request("GET", "http://example.test"))
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await fhir_proxy.fhir_get("Questionnaire", params={"name": "Registry"})
@@ -104,7 +105,7 @@ async def test_fhir_get_uses_expected_headers_and_params(monkeypatch):
 async def test_fhir_put_sends_json_body_to_resource_url(monkeypatch):
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_response = httpx.Response(200, json={"resourceType": "Questionnaire", "id": "q-1"}, request=httpx.Request("PUT", "http://example.test"))
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await fhir_proxy.fhir_put("Questionnaire", "q-1", {"resourceType": "Questionnaire", "id": "q-1"})
@@ -121,7 +122,7 @@ async def test_fhir_put_sends_json_body_to_resource_url(monkeypatch):
 async def test_fhir_delete_sends_no_body(monkeypatch):
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_response = httpx.Response(204, request=httpx.Request("DELETE", "http://example.test"))
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = cast(dict, await fhir_proxy.fhir_delete("Library", "lib-1"))
@@ -138,7 +139,7 @@ async def test_fhir_delete_sends_no_body(monkeypatch):
 
 async def test_request_rejects_invalid_resource_id_without_calling_upstream(monkeypatch):
     _FakeAsyncClient.calls = []
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await fhir_proxy.fhir_get_with_status("Library", "../Patient/123")
@@ -155,7 +156,7 @@ async def test_request_converts_transport_errors_to_operation_outcome(monkeypatc
         async def request(self, *args, **kwargs):
             raise httpx.ConnectError("connection refused to 10.1.2.3")
 
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _Unreachable)
 
     result = await fhir_proxy.fhir_get_with_status("Library", "lib-1")

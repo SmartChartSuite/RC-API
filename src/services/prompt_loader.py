@@ -16,15 +16,7 @@ import yaml
 from loguru import logger
 
 from src.models.prompt import Prompt, PromptMetadata
-from src.util.settings import (
-    langfuse_host,
-    langfuse_prompt_fetch_timeout_seconds,
-    langfuse_prompt_max_retries,
-    langfuse_public_key,
-    langfuse_secret_key,
-    prompts_dir,
-    use_langfuse,
-)
+from src.util.settings import settings
 
 _langfuse_client: Any | None = None
 _PROMPT_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
@@ -43,9 +35,9 @@ def get_langfuse_client() -> Any | None:
         return None
 
     _langfuse_client = Langfuse(
-        public_key=langfuse_public_key,
-        secret_key=langfuse_secret_key,
-        host=langfuse_host,
+        public_key=settings.langfuse_public_key,
+        secret_key=settings.langfuse_secret_key,
+        host=settings.langfuse_host,
     )
     return _langfuse_client
 
@@ -99,10 +91,10 @@ def is_safe_prompt_path(path: str) -> bool:
 
 
 def _resolve_prompt_file(path: str) -> Path | None:
-    """Map a prompt path to a file inside prompts_dir, or None if it would escape it."""
+    """Map a prompt path to a file inside settings.prompts_dir, or None if it would escape it."""
     if not is_safe_prompt_path(path):
         return None
-    root = Path(prompts_dir).resolve()
+    root = Path(settings.prompts_dir).resolve()
     candidate = (root / f"{path}.md").resolve()
     if not candidate.is_relative_to(root):
         return None
@@ -154,8 +146,8 @@ def _load_from_langfuse_sync(prompt_paths: list[str]) -> list[Prompt]:
             lf_prompt = client.get_prompt(
                 path,
                 label="latest",
-                max_retries=langfuse_prompt_max_retries,
-                fetch_timeout_seconds=langfuse_prompt_fetch_timeout_seconds,
+                max_retries=settings.langfuse_prompt_max_retries,
+                fetch_timeout_seconds=settings.langfuse_prompt_fetch_timeout_seconds,
             )
             prompts.append(
                 Prompt(
@@ -187,24 +179,22 @@ async def _load_from_langfuse(prompt_paths: list[str]) -> list[Prompt]:
 
 async def initialize_prompt_source() -> None:
     """Validate Langfuse connectivity at startup and fall back to the prompts folder if unavailable."""
-    global use_langfuse
-
-    if not use_langfuse:
+    if not settings.use_langfuse:
         _disable_langfuse_tracing()
-        logger.info(f"Langfuse is not fully configured. Falling back to local prompts folder: {prompts_dir}")
+        logger.info(f"Langfuse is not fully configured. Falling back to local prompts folder: {settings.prompts_dir}")
         return
 
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            response = await client.get(str(langfuse_host))
+            response = await client.get(str(settings.langfuse_host))
         response.raise_for_status()
         _enable_langfuse_tracing()
-        logger.info(f"Langfuse is configured and reachable at {langfuse_host}")
+        logger.info(f"Langfuse is configured and reachable at {settings.langfuse_host}")
     except Exception as exc:  # noqa: BLE001
         # Any initialization failure disables Langfuse and preserves local fallback.
-        use_langfuse = False
+        settings.use_langfuse = False
         _disable_langfuse_tracing()
-        logger.warning(f"Langfuse is configured but not reachable at {langfuse_host}: {exc}. Falling back to local prompts folder: {prompts_dir}")
+        logger.warning(f"Langfuse is configured but not reachable at {settings.langfuse_host}: {exc}. Falling back to local prompts folder: {settings.prompts_dir}")
 
 
 async def load_prompts(prompt_paths: list[str]) -> list[Prompt]:
@@ -221,6 +211,6 @@ async def load_prompts(prompt_paths: list[str]) -> list[Prompt]:
             logger.warning(f"Rejected unsafe prompt path: {path!r}")
     if not safe_paths:
         return []
-    if use_langfuse:
+    if settings.use_langfuse:
         return await _load_from_langfuse(safe_paths)
     return await asyncio.to_thread(_load_from_folder, safe_paths)

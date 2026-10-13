@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from src.models.prompt import Prompt, PromptMetadata
 from src.services import llm_executor
+from src.util.settings import settings
 
 
 def _prompt() -> Prompt:
@@ -10,7 +11,7 @@ def _prompt() -> Prompt:
 
 
 async def test_run_prompt_on_document_returns_config_error_when_llm_disabled(monkeypatch):
-    monkeypatch.setattr(llm_executor, "use_llm", False)
+    monkeypatch.setattr(settings, "use_llm", False)
 
     result = await llm_executor.run_prompt_on_document(_prompt(), {"id": "doc-1", "type": "Visit Note", "date": "2026-05-22", "text": "sample"})
 
@@ -19,10 +20,10 @@ async def test_run_prompt_on_document_returns_config_error_when_llm_disabled(mon
 
 
 async def test_run_prompt_on_document_calls_litellm_responses(monkeypatch):
-    monkeypatch.setattr(llm_executor, "use_llm", True)
-    monkeypatch.setattr(llm_executor, "litellm_model", "gpt-test")
-    monkeypatch.setattr(llm_executor, "litellm_model_reasoning_effort", None)
-    monkeypatch.setattr(llm_executor, "litellm_prompt_cache_enabled", True)
+    monkeypatch.setattr(settings, "use_llm", True)
+    monkeypatch.setattr(settings, "litellm_model", "gpt-test")
+    monkeypatch.setattr(settings, "litellm_model_reasoning_effort", None)
+    monkeypatch.setattr(settings, "litellm_prompt_cache_enabled", True)
     captured: dict = {}
 
     async def _fake_aresponses(**kwargs):
@@ -58,10 +59,10 @@ async def test_run_prompt_on_document_calls_litellm_responses(monkeypatch):
 
 
 async def test_run_prompt_on_document_passes_configured_reasoning_effort(monkeypatch):
-    monkeypatch.setattr(llm_executor, "use_llm", True)
-    monkeypatch.setattr(llm_executor, "litellm_model", "gpt-test")
-    monkeypatch.setattr(llm_executor, "litellm_model_reasoning_effort", "high")
-    monkeypatch.setattr(llm_executor, "litellm_prompt_cache_enabled", False)
+    monkeypatch.setattr(settings, "use_llm", True)
+    monkeypatch.setattr(settings, "litellm_model", "gpt-test")
+    monkeypatch.setattr(settings, "litellm_model_reasoning_effort", "high")
+    monkeypatch.setattr(settings, "litellm_prompt_cache_enabled", False)
     captured: dict = {}
 
     async def _fake_aresponses(**kwargs):

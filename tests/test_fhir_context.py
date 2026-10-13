@@ -3,6 +3,7 @@ import base64
 import pytest
 
 from src.services import fhir_context
+from src.util.settings import settings
 from tests.fakes import FailingAsyncClient as _FailingClient
 from tests.fakes import FakeAsyncClient as _FakeAsyncClient
 from tests.fakes import FakeResponse as _FakeResponse
@@ -44,9 +45,9 @@ async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypa
             _FakeResponse(text="external note"),
         ],
     ]
-    monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(fhir_context, "external_fhir_server_auth", "Bearer token")
-    monkeypatch.setattr(fhir_context, "attachment_allowed_hosts", ["docs.example"])
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_auth", "Bearer token")
+    monkeypatch.setattr(settings, "attachment_allowed_hosts", ["docs.example"])
     monkeypatch.setattr(fhir_context, "resolves_to_internal_address", _public_dns)
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
 
@@ -94,7 +95,7 @@ async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypa
 
 
 async def test_fetch_patient_documents_raises_on_search_error(monkeypatch):
-    monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FailingClient)
 
     with pytest.raises(fhir_context.DocumentFetchError):
@@ -122,7 +123,7 @@ async def test_fetch_patient_documents_ignores_non_text_attachments(monkeypatch)
         ],
         [],
     ]
-    monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await fhir_context.fetch_patient_documents("patient-123")
@@ -142,8 +143,8 @@ async def test_fetch_patient_documents_blocks_internal_attachment_hosts(monkeypa
     )
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_responses = [[bundle], []]
-    monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(fhir_context, "attachment_allowed_hosts", [])
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "attachment_allowed_hosts", [])
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await fhir_context.fetch_patient_documents("patient-123")
@@ -162,9 +163,9 @@ async def test_fetch_patient_documents_allows_same_origin_relative_attachment(mo
     )
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_responses = [[bundle, _FakeResponse(text="binary note")]]
-    monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(fhir_context, "external_fhir_server_auth", "Bearer token")
-    monkeypatch.setattr(fhir_context, "attachment_allowed_hosts", [])
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "external_fhir_server_auth", "Bearer token")
+    monkeypatch.setattr(settings, "attachment_allowed_hosts", [])
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await fhir_context.fetch_patient_documents("patient-123")
@@ -196,9 +197,9 @@ async def test_fetch_patient_documents_reports_exclusions_and_returns_normal_doc
             )
         ],
     ]
-    monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(fhir_context, "doc_max_bytes", 10)
-    monkeypatch.setattr(fhir_context, "attachment_allowed_hosts", [])
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "doc_max_bytes", 10)
+    monkeypatch.setattr(settings, "attachment_allowed_hosts", [])
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await fhir_context.fetch_patient_documents("patient-123")
@@ -219,8 +220,8 @@ async def test_fetch_patient_documents_caps_document_count(monkeypatch):
     ]
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_responses = [[_FakeResponse({"resourceType": "Bundle", "entry": entries})], []]
-    monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(fhir_context, "doc_max_count", 2)
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(settings, "doc_max_count", 2)
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await fhir_context.fetch_patient_documents("patient-123")

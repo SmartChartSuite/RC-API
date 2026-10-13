@@ -7,7 +7,7 @@ from src.models.fhir import OperationOutcome, QuestionnaireResource
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
-from src.util.settings import config_errors
+from src.util.settings import settings
 
 router = APIRouter(tags=["Job Packages"])
 
@@ -35,7 +35,7 @@ async def search_job_packages(
     Searches are constrained to the ``smartchartui`` Questionnaire context and
     may also be filtered by ``name`` and ``version``.
     """
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     params: dict = {"context": "smartchartui"}
     if name:
@@ -58,7 +58,7 @@ async def get_job_package(
     claims: dict = Security(validate_token),
 ) -> JSONResponse | QuestionnaireResult:
     """Get a specific job package Questionnaire by ID."""
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_get_with_status("Questionnaire", resource_id)
     return fhir_result_response(result, QuestionnaireResource)
@@ -70,7 +70,7 @@ async def create_job_package(
     claims: dict = Security(validate_token),
 ) -> JSONResponse | QuestionnaireResult:
     """Create a new Questionnaire resource on HAPI FHIR for use as a job package."""
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_post_with_status("Questionnaire", body)
     return fhir_result_response(result, QuestionnaireResource)
@@ -83,7 +83,7 @@ async def update_job_package(
     claims: dict = Security(validate_token),
 ) -> JSONResponse | QuestionnaireResult:
     """Update an existing HAPI FHIR Questionnaire used as a job package."""
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_put_with_status("Questionnaire", resource_id, body)
     return fhir_result_response(result, QuestionnaireResource)
@@ -95,7 +95,7 @@ async def delete_job_package(
     _: None = Security(require_admin),
 ) -> JSONResponse | OperationOutcome:
     """Delete a job package Questionnaire. Requires 'admin' scope."""
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_delete_with_status("Questionnaire", resource_id)
     return fhir_result_response(result, OperationOutcome)
