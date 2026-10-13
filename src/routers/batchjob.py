@@ -17,11 +17,12 @@ from src.services.external_fhir import fetch_patient as _fetch_patient
 from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
     BatchJobs,
+    QuestionnaireResponses,
     create_batch_job_with_response,
     delete_batch_job_record,
     get_batch_job,
     get_jobs_for_batch,
-    get_responses,
+    get_responses_for_batches,
     query_batch_jobs,
 )
 from src.util.auth import require_admin, validate_token
@@ -48,12 +49,10 @@ def _patient_name(patient: dict[str, Any] | None) -> str | None:
     return family or first
 
 
-def _questionnaire_response_info(batch_id: str) -> tuple[str | None, str | None, str | None]:
+def _questionnaire_response_info(response: QuestionnaireResponses | None) -> tuple[str | None, str | None, str | None]:
     """Return (response_id, status, last_updated) for a batch response, if any."""
-    responses = get_responses(batch_job_id=batch_id)
-    if not responses:
+    if response is None:
         return None, None, None
-    response = responses[0]
     response_id = getattr(response, "response_id", None)
     response_id = response_id if isinstance(response_id, str) and response_id else None
     response_resource = response.response
@@ -117,7 +116,12 @@ def _matches_date_range(value: date | None, start: date | None, end: date | None
     return not (end is not None and value > end)
 
 
-def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = None, include_patient_resource: bool = False) -> ParametersResponse:
+def _to_batch_job_parameters(
+    job: BatchJobs,
+    response: QuestionnaireResponses | None,
+    patient: dict[str, Any] | None = None,
+    include_patient_resource: bool = False,
+) -> ParametersResponse:
     parameters = [
         ParametersParameter(name="batchId", valueString=job.batch_id),
         ParametersParameter(name="patientId", valueString=job.patient_id),
@@ -126,7 +130,7 @@ def _to_batch_job_parameters(job: BatchJobs, patient: dict[str, Any] | None = No
         ParametersParameter(name="batchJobStatus", valueString=cast(Any, job.status)),
         ParametersParameter(name="jobStartDateTime", valueDateTime=job.created_at.isoformat()),
     ]
-    form_response_id, form_status, response_last_updated = _questionnaire_response_info(job.batch_id)
+    form_response_id, form_status, response_last_updated = _questionnaire_response_info(response)
     if form_status:
         parameters.append(ParametersParameter(name="questionnaireResponseStatus", valueString=form_status))
     if response_last_updated:
@@ -418,7 +422,18 @@ async def list_batch_jobs(
         total = len(all_jobs)
         page_jobs = [(job, patients_by_id[job.patient_id]) for job in selected_jobs]
 
-    results = [{"resource": _to_batch_job_parameters(job, patient=patient, include_patient_resource=include_patient).model_dump(exclude_none=True)} for job, patient in page_jobs]
+    responses_by_batch = get_responses_for_batches([job.batch_id for job, _ in page_jobs])
+    results = [
+        {
+            "resource": _to_batch_job_parameters(
+                job,
+                response=responses_by_batch.get(job.batch_id),
+                patient=patient,
+                include_patient_resource=include_patient,
+            ).model_dump(exclude_none=True)
+        }
+        for job, patient in page_jobs
+    ]
 
     return cast(
         BundleJSON,
@@ -508,7 +523,8 @@ async def get_batch_job_status(
     if not job:
         return operation_outcome_response(404, "not-found", f"Batch Job ID {batch_id} was not found.")
     patient = await _fetch_patient(job.patient_id)
-    return _to_batch_job_parameters(job, patient=patient, include_patient_resource=include_patient)
+    response = get_responses_for_batches([batch_id]).get(batch_id)
+    return _to_batch_job_parameters(job, response=response, patient=patient, include_patient_resource=include_patient)
 
 
 @router.delete("/batchjob/{batch_id}", summary="Delete Batch Job")

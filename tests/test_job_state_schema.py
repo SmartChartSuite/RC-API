@@ -112,6 +112,56 @@ def test_orm_timestamp_defaults_are_evaluated_per_insert(monkeypatch):
     assert first_created_at < second_created_at
 
 
+def test_get_responses_for_batches_returns_deterministic_mapping(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+
+    timestamp = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    with Session(engine) as session:
+        session.add_all(
+            [
+                job_state.BatchJobs(batch_id="batch-1", patient_id="patient-1", job_package="Registry"),
+                job_state.BatchJobs(batch_id="batch-2", patient_id="patient-2", job_package="Registry"),
+                job_state.QuestionnaireResponses(
+                    response_id="response-z",
+                    batch_job_id="batch-1",
+                    job_package="Registry",
+                    patient_id="patient-1",
+                    response={"status": "z"},
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                ),
+                job_state.QuestionnaireResponses(
+                    response_id="response-a",
+                    batch_job_id="batch-1",
+                    job_package="Registry",
+                    patient_id="patient-1",
+                    response={"status": "a"},
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                ),
+                job_state.QuestionnaireResponses(
+                    response_id="response-b",
+                    batch_job_id="batch-2",
+                    job_package="Registry",
+                    patient_id="patient-2",
+                    response={"status": "b"},
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                ),
+            ]
+        )
+        session.commit()
+
+    responses = job_state.get_responses_for_batches(["batch-1", "batch-2", "batch-missing"])
+
+    assert set(responses) == {"batch-1", "batch-2"}
+    assert responses["batch-1"].response_id == "response-a"
+    assert responses["batch-2"].response_id == "response-b"
+    assert job_state.get_responses_for_batches([]) == {}
+
+
 def test_recover_expired_batch_job_leases_preserves_partial_and_terminal_results(monkeypatch):
     engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
     monkeypatch.setattr(job_state, "db_engine", engine)

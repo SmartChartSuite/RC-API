@@ -230,10 +230,15 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
     )
     monkeypatch.setattr(
         batchjob,
-        "get_responses",
-        lambda batch_job_id=None, job_package=None: [
-            type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "in-progress", "meta": {"lastUpdated": "2026-05-22T12:00:00+00:00"}}})()
-        ],
+        "get_responses_for_batches",
+        lambda batch_ids: {
+            batch_id: type(
+                "ResponseRecord",
+                (),
+                {"response_id": "response-123", "response": {"status": "in-progress", "meta": {"lastUpdated": "2026-05-22T12:00:00+00:00"}}},
+            )()
+            for batch_id in batch_ids
+        },
     )
 
     async def _fake_fetch_patient(patient_id):
@@ -302,7 +307,7 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
             for index in range(5)
         ],
     )
-    monkeypatch.setattr(batchjob, "get_responses", lambda batch_job_id=None, job_package=None: [])
+    monkeypatch.setattr(batchjob, "get_responses_for_batches", lambda batch_ids: {})
 
     async def _fake_fetch_patient(patient_id):
         fetch_calls.append(patient_id)
@@ -318,6 +323,54 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
     assert bundle.entry is not None
     assert [next(param["valueString"] for param in entry.resource["parameter"] if param["name"] == "batchId") for entry in bundle.entry] == ["batch-2", "batch-3"]
     assert fetch_calls == ["patient-2", "patient-3"]
+
+
+async def test_list_batch_jobs_uses_one_bulk_response_load_for_page(monkeypatch):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    loader_calls: list[list[str]] = []
+    jobs = [
+        BatchJobs(
+            batch_id=f"batch-{index}",
+            patient_id=f"patient-{index}",
+            job_package="ExampleRegistry",
+            started_by="user-123",
+            status="complete",
+            result_bundle=None,
+            created_at=created_at,
+            completed_at=None,
+        )
+        for index in range(3)
+    ]
+    monkeypatch.setattr(batchjob, "query_batch_jobs", lambda **kwargs: jobs)
+
+    def _fake_get_responses_for_batches(batch_ids):
+        loader_calls.append(list(batch_ids))
+        return {
+            batch_id: type(
+                "ResponseRecord",
+                (),
+                {"response_id": f"response-{batch_id}", "response": {"status": f"status-{batch_id}"}},
+            )()
+            for batch_id in batch_ids
+        }
+
+    monkeypatch.setattr(batchjob, "get_responses_for_batches", _fake_get_responses_for_batches)
+
+    async def _fake_fetch_patient(patient_id):
+        return patient_resource(patient_id)
+
+    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+
+    result = await batchjob.list_batch_jobs(size=3, claims={})
+
+    assert isinstance(result, dict)
+    bundle = BundleResource.model_validate(result)
+    assert bundle.entry is not None
+    assert loader_calls == [["batch-0", "batch-1", "batch-2"]]
+    for entry, batch_id in zip(bundle.entry, ("batch-0", "batch-1", "batch-2"), strict=True):
+        values = {param.name: param for param in ParametersResponse.model_validate(entry.resource).parameter}
+        assert values["questionnaireResponseStatus"].valueString == f"status-{batch_id}"
+        assert values["batchJobQuestionnaireResponse"].valueReference == {"reference": f"QuestionnaireResponse/response-{batch_id}"}
 
 
 async def test_list_batch_jobs_applies_search_filters(monkeypatch):
@@ -355,11 +408,10 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
         _fake_query_batch_jobs,
     )
 
-    def _fake_get_responses(batch_job_id=None, job_package=None):
-        status = "completed" if batch_job_id == "batch-match" else "in-progress"
-        return [type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": status}})()]
+    def _fake_get_responses_for_batches(batch_ids):
+        return {batch_id: type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "completed" if batch_id == "batch-match" else "in-progress"}})() for batch_id in batch_ids}
 
-    monkeypatch.setattr(batchjob, "get_responses", _fake_get_responses)
+    monkeypatch.setattr(batchjob, "get_responses_for_batches", _fake_get_responses_for_batches)
 
     async def _fake_fetch_patient(patient_id):
         if patient_id == "patient-match":
@@ -419,8 +471,8 @@ async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypat
     monkeypatch.setattr(batchjob, "query_batch_jobs", _fake_query_batch_jobs)
     monkeypatch.setattr(
         batchjob,
-        "get_responses",
-        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "in-progress"}})()],
+        "get_responses_for_batches",
+        lambda batch_ids: {batch_id: type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "in-progress"}})() for batch_id in batch_ids},
     )
 
     async def _fake_fetch_patient(patient_id):
@@ -468,7 +520,7 @@ async def test_list_batch_jobs_supports_comma_separated_patient_gender_filter(mo
             ),
         ],
     )
-    monkeypatch.setattr(batchjob, "get_responses", lambda batch_job_id=None, job_package=None: [])
+    monkeypatch.setattr(batchjob, "get_responses_for_batches", lambda batch_ids: {})
 
     async def _fake_fetch_patient(patient_id):
         if patient_id == "patient-match":
@@ -518,7 +570,7 @@ async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
             ),
         ],
     )
-    monkeypatch.setattr(batchjob, "get_responses", lambda batch_job_id=None, job_package=None: [])
+    monkeypatch.setattr(batchjob, "get_responses_for_batches", lambda batch_ids: {})
 
     async def _fake_fetch_patient(patient_id):
         if patient_id == "patient-match":
@@ -670,8 +722,8 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
     )
     monkeypatch.setattr(
         batchjob,
-        "get_responses",
-        lambda batch_job_id=None, job_package=None: [type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "completed"}})()],
+        "get_responses_for_batches",
+        lambda batch_ids: {batch_id: type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "completed"}})() for batch_id in batch_ids},
     )
 
     async def _fake_fetch_patient(patient_id):

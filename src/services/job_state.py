@@ -762,6 +762,21 @@ def get_responses(batch_job_id: str | None = None, job_package: str | None = Non
         return list(session.execute(stmt).scalars().all())
 
 
+def get_responses_for_batches(batch_ids: list[str]) -> dict[str, QuestionnaireResponses]:
+    """Return one response per requested batch, keeping the lexicographically first response ID."""
+    if not batch_ids:
+        return {}
+
+    with Session(db_engine) as session:
+        stmt = select(QuestionnaireResponses).where(QuestionnaireResponses.batch_job_id.in_(batch_ids)).order_by(QuestionnaireResponses.response_id)
+        responses = session.execute(stmt).scalars().all()
+
+    responses_by_batch: dict[str, QuestionnaireResponses] = {}
+    for response in responses:
+        responses_by_batch.setdefault(response.batch_job_id, response)
+    return responses_by_batch
+
+
 def update_response_body(response_id: str, response_body: dict, last_updated_by: str, updated_at: datetime | None = None) -> bool:
     timestamp = updated_at or datetime.now(UTC)
     with Session(db_engine) as session:
