@@ -135,9 +135,10 @@ class Jobs(Base):
 
 class QuestionnaireResponses(Base):
     __tablename__ = "questionnaire_responses"
+    __table_args__ = (Index("ix_questionnaire_responses_batch_job_id", "batch_job_id"),)
 
     response_id: Mapped[str] = mapped_column(primary_key=True)
-    batch_job_id: Mapped[str]
+    batch_job_id: Mapped[str] = mapped_column(ForeignKey("batch_jobs_v1.batch_id", name="fk_questionnaire_responses_batch_job_id"))
     job_package: Mapped[str]
     patient_id: Mapped[str]
     last_updated_by: Mapped[str] = mapped_column(default="unknown")

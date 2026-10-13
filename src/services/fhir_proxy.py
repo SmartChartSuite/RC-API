@@ -11,7 +11,8 @@ from loguru import logger
 
 from src.models.fhir import FHIRProxyResult, OperationOutcomeJSON
 from src.services.errorhandler import make_operation_outcome
-from src.util.settings import hapi_fhir_cql_execution_url
+from src.util.outbound_url import is_valid_fhir_id, path_segment
+from src.util.settings import hapi_fhir_cql_execution_url, require_setting
 
 _TIMEOUT = 60
 _TRANSPORT = httpx.AsyncHTTPTransport(retries=3)
@@ -22,11 +23,15 @@ def _headers() -> dict:
 
 
 def _base_url(resource_type: str, resource_id: str | None = None) -> str:
-    assert hapi_fhir_cql_execution_url
-    base = f"{hapi_fhir_cql_execution_url.rstrip('/')}/{resource_type}"
+    base_url = require_setting(hapi_fhir_cql_execution_url, "HAPI_FHIR_CQL_EXECUTION_URL")
+    base = f"{base_url.rstrip('/')}/{path_segment(resource_type)}"
     if resource_id:
-        base += f"/{resource_id}"
+        base += f"/{path_segment(resource_id)}"
     return base
+
+
+def _invalid_id_outcome(resource_type: str) -> FHIRProxyResult:
+    return cast(OperationOutcomeJSON, make_operation_outcome("invalid", f"Invalid {resource_type} id. FHIR ids must be 1-64 characters of [A-Za-z0-9-.]."))
 
 
 async def _request(
@@ -38,6 +43,8 @@ async def _request(
     body: dict[str, Any] | None = None,
 ) -> FHIRProxyResult:
     """Send one HAPI FHIR request using the shared proxy transport policy."""
+    if resource_id is not None and not is_valid_fhir_id(resource_id):
+        return _invalid_id_outcome(resource_type)
     url = _base_url(resource_type, resource_id)
     request_kwargs: dict[str, Any] = {"headers": _headers()}
     if method == "GET":
@@ -45,10 +52,17 @@ async def _request(
     elif method in {"POST", "PUT"}:
         request_kwargs["json"] = body
 
-    async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
-        resp = await client.request(method, url, **request_kwargs)
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
+            resp = await client.request(method, url, **request_kwargs)
+    except httpx.TimeoutException:
+        logger.error(f"FHIR {method} {resource_type} timed out")
+        return cast(OperationOutcomeJSON, make_operation_outcome("timeout", f"The FHIR server did not respond in time for {method} {resource_type}."))
+    except httpx.RequestError as exc:
+        logger.error(f"FHIR {method} {resource_type} request failed: {type(exc).__name__}")
+        return cast(OperationOutcomeJSON, make_operation_outcome("transient", f"The FHIR server could not be reached for {method} {resource_type}."))
     logger.debug(f"FHIR {method} {url} → {resp.status_code}")
-    return _handle(resp, method, url)
+    return _handle(resp, method, resource_type)
 
 
 async def fhir_get(
@@ -75,8 +89,11 @@ async def fhir_delete(resource_type: str, resource_id: str) -> FHIRProxyResult:
     return await _request("DELETE", resource_type, resource_id)
 
 
-def _handle(resp: httpx.Response, method: str, url: str) -> FHIRProxyResult:
-    """Parse the FHIR response, wrapping errors as OperationOutcome."""
+def _handle(resp: httpx.Response, method: str, target: str) -> FHIRProxyResult:
+    """Parse the FHIR response, wrapping errors as OperationOutcome.
+
+    ``target`` is a client-safe label (resource type), never a full upstream URL.
+    """
     try:
         data = resp.json()
     except ValueError:
@@ -86,17 +103,23 @@ def _handle(resp: httpx.Response, method: str, url: str) -> FHIRProxyResult:
         data = {}
 
     if resp.is_success:
+        # HAPI commonly answers DELETE with 204 No Content (or 200 with no body); routers
+        # validate the result as an OperationOutcome, so synthesize an informational one.
+        if method == "DELETE" and data.get("resourceType") != "OperationOutcome":
+            return cast(OperationOutcomeJSON, make_operation_outcome("informational", f"Successfully deleted {target}.", severity="information"))
         return cast(FHIRProxyResult, data)
 
     # Pass through FHIR OperationOutcomes from the server as-is
     if data.get("resourceType") == "OperationOutcome":
         return cast(OperationOutcomeJSON, data)
 
-    logger.error(f"FHIR {method} {url} failed with {resp.status_code}: {resp.text}")
+    # Upstream bodies may contain sensitive detail; keep a truncated copy at debug level only.
+    logger.error(f"FHIR {method} {target} failed with HTTP {resp.status_code}")
+    logger.debug(f"FHIR {method} {target} error body (truncated): {resp.text[:500]}")
     return cast(
         OperationOutcomeJSON,
         make_operation_outcome(
             "transient",
-            f"FHIR server returned HTTP {resp.status_code} for {method} {url}",
+            f"FHIR server returned HTTP {resp.status_code} for {method} {target}",
         ),
     )

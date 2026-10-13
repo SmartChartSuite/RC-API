@@ -25,6 +25,7 @@ from src.services.job_state import (
     query_batch_jobs,
 )
 from src.util.auth import require_admin, validate_token
+from src.util.outbound_url import is_valid_fhir_id
 from src.util.settings import config_errors
 
 router = APIRouter(tags=["Batch Jobs"])
@@ -236,7 +237,7 @@ async def _resolve_questionnaire(job_package: str, job_package_version: str | No
     "/batchjob",
     summary="Start Batch Job",
     response_model=BatchJobAcceptedResponse,
-    responses=operation_outcome_responses(404, 409, 500, 503),
+    responses=operation_outcome_responses(400, 404, 409, 500, 503),
     response_model_exclude_none=True,
 )
 async def post_batch_job(
@@ -267,8 +268,10 @@ async def post_batch_job(
     job_names = body.get_params("job")
     started_by = claims.get("sub", "unknown")
 
-    assert patient_id
-    assert job_package
+    if not patient_id or not job_package:
+        return operation_outcome_response(400, "required", "The 'patientId' and 'jobPackage' parameters must have non-empty values.")
+    if not is_valid_fhir_id(patient_id):
+        return operation_outcome_response(400, "invalid", "Invalid patientId. FHIR ids must be 1-64 characters of [A-Za-z0-9-.].")
 
     questionnaire = await _resolve_questionnaire(job_package, job_package_version)
     if isinstance(questionnaire, JSONResponse):

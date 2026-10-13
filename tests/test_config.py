@@ -14,26 +14,7 @@ async def test_get_config_returns_empty_dict_when_primary_identifier_is_unset(mo
     assert result == {}
 
 
-async def test_get_config_returns_primary_identifier_payload(monkeypatch):
-    payload = ConfigEndpointModel.model_validate(
-        {
-            "primaryIdentifier": {
-                "system": "http://example.org/fhir/identifier-system",
-                "label": "MRN",
-            }
-        }
-    )
-    monkeypatch.setattr(config, "config_endpoint", payload)
-
-    result = await config.get_config()
-
-    assert isinstance(result, ConfigEndpointModel)
-    assert result.primaryIdentifier is not None
-    assert result.primaryIdentifier.system == "http://example.org/fhir/identifier-system"
-    assert result.primaryIdentifier.label == "MRN"
-
-
-def test_config_endpoint_is_registered(monkeypatch):
+def test_config_endpoint_returns_primary_identifier(monkeypatch):
     monkeypatch.setattr(auth, "oauth2_enabled", False)
     monkeypatch.setattr(
         config,

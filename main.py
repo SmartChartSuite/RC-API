@@ -19,7 +19,7 @@ from src.services.batch_worker import EmbeddedBatchWorker
 from src.services.errorhandler import make_operation_outcome
 from src.services.job_state import initialize_db
 from src.services.prompt_loader import initialize_prompt_source
-from src.util.settings import batch_worker_enabled, log_level, root_path
+from src.util.settings import batch_worker_enabled, cors_allow_credentials, cors_allow_origins, log_level, root_path
 
 LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
 _NOISY_LOGGER_LEVELS = {"httpcore": logging.WARNING, "httpx": logging.WARNING, "LiteLLM": logging.WARNING, "urllib3": logging.WARNING, "openai": logging.WARNING, "asyncio": logging.WARNING}
@@ -87,14 +87,16 @@ async def lifespan(app: FastAPI):
 # App
 app = FastAPI(title="RC-API", description="SmartChart Suite Results Combining API — v1.0", version="1.0.0", root_path=root_path, lifespan=lifespan)
 
-# CORS stuff
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS — explicit allowlist from CORS_ALLOW_ORIGINS. Credentials are only allowed with concrete origins.
+if cors_allow_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_allow_origins,
+        allow_credentials=cors_allow_credentials,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept"],
+        expose_headers=["Location"],
+    )
 
 
 # Exception handlers

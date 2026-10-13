@@ -15,10 +15,12 @@ from dataclasses import dataclass, field
 import httpx
 from loguru import logger
 
+from src.util.outbound_url import path_segment
 from src.util.settings import (
     external_fhir_server_auth,
     external_fhir_server_url,
     hapi_fhir_cql_execution_url,
+    require_setting,
 )
 
 _TIMEOUT = 300
@@ -116,8 +118,8 @@ def _parse_parameters_response(library_name: str, patient_id: str, data: dict) -
 
 
 async def _evaluate_library(client: httpx.AsyncClient, library_name: str, patient_id: str) -> CqlResult:
-    assert hapi_fhir_cql_execution_url
-    url = f"{hapi_fhir_cql_execution_url.rstrip('/')}/Library/{library_name}/$evaluate"
+    base_url = require_setting(hapi_fhir_cql_execution_url, "HAPI_FHIR_CQL_EXECUTION_URL")
+    url = f"{base_url.rstrip('/')}/Library/{path_segment(library_name)}/$evaluate"
     body = _build_parameters_body(patient_id)
     try:
         resp = await client.post(
@@ -129,8 +131,8 @@ async def _evaluate_library(client: httpx.AsyncClient, library_name: str, patien
         logger.error(f"Timeout evaluating CQL library {library_name}")
         return CqlResult(library_name=library_name, patient_id=patient_id, error="timeout")
     except httpx.RequestError as exc:
-        logger.error(f"Request error evaluating CQL library {library_name}: {exc}")
-        return CqlResult(library_name=library_name, patient_id=patient_id, error=str(exc))
+        logger.error(f"Request error evaluating CQL library {library_name}: {type(exc).__name__}")
+        return CqlResult(library_name=library_name, patient_id=patient_id, error=f"request failed ({type(exc).__name__})")
 
     logger.info(f"CQL Library/{library_name}/$evaluate → {resp.status_code}")
     if resp.status_code in (504, 408):
@@ -139,7 +141,17 @@ async def _evaluate_library(client: httpx.AsyncClient, library_name: str, patien
     try:
         data = resp.json()
     except ValueError as exc:
+        if not resp.is_success:
+            return CqlResult(library_name=library_name, patient_id=patient_id, error=f"HTTP {resp.status_code}")
         logger.error(f"Failed to parse JSON from CQL response for {library_name}: {exc}")
+        return CqlResult(library_name=library_name, patient_id=patient_id, error="invalid json")
+
+    if not resp.is_success:
+        diagnostics = _extract_operation_outcome_diagnostics(data) if isinstance(data, dict) and data.get("resourceType") == "OperationOutcome" else None
+        error = f"HTTP {resp.status_code}: {diagnostics}" if diagnostics else f"HTTP {resp.status_code}"
+        logger.error(f"CQL evaluation for {library_name} failed: {error}")
+        return CqlResult(library_name=library_name, patient_id=patient_id, error=error)
+    if not isinstance(data, dict):
         return CqlResult(library_name=library_name, patient_id=patient_id, error="invalid json")
 
     return _parse_parameters_response(library_name, patient_id, data)
@@ -162,6 +174,7 @@ async def run_cql_libraries(
     """
     if not library_names:
         return []
+    library_names = list(dict.fromkeys(library_names))
 
     async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
 

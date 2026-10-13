@@ -9,9 +9,10 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from src.models.fhir import BundleResource, OperationOutcome, PatientResource
-from src.services.errorhandler import config_error_response, make_operation_outcome, model_or_operation_outcome, operation_outcome_responses
+from src.services.errorhandler import config_error_response, make_operation_outcome, model_or_operation_outcome, operation_outcome_response, operation_outcome_responses
 from src.util.auth import validate_token
-from src.util.settings import config_errors, external_fhir_server_auth, external_fhir_server_url
+from src.util.outbound_url import is_valid_fhir_id, path_segment
+from src.util.settings import config_errors, external_fhir_server_auth, external_fhir_server_url, require_setting
 
 router = APIRouter(tags=["Patients"])
 
@@ -33,10 +34,9 @@ def _headers() -> dict[str, str]:
 
 
 def _base_url(resource_id: str | None = None) -> str:
-    assert external_fhir_server_url
-    base = f"{external_fhir_server_url.rstrip('/')}/Patient"
+    base = f"{require_setting(external_fhir_server_url, 'EXTERNAL_FHIR_SERVER_URL').rstrip('/')}/Patient"
     if resource_id:
-        base += f"/{resource_id}"
+        base += f"/{path_segment(resource_id)}"
     return base
 
 
@@ -45,10 +45,10 @@ async def _external_patient_get(resource_id: str | None = None, params: Sequence
     async with httpx.AsyncClient(timeout=60) as client:
         try:
             resp = await client.get(url, headers=_headers(), params=cast(Any, list(params) if params is not None else None))
-            logger.info(f"FHIR GET {url} → {resp.status_code}")
+            logger.info(f"FHIR GET Patient → {resp.status_code}")
         except httpx.RequestError as exc:
-            logger.error(f"Patient GET {url} failed: {exc}")
-            return make_operation_outcome("transient", f"External FHIR server request failed for GET {url}")
+            logger.error(f"Patient GET failed: {type(exc).__name__}")
+            return make_operation_outcome("transient", "External FHIR server request failed for GET Patient")
 
     try:
         data = resp.json()
@@ -64,8 +64,9 @@ async def _external_patient_get(resource_id: str | None = None, params: Sequence
     if data.get("resourceType") == "OperationOutcome":
         return data
 
-    logger.error(f"Patient GET {url} returned {resp.status_code}: {resp.text}")
-    return make_operation_outcome("transient", f"External FHIR server returned HTTP {resp.status_code} for GET {url}")
+    logger.error(f"Patient GET returned HTTP {resp.status_code}")
+    logger.debug(f"Patient GET error body (truncated): {resp.text[:500]}")
+    return make_operation_outcome("transient", f"External FHIR server returned HTTP {resp.status_code} for GET Patient")
 
 
 @router.get("/patient", summary="Search Patients", response_model=PatientSearchResult, responses=operation_outcome_responses(503))
@@ -81,10 +82,12 @@ async def search_patients(request: Request, claims: dict = Security(validate_tok
     return model_or_operation_outcome(data, BundleResource)
 
 
-@router.get("/patient/{resource_id}", summary="Get Patient", response_model=PatientReadResult, responses=operation_outcome_responses(503))
+@router.get("/patient/{resource_id}", summary="Get Patient", response_model=PatientReadResult, responses=operation_outcome_responses(400, 503))
 async def get_patient(resource_id: str, claims: dict = Security(validate_token)) -> JSONResponse | PatientReadResult:
     """Get a specific Patient resource by ID from the external FHIR server."""
     if err := _check_config():
         return err
+    if not is_valid_fhir_id(resource_id):
+        return operation_outcome_response(400, "invalid", "Invalid Patient id. FHIR ids must be 1-64 characters of [A-Za-z0-9-.].")
     data = await _external_patient_get(resource_id=resource_id)
     return model_or_operation_outcome(data, PatientResource)

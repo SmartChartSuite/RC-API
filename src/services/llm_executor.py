@@ -23,6 +23,7 @@ from src.util.settings import (
     litellm_model_reasoning_effort,
     litellm_prompt_cache_enabled,
     llm_max_concurrency,
+    require_setting,
     use_llm,
 )
 
@@ -107,9 +108,9 @@ async def run_prompt_on_document(
         return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response="", error="LLM not configured", doc_text=document.get("text"))
 
     try:
-        assert litellm_model
+        model = require_setting(litellm_model, "LITELLM_MODEL")
         request_kwargs: dict[str, Any] = {
-            "model": litellm_model,
+            "model": model,
             "api_base": litellm_api_base,
             "api_key": litellm_api_key,
             "input": document["text"],
@@ -118,7 +119,7 @@ async def run_prompt_on_document(
             "metadata": _langfuse_metadata(trace_id, trace_metadata, parent_otel_span),
         }
         if litellm_prompt_cache_enabled:
-            request_kwargs["extra_body"] = {"prompt_cache_key": _prompt_cache_key(litellm_model, prompt)}
+            request_kwargs["extra_body"] = {"prompt_cache_key": _prompt_cache_key(model, prompt)}
             request_kwargs["allowed_openai_params"] = ["prompt_cache_key"]
         if litellm_model_reasoning_effort:
             request_kwargs["reasoning_effort"] = litellm_model_reasoning_effort
@@ -130,8 +131,10 @@ async def run_prompt_on_document(
         return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response=answer, doc_text=document.get("text"))
     except Exception as exc:  # noqa: BLE001
         # Isolate provider failures to this document so other calls can complete.
-        logger.error(f"LLM call failed for prompt '{prompt.metadata.path}' / doc {doc_id}: {exc}")
-        return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response="", error=str(exc))
+        # Provider exception text can echo request content (PHI), so keep it at debug level.
+        logger.error(f"LLM call failed for prompt '{prompt.metadata.path}' / doc {doc_id}: {type(exc).__name__}")
+        logger.debug(f"LLM failure detail for prompt '{prompt.metadata.path}' / doc {doc_id}: {exc}")
+        return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response="", error=f"LLM call failed ({type(exc).__name__})")
 
 
 async def run_prompt_across_documents(

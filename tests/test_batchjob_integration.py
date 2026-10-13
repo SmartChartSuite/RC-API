@@ -43,6 +43,9 @@ from src.util import auth
 
 FIXTURES = Path(__file__).parent / "fixtures" / "batchjob_integration"
 
+# Prompt assets are not tracked in git; skip on checkouts (e.g. CI) that don't provide them.
+pytestmark = pytest.mark.skipif(not (Path(__file__).parent.parent / "prompts").is_dir(), reason="./prompts/ is not present in this checkout")
+
 HAPI_BASE = "https://hapi.test/fhir"
 EXTERNAL_BASE = "https://external.test/fhir"
 LITELLM_BASE = "https://litellm.test"
@@ -192,7 +195,7 @@ def test_post_batch_job_end_to_end_builds_expected_result_bundle():
         mock.get(f"{HAPI_BASE}/Questionnaire", params={"name": JOB_PACKAGE}).mock(return_value=httpx.Response(200, json=questionnaire_search_bundle))
         mock.get(f"{HAPI_BASE}/Questionnaire/{questionnaire['id']}").mock(return_value=httpx.Response(200, json=questionnaire))
         mock.post(f"{HAPI_BASE}/Library/IfuSyphilisComplications/$evaluate").mock(return_value=httpx.Response(200, json=cql_response))
-        mock.get(f"{EXTERNAL_BASE}/DocumentReference", params={"subject": f"Patient/{PATIENT_ID}", "_count": "500"}).mock(return_value=httpx.Response(200, json=document_references))
+        mock.get(f"{EXTERNAL_BASE}/DocumentReference", params={"subject": f"Patient/{PATIENT_ID}", "_count": "100"}).mock(return_value=httpx.Response(200, json=document_references))
         mock.get(f"{EXTERNAL_BASE}/Patient/{PATIENT_ID}").mock(return_value=httpx.Response(200, json=patient))
         # One LLM call per document; the side effect returns each note's real answer.
         mock.post(f"{LITELLM_BASE}/responses").mock(side_effect=_llm_side_effect)

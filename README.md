@@ -175,9 +175,15 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `LANGFUSE_PROMPT_FETCH_TIMEOUT_SECONDS` | `5` | Maximum duration of each synchronous Langfuse prompt fetch attempt, executed outside the API event loop |
 | `LANGFUSE_PROMPT_MAX_RETRIES` | `1` | Retries after a failed Langfuse prompt fetch before using the matching local prompt |
 | `PROMPTS_DIR` | `./prompts` | Local prompt directory used when Langfuse is disabled, unavailable, or fails to return an individual prompt |
-| `OAUTH2_JWKS_URL` | *(none)* | JWKS endpoint URL. Auth is **disabled** if not set |
-| `OAUTH2_ISSUER` | *(none)* | Expected `iss` claim in JWT |
-| `OAUTH2_AUDIENCE` | *(none)* | Expected `aud` claim in JWT |
+| `OAUTH2_JWKS_URL` | *(none)* | JWKS endpoint URL. **Required** unless `AUTH_DISABLED=true`; protected endpoints return 503 if missing |
+| `OAUTH2_ISSUER` | *(none)* | Expected `iss` claim in JWT. **Required** unless `AUTH_DISABLED=true` |
+| `OAUTH2_AUDIENCE` | *(none)* | Expected `aud` claim in JWT. **Required** unless `AUTH_DISABLED=true` |
+| `OAUTH2_JWKS_CACHE_SECONDS` | `3600` | JWKS cache lifetime; unknown key ids trigger an early (rate-limited) refresh |
+| `AUTH_DISABLED` | `false` | Local development only: disables authentication entirely |
+| `CORS_ALLOW_ORIGINS` | *(none)* | Comma-separated browser origins permitted by CORS; unset sends no CORS headers |
+| `ATTACHMENT_ALLOWED_HOSTS` | *(none)* | Extra hosts (beyond the external FHIR origin) from which attachment URLs may be fetched; `.example.org` includes subdomains |
+| `DOC_MAX_COUNT` | `500` | Maximum DocumentReferences processed per patient |
+| `DOC_MAX_BYTES` | `5000000` | Maximum bytes per document attachment (inline or fetched) |
 | `DB_CONNECTION_STRING` | `sqlite+pysqlite:///rcapi_jobs.sqlite` | SQLAlchemy connection string |
 | `DB_SCHEMA` | `rcapi` | DB schema name (ignored for SQLite) |
 | `BATCH_WORKER_ENABLED` | `true` | Run the durable batch consumer inside the API process |
@@ -360,13 +366,14 @@ uv run pre-commit run --all-files
 
 ## Authentication
 
-Authentication uses an optional OAuth 2 Bearer/JWT dependency with JWKS-backed RS256 validation. When `OAUTH2_JWKS_URL` is set, protected application endpoints require a valid JWT. `/config` is protected by the same dependency, while `/health` and FastAPI’s `/docs`, `/redoc`, and `/openapi.json` routes remain public for operations and discovery. When OAuth is disabled, all application endpoints are open (useful for local development). Provider-specific handler abstractions are not currently implemented.
+Authentication uses an OAuth 2 Bearer/JWT dependency with JWKS-backed RS256 validation and **fails closed**. `OAUTH2_JWKS_URL`, `OAUTH2_ISSUER`, and `OAUTH2_AUDIENCE` must all be set; if any is missing, the server logs an error at startup and protected endpoints return `503` rather than opening up. For local development only, set `AUTH_DISABLED=true` to run without authentication (a warning is logged). `/config` is protected by the same dependency, while `/health` and FastAPI’s `/docs`, `/redoc`, and `/openapi.json` routes remain public for operations and discovery. The JWKS is cached for `OAUTH2_JWKS_CACHE_SECONDS`, refreshed early when a token presents an unknown key id, and served stale if the identity provider is briefly unreachable; if no keys can be obtained the API returns `503`. Authentication failures return a generic `401` without token-parsing details.
 
 ### Token Requirements
 
 - Tokens must be signed with **RS256** and verifiable against the JWKS endpoint
-- The `iss` claim must match `OAUTH2_ISSUER` (if set)
-- The `aud` claim must match `OAUTH2_AUDIENCE` (if set)
+- The `iss` claim must match `OAUTH2_ISSUER`
+- The `aud` claim must match `OAUTH2_AUDIENCE`
+- The token must carry `exp`, `iss`, and `aud` claims
 - **`DELETE` endpoints require `admin` in the token's `scope` claim**
 
 ### Request Header

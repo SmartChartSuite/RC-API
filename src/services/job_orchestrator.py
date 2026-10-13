@@ -14,7 +14,7 @@ import base64
 import json
 import re
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine, Iterator
 from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -189,6 +189,15 @@ def _get_item_task(item: dict, extension_url: str) -> str | None:
     return None
 
 
+def _iter_questionnaire_items(items: list | None) -> Iterator[dict]:
+    """Yield every Questionnaire item depth-first, regardless of nesting level."""
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        yield item
+        yield from _iter_questionnaire_items(item.get("item"))
+
+
 def _format_component_display(component_key: str) -> str:
     normalized = component_key.replace("-", " ").replace("_", " ")
     normalized = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", normalized)
@@ -295,66 +304,65 @@ def _build_cql_observations(
     # Index CQL results by library name for O(1) lookup
     cql_by_lib: dict[str, CqlResult] = {r.library_name: r for r in cql_results if not r.error}
 
-    for group in questionnaire.get("item", []):
-        for question in group.get("item", []):
-            link_id = question.get("linkId", "")
-            question_text = question.get("text", "")
-            task_ext = _get_item_task(question, _STRUCTURED_TASK_URL)
-            if not task_ext:
-                continue
+    for question in _iter_questionnaire_items(questionnaire.get("item")):
+        link_id = question.get("linkId", "")
+        question_text = question.get("text", "")
+        task_ext = _get_item_task(question, _STRUCTURED_TASK_URL)
+        if not task_ext:
+            continue
 
-            try:
-                library_name, task_name = task_ext.split(".", 1)
-            except ValueError:
-                logger.warning(f"structuredTask has unexpected format: {task_ext}")
-                continue
+        try:
+            library_name, task_name = task_ext.split(".", 1)
+        except ValueError:
+            logger.warning(f"structuredTask has unexpected format: {task_ext}")
+            continue
 
-            cql_result = cql_by_lib.get(library_name)
-            if not cql_result:
-                logger.debug(f"No CQL result for library '{library_name}', skipping {link_id}")
-                continue
+        cql_result = cql_by_lib.get(library_name)
+        if not cql_result:
+            logger.debug(f"No CQL result for library '{library_name}', skipping {link_id}")
+            continue
 
-            result_entries = cql_result.results.get(task_name, [])
-            if not result_entries:
-                logger.debug(f"No CQL data for task '{task_name}' in {library_name}")
-                continue
+        result_entries = cql_result.results.get(task_name, [])
+        if not result_entries:
+            logger.debug(f"No CQL data for task '{task_name}' in {library_name}")
+            continue
 
-            for res_entry in result_entries:
-                # Tuple result (pipe-delimited value string from CQL)
-                raw_value = res_entry.get("value")
-                if isinstance(raw_value, str) and "|" in raw_value:
-                    obs, supporting = _build_tuple_observation(raw_value, link_id, question_text, patient_id, form_name, task_name)
-                    obs_url = f"Observation/{obs['id']}"
-                    if obs_url not in seen_urls:
-                        entries.append({"fullUrl": obs_url, "resource": obs})
-                        seen_urls.add(obs_url)
-                    if supporting:
-                        sup_url = f"{supporting['resourceType']}/{supporting['id']}"
-                        if sup_url not in seen_urls:
-                            entries.append({"fullUrl": sup_url, "resource": supporting})
-                            seen_urls.add(sup_url)
-                elif isinstance(raw_value, str):
-                    # Simple scalar valueString observation
-                    obs = _obs_base(link_id, question_text, patient_id, form_name)
-                    obs["valueString"] = raw_value
-                    obs_url = f"Observation/{obs['id']}"
-                    if obs_url not in seen_urls:
-                        entries.append({"fullUrl": obs_url, "resource": obs})
-                        seen_urls.add(obs_url)
-                elif isinstance(res_entry, dict) and res_entry.get("resourceType"):
-                    # FHIR resource result — reference it via focus
-                    res_type = res_entry["resourceType"]
-                    res_id = res_entry.get("id", str(uuid.uuid4()))
-                    obs = _obs_base(link_id, question_text, patient_id, form_name)
-                    obs["focus"] = [{"reference": f"{res_type}/{res_id}"}]
-                    obs_url = f"Observation/{obs['id']}"
-                    if obs_url not in seen_urls:
-                        entries.append({"fullUrl": obs_url, "resource": obs})
-                        seen_urls.add(obs_url)
-                    sup_url = f"{res_type}/{res_id}"
+        for res_entry in result_entries:
+            # Tuple result (pipe-delimited value string from CQL)
+            raw_value = res_entry.get("value")
+            if isinstance(raw_value, str) and "|" in raw_value:
+                obs, supporting = _build_tuple_observation(raw_value, link_id, question_text, patient_id, form_name, task_name)
+                obs_url = f"Observation/{obs['id']}"
+                if obs_url not in seen_urls:
+                    entries.append({"fullUrl": obs_url, "resource": obs})
+                    seen_urls.add(obs_url)
+                if supporting:
+                    sup_url = f"{supporting['resourceType']}/{supporting['id']}"
                     if sup_url not in seen_urls:
-                        entries.append({"fullUrl": sup_url, "resource": res_entry})
+                        entries.append({"fullUrl": sup_url, "resource": supporting})
                         seen_urls.add(sup_url)
+            elif isinstance(raw_value, str):
+                # Simple scalar valueString observation
+                obs = _obs_base(link_id, question_text, patient_id, form_name)
+                obs["valueString"] = raw_value
+                obs_url = f"Observation/{obs['id']}"
+                if obs_url not in seen_urls:
+                    entries.append({"fullUrl": obs_url, "resource": obs})
+                    seen_urls.add(obs_url)
+            elif isinstance(res_entry, dict) and res_entry.get("resourceType"):
+                # FHIR resource result — reference it via focus
+                res_type = res_entry["resourceType"]
+                res_id = res_entry.get("id", str(uuid.uuid4()))
+                obs = _obs_base(link_id, question_text, patient_id, form_name)
+                obs["focus"] = [{"reference": f"{res_type}/{res_id}"}]
+                obs_url = f"Observation/{obs['id']}"
+                if obs_url not in seen_urls:
+                    entries.append({"fullUrl": obs_url, "resource": obs})
+                    seen_urls.add(obs_url)
+                sup_url = f"{res_type}/{res_id}"
+                if sup_url not in seen_urls:
+                    entries.append({"fullUrl": sup_url, "resource": res_entry})
+                    seen_urls.add(sup_url)
 
     return entries
 
@@ -467,38 +475,38 @@ def _build_llm_observations(
 
     llm_by_path: dict[str, LlmResult] = {r.prompt_path: r for r in llm_results}
 
-    for group in questionnaire.get("item", []):
-        for question in group.get("item", []):
-            link_id = question.get("linkId", "")
-            question_text = question.get("text", "")
-            prompt_path = _get_item_task(question, _UNSTRUCTURED_TASK_URL)
-            if not prompt_path:
+    for question in _iter_questionnaire_items(questionnaire.get("item")):
+        link_id = question.get("linkId", "")
+        question_text = question.get("text", "")
+        prompt_path = _get_item_task(question, _UNSTRUCTURED_TASK_URL)
+        if not prompt_path:
+            continue
+
+        llm_result = llm_by_path.get(prompt_path)
+        if not llm_result:
+            logger.debug(f"No LLM result for prompt '{prompt_path}', skipping {link_id}")
+            continue
+
+        for doc_result in llm_result.document_results:
+            if doc_result.error or not doc_result.response:
                 continue
 
-            llm_result = llm_by_path.get(prompt_path)
-            if not llm_result:
-                logger.debug(f"No LLM result for prompt '{prompt_path}', skipping {link_id}")
-                continue
+            obs = _obs_base(link_id, question_text, patient_id, form_name)
+            obs["effectiveDateTime"] = doc_result.doc_date
+            obs["focus"] = [{"reference": f"DocumentReference/{doc_result.doc_id}"}]
+            components = _build_llm_components(doc_result.response)
+            if components is not None:
+                obs["component"] = components
+            else:
+                obs["valueString"] = doc_result.response
 
-            for doc_result in llm_result.document_results:
-                if doc_result.error or not doc_result.response:
-                    continue
-
-                obs = _obs_base(link_id, question_text, patient_id, form_name)
-                obs["effectiveDateTime"] = doc_result.doc_date
-                obs["focus"] = [{"reference": f"DocumentReference/{doc_result.doc_id}"}]
-                components = _build_llm_components(doc_result.response)
-                if components is not None:
-                    obs["component"] = components
-                else:
-                    obs["valueString"] = doc_result.response
-
-                obs_url = f"Observation/{obs['id']}"
-                # Deduplicate on focus + valueString (mirrors v0 NLPQL dedup)
-                dedup_key = f"{doc_result.doc_id}::{doc_result.response}"
-                if dedup_key not in seen_urls:
-                    entries.append({"fullUrl": obs_url, "resource": obs})
-                    seen_urls.add(dedup_key)
+            obs_url = f"Observation/{obs['id']}"
+            # Deduplicate per question on focus + value (mirrors v0 NLPQL dedup); the same
+            # finding under two different questions is two distinct answers.
+            dedup_key = f"{link_id}::{doc_result.doc_id}::{doc_result.response}"
+            if dedup_key not in seen_urls:
+                entries.append({"fullUrl": obs_url, "resource": obs})
+                seen_urls.add(dedup_key)
 
     return entries
 
@@ -667,6 +675,22 @@ async def _maintain_batch_lease(batch_id: str, worker_id: str, attempt_count: in
             raise LeaseLostError(f"Worker {worker_id} lost batch {batch_id} attempt {attempt_count}")
 
 
+async def _gather_supervised(*coros: Coroutine[Any, Any, Any]) -> list[Any]:
+    """Run coroutines concurrently; if one fails, cancel the rest and re-raise that failure.
+
+    Unlike ``asyncio.gather``, siblings never keep running after a failure. A single failure
+    is re-raised unwrapped so callers can still ``except LeaseLostError`` etc.
+    """
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tasks = [tg.create_task(coro) for coro in coros]
+    except BaseExceptionGroup as group:
+        if len(group.exceptions) == 1:
+            raise group.exceptions[0] from None
+        raise
+    return [task.result() for task in tasks]
+
+
 # Main orchestrator
 async def run_batch_job(
     batch_id: str,
@@ -693,6 +717,15 @@ async def run_batch_job(
 
     try:
         heartbeat_task = asyncio.create_task(_maintain_batch_lease(batch_id, worker_id, attempt_count))
+        # If the lease cannot be renewed, stop the pipeline instead of letting it keep calling
+        # CQL/LLM services for an attempt another worker may already own.
+        pipeline_task = asyncio.current_task()
+
+        def _on_heartbeat_done(task: asyncio.Task[None]) -> None:
+            if not task.cancelled() and isinstance(task.exception(), LeaseLostError) and pipeline_task is not None:
+                pipeline_task.cancel()
+
+        heartbeat_task.add_done_callback(_on_heartbeat_done)
 
         # 1. Fetch Questionnaire from HAPI FHIR
         questionnaire_data = await fhir_get("Questionnaire", questionnaire_id)
@@ -768,13 +801,12 @@ async def run_batch_job(
             else:
                 prompt_paths_to_run.append(prompt_path)
 
-        # 3. Concurrently load prompts and fetch patient documents when LLM jobs were requested.
+        # 3. Concurrently load prompts and fetch patient documents when LLM jobs still need to run.
+        #    A failed DocumentReference search raises DocumentFetchError, failing this attempt so the
+        #    worker retries it — only a successful, empty search marks prompts as skipped.
         prompts = documents = []
-        if prompt_paths:
-            prompts, documents = await asyncio.gather(
-                load_prompts(prompt_paths_to_run),
-                fetch_patient_documents(patient_id),
-            )
+        if prompt_paths_to_run:
+            prompts, documents = await _gather_supervised(load_prompts(prompt_paths_to_run), fetch_patient_documents(patient_id))
             if not documents:
                 logger.info(f"[batch={batch_id}] No DocumentReferences found — skipping LLM execution")
                 for path in prompt_paths_to_run:
@@ -885,7 +917,7 @@ async def run_batch_job(
                 if (prompt_paths_to_run and documents and use_llm)
                 else _empty()
             )
-            return await asyncio.gather(cql_task, llm_task)
+            return await _gather_supervised(cql_task, llm_task)
 
         async with _langfuse_batch_parent(
             batch_id,
@@ -945,6 +977,13 @@ async def run_batch_job(
         logger.info(f"[batch={batch_id}] Completed. Bundle entries: {result_bundle['total']}")
 
     except asyncio.CancelledError:
+        heartbeat_error = heartbeat_task.exception() if heartbeat_task is not None and heartbeat_task.done() and not heartbeat_task.cancelled() else None
+        if isinstance(heartbeat_error, LeaseLostError):
+            current = asyncio.current_task()
+            if current is not None:
+                current.uncancel()
+            logger.warning(f"[batch={batch_id}] Lease renewal failed — cancelled in-flight work")
+            raise heartbeat_error from None
         raise
     except LeaseLostError:
         logger.warning(f"[batch={batch_id}] Stopping work after losing lease ownership")

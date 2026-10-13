@@ -14,6 +14,7 @@ from src.services.errorhandler import operation_outcome_response, operation_outc
 from src.services.job_state import (
     create_response,
     delete_response_record,
+    get_batch_job,
     get_response,
     get_responses,
     update_response_body,
@@ -104,7 +105,7 @@ async def get_response_record(
     summary="Create Response",
     response_model=QuestionnaireResponseResource,
     status_code=201,
-    responses=operation_outcome_responses(400, 500),
+    responses=operation_outcome_responses(400, 404, 500),
 )
 async def create_response_record(
     body: QuestionnaireResponseResource = Body(
@@ -129,11 +130,14 @@ async def create_response_record(
     job_package = _derive_job_package(response_resource)
 
     missing = [n for n, v in [("batch_job_id", batch_job_id), ("questionnaire", job_package), ("subject.reference", patient_id)] if not v]
-    if missing:
+    if missing or not job_package or not patient_id:
         return operation_outcome_response(400, "required", f"Missing required parameter(s): {missing}")
 
-    assert job_package
-    assert patient_id
+    batch = get_batch_job(batch_job_id)
+    if batch is None:
+        return operation_outcome_response(404, "not-found", f"Batch job {batch_job_id} was not found.")
+    if batch.patient_id != patient_id:
+        return operation_outcome_response(400, "invariant", "QuestionnaireResponse subject does not match the patient of the referenced batch job.")
 
     response_id = str(uuid.uuid4())
     normalized_response = _normalize_questionnaire_response(response_id, response_resource)
@@ -158,7 +162,7 @@ async def create_response_record(
     return QuestionnaireResponseResource.model_validate(normalized_response)
 
 
-@router.put("/response/{response_id}", summary="Update Response", response_model=OperationOutcome, responses=operation_outcome_responses(404))
+@router.put("/response/{response_id}", summary="Update Response", response_model=OperationOutcome, responses=operation_outcome_responses(400, 404))
 async def update_response_record(
     response_id: str,
     body: dict = Body(..., openapi_examples={"questionnaireResponse": {"summary": "FHIR QuestionnaireResponse", "value": _QUESTIONNAIRE_RESPONSE_EXAMPLE}}),
@@ -167,10 +171,21 @@ async def update_response_record(
     """Update an existing stored QuestionnaireResponse.
 
     The request body should be the full FHIR ``QuestionnaireResponse`` resource
-    to persist for the given local ``response_id``.
+    to persist for the given local ``response_id``. The ``subject`` and
+    ``questionnaire`` linkage of a stored response cannot be changed.
     """
+    existing = get_response(response_id)
+    if existing is None:
+        return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
+    new_patient_id = _extract_patient_id(body)
+    new_job_package = _derive_job_package(body)
+    if (new_patient_id is not None and new_patient_id != existing.patient_id) or (new_job_package is not None and new_job_package != existing.job_package):
+        return operation_outcome_response(400, "invariant", "The subject and questionnaire of a stored QuestionnaireResponse cannot be changed.")
+
     now = datetime.now(UTC)
     normalized_response = _normalize_questionnaire_response(response_id, body)
+    normalized_response["subject"] = {"reference": f"Patient/{existing.patient_id}"}
+    normalized_response["questionnaire"] = existing.job_package
     meta = normalized_response.get("meta")
     normalized_meta = dict(meta) if isinstance(meta, dict) else {}
     normalized_meta["lastUpdated"] = now.isoformat()

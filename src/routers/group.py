@@ -18,6 +18,7 @@ from src.util.settings import (
     config_errors,
     external_fhir_server_auth,
     external_fhir_server_url,
+    require_setting,
 )
 
 router = APIRouter(tags=["Groups"])
@@ -49,11 +50,11 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
     Returns a flat list such as ``[Group, Patient, Patient, ..., Group, ...]``
     mirroring the legacy implicit-include behavior used by this API.
     """
-    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+    if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL", "EXTERNAL_FHIR_SERVER_URL"):
         return err
 
     # Fetch groups from HAPI FHIR using the shared proxy transport.
-    assert external_fhir_server_url
+    external_base = require_setting(external_fhir_server_url, "EXTERNAL_FHIR_SERVER_URL")
     params = {}
     if name:
         params["name"] = name
@@ -84,8 +85,8 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
                 patient_ref: str = member.get("entity", {}).get("reference", "")
                 if not patient_ref:
                     continue
-                patient_url = resolve_http_reference(external_fhir_server_url, patient_ref)
-                if patient_url is None or not is_same_origin(patient_url, external_fhir_server_url):
+                patient_url = resolve_http_reference(external_base, patient_ref)
+                if patient_url is None or not is_same_origin(patient_url, external_base):
                     logger.warning(f"Skipping unsafe cross-origin Patient reference: {patient_ref}")
                     continue
                 try:

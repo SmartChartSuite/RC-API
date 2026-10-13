@@ -71,6 +71,7 @@ async def test_create_response_record_sets_location_and_returns_questionnaire_re
         return True
 
     monkeypatch.setattr(response_router, "create_response", _fake_create_response)
+    monkeypatch.setattr(response_router, "get_batch_job", lambda batch_id: SimpleNamespace(batch_id=batch_id, patient_id="patient-123"))
 
     body = QuestionnaireResponseResource.model_validate(
         {
@@ -115,6 +116,7 @@ async def test_update_response_record_returns_operation_outcome(monkeypatch):
         return True
 
     monkeypatch.setattr(response_router, "update_response_body", _fake_update_response_body)
+    monkeypatch.setattr(response_router, "get_response", lambda response_id: _make_record(response_id))
 
     result = await response_router.update_response_record("response-1", {"resourceType": "QuestionnaireResponse"}, claims={"sub": "user-456"})
 
@@ -132,3 +134,68 @@ async def test_delete_response_delegates_to_job_state(monkeypatch):
     result = await response_router.delete_response("response-1", _=None)
 
     assert result is deleted
+
+
+def _qr_body(patient: str = "patient-123", questionnaire: str = "Questionnaire/ExampleRegistry") -> QuestionnaireResponseResource:
+    return QuestionnaireResponseResource.model_validate(
+        {"resourceType": "QuestionnaireResponse", "questionnaire": questionnaire, "status": "completed", "subject": {"reference": f"Patient/{patient}"}}
+    )
+
+
+async def test_create_response_record_returns_404_for_unknown_batch(monkeypatch):
+    monkeypatch.setattr(response_router, "get_batch_job", lambda batch_id: None)
+    monkeypatch.setattr(response_router, "create_response", lambda *args: (_ for _ in ()).throw(AssertionError("must not persist")))
+
+    result = await response_router.create_response_record(_qr_body(), batch_job_id="nope", response=Response(), claims={})
+
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 404
+
+
+async def test_create_response_record_rejects_patient_mismatch_with_batch(monkeypatch):
+    monkeypatch.setattr(response_router, "get_batch_job", lambda batch_id: SimpleNamespace(batch_id=batch_id, patient_id="someone-else"))
+    monkeypatch.setattr(response_router, "create_response", lambda *args: (_ for _ in ()).throw(AssertionError("must not persist")))
+
+    result = await response_router.create_response_record(_qr_body(), batch_job_id="batch-1", response=Response(), claims={})
+
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 400
+
+
+async def test_update_response_record_returns_404_when_missing(monkeypatch):
+    monkeypatch.setattr(response_router, "get_response", lambda response_id: None)
+
+    result = await response_router.update_response_record("missing", {"resourceType": "QuestionnaireResponse"}, claims={})
+
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 404
+
+
+async def test_update_response_record_rejects_relinking_subject(monkeypatch):
+    monkeypatch.setattr(response_router, "get_response", lambda response_id: _make_record(response_id))
+    monkeypatch.setattr(response_router, "update_response_body", lambda *args: (_ for _ in ()).throw(AssertionError("must not persist")))
+
+    result = await response_router.update_response_record(
+        "response-1",
+        {"resourceType": "QuestionnaireResponse", "subject": {"reference": "Patient/other-patient"}},
+        claims={},
+    )
+
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 400
+
+
+async def test_update_response_record_preserves_stored_linkage(monkeypatch):
+    captured: dict = {}
+    monkeypatch.setattr(response_router, "get_response", lambda response_id: _make_record(response_id))
+
+    def _fake_update(response_id, body, last_updated_by, updated_at):
+        captured["body"] = body
+        return True
+
+    monkeypatch.setattr(response_router, "update_response_body", _fake_update)
+
+    await response_router.update_response_record("response-1", {"resourceType": "QuestionnaireResponse", "status": "completed"}, claims={})
+
+    assert captured["body"]["subject"] == {"reference": "Patient/patient-123"}
+    assert captured["body"]["questionnaire"] == "SyphilisRegistry"

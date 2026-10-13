@@ -707,3 +707,23 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
         "birthDate": "2020-01-01",
         "gender": "female",
     }
+
+
+async def test_post_batch_job_rejects_invalid_patient_id(monkeypatch):
+    monkeypatch.setattr(batchjob, "config_errors", {})
+
+    async def _must_not_resolve(*args):
+        raise AssertionError("questionnaire resolution must not run for an invalid patientId")
+
+    monkeypatch.setattr(batchjob, "_resolve_questionnaire", _must_not_resolve)
+    body = JobRequest(
+        parameter=[
+            JobRequestParameter(name="patientId", valueString="../DocumentReference?subject=x"),
+            JobRequestParameter(name="jobPackage", valueString="SyphilisRegistry"),
+        ]
+    )
+
+    result = await batchjob.post_batch_job(body, Response(), claims={})
+
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 400

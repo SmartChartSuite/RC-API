@@ -65,13 +65,16 @@ def test_handle_passes_through_operation_outcome_errors():
     assert result["issue"][0]["diagnostics"] == "missing"
 
 
-def test_handle_wraps_non_fhir_errors_in_operation_outcome():
-    response = httpx.Response(500, json={"error": "boom"}, request=httpx.Request("GET", "http://example.test"))
+def test_handle_wraps_non_fhir_errors_without_leaking_upstream_details():
+    response = _response(500, b"internal stack trace with secrets", text=None)
 
-    result = cast(dict, fhir_proxy._handle(response, "GET", "http://example.test"))
+    result = cast(dict, fhir_proxy._handle(response, "GET", "Library"))
 
     assert result["resourceType"] == "OperationOutcome"
-    assert "FHIR server returned HTTP 500" in result["issue"][0]["diagnostics"]
+    diagnostics = result["issue"][0]["diagnostics"]
+    assert "FHIR server returned HTTP 500" in diagnostics
+    assert "http://" not in diagnostics
+    assert "secrets" not in diagnostics
 
 
 async def test_fhir_get_uses_expected_headers_and_params(monkeypatch):
@@ -93,19 +96,7 @@ async def test_fhir_get_uses_expected_headers_and_params(monkeypatch):
     ]
 
 
-async def test_fhir_post_sends_json_body(monkeypatch):
-    _FakeAsyncClient.calls = []
-    _FakeAsyncClient.queued_response = httpx.Response(201, json={"resourceType": "Library", "id": "lib-1"}, request=httpx.Request("POST", "http://example.test"))
-    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
-    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
-
-    result = await fhir_proxy.fhir_post("Library", {"resourceType": "Library", "name": "RiskLib"})
-
-    assert result == {"resourceType": "Library", "id": "lib-1"}
-    assert _FakeAsyncClient.calls[0]["json"] == {"resourceType": "Library", "name": "RiskLib"}
-
-
-async def test_fhir_put_sends_json_body(monkeypatch):
+async def test_fhir_put_sends_json_body_to_resource_url(monkeypatch):
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_response = httpx.Response(200, json={"resourceType": "Questionnaire", "id": "q-1"}, request=httpx.Request("PUT", "http://example.test"))
     monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
@@ -128,11 +119,40 @@ async def test_fhir_delete_sends_no_body(monkeypatch):
     monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
-    result = await fhir_proxy.fhir_delete("Library", "lib-1")
+    result = cast(dict, await fhir_proxy.fhir_delete("Library", "lib-1"))
 
-    assert result == {}
+    # A 204 is surfaced as an informational OperationOutcome so delete routers can validate it.
+    assert result["resourceType"] == "OperationOutcome"
+    assert result["issue"][0]["severity"] == "information"
     assert _FakeAsyncClient.calls[0] == {
         "method": "DELETE",
         "url": "http://hapi.example/fhir/Library/lib-1",
         "headers": {"Content-Type": "application/fhir+json", "Accept": "application/fhir+json"},
     }
+
+
+async def test_request_rejects_invalid_resource_id_without_calling_upstream(monkeypatch):
+    _FakeAsyncClient.calls = []
+    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
+
+    result = cast(dict, await fhir_proxy.fhir_get("Library", "../Patient/123"))
+
+    assert result["resourceType"] == "OperationOutcome"
+    assert result["issue"][0]["code"] == "invalid"
+    assert _FakeAsyncClient.calls == []
+
+
+async def test_request_converts_transport_errors_to_operation_outcome(monkeypatch):
+    class _Unreachable(_FakeAsyncClient):
+        async def request(self, *args, **kwargs):
+            raise httpx.ConnectError("connection refused to 10.1.2.3")
+
+    monkeypatch.setattr(fhir_proxy, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
+    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _Unreachable)
+
+    result = cast(dict, await fhir_proxy.fhir_get("Library", "lib-1"))
+
+    assert result["resourceType"] == "OperationOutcome"
+    assert result["issue"][0]["code"] == "transient"
+    assert "10.1.2.3" not in result["issue"][0]["diagnostics"]

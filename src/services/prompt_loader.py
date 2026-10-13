@@ -6,6 +6,7 @@ All callers use load_prompts(prompt_paths) regardless of strategy.
 """
 
 import asyncio
+import re
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from src.util.settings import (
 )
 
 _langfuse_client: Any | None = None
+_PROMPT_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
 
 
 def get_langfuse_client() -> Any | None:
@@ -81,9 +83,38 @@ def _parse_md_frontmatter(text: str) -> tuple[dict, str]:
     return {}, text.strip()
 
 
+def is_safe_prompt_path(path: str) -> bool:
+    """Return whether a Questionnaire-supplied prompt path is a safe relative identifier.
+
+    Allowed: '/'-separated segments of letters, digits, '_', '-', and '.', with no
+    empty, '.', or '..' segments and no leading '/'. This blocks directory traversal
+    and absolute paths for both local files and Langfuse prompt names.
+    """
+    if not isinstance(path, str) or not path or len(path) > 256:
+        return False
+    if path.startswith("/") or "\\" in path or "\x00" in path:
+        return False
+    segments = path.split("/")
+    return all(segment and segment not in {".", ".."} and _PROMPT_SEGMENT_RE.fullmatch(segment) for segment in segments)
+
+
+def _resolve_prompt_file(path: str) -> Path | None:
+    """Map a prompt path to a file inside prompts_dir, or None if it would escape it."""
+    if not is_safe_prompt_path(path):
+        return None
+    root = Path(prompts_dir).resolve()
+    candidate = (root / f"{path}.md").resolve()
+    if not candidate.is_relative_to(root):
+        return None
+    return candidate
+
+
 def _load_prompt_from_folder(path: str) -> Prompt | None:
     """Load one prompt from the local prompt tree."""
-    file_path = Path(prompts_dir) / f"{path}.md"
+    file_path = _resolve_prompt_file(path)
+    if file_path is None:
+        logger.warning(f"Rejected unsafe prompt path: {path!r}")
+        return None
     if not file_path.exists():
         logger.warning(f"Prompt file not found: {file_path}")
         return None
@@ -177,9 +208,19 @@ async def initialize_prompt_source() -> None:
 
 
 async def load_prompts(prompt_paths: list[str]) -> list[Prompt]:
-    """Load prompts from Langfuse (if configured) or local ./prompts/ fallback."""
-    if not prompt_paths:
+    """Load prompts from Langfuse (if configured) or local ./prompts/ fallback.
+
+    Unsafe paths are dropped before reaching either source, and duplicates are
+    removed while preserving order.
+    """
+    safe_paths: list[str] = []
+    for path in dict.fromkeys(prompt_paths):
+        if is_safe_prompt_path(path):
+            safe_paths.append(path)
+        else:
+            logger.warning(f"Rejected unsafe prompt path: {path!r}")
+    if not safe_paths:
         return []
     if use_langfuse:
-        return await _load_from_langfuse(prompt_paths)
-    return await asyncio.to_thread(_load_from_folder, prompt_paths)
+        return await _load_from_langfuse(safe_paths)
+    return await asyncio.to_thread(_load_from_folder, safe_paths)
