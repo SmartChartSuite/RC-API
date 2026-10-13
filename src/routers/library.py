@@ -4,8 +4,8 @@ from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import BundleResource, LibraryResource, OperationOutcome
-from src.services.errorhandler import config_error_for, model_or_operation_outcome, operation_outcome_responses
-from src.services.fhir_proxy import fhir_delete, fhir_get, fhir_post, fhir_put
+from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response
+from src.services.fhir_proxy import fhir_delete_with_status, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
 from src.util.settings import config_errors
 
@@ -23,7 +23,7 @@ _LIBRARY_EXAMPLE = {
 LibraryResult = LibraryResource | OperationOutcome
 
 
-@router.get("/library", summary="Search Libraries", response_model=BundleResource | OperationOutcome, responses=operation_outcome_responses(503))
+@router.get("/library", summary="Search Libraries", response_model=BundleResource | OperationOutcome, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def search_libraries(
     name: str | None = None,
     claims: dict = Security(validate_token),
@@ -38,11 +38,11 @@ async def search_libraries(
     params = {}
     if name:
         params["name"] = name
-    data = await fhir_get("Library", params=params)
-    return model_or_operation_outcome(data, BundleResource)
+    result = await fhir_get_with_status("Library", params=params)
+    return fhir_result_response(result, BundleResource)
 
 
-@router.get("/library/{resource_id}", summary="Get Library", response_model=LibraryResult, responses=operation_outcome_responses(503))
+@router.get("/library/{resource_id}", summary="Get Library", response_model=LibraryResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def get_library(
     resource_id: str,
     claims: dict = Security(validate_token),
@@ -50,11 +50,11 @@ async def get_library(
     """Get a specific Library resource by ID."""
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    data = await fhir_get("Library", resource_id)
-    return model_or_operation_outcome(data, LibraryResource)
+    result = await fhir_get_with_status("Library", resource_id)
+    return fhir_result_response(result, LibraryResource)
 
 
-@router.post("/library", summary="Create Library", response_model=LibraryResult, responses=operation_outcome_responses(503))
+@router.post("/library", summary="Create Library", response_model=LibraryResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def create_library(
     body: dict = Body(..., openapi_examples={"library": {"summary": "FHIR Library", "value": _LIBRARY_EXAMPLE}}),
     claims: dict = Security(validate_token),
@@ -62,11 +62,11 @@ async def create_library(
     """Create a new Library resource on HAPI FHIR."""
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    data = await fhir_post("Library", body)
-    return model_or_operation_outcome(data, LibraryResource)
+    result = await fhir_post_with_status("Library", body)
+    return fhir_result_response(result, LibraryResource)
 
 
-@router.put("/library/{resource_id}", summary="Update Library", response_model=LibraryResult, responses=operation_outcome_responses(503))
+@router.put("/library/{resource_id}", summary="Update Library", response_model=LibraryResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def update_library(
     resource_id: str,
     body: dict = Body(..., openapi_examples={"library": {"summary": "FHIR Library", "value": _LIBRARY_EXAMPLE}}),
@@ -75,11 +75,11 @@ async def update_library(
     """Update a Library resource."""
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    data = await fhir_put("Library", resource_id, body)
-    return model_or_operation_outcome(data, LibraryResource)
+    result = await fhir_put_with_status("Library", resource_id, body)
+    return fhir_result_response(result, LibraryResource)
 
 
-@router.delete("/library/{resource_id}", summary="Delete Library", response_model=OperationOutcome, responses=operation_outcome_responses(503))
+@router.delete("/library/{resource_id}", summary="Delete Library", response_model=OperationOutcome, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def delete_library(
     resource_id: str,
     _: None = Security(require_admin),
@@ -87,4 +87,5 @@ async def delete_library(
     """Delete a Library resource. Requires 'admin' scope."""
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    return OperationOutcome.model_validate(await fhir_delete("Library", resource_id))
+    result = await fhir_delete_with_status("Library", resource_id)
+    return fhir_result_response(result, OperationOutcome)

@@ -10,8 +10,8 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from src.models.fhir import BundleResource, GroupResource, OperationOutcome, PatientResource
-from src.services.errorhandler import config_error_for, model_or_operation_outcome, operation_outcome_responses
-from src.services.fhir_proxy import fhir_delete, fhir_get, fhir_post, fhir_put
+from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response, model_or_operation_outcome, operation_outcome_responses
+from src.services.fhir_proxy import fhir_delete_with_status, fhir_get, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
 from src.util.outbound_url import is_same_origin, resolve_http_reference
 from src.util.settings import (
@@ -104,16 +104,16 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
     return result
 
 
-@router.get("/group/{resource_id}", summary="Get Group", response_model=GroupResource | OperationOutcome, responses=operation_outcome_responses(503))
+@router.get("/group/{resource_id}", summary="Get Group", response_model=GroupResource | OperationOutcome, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def get_group(resource_id: str, claims: dict = Security(validate_token)) -> JSONResponse | GroupResource | OperationOutcome:
     """Get a specific Group resource by ID from HAPI FHIR."""
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    data = await fhir_get("Group", resource_id)
-    return model_or_operation_outcome(data, GroupResource)
+    result = await fhir_get_with_status("Group", resource_id)
+    return fhir_result_response(result, GroupResource)
 
 
-@router.post("/group", summary="Create Group", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
+@router.post("/group", summary="Create Group", response_model=GroupWriteResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def create_group(
     body: dict = Body(..., openapi_examples={"group": {"summary": "FHIR Group", "value": _GROUP_EXAMPLE}}),
     claims: dict = Security(validate_token),
@@ -121,11 +121,11 @@ async def create_group(
     """Create a new Group resource on HAPI FHIR."""
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    data = await fhir_post("Group", body)
-    return model_or_operation_outcome(data, GroupResource)
+    result = await fhir_post_with_status("Group", body)
+    return fhir_result_response(result, GroupResource)
 
 
-@router.put("/group/{resource_id}", summary="Update Group", response_model=GroupWriteResult, responses=operation_outcome_responses(503))
+@router.put("/group/{resource_id}", summary="Update Group", response_model=GroupWriteResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def update_group(
     resource_id: str,
     body: dict = Body(..., openapi_examples={"group": {"summary": "FHIR Group", "value": _GROUP_EXAMPLE}}),
@@ -134,13 +134,14 @@ async def update_group(
     """Update an existing Group resource."""
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    data = await fhir_put("Group", resource_id, body)
-    return model_or_operation_outcome(data, GroupResource)
+    result = await fhir_put_with_status("Group", resource_id, body)
+    return fhir_result_response(result, GroupResource)
 
 
-@router.delete("/group/{resource_id}", summary="Delete Group", response_model=OperationOutcome, responses=operation_outcome_responses(503))
+@router.delete("/group/{resource_id}", summary="Delete Group", response_model=OperationOutcome, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def delete_group(resource_id: str, claims: None = Security(require_admin)) -> JSONResponse | OperationOutcome:
     """Delete a Group resource. Requires 'admin' scope."""
     if err := config_error_for(config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    return OperationOutcome.model_validate(await fhir_delete("Group", resource_id))
+    result = await fhir_delete_with_status("Group", resource_id)
+    return fhir_result_response(result, OperationOutcome)

@@ -1,8 +1,9 @@
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import GroupResource, OperationOutcome, PatientResource
+from src.models.fhir import GroupResource, PatientResource
 from src.routers import group
 from src.services import fhir_proxy
+from src.services.fhir_proxy import FHIRProxyResponse
 from tests.fakes import FailingAsyncClient as _FailingClient
 from tests.fakes import FakeAsyncClient as _FakeAsyncClient
 from tests.fakes import FakeResponse as _FakeResponse
@@ -63,7 +64,8 @@ async def test_get_group_returns_operation_outcome(monkeypatch):
                 {
                     "resourceType": "OperationOutcome",
                     "issue": [{"severity": "error", "code": "not-found", "diagnostics": "missing group"}],
-                }
+                },
+                status_code=404,
             )
         ]
     ]
@@ -74,18 +76,19 @@ async def test_get_group_returns_operation_outcome(monkeypatch):
 
     result = await group.get_group("missing", claims={})
 
-    assert isinstance(result, OperationOutcome)
-    assert result.issue[0].diagnostics == "missing group"
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 404
+    assert bytes(result.body).decode("utf-8") == '{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"not-found","diagnostics":"missing group"}]}'
 
 
 async def test_create_group_returns_group_resource(monkeypatch):
-    async def _fake_fhir_post(resource_type, body):
+    async def _fake_fhir_post_with_status(resource_type, body):
         assert resource_type == "Group"
         assert body["name"] == "Panel"
-        return {"resourceType": "Group", "id": "group-1", "name": "Panel"}
+        return FHIRProxyResponse(data={"resourceType": "Group", "id": "group-1", "name": "Panel"}, status_code=201)
 
     monkeypatch.setattr(group, "config_errors", {})
-    monkeypatch.setattr(group, "fhir_post", _fake_fhir_post)
+    monkeypatch.setattr(group, "fhir_post_with_status", _fake_fhir_post_with_status)
 
     result = await group.create_group({"resourceType": "Group", "name": "Panel"}, claims={})
 

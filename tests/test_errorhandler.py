@@ -1,4 +1,9 @@
-from src.models.fhir import LibraryResource, OperationOutcome
+from typing import cast
+
+import pytest
+from fastapi.responses import JSONResponse
+
+from src.models.fhir import FHIRProxyResponse, FHIRProxyResult, LibraryResource, OperationOutcome
 from src.services import errorhandler
 
 
@@ -27,3 +32,27 @@ def test_model_or_operation_outcome_validates_resource_or_error():
 
     assert isinstance(library, LibraryResource)
     assert isinstance(outcome, OperationOutcome)
+
+
+@pytest.mark.parametrize(
+    ("status_code", "error_type", "expected_status"),
+    [
+        (404, None, 404),
+        (302, None, 502),
+        (401, None, 502),
+        (500, None, 502),
+        (504, None, 502),
+        (504, "timeout", 504),
+        (502, "transport", 502),
+        (400, None, 400),
+    ],
+)
+def test_fhir_result_response_maps_proxy_statuses(status_code, error_type, expected_status):
+    data = cast(FHIRProxyResult, {"resourceType": "OperationOutcome", "issue": [{"severity": "error", "code": "invalid", "diagnostics": "safe"}]})
+
+    result = FHIRProxyResponse(data=data, status_code=status_code, error_type=error_type)
+    response = errorhandler.fhir_result_response(result, LibraryResource)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == expected_status
+    assert bytes(response.body).decode("utf-8") == '{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"invalid","diagnostics":"safe"}]}'

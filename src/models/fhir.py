@@ -1,5 +1,6 @@
 """Shared FHIR response models used by router output typing."""
 
+from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias, TypedDict
 
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -111,6 +112,15 @@ class LibraryJSON(TypedDict, total=False):
 
 
 FHIRProxyResult: TypeAlias = BundleJSON | GroupJSON | PatientJSON | QuestionnaireJSON | LibraryJSON | OperationOutcomeJSON | FHIRResourceJSON
+
+
+@dataclass(frozen=True)
+class FHIRProxyResponse:
+    """FHIR payload plus the upstream or proxy status needed by HTTP routes."""
+
+    data: FHIRProxyResult
+    status_code: int
+    error_type: Literal["timeout", "transport"] | None = None
 
 
 class FHIRBaseModel(BaseModel):

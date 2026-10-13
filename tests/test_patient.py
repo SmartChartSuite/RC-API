@@ -1,7 +1,7 @@
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
-from src.models.fhir import BundleResource, OperationOutcome, PatientResource
+from src.models.fhir import BundleResource, PatientResource
 from src.routers import patient
 from tests.fakes import FailingAsyncClient as _FailingClient
 from tests.fakes import FakeAsyncClient as _FakeAsyncClient
@@ -74,8 +74,9 @@ async def test_get_patient_returns_operation_outcome(monkeypatch):
 
     result = await patient.get_patient("missing", claims={})
 
-    assert isinstance(result, OperationOutcome)
-    assert result.issue[0].diagnostics == "missing patient"
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 404
+    assert bytes(result.body).decode("utf-8") == '{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"not-found","diagnostics":"missing patient"}]}'
 
 
 async def test_search_patients_returns_config_error(monkeypatch):
@@ -96,5 +97,9 @@ async def test_search_patients_handles_request_errors(monkeypatch):
 
     result = await patient.search_patients(request, claims={})
 
-    assert isinstance(result, OperationOutcome)
-    assert result.issue[0].code == "transient"
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 502
+    assert (
+        bytes(result.body).decode("utf-8")
+        == '{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"transient","diagnostics":"External FHIR server request failed for GET Patient"}]}'
+    )
