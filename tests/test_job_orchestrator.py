@@ -3,6 +3,7 @@ import threading
 from src.models.prompt import Prompt, PromptMetadata
 from src.services import job_orchestrator
 from src.services.cql_executor import CqlResult
+from src.services.fhir_context import DocumentFetchResult
 from src.services.job_state import LogicalJob
 from src.services.llm_executor import LlmDocumentResult, LlmResult
 
@@ -371,7 +372,7 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
         return [Prompt(metadata=PromptMetadata(name="a", path="prompts/a"), content="prompt")]
 
     async def _fake_fetch_patient_documents(patient_id):
-        return [{"id": "doc-1", "text": "note", "date": "2026-05-22"}]
+        return DocumentFetchResult(documents=[{"id": "doc-1", "text": "note", "date": "2026-05-22"}], excluded=[])
 
     trace_context: dict = {}
 
@@ -403,6 +404,66 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
     assert updates == [
         (
             ("job-123", "error", {"message": "no llm result returned for prompt"}),
+            {"batch_id": "batch-1", "worker_id": "worker-1", "attempt_count": 1},
+        )
+    ]
+
+
+async def test_run_batch_job_records_excluded_documents_when_llm_is_skipped(monkeypatch):
+    updates = []
+
+    async def _fake_fhir_get(resource_type, resource_id):
+        assert resource_type == "Questionnaire"
+        return {
+            "resourceType": "Questionnaire",
+            "name": "RegistryForm",
+            "extension": [
+                {
+                    "url": job_orchestrator._LLM_JOB_LIST_URL,
+                    "extension": [{"valueString": "prompts/a"}],
+                }
+            ],
+            "item": [],
+        }
+
+    async def _fake_load_prompts(prompt_paths):
+        return [Prompt(metadata=PromptMetadata(name="a", path="prompts/a"), content="prompt")]
+
+    async def _fake_fetch_patient_documents(patient_id):
+        return DocumentFetchResult(documents=[], excluded=[{"doc_id": "doc-oversized", "reason": "exceeds_max_bytes"}])
+
+    async def _fake_fetch_patient_resource(patient_id):
+        return None
+
+    monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
+    monkeypatch.setattr(job_orchestrator, "load_prompts", _fake_load_prompts)
+    monkeypatch.setattr(job_orchestrator, "fetch_patient_documents", _fake_fetch_patient_documents)
+    monkeypatch.setattr(job_orchestrator, "ensure_job", lambda *args, **kwargs: LogicalJob("job-123", "running", None))
+    monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: not updates.append((args, kwargs)))
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
+    monkeypatch.setattr(job_orchestrator, "use_llm", True)
+
+    await job_orchestrator.run_batch_job(
+        "batch-1",
+        "patient-1",
+        "RegistryForm",
+        "questionnaire-1",
+        worker_id="worker-1",
+        attempt_count=1,
+    )
+
+    assert updates == [
+        (
+            (
+                "job-123",
+                "skipped",
+                {
+                    "message": "skipped — no supporting documents",
+                    "excluded_documents": [{"doc_id": "doc-oversized", "reason": "exceeds_max_bytes"}],
+                },
+            ),
             {"batch_id": "batch-1", "worker_id": "worker-1", "attempt_count": 1},
         )
     ]

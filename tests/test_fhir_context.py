@@ -52,7 +52,7 @@ async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypa
 
     result = await fhir_context.fetch_patient_documents("patient-123")
 
-    assert result == [
+    assert result.documents == [
         {
             "id": "doc-1",
             "type": "Visit Note",
@@ -80,6 +80,7 @@ async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypa
             },
         },
     ]
+    assert result.excluded == []
     assert _FakeAsyncClient.calls[0] == {
         "url": "http://external.example/fhir/DocumentReference",
         "headers": {"Accept": "application/fhir+json", "Authorization": "Bearer token"},
@@ -126,7 +127,8 @@ async def test_fetch_patient_documents_ignores_non_text_attachments(monkeypatch)
 
     result = await fhir_context.fetch_patient_documents("patient-123")
 
-    assert result == []
+    assert result.documents == []
+    assert result.excluded == []
 
 
 async def test_fetch_patient_documents_blocks_internal_attachment_hosts(monkeypatch):
@@ -146,7 +148,8 @@ async def test_fetch_patient_documents_blocks_internal_attachment_hosts(monkeypa
 
     result = await fhir_context.fetch_patient_documents("patient-123")
 
-    assert result == []
+    assert result.documents == []
+    assert result.excluded == [{"doc_id": "doc-1", "reason": "host_not_allowed"}]
     assert len(_FakeAsyncClient.calls) == 1  # only the DocumentReference search
 
 
@@ -166,12 +169,12 @@ async def test_fetch_patient_documents_allows_same_origin_relative_attachment(mo
 
     result = await fhir_context.fetch_patient_documents("patient-123")
 
-    assert [doc["text"] for doc in result] == ["binary note"]
+    assert [doc["text"] for doc in result.documents] == ["binary note"]
     assert _FakeAsyncClient.calls[1]["url"] == "http://external.example/fhir/Binary/abc"
     assert _FakeAsyncClient.calls[1]["headers"]["Authorization"] == "Bearer token"
 
 
-async def test_fetch_patient_documents_skips_oversized_attachments(monkeypatch):
+async def test_fetch_patient_documents_reports_exclusions_and_returns_normal_documents(monkeypatch):
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_responses = [
         [
@@ -179,21 +182,35 @@ async def test_fetch_patient_documents_skips_oversized_attachments(monkeypatch):
                 {
                     "resourceType": "Bundle",
                     "entry": [
-                        {"resource": {"resourceType": "DocumentReference", "id": "inline", "content": [{"attachment": {"contentType": "text/plain", "data": base64.b64encode(b"x" * 100).decode()}}]}},
-                        {"resource": {"resourceType": "DocumentReference", "id": "remote", "content": [{"attachment": {"contentType": "text/plain", "url": "Binary/big"}}]}},
+                        {
+                            "resource": {
+                                "resourceType": "DocumentReference",
+                                "id": "oversized",
+                                "content": [{"attachment": {"contentType": "text/plain", "data": base64.b64encode(b"x" * 100).decode()}}],
+                            }
+                        },
+                        {"resource": {"resourceType": "DocumentReference", "id": "blocked", "content": [{"attachment": {"contentType": "text/plain", "url": "https://blocked.example/note.txt"}}]}},
+                        {"resource": {"resourceType": "DocumentReference", "id": "normal", "content": [{"attachment": {"contentType": "text/plain", "data": base64.b64encode(b"note").decode()}}]}},
                     ],
                 }
-            ),
-            _FakeResponse(text="y" * 100),
+            )
         ],
     ]
     monkeypatch.setattr(fhir_context, "external_fhir_server_url", "http://external.example/fhir")
     monkeypatch.setattr(fhir_context, "doc_max_bytes", 10)
+    monkeypatch.setattr(fhir_context, "attachment_allowed_hosts", [])
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await fhir_context.fetch_patient_documents("patient-123")
 
-    assert result == []
+    assert [doc["id"] for doc in result.documents] == ["normal"]
+    assert result.documents[0]["text"] == "note"
+    assert result.excluded == [
+        {"doc_id": "oversized", "reason": "exceeds_max_bytes"},
+        {"doc_id": "blocked", "reason": "host_not_allowed"},
+    ]
+    assert "blocked.example" not in str(result.excluded)
+    assert "https://" not in str(result.excluded)
 
 
 async def test_fetch_patient_documents_caps_document_count(monkeypatch):
@@ -208,4 +225,5 @@ async def test_fetch_patient_documents_caps_document_count(monkeypatch):
 
     result = await fhir_context.fetch_patient_documents("patient-123")
 
-    assert [doc["id"] for doc in result] == ["doc-0", "doc-1"]
+    assert [doc["id"] for doc in result.documents] == ["doc-0", "doc-1"]
+    assert result.excluded == [{"reason": "exceeds_max_count", "count": 3}]

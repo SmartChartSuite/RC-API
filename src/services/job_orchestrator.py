@@ -709,7 +709,13 @@ async def run_batch_job(
 
     task_results: list[dict] = []
     job_ids_by_task: dict[tuple[str, str], str] = {}
+    excluded_documents: list[dict] = []
     heartbeat_task: asyncio.Task[None] | None = None
+
+    def _with_excluded_documents(payload: dict) -> dict:
+        if excluded_documents:
+            payload["excluded_documents"] = excluded_documents
+        return payload
 
     def _require_owned(updated: bool) -> None:
         if not updated:
@@ -804,36 +810,43 @@ async def run_batch_job(
         # 3. Concurrently load prompts and fetch patient documents when LLM jobs still need to run.
         #    A failed DocumentReference search raises DocumentFetchError, failing this attempt so the
         #    worker retries it — only a successful, empty search marks prompts as skipped.
-        prompts = documents = []
+        prompts = []
+        documents: list[dict] = []
         if prompt_paths_to_run:
-            prompts, documents = await _gather_supervised(load_prompts(prompt_paths_to_run), fetch_patient_documents(patient_id))
+            prompts, document_fetch_result = await _gather_supervised(load_prompts(prompt_paths_to_run), fetch_patient_documents(patient_id))
+            documents = document_fetch_result.documents
+            excluded_documents = document_fetch_result.excluded
             if not documents:
                 logger.info(f"[batch={batch_id}] No DocumentReferences found — skipping LLM execution")
                 for path in prompt_paths_to_run:
                     job_id = job_ids_by_task.get(("unstructured", path))
                     if job_id:
-                        await _update_task(job_id, "skipped", {"message": "skipped — no supporting documents"})
+                        await _update_task(job_id, "skipped", _with_excluded_documents({"message": "skipped — no supporting documents"}))
                     task_results.append(
-                        {
-                            "task_name": path,
-                            "task_type": "unstructured",
-                            "status": "skipped",
-                            "result": "skipped — no supporting documents",
-                        }
+                        _with_excluded_documents(
+                            {
+                                "task_name": path,
+                                "task_type": "unstructured",
+                                "status": "skipped",
+                                "result": "skipped — no supporting documents",
+                            }
+                        )
                     )
             elif not use_llm:
                 logger.info(f"[batch={batch_id}] LiteLLM is not configured — skipping LLM execution")
                 for path in prompt_paths_to_run:
                     job_id = job_ids_by_task.get(("unstructured", path))
                     if job_id:
-                        await _update_task(job_id, "skipped", {"message": "skipped — llm not configured"})
+                        await _update_task(job_id, "skipped", _with_excluded_documents({"message": "skipped — llm not configured"}))
                     task_results.append(
-                        {
-                            "task_name": path,
-                            "task_type": "unstructured",
-                            "status": "skipped",
-                            "result": "skipped — llm not configured",
-                        }
+                        _with_excluded_documents(
+                            {
+                                "task_name": path,
+                                "task_type": "unstructured",
+                                "status": "skipped",
+                                "result": "skipped — llm not configured",
+                            }
+                        )
                     )
 
         # 4. Rebuild terminal task output, then checkpoint the retry-safe partial Bundle.
@@ -893,10 +906,11 @@ async def run_batch_job(
             async with snapshot_lock:
                 task_name = llm_result.prompt_path
                 status, result_payload = _summarize_llm_result(llm_result)
+                result_payload = _with_excluded_documents(result_payload)
                 job_id = job_ids_by_task.get(("unstructured", task_name))
                 if job_id:
                     await _update_task(job_id, status, result_payload)
-                task_results.append({"task_name": task_name, "task_type": "unstructured", "status": status})
+                task_results.append(_with_excluded_documents({"task_name": task_name, "task_type": "unstructured", "status": status}))
                 llm_entries_by_path[task_name] = _build_llm_observations([llm_result], questionnaire, form_name, patient_id)
                 await _persist_partial_bundle()
 
@@ -947,8 +961,8 @@ async def run_batch_job(
                 logger.warning(f"[batch={batch_id}] No LLM result returned for prompt '{prompt_path}'")
                 job_id = job_ids_by_task.get(("unstructured", prompt_path))
                 if job_id:
-                    await _update_task(job_id, "error", {"message": "no llm result returned for prompt"})
-                task_results.append({"task_name": prompt_path, "task_type": "unstructured", "status": "error"})
+                    await _update_task(job_id, "error", _with_excluded_documents({"message": "no llm result returned for prompt"}))
+                task_results.append(_with_excluded_documents({"task_name": prompt_path, "task_type": "unstructured", "status": "error"}))
                 await _persist_partial_bundle()
 
         # 5. Fetch the Patient resource and assemble the final Bundle.
