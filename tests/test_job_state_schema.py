@@ -112,6 +112,87 @@ def test_orm_timestamp_defaults_are_evaluated_per_insert(monkeypatch):
     assert first_created_at < second_created_at
 
 
+def test_query_batch_jobs_paginates_and_defers_result_bundle(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+
+    timestamp = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    with Session(engine) as session:
+        session.add_all(
+            [
+                job_state.BatchJobs(
+                    batch_id="batch-z",
+                    patient_id="patient-z",
+                    job_package="Registry",
+                    status="complete",
+                    result_bundle={"payload": "z"},
+                    created_at=timestamp,
+                ),
+                job_state.BatchJobs(
+                    batch_id="batch-a",
+                    patient_id="patient-a",
+                    job_package="Registry",
+                    status="complete",
+                    result_bundle={"payload": "a"},
+                    created_at=timestamp,
+                ),
+                job_state.BatchJobs(
+                    batch_id="batch-mid",
+                    patient_id="patient-mid",
+                    job_package="Registry",
+                    status="complete",
+                    result_bundle={"payload": "mid"},
+                    created_at=timestamp - timedelta(minutes=1),
+                ),
+                job_state.BatchJobs(
+                    batch_id="batch-running",
+                    patient_id="patient-running",
+                    job_package="Registry",
+                    status="running",
+                    result_bundle={"payload": "running"},
+                    created_at=timestamp,
+                ),
+                job_state.BatchJobs(
+                    batch_id="batch-other",
+                    patient_id="patient-other",
+                    job_package="OtherRegistry",
+                    status="complete",
+                    result_bundle={"payload": "other"},
+                    created_at=timestamp,
+                ),
+                job_state.BatchJobs(
+                    batch_id="batch-old",
+                    patient_id="patient-old",
+                    job_package="Registry",
+                    status="complete",
+                    result_bundle={"payload": "old"},
+                    created_at=timestamp - timedelta(days=1),
+                ),
+            ]
+        )
+        session.commit()
+
+    filters = {
+        "statuses": ["complete"],
+        "job_package": "registry",
+        "run_start_date": timestamp.date(),
+        "run_end_date": timestamp.date(),
+    }
+    first_page, total = job_state.query_batch_jobs(**filters, limit=2, offset=0)
+    second_page, second_total = job_state.query_batch_jobs(**filters, limit=1, offset=1)
+
+    assert total == 3
+    assert second_total == 3
+    assert [job.batch_id for job in first_page] == ["batch-z", "batch-a"]
+    assert [job.batch_id for job in second_page] == ["batch-a"]
+    assert all("result_bundle" in sqlalchemy.inspect(job).unloaded for job in first_page + second_page)
+
+    summary = job_state.get_batch_job_summary("batch-z")
+    assert summary is not None
+    assert "result_bundle" in sqlalchemy.inspect(summary).unloaded
+
+
 def test_get_responses_for_batches_returns_deterministic_mapping(monkeypatch):
     engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
     monkeypatch.setattr(job_state, "db_engine", engine)

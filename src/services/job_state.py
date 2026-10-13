@@ -37,7 +37,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, defer, mapped_column
 from sqlalchemy.schema import CreateSchema
 
 from src.services.errorhandler import make_operation_outcome
@@ -199,6 +199,13 @@ def get_batch_job(batch_id: str) -> BatchJobs | None:
         return session.get(BatchJobs, batch_id)
 
 
+def get_batch_job_summary(batch_id: str) -> BatchJobs | None:
+    """Return batch metadata without loading the potentially large result Bundle."""
+    stmt = select(BatchJobs).options(defer(BatchJobs.result_bundle)).where(BatchJobs.batch_id == batch_id)
+    with Session(db_engine) as session:
+        return session.scalar(stmt)
+
+
 def query_batch_jobs(
     *,
     statuses: list[str] | None = None,
@@ -206,19 +213,22 @@ def query_batch_jobs(
     questionnaire_response_statuses: list[str] | None = None,
     run_start_date: date | None = None,
     run_end_date: date | None = None,
-) -> list[BatchJobs]:
-    """Return batch jobs filtered at the database level.
+    limit: int | None = None,
+    offset: int = 0,
+) -> tuple[list[BatchJobs], int]:
+    """Return database-filtered batch jobs and their total count.
 
     Filters that depend on external Patient data are applied by the caller.
-    Results are ordered newest-first.
+    Results are ordered newest-first with a batch ID tie-breaker. The result
+    Bundle is deferred because list and status callers only need batch metadata.
     """
-    stmt = select(BatchJobs)
+    filtered_stmt = select(BatchJobs)
     if statuses:
-        stmt = stmt.where(func.lower(BatchJobs.status).in_(statuses))
+        filtered_stmt = filtered_stmt.where(func.lower(BatchJobs.status).in_(statuses))
     if job_package:
-        stmt = stmt.where(func.lower(BatchJobs.job_package) == job_package.casefold())
+        filtered_stmt = filtered_stmt.where(func.lower(BatchJobs.job_package) == job_package.casefold())
     if questionnaire_response_statuses:
-        stmt = stmt.where(
+        filtered_stmt = filtered_stmt.where(
             exists(
                 select(QuestionnaireResponses.response_id).where(
                     QuestionnaireResponses.batch_job_id == BatchJobs.batch_id,
@@ -227,12 +237,22 @@ def query_batch_jobs(
             )
         )
     if run_start_date is not None:
-        stmt = stmt.where(BatchJobs.created_at >= datetime.combine(run_start_date, time.min, tzinfo=UTC))
+        filtered_stmt = filtered_stmt.where(BatchJobs.created_at >= datetime.combine(run_start_date, time.min, tzinfo=UTC))
     if run_end_date is not None:
-        stmt = stmt.where(BatchJobs.created_at < datetime.combine(run_end_date, time.min, tzinfo=UTC) + timedelta(days=1))
-    stmt = stmt.order_by(BatchJobs.created_at.desc())
+        filtered_stmt = filtered_stmt.where(BatchJobs.created_at < datetime.combine(run_end_date, time.min, tzinfo=UTC) + timedelta(days=1))
+
+    count_subquery = filtered_stmt.with_only_columns(BatchJobs.batch_id, maintain_column_froms=True).subquery()
+    count_stmt = select(func.count()).select_from(count_subquery)
+    stmt = filtered_stmt.options(defer(BatchJobs.result_bundle)).order_by(BatchJobs.created_at.desc(), BatchJobs.batch_id.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    if offset:
+        stmt = stmt.offset(offset)
+
     with Session(db_engine) as session:
-        return list(session.execute(stmt).scalars().all())
+        total = session.scalar(count_stmt) or 0
+        jobs = list(session.execute(stmt).scalars().all())
+    return jobs, total
 
 
 def create_batch_job_with_response(

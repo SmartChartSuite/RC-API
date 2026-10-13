@@ -21,6 +21,7 @@ from src.services.job_state import (
     create_batch_job_with_response,
     delete_batch_job_record,
     get_batch_job,
+    get_batch_job_summary,
     get_jobs_for_batch,
     get_responses_for_batches,
     query_batch_jobs,
@@ -351,7 +352,7 @@ async def post_batch_job(
 async def list_batch_jobs(
     include_patient: bool = False,
     page: Annotated[int, Query(ge=0, description="Zero-based page number.")] = 0,
-    size: Annotated[int, Query(ge=1, description="Number of batch jobs to return per page.")] = 10,
+    size: Annotated[int, Query(ge=1, le=100, description="Number of batch jobs to return per page (maximum 100).")] = 10,
     questionnaire_response_status: Annotated[str | None, Query(alias="questionnaireResponseStatus")] = None,
     patient_name: Annotated[str | None, Query(alias="patientName")] = None,
     patient_gender: Annotated[str | None, Query(alias="patientGender")] = None,
@@ -390,19 +391,18 @@ async def list_batch_jobs(
     questionnaire_response_statuses = _parse_csv_filter(questionnaire_response_status)
     patient_genders = _parse_csv_filter(patient_gender)
 
-    all_jobs: list[BatchJobs] = query_batch_jobs(
-        statuses=batch_job_statuses,
-        job_package=job_package_filter,
-        questionnaire_response_statuses=questionnaire_response_statuses,
-        run_start_date=run_start,
-        run_end_date=run_end,
-    )
-
     start = page * size
-    end = start + size
     has_patient_filters = bool(patient_name or patient_genders or dob_start or dob_end)
 
     if has_patient_filters:
+        # Patient filters require external FHIR data, so filter all DB-matched jobs in Python before paging.
+        all_jobs, _ = query_batch_jobs(
+            statuses=batch_job_statuses,
+            job_package=job_package_filter,
+            questionnaire_response_statuses=questionnaire_response_statuses,
+            run_start_date=run_start,
+            run_end_date=run_end,
+        )
         patients_by_id = await _fetch_patients([job.patient_id for job in all_jobs])
         filtered_jobs: list[tuple[BatchJobs, dict[str, Any] | None]] = []
         for job in all_jobs:
@@ -420,11 +420,18 @@ async def list_batch_jobs(
             filtered_jobs.append((job, patient))
 
         total = len(filtered_jobs)
-        page_jobs = filtered_jobs[start:end]
+        page_jobs = filtered_jobs[start : start + size]
     else:
-        selected_jobs = all_jobs[start:end]
+        selected_jobs, total = query_batch_jobs(
+            statuses=batch_job_statuses,
+            job_package=job_package_filter,
+            questionnaire_response_statuses=questionnaire_response_statuses,
+            run_start_date=run_start,
+            run_end_date=run_end,
+            limit=size,
+            offset=start,
+        )
         patients_by_id = await _fetch_patients([job.patient_id for job in selected_jobs])
-        total = len(all_jobs)
         page_jobs = [(job, patients_by_id[job.patient_id]) for job in selected_jobs]
 
     responses_by_batch = get_responses_for_batches([job.batch_id for job, _ in page_jobs])
@@ -526,7 +533,7 @@ async def get_batch_job_status(
     the result Bundle. Use ``GET /batchjob/{id}`` to retrieve the latest stored
     partial or final Bundle.
     """
-    job = get_batch_job(batch_id)
+    job = get_batch_job_summary(batch_id)
     if not job:
         return operation_outcome_response(404, "not-found", f"Batch Job ID {batch_id} was not found.")
     patient = await _fetch_patient(job.patient_id)
