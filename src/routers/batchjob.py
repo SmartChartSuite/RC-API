@@ -29,6 +29,7 @@ from src.services.job_state import (
 from src.util.auth import require_admin, validate_token
 from src.util.outbound_url import is_valid_fhir_id
 from src.util.settings import settings
+from src.util.threading import run_db
 
 router = APIRouter(tags=["Batch Jobs"])
 
@@ -306,7 +307,8 @@ async def post_batch_job(
         "item": _prefill_questionnaire_response_items(questionnaire.get("item")),
     }
 
-    created = create_batch_job_with_response(
+    created = await run_db(
+        create_batch_job_with_response,
         batch_id,
         patient_id,
         job_package,
@@ -396,7 +398,8 @@ async def list_batch_jobs(
 
     if has_patient_filters:
         # Patient filters require external FHIR data, so filter all DB-matched jobs in Python before paging.
-        all_jobs, _ = query_batch_jobs(
+        all_jobs, _ = await run_db(
+            query_batch_jobs,
             statuses=batch_job_statuses,
             job_package=job_package_filter,
             questionnaire_response_statuses=questionnaire_response_statuses,
@@ -422,7 +425,8 @@ async def list_batch_jobs(
         total = len(filtered_jobs)
         page_jobs = filtered_jobs[start : start + size]
     else:
-        selected_jobs, total = query_batch_jobs(
+        selected_jobs, total = await run_db(
+            query_batch_jobs,
             statuses=batch_job_statuses,
             job_package=job_package_filter,
             questionnaire_response_statuses=questionnaire_response_statuses,
@@ -434,7 +438,7 @@ async def list_batch_jobs(
         patients_by_id = await _fetch_patients([job.patient_id for job in selected_jobs])
         page_jobs = [(job, patients_by_id[job.patient_id]) for job in selected_jobs]
 
-    responses_by_batch = get_responses_for_batches([job.batch_id for job, _ in page_jobs])
+    responses_by_batch = await run_db(get_responses_for_batches, [job.batch_id for job, _ in page_jobs])
     results = [
         {
             "resource": _to_batch_job_parameters(
@@ -489,7 +493,7 @@ async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_
     ``partial`` job returns its stored Bundle in the same way as ``complete``.
     Pending or running jobs without a stored snapshot return HTTP 202.
     """
-    job = get_batch_job(batch_id)
+    job = await run_db(get_batch_job, batch_id)
     if not job:
         return operation_outcome_response(
             404,
@@ -497,7 +501,7 @@ async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_
             f"Batch Job ID {batch_id} was not found.",
         )
     if job.result_bundle and job.result_bundle.get("resourceType") == "Bundle":
-        child_jobs = get_jobs_for_batch(batch_id)
+        child_jobs = await run_db(get_jobs_for_batch, batch_id)
         return BundleJSON(**_with_batch_progress(job.result_bundle, child_jobs, job.status))
     if job.status in ("pending", "running"):
         return operation_outcome_response(
@@ -533,15 +537,15 @@ async def get_batch_job_status(
     the result Bundle. Use ``GET /batchjob/{id}`` to retrieve the latest stored
     partial or final Bundle.
     """
-    job = get_batch_job_summary(batch_id)
+    job = await run_db(get_batch_job_summary, batch_id)
     if not job:
         return operation_outcome_response(404, "not-found", f"Batch Job ID {batch_id} was not found.")
     patient = await _fetch_patient(job.patient_id)
-    response = get_responses_for_batches([batch_id]).get(batch_id)
+    response = (await run_db(get_responses_for_batches, [batch_id])).get(batch_id)
     return _to_batch_job_parameters(job, response=response, patient=patient, include_patient_resource=include_patient)
 
 
 @router.delete("/batchjob/{batch_id}", summary="Delete Batch Job")
 async def delete_batch_job(batch_id: str, claims: None = Security(require_admin)):
     """Delete a batch job and its child jobs. Requires 'admin' scope."""
-    return delete_batch_job_record(batch_id)
+    return await run_db(delete_batch_job_record, batch_id)

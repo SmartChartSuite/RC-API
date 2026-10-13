@@ -20,6 +20,7 @@ from src.services.job_state import (
     update_response_body,
 )
 from src.util.auth import require_admin, validate_token
+from src.util.threading import run_db
 
 router = APIRouter(tags=["Responses"])
 
@@ -79,7 +80,7 @@ async def search_responses(
     Results can be filtered by ``batch_job_id`` and/or ``job_package`` and are
     returned from the local application database rather than proxied to HAPI FHIR.
     """
-    records = get_responses(batch_job_id=batch_job_id, job_package=job_package)
+    records = await run_db(get_responses, batch_job_id=batch_job_id, job_package=job_package)
     return _to_response_bundle(records)
 
 
@@ -94,7 +95,7 @@ async def get_response_record(
     claims: dict = Security(validate_token),
 ) -> QuestionnaireResponseResource | JSONResponse:
     """Get a stored QuestionnaireResponse resource by local response ID."""
-    record = get_response(response_id)
+    record = await run_db(get_response, response_id)
     if not record:
         return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
     return QuestionnaireResponseResource.model_validate(_normalize_questionnaire_response(record.response_id, record.response))
@@ -133,7 +134,7 @@ async def create_response_record(
     if missing or not job_package or not patient_id:
         return operation_outcome_response(400, "required", f"Missing required parameter(s): {missing}")
 
-    batch = get_batch_job(batch_job_id)
+    batch = await run_db(get_batch_job, batch_job_id)
     if batch is None:
         return operation_outcome_response(404, "not-found", f"Batch job {batch_job_id} was not found.")
     if batch.patient_id != patient_id:
@@ -147,7 +148,8 @@ async def create_response_record(
     normalized_meta["lastUpdated"] = now.isoformat()
     normalized_response["meta"] = normalized_meta
     normalized_response["authored"] = now.isoformat()
-    created = create_response(
+    created = await run_db(
+        create_response,
         response_id,
         batch_job_id,
         job_package,
@@ -174,7 +176,7 @@ async def update_response_record(
     to persist for the given local ``response_id``. The ``subject`` and
     ``questionnaire`` linkage of a stored response cannot be changed.
     """
-    existing = get_response(response_id)
+    existing = await run_db(get_response, response_id)
     if existing is None:
         return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
     new_patient_id = _extract_patient_id(body)
@@ -191,7 +193,7 @@ async def update_response_record(
     normalized_meta["lastUpdated"] = now.isoformat()
     normalized_response["meta"] = normalized_meta
     normalized_response["authored"] = now.isoformat()
-    updated = update_response_body(response_id, normalized_response, claims.get("sub", "unknown"), now)
+    updated = await run_db(update_response_body, response_id, normalized_response, claims.get("sub", "unknown"), now)
     if not updated:
         return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
     return OperationOutcome(issue=[OperationOutcomeIssue(severity="information", code="informational", diagnostics=f"Response {response_id} updated.")])
@@ -203,4 +205,4 @@ async def delete_response(
     _: None = Security(require_admin),
 ):
     """Delete a questionnaire response. Requires 'admin' scope."""
-    return delete_response_record(response_id)
+    return await run_db(delete_response_record, response_id)

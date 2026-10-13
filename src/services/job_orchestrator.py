@@ -14,12 +14,12 @@ import base64
 import json
 import re
 import uuid
-from collections.abc import Callable, Coroutine, Iterator
+from collections.abc import Coroutine, Iterator
 from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, ParamSpec, TypeVar, cast
+from typing import Any, cast
 
 from loguru import logger
 
@@ -39,6 +39,7 @@ from src.services.job_state import (
 from src.services.llm_executor import LlmDocumentResult, LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
 from src.util.settings import settings
+from src.util.threading import run_db
 
 # Questionnaire extension URLs
 _CQL_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/structured-form-job-list"
@@ -52,17 +53,7 @@ class LeaseLostError(RuntimeError):
     """Raised when a worker attempt no longer owns its batch lease."""
 
 
-_StateParams = ParamSpec("_StateParams")
-_StateResult = TypeVar("_StateResult")
-
-
-async def _run_state_call(
-    function: Callable[_StateParams, _StateResult],
-    *args: _StateParams.args,
-    **kwargs: _StateParams.kwargs,
-) -> _StateResult:
-    """Run synchronous persistence work outside the API event loop."""
-    return await asyncio.to_thread(function, *args, **kwargs)
+_run_state_call = run_db
 
 
 @asynccontextmanager
