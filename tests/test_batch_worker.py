@@ -16,6 +16,7 @@ def _claim() -> ClaimedBatchJob:
         worker_id="worker-1",
         attempt_count=2,
         result_bundle={"resourceType": "Bundle", "id": "bundle-1"},
+        max_attempts=3,
     )
 
 
@@ -41,6 +42,7 @@ async def test_worker_executes_claim_with_persisted_context(monkeypatch):
             {
                 "worker_id": "worker-1",
                 "attempt_count": 2,
+                "max_attempts": 3,
                 "prior_bundle": {"resourceType": "Bundle", "id": "bundle-1"},
             },
         )

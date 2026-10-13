@@ -356,7 +356,10 @@ async def list_batch_jobs(
     patient_name: Annotated[str | None, Query(alias="patientName")] = None,
     patient_gender: Annotated[str | None, Query(alias="patientGender")] = None,
     job_package_filter: Annotated[str | None, Query(alias="jobPackage")] = None,
-    batch_job_status: Annotated[str | None, Query(alias="batchJobStatus")] = None,
+    batch_job_status: Annotated[
+        str | None,
+        Query(alias="batchJobStatus", description="Comma-separated batch status values: pending, running, complete, partial, or error."),
+    ] = None,
     dob_start_date: Annotated[str | None, Query(alias="dobStartDate")] = None,
     dob_end_date: Annotated[str | None, Query(alias="dobEndDate")] = None,
     job_run_start_date: Annotated[str | None, Query(alias="jobRunStartDate")] = None,
@@ -367,7 +370,9 @@ async def list_batch_jobs(
 
     Set ``include_patient=true`` to embed each Patient resource from the
     external FHIR server as ``patientResource``. Results are paginated with
-    zero-based ``page`` and ``size`` query parameters.
+    zero-based ``page`` and ``size`` query parameters. ``batchJobStatus`` accepts
+    ``pending``, ``running``, ``complete``, ``partial``, or ``error`` (including
+    comma-separated values).
     """
     dob_start, error = _parse_iso_date_filter(dob_start_date, "dobStartDate")
     if error:
@@ -447,6 +452,7 @@ async def list_batch_jobs(
 
 
 _TERMINAL_TASK_STATUSES = {"complete", "error", "skipped"}
+_TERMINAL_BATCH_STATUSES = {"complete", "partial", "error"}
 
 
 def _with_batch_progress(result_bundle: dict, child_jobs: list[Any], batch_status: str) -> dict:
@@ -454,7 +460,7 @@ def _with_batch_progress(result_bundle: dict, child_jobs: list[Any], batch_statu
     bundle = deepcopy(result_bundle)
     total_jobs = len(child_jobs)
     completed_jobs = sum(1 for child_job in child_jobs if getattr(child_job, "status", None) in _TERMINAL_TASK_STATUSES)
-    percent_complete = round((completed_jobs / total_jobs) * 100) if total_jobs else (100 if batch_status == "complete" else 0)
+    percent_complete = round((completed_jobs / total_jobs) * 100) if total_jobs else (100 if batch_status in _TERMINAL_BATCH_STATUSES else 0)
     progress_text = f"Batch job status: {percent_complete}% ({completed_jobs}/{total_jobs})"
 
     for entry in bundle.get("entry", []):
@@ -472,8 +478,9 @@ async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_
     """Get the latest stored FHIR result Bundle for a batch job.
 
     Running jobs return HTTP 200 once a preliminary Bundle has been persisted;
-    that Bundle contains the results of tasks completed so far. Pending or
-    running jobs without a stored snapshot return HTTP 202.
+    that Bundle contains the results of tasks completed so far. A terminal
+    ``partial`` job returns its stored Bundle in the same way as ``complete``.
+    Pending or running jobs without a stored snapshot return HTTP 202.
     """
     job = get_batch_job(batch_id)
     if not job:

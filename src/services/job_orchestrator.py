@@ -31,6 +31,7 @@ from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
     ensure_job,
     renew_batch_job_lease,
+    requeue_batch_job_for_child_retry,
     update_batch_job_result,
     update_batch_job_status,
     update_job_result,
@@ -702,10 +703,12 @@ async def run_batch_job(
     *,
     worker_id: str,
     attempt_count: int,
+    max_attempts: int | None = None,
     prior_bundle: dict | None = None,
 ) -> None:
     """Run the full CQL + LLM pipeline for one worker-owned batch attempt."""
-    logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}, attempt={attempt_count}")
+    max_attempts = max_attempts if max_attempts is not None else settings.batch_job_max_attempts
+    logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}, attempt={attempt_count}/{max_attempts}")
 
     task_results: list[dict] = []
     job_ids_by_task: dict[tuple[str, str], str] = {}
@@ -978,17 +981,34 @@ async def run_batch_job(
             bundle_id,
         )
 
-        # 6. Persist the final result.
+        if all_errors and attempt_count < max_attempts:
+            failed_task_names = [str(task.get("task_name", "unknown")) for task in all_errors]
+            failure_message = f"{len(failed_task_names)} child task(s) failed: {', '.join(failed_task_names)}"
+            requeued = await _run_state_call(
+                requeue_batch_job_for_child_retry,
+                batch_id,
+                worker_id,
+                attempt_count,
+                failure_message,
+                settings.batch_job_retry_delay_seconds,
+            )
+            _require_owned(requeued)
+            logger.info(f"[batch={batch_id}] Requeued after child failures for attempt {attempt_count + 1}")
+            return
+
+        # 6. Persist the final result. Child errors keep the Bundle preliminary while the
+        # batch status distinguishes an exhausted partial result from a total failure.
+        final_status = "complete" if not all_errors else "partial" if any(task.get("status") == "complete" for task in task_results) else "error"
         updated = await _run_state_call(
             update_batch_job_status,
             batch_id,
-            "complete",
+            final_status,
             result_bundle,
             worker_id=worker_id,
             attempt_count=attempt_count,
         )
         _require_owned(updated)
-        logger.info(f"[batch={batch_id}] Completed. Bundle entries: {result_bundle['total']}")
+        logger.info(f"[batch={batch_id}] Completed with status={final_status}. Bundle entries: {result_bundle['total']}")
 
     except asyncio.CancelledError:
         heartbeat_error = heartbeat_task.exception() if heartbeat_task is not None and heartbeat_task.done() and not heartbeat_task.cancelled() else None

@@ -1,5 +1,7 @@
 import threading
 
+import pytest
+
 from src.models.prompt import Prompt, PromptMetadata
 from src.services import job_orchestrator
 from src.services.cql_executor import CqlResult
@@ -346,8 +348,10 @@ async def test_run_batch_job_persists_completed_task_results_while_running(monke
     assert any(entry["resource"].get("resourceType") == "Patient" for entry in final_bundle["entry"])
 
 
-async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
+async def test_run_batch_job_requeues_missing_llm_result_when_attempts_remain(monkeypatch):
     updates = []
+    requeues = []
+    status_updates = []
 
     async def _fake_fhir_get(resource_type, resource_id):
         assert resource_type == "Questionnaire"
@@ -365,8 +369,9 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
 
     monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
     monkeypatch.setattr(job_orchestrator, "ensure_job", lambda *args, **kwargs: LogicalJob("job-123", "running", None))
-    monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda *args, **kwargs: status_updates.append((args, kwargs)) or True)
     monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "requeue_batch_job_for_child_retry", lambda *args, **kwargs: requeues.append((args, kwargs)) or True)
     monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: not updates.append((args, kwargs)))
 
     async def _fake_load_prompts(prompt_paths):
@@ -398,6 +403,7 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
         "questionnaire-1",
         worker_id="worker-1",
         attempt_count=1,
+        max_attempts=2,
     )
 
     assert trace_context["trace_id"] == "batch-1"
@@ -408,6 +414,75 @@ async def test_run_batch_job_marks_missing_llm_result_as_error(monkeypatch):
             {"batch_id": "batch-1", "worker_id": "worker-1", "attempt_count": 1},
         )
     ]
+    assert status_updates == []
+    assert requeues == [
+        (
+            ("batch-1", "worker-1", 1, "1 child task(s) failed: prompts/a", settings.batch_job_retry_delay_seconds),
+            {},
+        )
+    ]
+
+
+@pytest.mark.parametrize("successful_library, expected_status", [("LibGood", "partial"), (None, "error")])
+async def test_run_batch_job_finalizes_exhausted_child_errors(monkeypatch, successful_library, expected_status):
+    final_updates = []
+    requeues = []
+
+    async def _fake_fhir_get(resource_type, resource_id):
+        return {
+            "resourceType": "Questionnaire",
+            "name": "RegistryForm",
+            "extension": [
+                {
+                    "url": job_orchestrator._CQL_JOB_LIST_URL,
+                    "extension": [{"valueString": name} for name in (["LibGood", "LibBad"] if successful_library else ["LibBad"])],
+                }
+            ],
+            "item": [],
+        }
+
+    async def _fake_run_cql_libraries(library_names, patient_id, on_result=None):
+        results = []
+        for library_name in library_names:
+            result = (
+                CqlResult(library_name=library_name, patient_id=patient_id, results={"TaskA": [{"value": "positive"}]})
+                if library_name == successful_library
+                else CqlResult(library_name=library_name, patient_id=patient_id, error="evaluation failed")
+            )
+            results.append(result)
+            if on_result:
+                await on_result(result)
+        return results
+
+    monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
+    monkeypatch.setattr(job_orchestrator, "run_cql_libraries", _fake_run_cql_libraries)
+    monkeypatch.setattr(job_orchestrator, "ensure_job", lambda *args, **kwargs: LogicalJob(args[0], "running", None))
+    monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "requeue_batch_job_for_child_retry", lambda *args, **kwargs: requeues.append((args, kwargs)) or True)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda *args, **kwargs: final_updates.append((args, kwargs)) or True)
+
+    async def _fake_fetch_patient_resource(patient_id):
+        return None
+
+    monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
+
+    await job_orchestrator.run_batch_job(
+        "batch-1",
+        "patient-1",
+        "RegistryForm",
+        "questionnaire-1",
+        worker_id="worker-1",
+        attempt_count=1,
+        max_attempts=1,
+    )
+
+    assert len(final_updates) == 1
+    assert final_updates[0][0][1] == expected_status
+    final_bundle = final_updates[0][0][2]
+    assert final_bundle["entry"][0]["resource"]["status"] == "preliminary"
+    assert final_bundle["entry"][0]["resource"]["valueCodeableConcept"]["coding"][0]["code"] == "in-progress"
+    assert requeues == []
 
 
 async def test_run_batch_job_records_excluded_documents_when_llm_is_skipped(monkeypatch):

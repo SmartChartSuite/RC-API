@@ -8,7 +8,10 @@ from src.models.fhir import ParametersResponse
 
 
 class BatchJobAcceptedResponse(ParametersResponse):
-    """FHIR Parameters body returned when a batch job is accepted."""
+    """FHIR Parameters body returned when a batch job is accepted.
+
+    Batch job statuses are ``pending``, ``running``, ``complete``, ``partial``, and ``error``.
+    """
 
     model_config: ClassVar[ConfigDict] = {
         "json_schema_extra": {

@@ -289,6 +289,92 @@ def test_failed_attempt_retries_then_exhausts(monkeypatch):
     assert batch.result_bundle["resourceType"] == "OperationOutcome"
 
 
+def test_requeue_batch_job_for_child_retry_resets_only_errors_and_is_fenced(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+    assert _create_batch_job("batch-1", "patient-1", "Registry")
+
+    claim = job_state.claim_next_batch_job("worker-1", 60)
+    assert claim is not None
+    complete = job_state.ensure_job("job-complete", "batch-1", "patient-1", "Registry", "Complete", "structured")
+    errored = job_state.ensure_job("job-error", "batch-1", "patient-1", "Registry", "Error", "structured")
+    skipped = job_state.ensure_job("job-skipped", "batch-1", "patient-1", "Registry", "Skipped", "unstructured")
+    assert complete is not None and errored is not None and skipped is not None
+    assert job_state.update_job_result(complete.job_id, "complete", {"answer": "yes"})
+    assert job_state.update_job_result(errored.job_id, "error", {"message": "old failure"})
+    assert job_state.update_job_result(skipped.job_id, "skipped", {"message": "not applicable"})
+    bundle = {"resourceType": "Bundle", "id": "partial-1"}
+    assert job_state.update_batch_job_result("batch-1", bundle, worker_id="worker-1", attempt_count=claim.attempt_count)
+
+    assert job_state.requeue_batch_job_for_child_retry("batch-1", "worker-1", claim.attempt_count, "1 child task(s) failed: Error", 0)
+
+    batch = job_state.get_batch_job("batch-1")
+    assert batch is not None
+    assert batch.status == "pending"
+    assert batch.result_bundle == bundle
+    assert batch.worker_id is None
+    assert batch.lease_expires_at is None
+    assert batch.heartbeat_at is None
+    assert batch.next_attempt_at is not None
+    assert batch.last_error == "1 child task(s) failed: Error"
+    children = {child.task_name: child for child in job_state.get_jobs_for_batch("batch-1")}
+    assert children["Complete"].status == "complete"
+    assert children["Complete"].result == {"answer": "yes"}
+    assert children["Skipped"].status == "skipped"
+    assert children["Skipped"].result == {"message": "not applicable"}
+    assert children["Error"].status == "pending"
+    assert children["Error"].result is None
+    assert children["Error"].completed_at is None
+
+    next_claim = job_state.claim_next_batch_job("worker-2", 60)
+    assert next_claim is not None
+    assert not job_state.requeue_batch_job_for_child_retry("batch-1", "other-worker", next_claim.attempt_count, "stale", 30)
+    with Session(engine) as session:
+        session.execute(sqlalchemy.update(job_state.BatchJobs).where(job_state.BatchJobs.batch_id == "batch-1").values(lease_expires_at=datetime.now(UTC) - timedelta(seconds=1)))
+        session.commit()
+    assert not job_state.requeue_batch_job_for_child_retry("batch-1", "worker-2", next_claim.attempt_count, "expired", 30)
+
+
+def test_failed_attempt_exhaustion_uses_partial_only_for_completed_bundle(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+    assert _create_batch_job("partial-batch", "patient-1", "Registry")
+    assert _create_batch_job("error-batch", "patient-1", "Registry")
+    with Session(engine) as session:
+        session.execute(sqlalchemy.update(job_state.BatchJobs).where(job_state.BatchJobs.batch_id.in_(("partial-batch", "error-batch"))).values(max_attempts=1))
+        session.commit()
+
+    partial_claim = job_state.claim_next_batch_job("worker-1", 60)
+    assert partial_claim is not None
+    partial_complete = job_state.ensure_job("partial-complete", "partial-batch", "patient-1", "Registry", "Complete", "structured")
+    partial_running = job_state.ensure_job("partial-running", "partial-batch", "patient-1", "Registry", "Running", "structured")
+    assert partial_complete is not None and partial_running is not None
+    assert job_state.update_job_result(partial_complete.job_id, "complete", {"answer": "yes"})
+    assert job_state.update_batch_job_result("partial-batch", {"resourceType": "Bundle", "id": "partial"}, worker_id="worker-1", attempt_count=partial_claim.attempt_count)
+    assert job_state.fail_batch_job_attempt("partial-batch", "worker-1", partial_claim.attempt_count, "batch failure", 0) == "partial"
+
+    error_claim = job_state.claim_next_batch_job("worker-2", 60)
+    assert error_claim is not None
+    error_complete = job_state.ensure_job("error-complete", "error-batch", "patient-1", "Registry", "Complete", "structured")
+    error_running = job_state.ensure_job("error-running", "error-batch", "patient-1", "Registry", "Running", "structured")
+    assert error_complete is not None and error_running is not None
+    assert job_state.update_job_result(error_complete.job_id, "complete", {"answer": "yes"})
+    assert job_state.fail_batch_job_attempt("error-batch", "worker-2", error_claim.attempt_count, "batch failure", 0) == "error"
+
+    partial_batch = job_state.get_batch_job("partial-batch")
+    error_batch = job_state.get_batch_job("error-batch")
+    assert partial_batch is not None and error_batch is not None
+    assert partial_batch.status == "partial"
+    assert partial_batch.result_bundle == {"resourceType": "Bundle", "id": "partial"}
+    assert error_batch.status == "error"
+    assert error_batch.result_bundle is not None
+    assert error_batch.result_bundle["resourceType"] == "OperationOutcome"
+    assert {child.status for child in job_state.get_jobs_for_batch("partial-batch")} == {"complete", "error"}
+    assert {child.status for child in job_state.get_jobs_for_batch("error-batch")} == {"complete", "error"}
+
+
 def test_ensure_job_reuses_one_logical_child_and_preserves_terminal_state(monkeypatch):
     engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
     monkeypatch.setattr(job_state, "db_engine", engine)

@@ -107,6 +107,7 @@ class ClaimedBatchJob:
     worker_id: str
     attempt_count: int
     result_bundle: dict | None
+    max_attempts: int = settings.batch_job_max_attempts
 
 
 @dataclass(frozen=True)
@@ -295,6 +296,7 @@ def _claimed_batch_snapshot(job: BatchJobs, worker_id: str) -> ClaimedBatchJob:
         worker_id=worker_id,
         attempt_count=job.attempt_count,
         result_bundle=job.result_bundle,
+        max_attempts=job.max_attempts,
     )
 
 
@@ -425,6 +427,38 @@ def release_batch_job_attempt(batch_id: str, worker_id: str, attempt_count: int)
     return released
 
 
+def _has_completed_child(session: Session, batch_id: str) -> bool:
+    return session.scalar(select(Jobs.job_id).where(Jobs.batch_id == batch_id, Jobs.status == "complete").limit(1)) is not None
+
+
+def requeue_batch_job_for_child_retry(
+    batch_id: str,
+    worker_id: str,
+    attempt_count: int,
+    message: str,
+    retry_delay_seconds: int,
+) -> bool:
+    """Requeue an owned batch after child errors, preserving completed and skipped children."""
+    now = datetime.now(UTC)
+    with Session(db_engine) as session:
+        job = _lock_owned_batch(session, batch_id, worker_id, attempt_count, now)
+        if job is None:
+            return False
+
+        job.status = "pending"
+        job.worker_id = None
+        job.lease_expires_at = None
+        job.heartbeat_at = None
+        job.next_attempt_at = now + timedelta(seconds=retry_delay_seconds)
+        job.completed_at = None
+        job.last_error = message
+        job.updated_at = now
+        session.execute(update(Jobs).where(Jobs.batch_id == batch_id, Jobs.status == "error").values(status="pending", result=None, completed_at=None))
+        session.commit()
+    logger.info(f"Requeued batch {batch_id} for child retry: {message}")
+    return True
+
+
 def fail_batch_job_attempt(
     batch_id: str,
     worker_id: str,
@@ -459,10 +493,12 @@ def fail_batch_job_attempt(
             )
             outcome = "retry"
         else:
-            job.status = "error"
+            has_completed_result = _has_completed_child(session, batch_id) and isinstance(job.result_bundle, dict) and job.result_bundle.get("resourceType") == "Bundle"
+            outcome = "partial" if has_completed_result else "error"
+            job.status = outcome
             job.next_attempt_at = None
             job.completed_at = now
-            if job.result_bundle is None:
+            if outcome == "error" and job.result_bundle is None:
                 job.result_bundle = make_operation_outcome("exception", message)
             session.execute(
                 update(Jobs)
@@ -472,7 +508,6 @@ def fail_batch_job_attempt(
                 )
                 .values(status="error", result={"message": message}, completed_at=now)
             )
-            outcome = "error"
         session.commit()
     logger.warning(f"Batch {batch_id} attempt {attempt_count} ended with {outcome}: {message}")
     return outcome
@@ -520,10 +555,11 @@ def recover_expired_batch_job_leases(retry_delay_seconds: int) -> tuple[list[str
                     .values(status="pending", result=None, completed_at=None)
                 )
             else:
-                job.status = "error"
+                has_completed_result = _has_completed_child(session, job.batch_id) and isinstance(job.result_bundle, dict) and job.result_bundle.get("resourceType") == "Bundle"
+                job.status = "partial" if has_completed_result else "error"
                 job.next_attempt_at = None
                 job.completed_at = now
-                if job.result_bundle is None:
+                if job.status == "error" and job.result_bundle is None:
                     job.result_bundle = make_operation_outcome("exception", message)
                 failed.append(job.batch_id)
                 session.execute(
@@ -554,7 +590,7 @@ def update_batch_job_status(
     vals: dict = {"status": status, "updated_at": now}
     if status == "running":
         vals["heartbeat_at"] = now
-    if status in {"complete", "error"}:
+    if status in {"complete", "partial", "error"}:
         vals.update(
             completed_at=now,
             worker_id=None,

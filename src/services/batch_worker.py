@@ -78,6 +78,7 @@ class EmbeddedBatchWorker:
             claim.requested_jobs,
             worker_id=claim.worker_id,
             attempt_count=claim.attempt_count,
+            max_attempts=claim.max_attempts,
             prior_bundle=claim.result_bundle,
         )
 

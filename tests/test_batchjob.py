@@ -482,14 +482,14 @@ async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypat
     monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
 
     result = await batchjob.list_batch_jobs(
-        batch_job_status="pending, running , complete",
+        batch_job_status="pending, running , complete, partial",
         questionnaire_response_status="completed, in-progress",
         claims={},
     )
 
     bundle = BundleResource.model_validate(result)
     assert bundle.total == 1
-    assert captured_kwargs["statuses"] == ["pending", "running", "complete"]
+    assert captured_kwargs["statuses"] == ["pending", "running", "complete", "partial"]
     assert captured_kwargs["questionnaire_response_statuses"] == ["completed", "in-progress"]
 
 
@@ -658,6 +658,52 @@ async def test_get_batch_job_results_returns_partial_bundle_while_running(monkey
     result_entries = result.get("entry")
     assert result_entries is not None
     assert result_entries[0]["resource"]["valueCodeableConcept"]["text"] == "Batch job status: 67% (2/3)"
+    assert "valueCodeableConcept" not in partial_bundle["entry"][0]["resource"]
+
+
+async def test_get_batch_job_results_returns_partial_bundle(monkeypatch):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    partial_bundle = {
+        "resourceType": "Bundle",
+        "id": "bundle-partial",
+        "type": "collection",
+        "total": 1,
+        "entry": [
+            {
+                "fullUrl": "Observation/status-observation",
+                "resource": {
+                    "resourceType": "Observation",
+                    "id": "status-observation",
+                    "status": "preliminary",
+                    "code": {"coding": [{"code": "result-status"}]},
+                },
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        batchjob,
+        "get_batch_job",
+        lambda batch_id: BatchJobs(
+            batch_id=batch_id,
+            patient_id="patient-123",
+            job_package="Registry",
+            started_by="user-123",
+            status="partial",
+            result_bundle=partial_bundle,
+            created_at=created_at,
+            completed_at=created_at,
+        ),
+    )
+    monkeypatch.setattr(batchjob, "get_jobs_for_batch", lambda batch_id: [type("Job", (), {"status": "complete"})(), type("Job", (), {"status": "error"})()])
+
+    result = await batchjob.get_batch_job_results("batch-123", claims={})
+
+    assert isinstance(result, dict)
+    validated = BundleResource.model_validate(result)
+    assert validated.resourceType == "Bundle"
+    assert validated.model_dump()["id"] == "bundle-partial"
+    assert validated.entry is not None
+    assert validated.entry[0].resource["valueCodeableConcept"]["text"] == "Batch job status: 100% (2/2)"
     assert "valueCodeableConcept" not in partial_bundle["entry"][0]["resource"]
 
 
