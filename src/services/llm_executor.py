@@ -16,7 +16,7 @@ import litellm
 from loguru import logger
 
 from src.models.prompt import Prompt
-from src.util.settings import require_setting, settings
+from src.util.settings import require_setting, secret_value, settings
 
 litellm.suppress_debug_info = True
 
@@ -103,7 +103,7 @@ async def run_prompt_on_document(
         request_kwargs: dict[str, Any] = {
             "model": model,
             "api_base": settings.litellm_api_base,
-            "api_key": settings.litellm_api_key,
+            "api_key": secret_value(settings.litellm_api_key),
             "input": document["text"],
             "instructions": prompt.content,
             "caching": False,

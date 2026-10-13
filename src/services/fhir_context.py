@@ -17,7 +17,7 @@ import httpx
 from loguru import logger
 
 from src.util.outbound_url import is_allowed_attachment_url, is_same_origin, resolve_http_reference, resolves_to_internal_address
-from src.util.settings import require_setting, settings
+from src.util.settings import require_setting, secret_value, settings
 
 _TIMEOUT = 60
 _TRANSPORT = httpx.AsyncHTTPTransport(retries=3)
@@ -43,8 +43,9 @@ class _AttachmentTooLargeError(Exception):
 def _auth_headers(target_url: str) -> dict[str, str]:
     """Build FHIR headers without forwarding credentials to another origin."""
     headers = {"Accept": "application/fhir+json"}
-    if settings.external_fhir_server_auth and settings.external_fhir_server_url and is_same_origin(target_url, settings.external_fhir_server_url):
-        headers["Authorization"] = settings.external_fhir_server_auth
+    auth = secret_value(settings.external_fhir_server_auth)
+    if auth and settings.external_fhir_server_url and is_same_origin(target_url, settings.external_fhir_server_url):
+        headers["Authorization"] = auth
     return headers
 
 

@@ -32,6 +32,7 @@ import httpx
 import pytest
 import respx
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import create_engine
 
 import main as main_module
@@ -133,7 +134,7 @@ def _configure_services(monkeypatch):
 
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(settings, "external_fhir_server_url", EXTERNAL_BASE)
-    monkeypatch.setattr(settings, "external_fhir_server_auth", "")
+    monkeypatch.setattr(settings, "external_fhir_server_auth", None)
 
     monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", HAPI_BASE)
     monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", HAPI_BASE)
@@ -143,7 +144,7 @@ def _configure_services(monkeypatch):
     monkeypatch.setattr(settings, "use_llm", True)
     monkeypatch.setattr(settings, "litellm_model", "openai/test-model")
     monkeypatch.setattr(settings, "litellm_api_base", LITELLM_BASE)
-    monkeypatch.setattr(settings, "litellm_api_key", "test-key")
+    monkeypatch.setattr(settings, "litellm_api_key", SecretStr("test-key"))
     monkeypatch.setattr(settings, "litellm_prompt_cache_enabled", True)
 
     # litellm defaults to its own aiohttp-backed transport, which bypasses

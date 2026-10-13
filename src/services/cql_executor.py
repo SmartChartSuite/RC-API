@@ -3,9 +3,9 @@
 Wraps POST {HAPI_FHIR_CQL_EXECUTION_URL}/Library/{LibraryName}/$evaluate.
 Library IDs are the CamelCase resource name — no numeric ID lookup needed.
 
-The dataEndpoint.address is always sourced from settings.settings.external_fhir_server_url.
+The dataEndpoint.address is always sourced from settings.external_fhir_server_url.
 The dataEndpoint.header is conditionally populated with the auth token when
-settings.settings.external_fhir_server_auth is set.
+settings.external_fhir_server_auth is set.
 """
 
 import asyncio
@@ -16,7 +16,7 @@ import httpx
 from loguru import logger
 
 from src.util.outbound_url import path_segment
-from src.util.settings import require_setting, settings
+from src.util.settings import require_setting, secret_value, settings
 
 _TIMEOUT = 300
 _TRANSPORT = httpx.AsyncHTTPTransport(retries=5)
@@ -65,8 +65,8 @@ def _build_parameters_body(patient_id: str) -> dict:
         "address": settings.external_fhir_server_url,
     }
     # Inject auth header only when configured
-    if settings.external_fhir_server_auth:
-        endpoint_resource["header"] = [f"Authorization: {settings.external_fhir_server_auth}"]
+    if auth := secret_value(settings.external_fhir_server_auth):
+        endpoint_resource["header"] = [f"Authorization: {auth}"]
 
     return {
         "resourceType": "Parameters",

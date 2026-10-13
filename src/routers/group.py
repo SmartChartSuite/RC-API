@@ -14,7 +14,7 @@ from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_f
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
 from src.util.outbound_url import is_same_origin, resolve_http_reference
-from src.util.settings import require_setting, settings
+from src.util.settings import require_setting, secret_value, settings
 
 router = APIRouter(tags=["Groups"])
 
@@ -33,8 +33,8 @@ GroupWriteResult = GroupResource | OperationOutcome
 
 def _patient_headers() -> dict:
     headers = {"Accept": "application/fhir+json"}
-    if settings.external_fhir_server_auth:
-        headers["Authorization"] = settings.external_fhir_server_auth
+    if auth := secret_value(settings.external_fhir_server_auth):
+        headers["Authorization"] = auth
     return headers
 
 

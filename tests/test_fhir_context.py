@@ -1,6 +1,7 @@
 import base64
 
 import pytest
+from pydantic import SecretStr
 
 from src.services import fhir_context
 from src.util.settings import settings
@@ -46,7 +47,7 @@ async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypa
         ],
     ]
     monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(settings, "external_fhir_server_auth", "Bearer token")
+    monkeypatch.setattr(settings, "external_fhir_server_auth", SecretStr("Bearer token"))
     monkeypatch.setattr(settings, "attachment_allowed_hosts", ["docs.example"])
     monkeypatch.setattr(fhir_context, "resolves_to_internal_address", _public_dns)
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
@@ -164,7 +165,7 @@ async def test_fetch_patient_documents_allows_same_origin_relative_attachment(mo
     _FakeAsyncClient.calls = []
     _FakeAsyncClient.queued_responses = [[bundle, _FakeResponse(text="binary note")]]
     monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(settings, "external_fhir_server_auth", "Bearer token")
+    monkeypatch.setattr(settings, "external_fhir_server_auth", SecretStr("Bearer token"))
     monkeypatch.setattr(settings, "attachment_allowed_hosts", [])
     monkeypatch.setattr(fhir_context.httpx, "AsyncClient", _FakeAsyncClient)
 

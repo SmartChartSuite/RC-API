@@ -1,4 +1,5 @@
 from fastapi.responses import JSONResponse
+from pydantic import SecretStr
 from starlette.requests import Request
 
 from src.models.fhir import BundleResource, PatientResource
@@ -31,7 +32,7 @@ async def test_search_patients_proxies_query_params(monkeypatch):
     request = _make_request("name=Smith&birthdate=1990-01-01")
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(settings, "external_fhir_server_auth", "Bearer token")
+    monkeypatch.setattr(settings, "external_fhir_server_auth", SecretStr("Bearer token"))
     monkeypatch.setattr(patient.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await patient.search_patients(request, claims={})

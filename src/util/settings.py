@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from loguru import logger
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from src.models.config import ConfigEndpointModel
@@ -24,6 +24,12 @@ def require_setting(value: str | None, name: str) -> str:
     if not value:
         raise ConfigurationError(f"Required setting '{name}' is not configured.")
     return value
+
+
+def secret_value(secret: SecretStr | None) -> str | None:
+    """Unwrap a secret setting at its point of use; empty secrets count as unset."""
+    value = secret.get_secret_value() if secret is not None else None
+    return value or None
 
 
 def _normalize_env_value(value: Any) -> Any:
@@ -82,14 +88,15 @@ class Settings(BaseSettings):
 
     # FHIR servers (required; missing or invalid values degrade to None and are recorded in config_errors)
     external_fhir_server_url: str | None = None
-    external_fhir_server_auth: str = ""
+    # Secrets are SecretStr so printing or dumping settings never reveals them; unwrap with secret_value().
+    external_fhir_server_auth: SecretStr | None = None
     # HAPI FHIR CQL Execution Service: POST {hapi_fhir_cql_execution_url}/Library/{LibraryName}/$evaluate
     hapi_fhir_cql_execution_url: str | None = None
 
     # LiteLLM (all three required together for LLM operations)
     litellm_model: str | None = None
     litellm_api_base: str | None = None
-    litellm_api_key: str | None = None
+    litellm_api_key: SecretStr | None = None
     litellm_model_reasoning_effort: str | None = None
     # Enable provider-side prompt caching for models that support it.
     litellm_prompt_cache_enabled: bool = True
@@ -113,7 +120,7 @@ class Settings(BaseSettings):
 
     # Langfuse (all three required together for prompt retrieval)
     langfuse_public_key: str | None = None
-    langfuse_secret_key: str | None = None
+    langfuse_secret_key: SecretStr | None = None
     langfuse_host: str | None = None
     langfuse_prompt_fetch_timeout_seconds: int = 5
     langfuse_prompt_max_retries: int = 1
@@ -176,6 +183,10 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _derive_values(self) -> "Settings":
         """Record config errors and derive dependent values without failing startup."""
+        # Empty secrets count as unset so the "configured together" checks below stay correct.
+        for field_name in ("external_fhir_server_auth", "litellm_api_key", "langfuse_secret_key"):
+            if secret_value(getattr(self, field_name)) is None:
+                setattr(self, field_name, None)
         self.config_errors = {}
         for field_name in ("external_fhir_server_url", "hapi_fhir_cql_execution_url"):
             env_name = field_name.upper()

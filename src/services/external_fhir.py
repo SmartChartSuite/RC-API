@@ -4,7 +4,7 @@ import httpx
 from loguru import logger
 
 from src.util.outbound_url import is_valid_fhir_id, path_segment
-from src.util.settings import require_setting, settings
+from src.util.settings import require_setting, secret_value, settings
 
 _TIMEOUT = 30
 
@@ -17,8 +17,8 @@ async def fetch_patient(patient_id: str) -> dict | None:
         return None
     url = f"{base_url.rstrip('/')}/Patient/{path_segment(patient_id)}"
     headers = {"Accept": "application/fhir+json"}
-    if settings.external_fhir_server_auth:
-        headers["Authorization"] = settings.external_fhir_server_auth
+    if auth := secret_value(settings.external_fhir_server_auth):
+        headers["Authorization"] = auth
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.get(url, headers=headers)

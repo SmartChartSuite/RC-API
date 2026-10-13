@@ -1,4 +1,5 @@
 from fastapi.responses import JSONResponse
+from pydantic import SecretStr
 
 from src.models.fhir import GroupResource, PatientResource
 from src.routers import group
@@ -156,7 +157,7 @@ async def test_search_groups_skips_cross_origin_patient_reference(monkeypatch):
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(settings, "external_fhir_server_auth", "Bearer token")
+    monkeypatch.setattr(settings, "external_fhir_server_auth", SecretStr("Bearer token"))
     monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await group.search_groups(name="Panel", claims={})

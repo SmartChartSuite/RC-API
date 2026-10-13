@@ -16,7 +16,7 @@ import yaml
 from loguru import logger
 
 from src.models.prompt import Prompt, PromptMetadata
-from src.util.settings import settings
+from src.util.settings import secret_value, settings
 
 _langfuse_client: Any | None = None
 _PROMPT_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
@@ -36,7 +36,7 @@ def get_langfuse_client() -> Any | None:
 
     _langfuse_client = Langfuse(
         public_key=settings.langfuse_public_key,
-        secret_key=settings.langfuse_secret_key,
+        secret_key=secret_value(settings.langfuse_secret_key),
         host=settings.langfuse_host,
     )
     return _langfuse_client
