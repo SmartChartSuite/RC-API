@@ -24,6 +24,7 @@ def _context_options() -> dict:
         "include_schemas": bool(schema),
         "version_table_schema": schema,
         "compare_type": True,
+        "compare_server_default": True,
     }
 
 

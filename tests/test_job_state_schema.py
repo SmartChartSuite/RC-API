@@ -5,8 +5,12 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 import sqlalchemy
+from alembic.autogenerate import compare_metadata
+from alembic.config import Config
+from alembic.migration import MigrationContext
 from sqlalchemy.orm import Session
 
+from alembic import command
 from src.services import job_state
 from src.util.settings import settings
 
@@ -57,6 +61,23 @@ def _create_job(job_id: str, batch_id: str, patient_id: str, job_package: str, t
 def test_metadata_schema_uses_non_sqlite_schema():
     assert job_state._metadata_schema("postgresql+psycopg://user:pass@host/db", "custom_schema") == "custom_schema"
     assert job_state._metadata_schema("sqlite+pysqlite:///rcapi_jobs.sqlite", "custom_schema") is None
+
+
+def test_migrated_sqlite_schema_matches_orm_metadata(tmp_path, monkeypatch):
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'schema.sqlite'}"
+    monkeypatch.setattr(settings, "db_connection_string", database_url)
+
+    command.upgrade(Config(job_state._ALEMBIC_CONFIG_PATH), "head")
+    engine = sqlalchemy.create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            migration_context = MigrationContext.configure(
+                connection,
+                opts={"compare_type": True, "compare_server_default": True},
+            )
+            assert compare_metadata(migration_context, job_state.Base.metadata) == []
+    finally:
+        engine.dispose()
 
 
 def test_postgresql_claim_statement_uses_skip_locked():

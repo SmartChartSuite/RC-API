@@ -85,13 +85,13 @@ class BatchJobs(Base):
     questionnaire_title: Mapped[str | None]
     job_package_version: Mapped[str | None]
     requested_jobs: Mapped[list[str] | None] = mapped_column(JSON)
-    attempt_count: Mapped[int] = mapped_column(default=0)
+    attempt_count: Mapped[int] = mapped_column(server_default="0")
     heartbeat_at: Mapped[datetime | None]
     updated_at: Mapped[datetime | None] = mapped_column(default=_utc_now, onupdate=_utc_now)
     worker_id: Mapped[str | None]
     lease_expires_at: Mapped[datetime | None]
     next_attempt_at: Mapped[datetime | None]
-    max_attempts: Mapped[int] = mapped_column(default=settings.batch_job_max_attempts)
+    max_attempts: Mapped[int] = mapped_column(server_default="3")
     last_error: Mapped[str | None] = mapped_column(Text)
 
 
