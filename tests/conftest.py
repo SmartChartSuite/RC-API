@@ -7,6 +7,7 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
+from src.services.prompt_loader import clear_prompt_cache
 from src.util.http_clients import clear_transport_factories, reset_http_clients
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,13 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     _TEST_DATABASE.unlink(missing_ok=True)
     config = Config(_ROOT / "alembic.ini")
     command.upgrade(config, "head")
+
+
+@pytest.fixture(autouse=True)
+def _reset_prompt_cache():
+    clear_prompt_cache()
+    yield
+    clear_prompt_cache()
 
 
 @pytest.fixture(autouse=True)

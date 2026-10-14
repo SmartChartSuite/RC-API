@@ -141,6 +141,8 @@ class Settings(BaseSettings):
     langfuse_host: str | None = None
     langfuse_prompt_fetch_timeout_seconds: int = 5
     langfuse_prompt_max_retries: int = 1
+    langfuse_prompt_cache_ttl_seconds: float = 60.0
+    langfuse_prompt_fetch_concurrency: int = 4
 
     # Prompts folder (fallback when Langfuse is not configured) and database
     prompts_dir: str = "./prompts"

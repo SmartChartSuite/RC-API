@@ -174,6 +174,8 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `OTEL_SEMCONV_STABILITY_OPT_IN` | *(none)* | Provider-level LiteLLM/OpenTelemetry setting; `gen_ai_latest_experimental` opts into the latest GenAI conventions |
 | `LANGFUSE_PROMPT_FETCH_TIMEOUT_SECONDS` | `5` | Maximum duration of each synchronous Langfuse prompt fetch attempt, executed outside the API event loop |
 | `LANGFUSE_PROMPT_MAX_RETRIES` | `1` | Retries after a failed Langfuse prompt fetch before using the matching local prompt |
+| `LANGFUSE_PROMPT_CACHE_TTL_SECONDS` | `60.0` | Application Langfuse prompt cache lifetime in seconds; `0` disables caching |
+| `LANGFUSE_PROMPT_FETCH_CONCURRENCY` | `4` | Maximum concurrent Langfuse prompt fetches across batch jobs |
 | `PROMPTS_DIR` | `./prompts` | Local prompt directory used when Langfuse is disabled, unavailable, or fails to return an individual prompt |
 | `OAUTH2_JWKS_URL` | *(none)* | JWKS endpoint URL. **Required** unless `AUTH_DISABLED=true`; protected endpoints return 503 if missing |
 | `OAUTH2_ISSUER` | *(none)* | Expected `iss` claim in JWT. **Required** unless `AUTH_DISABLED=true` |

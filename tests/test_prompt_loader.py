@@ -1,9 +1,39 @@
-import sys
 import threading
+from pathlib import Path
 from types import SimpleNamespace
 
 from src.services import prompt_loader
 from src.util.settings import settings
+
+
+def _write_prompt(prompt_root: Path, path: str, content: str) -> Path:
+    prompt_file = prompt_root / f"{path}.md"
+    prompt_file.parent.mkdir(parents=True, exist_ok=True)
+    prompt_file.write_text(content, encoding="utf-8")
+    return prompt_file
+
+
+class _FakeLangfuse:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict]] = []
+        self.fail = False
+        self._lock = threading.Lock()
+
+    def get_prompt(self, path: str, **kwargs):
+        with self._lock:
+            self.calls.append((path, kwargs))
+            call_number = len(self.calls)
+        if self.fail:
+            raise RuntimeError("langfuse unavailable")
+        return SimpleNamespace(version=call_number, commit_message=f"commit {call_number}", prompt=f"Langfuse body {call_number}")
+
+
+def _configure_langfuse(monkeypatch, client: object, *, ttl_seconds: float = 60.0, concurrency: int = 4) -> None:
+    monkeypatch.setattr(prompt_loader, "_langfuse_client", client)
+    monkeypatch.setattr(settings, "langfuse_prompt_cache_ttl_seconds", ttl_seconds)
+    monkeypatch.setattr(settings, "langfuse_prompt_fetch_concurrency", concurrency)
+    monkeypatch.setattr(settings, "langfuse_prompt_max_retries", 1)
+    monkeypatch.setattr(settings, "langfuse_prompt_fetch_timeout_seconds", 5)
 
 
 def test_parse_md_frontmatter_extracts_metadata_and_body():
@@ -15,11 +45,7 @@ def test_parse_md_frontmatter_extracts_metadata_and_body():
 
 def test_load_from_folder_reads_prompt_files(tmp_path, monkeypatch):
     prompt_root = tmp_path / "prompts"
-    prompt_root.mkdir()
-    nested = prompt_root / "2025_08"
-    nested.mkdir()
-    prompt_file = nested / "example.md"
-    prompt_file.write_text("---\nname: Prompt One\nversion: '2'\ndescription: Test prompt\n---\nPrompt body", encoding="utf-8")
+    prompt_file = _write_prompt(prompt_root, "2025_08/example", "---\nname: Prompt One\nversion: '2'\ndescription: Test prompt\n---\nPrompt body")
 
     monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
 
@@ -29,6 +55,66 @@ def test_load_from_folder_reads_prompt_files(tmp_path, monkeypatch):
     assert prompts[0].metadata.name == "Prompt One"
     assert prompts[0].metadata.version == "2"
     assert prompts[0].content == "Prompt body"
+    assert prompt_file.exists()
+
+
+def test_local_prompt_cache_reuses_file_and_isolates_models(tmp_path, monkeypatch):
+    prompt_root = tmp_path / "prompts"
+    _write_prompt(prompt_root, "package/example", "---\nname: Cached prompt\n---\nPrompt body")
+    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
+    read_calls = 0
+    original_read_text = Path.read_text
+
+    def counted_read_text(self, *args, **kwargs):
+        nonlocal read_calls
+        read_calls += 1
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", counted_read_text)
+
+    first = prompt_loader._load_from_folder(["package/example"])
+    second = prompt_loader._load_from_folder(["package/example"])
+    first[0].metadata.name = "Caller mutation"
+    third = prompt_loader._load_from_folder(["package/example"])
+
+    assert read_calls == 1
+    assert first[0] is not second[0]
+    assert second[0].metadata.name == "Cached prompt"
+    assert third[0].metadata.name == "Cached prompt"
+
+
+def test_local_prompt_cache_reloads_when_file_signature_changes(tmp_path, monkeypatch):
+    prompt_root = tmp_path / "prompts"
+    prompt_file = _write_prompt(prompt_root, "package/example", "---\nname: Before\n---\nShort")
+    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
+
+    first = prompt_loader._load_from_folder(["package/example"])
+    prompt_file.write_text("---\nname: After\n---\nA much longer replacement body", encoding="utf-8")
+    second = prompt_loader._load_from_folder(["package/example"])
+
+    assert first[0].metadata.name == "Before"
+    assert second[0].metadata.name == "After"
+    assert second[0].content == "A much longer replacement body"
+
+
+def test_local_prompt_cache_evicts_deleted_file(tmp_path, monkeypatch):
+    prompt_root = tmp_path / "prompts"
+    prompt_file = _write_prompt(prompt_root, "package/example", "---\nname: Existing\n---\nBody")
+    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
+
+    assert prompt_loader._load_from_folder(["package/example"])[0].metadata.name == "Existing"
+    prompt_file.unlink()
+
+    assert prompt_loader._load_from_folder(["package/example"]) == []
+    _write_prompt(prompt_root, "package/example", "---\nname: Recreated\n---\nNew body")
+    assert prompt_loader._load_from_folder(["package/example"])[0].metadata.name == "Recreated"
+
+
+def test_unsafe_prompt_path_is_rejected_before_cache_lookup(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "prompts_dir", str(tmp_path / "prompts"))
+
+    assert prompt_loader._load_prompt_from_folder("../outside") is None
+    assert not prompt_loader._local_prompt_cache
 
 
 async def test_load_prompts_uses_folder_loader_when_langfuse_disabled(monkeypatch):
@@ -130,6 +216,129 @@ async def test_load_from_langfuse_runs_synchronous_sdk_off_event_loop(monkeypatc
     assert observed_threads[0] != event_loop_thread
 
 
+def test_langfuse_cache_hit_within_ttl_avoids_fetch(monkeypatch):
+    client = _FakeLangfuse()
+    _configure_langfuse(monkeypatch, client)
+    clock = [100.0]
+    monkeypatch.setattr(prompt_loader.time, "monotonic", lambda: clock[0])
+
+    first = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    clock[0] = 159.9
+    second = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+
+    assert len(client.calls) == 1
+    assert first[0].content == second[0].content
+    assert client.calls[0][1] == {
+        "label": "latest",
+        "cache_ttl_seconds": 0,
+        "max_retries": 1,
+        "fetch_timeout_seconds": 5,
+    }
+
+
+def test_langfuse_cache_refetches_after_ttl(monkeypatch):
+    client = _FakeLangfuse()
+    _configure_langfuse(monkeypatch, client, ttl_seconds=10.0)
+    clock = [100.0]
+    monkeypatch.setattr(prompt_loader.time, "monotonic", lambda: clock[0])
+
+    first = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    clock[0] = 110.0
+    second = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+
+    assert len(client.calls) == 2
+    assert first[0].content == "Langfuse body 1"
+    assert second[0].content == "Langfuse body 2"
+
+
+def test_langfuse_cache_ttl_zero_always_fetches(monkeypatch):
+    client = _FakeLangfuse()
+    _configure_langfuse(monkeypatch, client, ttl_seconds=0.0)
+
+    first = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    second = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+
+    assert len(client.calls) == 2
+    assert first[0].content != second[0].content
+
+
+def test_langfuse_failure_falls_back_locally_and_does_not_poison_cache(tmp_path, monkeypatch):
+    prompt_root = tmp_path / "prompts"
+    _write_prompt(prompt_root, "package/prompt", "---\nname: Local fallback\n---\nFallback body")
+    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
+    client = _FakeLangfuse()
+    client.fail = True
+    _configure_langfuse(monkeypatch, client)
+
+    fallback = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    client.fail = False
+    fetched = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+
+    assert fallback[0].content == "Fallback body"
+    assert fetched[0].content == "Langfuse body 2"
+    assert len(client.calls) == 2
+
+
+def test_langfuse_stale_cache_is_used_on_fetch_failure_and_warning_logged(monkeypatch):
+    client = _FakeLangfuse()
+    _configure_langfuse(monkeypatch, client, ttl_seconds=10.0)
+    clock = [100.0]
+    warnings: list[str] = []
+    monkeypatch.setattr(prompt_loader.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(prompt_loader.logger, "warning", lambda message: warnings.append(str(message)))
+
+    fresh = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    client.fail = True
+    clock[0] = 111.0
+    stale = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+
+    assert fresh[0].content == "Langfuse body 1"
+    assert stale[0].content == "Langfuse body 1"
+    assert len(client.calls) == 2
+    assert any("stale cached Langfuse prompt" in message for message in warnings)
+
+
+def test_clear_prompt_cache_forces_langfuse_refetch(monkeypatch):
+    client = _FakeLangfuse()
+    _configure_langfuse(monkeypatch, client)
+
+    prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    prompt_loader.clear_prompt_cache()
+    prompt_loader._load_from_langfuse_sync(["package/prompt"])
+
+    assert len(client.calls) == 2
+
+
+def test_langfuse_fetches_are_bounded_and_preserve_input_order(monkeypatch):
+    bound = 3
+    barrier = threading.Barrier(bound)
+    active = 0
+    max_active = 0
+    lock = threading.Lock()
+
+    class _ConcurrentLangfuse:
+        def get_prompt(self, path, **kwargs):
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+            try:
+                barrier.wait(timeout=5)
+            finally:
+                with lock:
+                    active -= 1
+            return SimpleNamespace(version=1, commit_message="", prompt=f"body for {path}")
+
+    client = _ConcurrentLangfuse()
+    _configure_langfuse(monkeypatch, client, concurrency=bound)
+    paths = [f"package/prompt-{index}" for index in range(6)]
+
+    prompts = prompt_loader._load_from_langfuse_sync(paths)
+
+    assert max_active == bound
+    assert [prompt.metadata.path for prompt in prompts] == paths
+
+
 def test_langfuse_failure_uses_bounded_call_and_local_fallback(tmp_path, monkeypatch):
     prompt_root = tmp_path / "prompts"
     prompt_path = prompt_root / "package" / "fallback.md"
@@ -138,14 +347,11 @@ def test_langfuse_failure_uses_bounded_call_and_local_fallback(tmp_path, monkeyp
     calls: list[dict] = []
 
     class _FailingLangfuse:
-        def __init__(self, **kwargs):
-            pass
-
         def get_prompt(self, path, **kwargs):
             calls.append({"path": path, **kwargs})
             raise RuntimeError("langfuse unavailable")
 
-    monkeypatch.setitem(sys.modules, "langfuse", SimpleNamespace(Langfuse=_FailingLangfuse))
+    monkeypatch.setattr(prompt_loader, "_langfuse_client", _FailingLangfuse())
     monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
     monkeypatch.setattr(settings, "langfuse_prompt_fetch_timeout_seconds", 4)
     monkeypatch.setattr(settings, "langfuse_prompt_max_retries", 1)
@@ -156,6 +362,7 @@ def test_langfuse_failure_uses_bounded_call_and_local_fallback(tmp_path, monkeyp
         {
             "path": "package/fallback",
             "label": "latest",
+            "cache_ttl_seconds": 0,
             "max_retries": 1,
             "fetch_timeout_seconds": 4,
         }

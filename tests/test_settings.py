@@ -65,3 +65,21 @@ def test_batch_checkpoint_settings_invalid_values_use_defaults(monkeypatch):
 
     assert configured.batch_job_checkpoint_interval_seconds == 5.0
     assert configured.batch_job_checkpoint_every_tasks == 10
+
+
+def test_langfuse_prompt_cache_ttl_allows_zero(monkeypatch):
+    monkeypatch.setenv("LANGFUSE_PROMPT_CACHE_TTL_SECONDS", "0")
+
+    configured = Settings()
+
+    assert configured.langfuse_prompt_cache_ttl_seconds == 0.0
+
+
+def test_langfuse_prompt_settings_invalid_values_use_defaults(monkeypatch):
+    monkeypatch.setenv("LANGFUSE_PROMPT_CACHE_TTL_SECONDS", "not-a-number")
+    monkeypatch.setenv("LANGFUSE_PROMPT_FETCH_CONCURRENCY", "0")
+
+    configured = Settings()
+
+    assert configured.langfuse_prompt_cache_ttl_seconds == 60.0
+    assert configured.langfuse_prompt_fetch_concurrency == 4

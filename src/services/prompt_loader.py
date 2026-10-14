@@ -6,7 +6,13 @@ All callers use load_prompts(prompt_paths) regardless of strategy.
 """
 
 import asyncio
+import os
 import re
+import threading
+import time
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +26,46 @@ from src.util.http_clients import get_http_client
 from src.util.settings import secret_value, settings
 
 _langfuse_client: Any | None = None
+_langfuse_client_lock = threading.Lock()
 _PROMPT_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+_PROMPT_CACHE_MAX_ENTRIES = 256
+_LANGFUSE_PROMPT_LABEL = "latest"
+
+
+@dataclass(frozen=True)
+class _LocalPromptCacheEntry:
+    stat_signature: tuple[int, int]
+    prompt: Prompt
+
+
+@dataclass(frozen=True)
+class _LangfusePromptCacheEntry:
+    cached_at: float
+    prompt: Prompt
+
+
+_local_prompt_cache: OrderedDict[Path, _LocalPromptCacheEntry] = OrderedDict()
+_local_prompt_cache_lock = threading.Lock()
+_langfuse_prompt_cache: OrderedDict[tuple[str, str], _LangfusePromptCacheEntry] = OrderedDict()
+_langfuse_prompt_cache_lock = threading.Lock()
+
+
+def _copy_prompt(prompt: Prompt) -> Prompt:
+    """Return an isolated copy because Prompt and PromptMetadata are mutable models."""
+    return prompt.model_copy(deep=True)
+
+
+def _trim_prompt_cache(cache: OrderedDict[Any, Any]) -> None:
+    while len(cache) > _PROMPT_CACHE_MAX_ENTRIES:
+        cache.popitem(last=False)
+
+
+def clear_prompt_cache() -> None:
+    """Clear all process-local prompt caches."""
+    with _local_prompt_cache_lock:
+        _local_prompt_cache.clear()
+    with _langfuse_prompt_cache_lock:
+        _langfuse_prompt_cache.clear()
 
 
 def get_langfuse_client() -> Any | None:
@@ -29,18 +74,21 @@ def get_langfuse_client() -> Any | None:
     if _langfuse_client is not None:
         return _langfuse_client
 
-    try:
-        from langfuse import Langfuse  # type: ignore
-    except ImportError:
-        logger.error("langfuse package not installed. Langfuse features are unavailable.")
-        return None
+    with _langfuse_client_lock:
+        if _langfuse_client is not None:
+            return _langfuse_client
+        try:
+            from langfuse import Langfuse  # type: ignore
+        except ImportError:
+            logger.error("langfuse package not installed. Langfuse features are unavailable.")
+            return None
 
-    _langfuse_client = Langfuse(
-        public_key=settings.langfuse_public_key,
-        secret_key=secret_value(settings.langfuse_secret_key),
-        host=settings.langfuse_host,
-    )
-    return _langfuse_client
+        _langfuse_client = Langfuse(
+            public_key=settings.langfuse_public_key,
+            secret_key=secret_value(settings.langfuse_secret_key),
+            host=settings.langfuse_host,
+        )
+        return _langfuse_client
 
 
 def _disable_langfuse_tracing() -> None:
@@ -108,9 +156,29 @@ def _load_prompt_from_folder(path: str) -> Prompt | None:
     if file_path is None:
         logger.warning(f"Rejected unsafe prompt path: {path!r}")
         return None
-    if not file_path.exists():
+
+    try:
+        stat_result = os.stat(file_path)
+    except FileNotFoundError:
+        with _local_prompt_cache_lock:
+            _local_prompt_cache.pop(file_path, None)
         logger.warning(f"Prompt file not found: {file_path}")
         return None
+    except OSError as exc:
+        with _local_prompt_cache_lock:
+            _local_prompt_cache.pop(file_path, None)
+        logger.error(f"Failed to load prompt {file_path}: {exc}")
+        return None
+
+    stat_signature = (stat_result.st_mtime_ns, stat_result.st_size)
+    with _local_prompt_cache_lock:
+        cached = _local_prompt_cache.get(file_path)
+        if cached is not None:
+            if cached.stat_signature == stat_signature:
+                _local_prompt_cache.move_to_end(file_path)
+                return _copy_prompt(cached.prompt)
+            _local_prompt_cache.pop(file_path, None)
+
     try:
         raw = file_path.read_text(encoding="utf-8")
         meta_dict, body = _parse_md_frontmatter(raw)
@@ -124,8 +192,12 @@ def _load_prompt_from_folder(path: str) -> Prompt | None:
             ),
             content=body,
         )
+        with _local_prompt_cache_lock:
+            _local_prompt_cache[file_path] = _LocalPromptCacheEntry(stat_signature, _copy_prompt(prompt))
+            _local_prompt_cache.move_to_end(file_path)
+            _trim_prompt_cache(_local_prompt_cache)
         logger.debug(f"Loaded prompt from file: {file_path}")
-        return prompt
+        return _copy_prompt(prompt)
     except (AttributeError, OSError, TypeError, ValueError) as exc:
         logger.error(f"Failed to load prompt {file_path}: {exc}")
         return None
@@ -136,41 +208,124 @@ def _load_from_folder(prompt_paths: list[str]) -> list[Prompt]:
     return [prompt for path in prompt_paths if (prompt := _load_prompt_from_folder(path)) is not None]
 
 
+_langfuse_fetch_condition = threading.Condition()
+_langfuse_fetch_in_flight = 0
+
+
+def _get_langfuse_prompt_from_cache(path: str, label: str, ttl_seconds: float) -> Prompt | None:
+    if ttl_seconds <= 0:
+        return None
+    now = time.monotonic()
+    key = (path, label)
+    with _langfuse_prompt_cache_lock:
+        cached = _langfuse_prompt_cache.get(key)
+        if cached is None or now - cached.cached_at >= ttl_seconds:
+            return None
+        _langfuse_prompt_cache.move_to_end(key)
+        return _copy_prompt(cached.prompt)
+
+
+def _get_stale_langfuse_prompt_from_cache(path: str, label: str, ttl_seconds: float) -> Prompt | None:
+    if ttl_seconds <= 0:
+        return None
+    now = time.monotonic()
+    key = (path, label)
+    with _langfuse_prompt_cache_lock:
+        cached = _langfuse_prompt_cache.get(key)
+        if cached is None or now - cached.cached_at < ttl_seconds:
+            return None
+        _langfuse_prompt_cache.move_to_end(key)
+        return _copy_prompt(cached.prompt)
+
+
+def _store_langfuse_prompt(path: str, label: str, prompt: Prompt) -> None:
+    key = (path, label)
+    with _langfuse_prompt_cache_lock:
+        _langfuse_prompt_cache[key] = _LangfusePromptCacheEntry(time.monotonic(), _copy_prompt(prompt))
+        _langfuse_prompt_cache.move_to_end(key)
+        _trim_prompt_cache(_langfuse_prompt_cache)
+
+
+def _fetch_langfuse_prompt_without_bound(client: Any, path: str, label: str) -> Prompt:
+    lf_prompt = client.get_prompt(
+        path,
+        label=label,
+        cache_ttl_seconds=0,
+        max_retries=settings.langfuse_prompt_max_retries,
+        fetch_timeout_seconds=settings.langfuse_prompt_fetch_timeout_seconds,
+    )
+    return Prompt(
+        metadata=PromptMetadata(
+            name=Path(path).name,
+            path=path,
+            version=str(lf_prompt.version) if hasattr(lf_prompt, "version") else None,
+            description=lf_prompt.commit_message or "",
+        ),
+        content=lf_prompt.prompt,
+    )
+
+
+def _fetch_langfuse_prompt(client: Any, path: str, label: str) -> Prompt:
+    """Fetch one prompt while enforcing the configured process-wide concurrency bound."""
+    global _langfuse_fetch_in_flight
+    with _langfuse_fetch_condition:
+        bound = max(1, settings.langfuse_prompt_fetch_concurrency)
+        while _langfuse_fetch_in_flight >= bound:
+            _langfuse_fetch_condition.wait()
+        _langfuse_fetch_in_flight += 1
+    try:
+        return _fetch_langfuse_prompt_without_bound(client, path, label)
+    finally:
+        with _langfuse_fetch_condition:
+            _langfuse_fetch_in_flight -= 1
+            _langfuse_fetch_condition.notify_all()
+
+
 def _load_from_langfuse_sync(prompt_paths: list[str]) -> list[Prompt]:
-    """Synchronously load Langfuse prompts with per-prompt local fallback."""
+    """Synchronously load Langfuse prompts with bounded fetches and per-prompt fallback."""
     client = get_langfuse_client()
     if client is None:
         return _load_from_folder(prompt_paths)
-    prompts: list[Prompt] = []
-    for path in prompt_paths:
-        try:
-            lf_prompt = client.get_prompt(
-                path,
-                label="latest",
-                max_retries=settings.langfuse_prompt_max_retries,
-                fetch_timeout_seconds=settings.langfuse_prompt_fetch_timeout_seconds,
-            )
-            prompts.append(
-                Prompt(
-                    metadata=PromptMetadata(
-                        name=Path(path).name,
-                        path=path,
-                        version=str(lf_prompt.version) if hasattr(lf_prompt, "version") else None,
-                        description=lf_prompt.commit_message or "",
-                    ),
-                    content=lf_prompt.prompt,
-                )
-            )
-            logger.debug(f"Loaded prompt from Langfuse: {path}")
-        except Exception as exc:  # noqa: BLE001
-            # Langfuse SDK failures must fall back to the matching local prompt.
-            logger.warning(f"Failed to load prompt '{path}' from Langfuse: {exc}. Trying local fallback.")
-            fallback = _load_prompt_from_folder(path)
-            if fallback is not None:
-                prompts.append(fallback)
-            else:
-                logger.error(f"Prompt '{path}' is unavailable from both Langfuse and the local prompt folder.")
-    return prompts
+
+    label = _LANGFUSE_PROMPT_LABEL
+    ttl_seconds = settings.langfuse_prompt_cache_ttl_seconds
+    results: list[Prompt | None] = [None] * len(prompt_paths)
+    misses: list[tuple[int, str]] = []
+    for index, path in enumerate(prompt_paths):
+        cached = _get_langfuse_prompt_from_cache(path, label, ttl_seconds)
+        if cached is None:
+            misses.append((index, path))
+        else:
+            results[index] = cached
+
+    if misses:
+        max_workers = max(1, settings.langfuse_prompt_fetch_concurrency)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {index: executor.submit(_fetch_langfuse_prompt, client, path, label) for index, path in misses}
+            for index, path in misses:
+                try:
+                    fetched = futures[index].result()
+                except Exception as exc:  # noqa: BLE001
+                    stale = _get_stale_langfuse_prompt_from_cache(path, label, ttl_seconds)
+                    if stale is not None:
+                        logger.warning(f"Failed to load prompt '{path}' from Langfuse: {exc}. Serving stale cached Langfuse prompt.")
+                        results[index] = stale
+                        continue
+                    # Langfuse SDK failures must fall back to the matching local prompt.
+                    logger.warning(f"Failed to load prompt '{path}' from Langfuse: {exc}. Trying local fallback.")
+                    fallback = _load_prompt_from_folder(path)
+                    if fallback is not None:
+                        results[index] = fallback
+                    else:
+                        logger.error(f"Prompt '{path}' is unavailable from both Langfuse and the local prompt folder.")
+                    continue
+
+                if ttl_seconds > 0:
+                    _store_langfuse_prompt(path, label, fetched)
+                logger.debug(f"Loaded prompt from Langfuse: {path}")
+                results[index] = fetched
+
+    return [prompt for prompt in results if prompt is not None]
 
 
 async def _load_from_langfuse(prompt_paths: list[str]) -> list[Prompt]:
@@ -180,6 +335,7 @@ async def _load_from_langfuse(prompt_paths: list[str]) -> list[Prompt]:
 
 async def initialize_prompt_source() -> None:
     """Validate Langfuse connectivity at startup and fall back to the prompts folder if unavailable."""
+    clear_prompt_cache()
     if not settings.use_langfuse:
         _disable_langfuse_tracing()
         logger.info(f"Langfuse is not fully configured. Falling back to local prompts folder: {settings.prompts_dir}")
