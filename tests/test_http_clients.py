@@ -1,3 +1,8 @@
+"""Tests pooled HTTP-client profiles, lifecycle, same-origin auth headers, and retry policy.
+
+The module uses a patched sleep seam and fake request clients while mutating settings; router and service
+request semantics belong in their respective tests."""
+
 import httpx
 import pytest
 from pydantic import SecretStr

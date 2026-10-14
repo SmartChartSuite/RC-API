@@ -1,8 +1,10 @@
-"""Prompt loader — loads prompts from Langfuse or local ./prompts/ directory.
+"""Load and cache prompt templates from Langfuse or the local prompts directory.
 
-Startup initialization validates Langfuse connectivity and selects whether
-prompt loading and tracing should use Langfuse or the local prompts folder.
-All callers use load_prompts(prompt_paths) regardless of strategy.
+Startup initialization checks Langfuse reachability and configures tracing; ``load_prompts`` then
+validates Questionnaire-supplied relative paths, loads the configured source with bounded
+concurrency, and falls back per prompt to cached or local content. It owns prompt parsing, source
+selection, caching, and Langfuse client setup, but not Questionnaire task extraction, LLM execution, or
+result assembly; those belong in ``job_orchestrator`` and ``llm_executor``.
 """
 
 import asyncio

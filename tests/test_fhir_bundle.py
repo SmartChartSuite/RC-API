@@ -1,3 +1,8 @@
+"""Tests Bundle helper extraction, resource-type filtering, and next-link handling for malformed entries.
+
+The file covers pure helpers in `src.util.fhir_bundle`; HTTP transport and router behavior belong in the
+proxy and router test modules."""
+
 from src.util.fhir_bundle import get_bundle_next_link, get_bundle_resources
 
 

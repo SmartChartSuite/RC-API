@@ -1,3 +1,8 @@
+"""Tests the library router's FHIR search, read, create, and configuration-error responses.
+
+The tests monkeypatch `src.routers.library` FHIR proxy calls and settings; transport details are covered
+in `test_fhir_proxy.py`."""
+
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import BundleResource, LibraryResource

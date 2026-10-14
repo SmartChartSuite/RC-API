@@ -1,8 +1,11 @@
-"""Typed application settings with graceful degraded-mode handling.
+"""Load and validate typed application settings with graceful degraded-mode handling.
 
-Required FHIR URLs and OAuth settings are validated without raising during startup.
-Missing or invalid values are recorded in ``config_errors`` so protected endpoints
-can return a FHIR OperationOutcome (HTTP 503) rather than crashing the API.
+Required FHIR URLs and OAuth settings are checked without raising during startup;
+missing or invalid values are recorded in `config_errors` so protected endpoints
+can return a FHIR OperationOutcome (HTTP 503). This module also parses environment
+values and derives runtime flags and client-facing configuration. It does not
+implement authentication, transport, persistence, or domain workflows; those
+belong to `src.util.auth`, `src.util.http_clients`, and `src.services`.
 """
 
 import math

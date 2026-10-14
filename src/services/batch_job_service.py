@@ -1,4 +1,13 @@
-"""Business logic for batch-job submission, search, and result retrieval."""
+"""Application and domain use cases behind the batch-job API.
+
+This module validates and prepares submissions, resolves and prefills Questionnaires, and enriches
+listings and statuses with Patient data. It applies batch-job filters and assembles Parameters and
+Bundle responses for submission, listing, status, and result retrieval; it also coordinates deletion.
+It is called by the batchjob router; it persists through ``job_state`` and uses
+``fhir_proxy``/``external_fhir`` for upstream FHIR access. HTTP binding, auth, OpenAPI metadata, and
+response mapping do not belong here; those stay in ``src/routers``. Worker execution belongs in
+``job_orchestrator`` and ``batch_worker``.
+"""
 
 import asyncio
 import uuid

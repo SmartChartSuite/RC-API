@@ -1,4 +1,7 @@
-"""Security tests for outbound URL helpers and prompt path validation."""
+"""Tests outbound URL and FHIR-ID validation plus safe local prompt-path handling.
+
+The tests patch asynchronous DNS resolution and `settings`, and verify attachment allowlists and symlink
+escape rejection; network fetching belongs in the FHIR-context tests."""
 
 import asyncio
 import socket

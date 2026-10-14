@@ -1,4 +1,11 @@
-"""Alembic migration environment for the RC-API database."""
+"""Configure Alembic's offline and online migration environments for RC-API.
+
+This module supplies the application's database URL and `job_state.Base.metadata`,
+creates the configured schema when running online migrations, and enables schema,
+type, and server-default comparisons. Migration definitions belong in
+`alembic/versions`; database models and runtime persistence belong in
+`src/services/job_state`, not here.
+"""
 
 from logging.config import fileConfig
 

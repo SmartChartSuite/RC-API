@@ -1,4 +1,10 @@
-"""Helpers for running blocking work outside async event loops."""
+"""Run blocking infrastructure calls without blocking the async event loop.
+
+This module provides the small `asyncio.to_thread` adapter used for synchronous
+database operations. It does not own database access or application concurrency
+policy; persistence belongs to `src.services.job_state`, and callers decide which
+work to offload.
+"""
 
 import asyncio
 from collections.abc import Callable

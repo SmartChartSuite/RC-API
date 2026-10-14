@@ -1,3 +1,8 @@
+"""Tests the job-package router's Questionnaire search, read, create, and configuration-error responses.
+
+The tests monkeypatch `src.routers.jobpackage` FHIR proxy calls and settings; transport details are
+covered in `test_fhir_proxy.py`."""
+
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import QuestionnaireResource

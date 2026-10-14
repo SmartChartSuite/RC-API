@@ -1,3 +1,8 @@
+"""Tests CQL Parameters parsing and concurrent library evaluation in `src.services.cql_executor`.
+
+The tests patch the evaluator and HTTP client, including shared limits and completion-order callbacks;
+FHIR transport behavior belongs in `test_fhir_proxy.py`."""
+
 import asyncio
 
 from src.services import cql_executor

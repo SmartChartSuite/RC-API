@@ -1,4 +1,11 @@
-"""Best-effort external FHIR resource fetches shared by batch flows."""
+"""Best-effort access to Patient resources on the configured external FHIR server.
+
+This module validates a FHIR Patient ID and fetches one Patient for batch-job enrichment and
+result assembly, returning ``None`` for invalid IDs, unsuccessful requests, or JSON failures. This
+narrow external-FHIR collaborator leaves DocumentReference search/content handling to ``fhir_context``
+and HAPI CRUD proxying to ``fhir_proxy``; batch use cases remain in
+``batch_job_service``/``job_orchestrator``.
+"""
 
 import httpx
 from loguru import logger

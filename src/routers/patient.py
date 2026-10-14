@@ -1,4 +1,11 @@
-"""GET /patient — Patient reads and search proxied to the external FHIR server."""
+"""HTTP adapter for Patient search and retrieval from the external FHIR server.
+
+This router binds query and path parameters, selects `validate_token`, performs
+external Patient reads through shared HTTP/retry and URL-safety utilities, and maps
+upstream results to FHIR responses. It does not own patient enrichment, document
+filtering, persistence, or domain use cases; those responsibilities belong to
+`src.services` and `src.services.job_state` as applicable.
+"""
 
 from collections.abc import Sequence
 from typing import Any, cast

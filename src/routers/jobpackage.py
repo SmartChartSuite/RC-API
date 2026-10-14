@@ -1,4 +1,11 @@
-"""CRUD /jobpackage — Questionnaire resources proxied to HAPI FHIR."""
+"""HTTP adapter for job-package Questionnaire search and CRUD operations.
+
+This router binds request parameters, selects auth, calls `src.services.fhir_proxy`
+for HAPI FHIR transport, and maps upstream data to Questionnaire or OperationOutcome
+responses. It contains no Questionnaire resolution, batch-job logic, persistence, or
+transport implementation; those responsibilities belong to `src.services` and
+`src.util`.
+"""
 
 from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse

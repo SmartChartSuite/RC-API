@@ -1,3 +1,8 @@
+"""Tests LLM prompt execution, cache-key generation, multi-document aggregation, and result callbacks.
+
+The tests patch LiteLLM and executor seams with settings overrides; prompt loading and batch orchestration
+are covered by `test_prompt_loader.py` and `test_job_orchestrator.py`."""
+
 import asyncio
 from types import SimpleNamespace
 

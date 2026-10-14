@@ -1,3 +1,8 @@
+"""Tests the `/config` endpoint's configured identifier response and authentication boundary.
+
+The tests patch `settings` and use FastAPI `TestClient`; `/health` and docs stay public, while endpoint
+implementation belongs in `src.routers.config`."""
+
 from fastapi.testclient import TestClient
 
 from main import app

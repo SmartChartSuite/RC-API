@@ -1,4 +1,11 @@
-"""Shared FHIR response models used by router output typing."""
+"""Typed FHIR resource shapes and proxy payload types shared across the API.
+
+This module defines Pydantic models, TypedDicts, aliases, and validation for the
+FHIR resources, Bundles, Parameters, and OperationOutcomes exchanged by routers and
+services. It performs no transport, persistence, or domain orchestration; HTTP
+proxying belongs to `src.services.fhir_proxy`, while application workflows belong
+to other `src.services` modules.
+"""
 
 from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias, TypedDict

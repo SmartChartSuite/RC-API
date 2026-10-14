@@ -1,3 +1,8 @@
+"""Tests Group router search, member expansion, CRUD responses, concurrency, and upstream-error handling.
+
+The tests patch `src.services.fhir_proxy`, `src.routers.group`, settings, and shared fakes; HAPI transport
+details are covered in `test_fhir_proxy.py`."""
+
 import asyncio
 
 from fastapi.responses import JSONResponse

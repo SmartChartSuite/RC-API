@@ -1,3 +1,8 @@
+"""Tests OperationOutcome construction, configuration-error responses, and FHIR proxy status mapping.
+
+The module validates model/error payload selection in `src.services.errorhandler`; proxy transport
+behavior is exercised separately in `test_fhir_proxy.py`."""
+
 from typing import cast
 
 import pytest

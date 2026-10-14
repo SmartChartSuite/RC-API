@@ -1,11 +1,11 @@
-"""HAPI FHIR CQL Library evaluation service.
+"""Evaluate CQL libraries through HAPI FHIR's ``$evaluate`` endpoint.
 
-Wraps POST {HAPI_FHIR_CQL_EXECUTION_URL}/Library/{LibraryName}/$evaluate.
-Library IDs are the CamelCase resource name — no numeric ID lookup needed.
-
-The dataEndpoint.address is always sourced from settings.external_fhir_server_url.
-The dataEndpoint.header is conditionally populated with the auth token when
-settings.external_fhir_server_auth is set.
+The module posts to ``{HAPI_FHIR_CQL_EXECUTION_URL}/Library/{LibraryName}/$evaluate`` using the
+CamelCase Library resource name, builds the data endpoint from
+``settings.external_fhir_server_url``, and optionally includes its configured auth token. It parses
+Parameters and OperationOutcome responses into ``CqlResult`` values and runs libraries with bounded
+concurrency. ``job_orchestrator`` calls it. FHIR CRUD proxying belongs in ``fhir_proxy``; Bundle
+assembly and persistence do not belong here.
 """
 
 import asyncio

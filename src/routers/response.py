@@ -1,6 +1,10 @@
-"""CRUD /response — job package questionnaire responses stored in the DB.
+"""HTTP adapter for locally stored QuestionnaireResponse CRUD operations.
 
-Patient-linked data is never sent to HAPI FHIR — always stored in the local DB.
+This router binds FHIR bodies and query/path parameters, selects auth, normalizes
+the linkage needed for response records, delegates persistence to
+`src.services.job_state` through `src.util.threading`, and maps results to FHIR
+resources or OperationOutcome responses. It never proxies Patient-linked responses
+to HAPI FHIR; batch execution and broader domain workflows belong to `src.services`.
 """
 
 import uuid

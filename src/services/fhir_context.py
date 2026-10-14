@@ -1,10 +1,11 @@
-"""Fetches patient DocumentReference plain-text content from the external FHIR server.
+"""Fetch and filter patient DocumentReferences for LLM context on the external FHIR server.
 
-Returns a DocumentFetchResult containing one document dict per DocumentReference with
-text/plain content and safe metadata for documents excluded during fetching. Returns an
-empty result if the patient has no documents — in which case the orchestrator skips all
-LLM prompt execution. Raises DocumentFetchError when the search itself fails, so a
-transient outage is retried rather than mistaken for "no documents".
+This module searches and paginates same-origin DocumentReferences, accepts text/plain inline or safe
+attachments, bounds attachment size/count/concurrency, and records safe metadata for excluded
+documents. It returns ``DocumentFetchResult`` or raises ``DocumentFetchError`` when the search
+fails, so the orchestrator can distinguish "no documents" (skip LLM execution) from a retryable
+outage. It does not execute prompts, build result Bundles, or persist documents. Those responsibilities
+belong in ``llm_executor``, ``job_orchestrator``, and ``job_state``.
 """
 
 import asyncio

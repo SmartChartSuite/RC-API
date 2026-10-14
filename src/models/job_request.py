@@ -1,4 +1,11 @@
-"""FHIR Parameters request body model for POST /batchjob."""
+"""Pydantic models for the FHIR `Parameters` request accepted by `/batchjob`.
+
+This module validates the required `patientId` and `jobPackage` parameters and
+provides accessors for optional and repeated `job` values. It defines request
+shapes only and performs no questionnaire resolution, persistence, or execution;
+those responsibilities belong to `src.services.batch_job_service` and its
+collaborators.
+"""
 
 from pydantic import BaseModel, model_validator
 

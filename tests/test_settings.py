@@ -1,3 +1,8 @@
+"""Tests environment-derived settings, secret masking/unwrapping, path defaults, and numeric fallbacks.
+
+The module uses `monkeypatch` to isolate environment variables; behavior that consumes settings belongs in
+the corresponding service or router tests."""
+
 import pytest
 
 from src.util.settings import Settings, secret_value

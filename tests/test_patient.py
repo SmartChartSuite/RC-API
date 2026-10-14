@@ -1,3 +1,8 @@
+"""Tests the Patient router's external-FHIR search/get behavior, query forwarding, and error responses.
+
+The tests patch `src.routers.patient`'s HTTP client and settings with shared fakes; raw external FHIR
+fetching is covered in `test_external_fhir.py`."""
+
 from fastapi.responses import JSONResponse
 from pydantic import SecretStr
 from starlette.requests import Request

@@ -1,12 +1,17 @@
-"""Async batch job orchestrator.
+"""Execute the CQL and LLM pipeline for one worker-owned batch attempt.
 
-Orchestrates the full CQL + LLM pipeline for a batch job submission:
-1. Fetch Questionnaire (job package) from HAPI FHIR
-2. Extract structured (CQL) library names and unstructured (LLM) prompt paths
-3. Concurrently load prompts + fetch patient DocumentReferences
-4. Concurrently run CQL libraries + LLM prompts (skip LLM if no documents)
-5. Build result FHIR Bundle (Observations + supporting resources)
-6. Persist to DB; update batch job status to complete
+The orchestrator:
+1. fetches the Questionnaire (job package) from HAPI FHIR;
+2. extracts structured CQL library names and unstructured prompt paths;
+3. loads prompts and fetches patient DocumentReferences concurrently;
+4. runs CQL libraries and, when documents exist, LLM prompts concurrently;
+5. checkpoints child progress and builds a result FHIR Bundle with Observations and supporting
+   resources;
+6. persists task and batch state, requeues retryable child failures, or finalizes the batch.
+
+It maintains the worker lease while external work runs and restores prior child results on retries.
+Batch HTTP use cases belong in ``batch_job_service``/``src/routers``. The embedded claim/recovery loop
+belongs in ``batch_worker``, and database access belongs in ``job_state``.
 """
 
 import asyncio

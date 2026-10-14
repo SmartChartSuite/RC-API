@@ -1,4 +1,7 @@
-"""Security tests for OAuth token validation (src/util/auth.py)."""
+"""Tests OAuth2 bearer-token validation and admin-scope enforcement in `src.util.auth`.
+
+Module-scoped RSA fixtures and `_JWKSClient` cover JWKS caching, key rotation, claim failures, outages,
+and incomplete configuration; implementation behavior belongs in `src.util.auth`."""
 
 import time
 from typing import ClassVar, cast

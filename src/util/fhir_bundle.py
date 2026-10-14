@@ -1,4 +1,10 @@
-"""Tolerant helpers for reading FHIR Bundle resources and pagination links."""
+"""Provide tolerant helpers for reading FHIR Bundle entries and pagination links.
+
+This module extracts resource dictionaries and the first `next` link from loosely
+typed Bundle payloads. It contains pure shape and representation helpers only; FHIR
+transport and pagination policy belong to the calling service or
+`src.services.fhir_proxy`, not here.
+"""
 
 from typing import Any
 

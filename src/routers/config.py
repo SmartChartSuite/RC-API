@@ -1,3 +1,11 @@
+"""HTTP adapter for the client-facing `/config` endpoint.
+
+This module authenticates requests and exposes the configuration projection returned
+by `src.util.settings`. It contains no settings loading or validation and no
+application behavior; configuration parsing belongs to `src.util.settings`, while
+other HTTP endpoints belong in their respective routers.
+"""
+
 from fastapi import APIRouter, Security
 
 from src.models.config import ConfigEndpointModel

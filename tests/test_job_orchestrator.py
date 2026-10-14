@@ -1,3 +1,8 @@
+"""Tests batch orchestration from questionnaire job extraction through CQL/LLM result Bundle assembly.
+
+The `run_harness` fixture and autouse document-state stubs patch persistence and execution seams to cover
+checkpointing, retries, deterministic IDs, and child finalization."""
+
 import json
 from dataclasses import dataclass, field
 

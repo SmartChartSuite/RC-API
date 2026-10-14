@@ -1,3 +1,8 @@
+"""Tests patient-document fetching, attachment decoding, SSRF filtering, exclusion reporting, and limits.
+
+The tests patch `src.services.fhir_context` HTTP clients, DNS resolution, and settings with shared fakes;
+LLM execution and batch orchestration are covered elsewhere."""
+
 import base64
 
 import pytest

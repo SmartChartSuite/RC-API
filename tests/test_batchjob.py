@@ -1,3 +1,8 @@
+"""Tests the batch-job router's submission, listing, status, result, filtering, and hydration behavior.
+
+The tests patch `batch_job_service` persistence and patient-lookup seams, and call a few
+`job_orchestrator` helpers directly; durable persistence is covered in `test_job_state_schema.py`."""
+
 from copy import deepcopy
 from datetime import UTC, datetime
 

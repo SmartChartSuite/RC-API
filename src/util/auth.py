@@ -1,13 +1,13 @@
-"""OAuth 2 Bearer token validation and scope-based authorization dependencies.
+"""Provide OAuth 2 Bearer-token validation and scope-based authorization dependencies.
 
-Authentication fails closed: it is enforced unless AUTH_DISABLED=true is set
-explicitly (local development only). When enforced, OAUTH2_JWKS_URL,
-OAUTH2_ISSUER, and OAUTH2_AUDIENCE must all be configured; otherwise protected
-endpoints return 503 instead of silently allowing anonymous access.
-
-Dependencies:
-    validate_token — required on all endpoints; returns decoded JWT claims dict.
-    require_admin  — required on DELETE endpoints; asserts 'admin' in scope claim.
+Authentication fails closed unless `AUTH_DISABLED=true` is explicitly set for local
+development. When enabled, missing `OAUTH2_JWKS_URL`, `OAUTH2_ISSUER`, or
+`OAUTH2_AUDIENCE` causes protected endpoints to return 503 rather than allowing
+anonymous access. This module validates JWTs against cached JWKS keys, enforces
+issuer, audience, and expiry, and exposes `validate_token` and `require_admin` for
+routers. It does not define endpoint policy or settings; route selection belongs to
+`src/routers`, configuration to `src.util.settings`, and outbound HTTP to
+`src.util.http_clients`.
 """
 
 import asyncio

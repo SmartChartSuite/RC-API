@@ -1,7 +1,11 @@
-"""CRUD /group — FHIR Group resources proxied to HAPI FHIR.
+"""HTTP adapter for Group search and CRUD operations.
 
-GET /group implicitly includes all Patient resources referenced as members,
-mirroring v0's search_group() logic.
+The CRUD endpoints call `src.services.fhir_proxy` for HAPI FHIR transport; Group
+search also fetches referenced Patients through shared HTTP infrastructure and
+preserves the API's flat implicit-include result. This router binds parameters,
+selects auth, and maps results to FHIR responses, but does not own persistence or
+domain workflows. Those belong to `src.services`; shared transport details belong
+to `src.util`.
 """
 
 import asyncio

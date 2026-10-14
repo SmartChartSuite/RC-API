@@ -1,4 +1,11 @@
-"""Response models for /batchjob endpoints."""
+"""Pydantic response shapes for `/batchjob` HTTP responses.
+
+This module defines the accepted-job `Parameters` envelope and its documented
+status and example metadata. It contains serialization and schema declarations
+only; batch-job use cases, state transitions, and result generation belong to
+`src.services.batch_job_service`, `src.services.job_state`, and
+`src.services.job_orchestrator`.
+"""
 
 from typing import ClassVar
 

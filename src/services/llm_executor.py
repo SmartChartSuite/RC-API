@@ -1,9 +1,11 @@
-"""LiteLLM-based LLM execution service.
+"""Run one LiteLLM analysis call per prompt/document pair.
 
-Mirrors v0 NLPaaS approach: one LLM call per document per prompt, results collapsed.
-All calls use asyncio.gather for concurrency.
-
-Guarded by settings.use_llm — if LiteLLM is not configured, run_all_prompts() should not be called.
+This module bounds concurrent provider calls, isolates per-document failures, returns ``LlmResult``
+aggregates, and emits optional per-prompt completion callbacks with Langfuse metadata. The
+orchestrator invokes it only when documents and LLM configuration are available; prompt sourcing
+belongs in ``prompt_loader`` and DocumentReference fetching in ``fhir_context``. It does not build
+FHIR Observations/Bundles or persist results; ``job_orchestrator`` handles assembly and ``job_state``
+handles persistence.
 """
 
 import asyncio

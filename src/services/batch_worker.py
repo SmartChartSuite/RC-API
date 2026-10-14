@@ -1,4 +1,10 @@
-"""Embedded durable consumer for database-backed batch jobs."""
+"""Embedded durable worker loop for database-backed batch jobs.
+
+This module polls ``job_state`` to recover expired leases and claim, execute, heartbeat, release, or
+fail one worker-owned batch attempt, delegating pipeline work to ``job_orchestrator``. It contains
+worker lifecycle and retry handoff only. HTTP handling and batch submission/results stay in
+``src/routers`` and ``batch_job_service``; database access remains in ``job_state``.
+"""
 
 import asyncio
 import os

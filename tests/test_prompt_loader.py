@@ -1,3 +1,8 @@
+"""Tests local and Langfuse prompt loading, path validation, caching, fallback, and bounded concurrency.
+
+The module uses temporary prompt roots and patches `prompt_loader`, `settings`, and Langfuse/HTTP seams;
+prompt execution belongs in `test_llm_executor.py`."""
+
 import threading
 from pathlib import Path
 from types import SimpleNamespace

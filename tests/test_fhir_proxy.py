@@ -1,3 +1,8 @@
+"""Tests HAPI FHIR proxy URL construction, CRUD requests, payload handling, validation, and safe errors.
+
+The module patches `httpx.AsyncClient` and settings to verify headers, query/body forwarding, invalid IDs,
+and sanitized transport failures; router adapters are covered by dedicated test modules."""
+
 from typing import ClassVar, cast
 
 import httpx

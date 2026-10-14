@@ -1,4 +1,11 @@
-"""Helpers for representing persisted document text in FHIR resources."""
+"""Build encoded FHIR attachment content for persisted document text.
+
+This module converts text to `text/plain` base64 attachment structures and inserts
+that content into DocumentReference-like dictionaries without overwriting existing
+content. It contains representation helpers only; document retrieval and filtering
+belong to `src.services.fhir_context`, and outbound HTTP belongs to
+`src.util.http_clients`.
+"""
 
 import base64
 from typing import Any

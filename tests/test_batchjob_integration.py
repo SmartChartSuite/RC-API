@@ -1,28 +1,7 @@
-"""End-to-end integration test for the API's main operation: POST /batchjob.
-Exercises the full request -> CQL + LLM pipeline -> result Bundle path through
-real HTTP endpoints (via FastAPI's TestClient), mocking only the true external
-network boundaries with respx:
-    - HAPI FHIR (Questionnaire search/get, Library/$evaluate)
-    - External FHIR server (Patient, DocumentReference)
-    - LiteLLM proxy (Responses API)
+"""Exercises the complete `POST /batchjob` -> worker -> result Bundle path.
 
-All mocked response bodies under tests/fixtures/batchjob_integration/ are real
-captures from the project's dev environment: the Questionnaire
-SETNETSyphilisInfantFollowUp pared down to the IfuSyphilisComplications CQL
-library and the 2025_08/syphilis/ig_exm_skin prompt, run against Patient/625747
-(an infant with congenital syphilitic meningitis on the structured side and two
-clinical notes -- one with an abnormal skin finding, one normal -- on the
-unstructured side). The LLM prompt content itself is loaded for real from
-./prompts/ on disk, and each captured LiteLLM completion is the real answer that
-note produced.
-
-The TestClient runs the API lifespan and embedded durable worker in-process.
-The POST remains enqueue-only, so the test polls the status endpoint until the
-worker completes the persisted batch.
-
-DB state is isolated to a throwaway SQLite file per test (see _isolated_db)
-so this test never touches the shared dev DB file.
-"""
+FastAPI `TestClient` runs the real pipeline with respx HTTP mocks; `_isolated_db` and
+`_configure_services` isolate SQLite state and settings for external services."""
 
 import json
 import time

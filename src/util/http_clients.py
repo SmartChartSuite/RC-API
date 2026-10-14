@@ -1,9 +1,10 @@
-"""Long-lived outbound HTTP clients grouped by upstream policy.
+"""Manage pooled outbound HTTP clients grouped by upstream policy.
 
-The application lifespan owns the clients used in production. Direct service
-callers (including tests) get a client lazily from a registry keyed by the
-currently running event loop, which prevents an ``AsyncClient`` pool from
-being reused across pytest or TestClient loops.
+This module defines named timeout, connection, authentication-header, retry, and
+cleanup behavior; production clients are owned by the application lifespan, while
+direct callers can use loop-local lazy clients before startup or in tests. It does
+not implement domain workflows or persistence; callers supply requests, and URL
+safety belongs to `src.util.outbound_url`.
 """
 
 import asyncio

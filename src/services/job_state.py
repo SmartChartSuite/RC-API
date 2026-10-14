@@ -1,12 +1,12 @@
-"""DB state management for v1 — batch jobs, jobs, and questionnaire responses.
+"""Persist durable batch-job state and related records.
 
-Tables:
-    batch_jobs_v1       — one row per batch submission
-    jobs_v1             — one row per task executed under a batch job
-    questionnaire_responses — patient-linked response data
-    batch_job_documents  — fetched, filtered documents retained across attempts
-
-Uses SQLAlchemy Core + ORM with the same engine/session pattern as v0.
+This is the only module that talks to the database. It defines SQLAlchemy models for batch jobs,
+child jobs, questionnaire responses, and retained batch documents; verifies the Alembic revision at
+startup; and implements CRUD queries plus the queue/lease/fencing state machine for claiming,
+heartbeats, retry, recovery, partial results, and finalization. These persistence functions are used by
+``batch_job_service``, ``job_orchestrator``, and ``batch_worker``. Router binding and auth/OpenAPI
+behavior belong in ``src/routers``; schema migration definitions belong in ``alembic/``. External FHIR
+transport and orchestration do not belong here.
 """
 
 from dataclasses import dataclass

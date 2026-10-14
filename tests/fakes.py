@@ -1,3 +1,8 @@
+"""Reusable HTTP and FHIR resource fakes for the test suite.
+
+This module supplies queued and failing clients, response wrappers, and a Patient factory; test-specific
+fixtures and assertions stay in their owning modules."""
+
 from typing import Any, ClassVar
 
 import httpx

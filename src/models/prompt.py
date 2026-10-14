@@ -1,4 +1,10 @@
-"""Prompt model — used by both prompt_loader and llm_executor."""
+"""Pydantic models for prompt metadata and prompt content.
+
+This module defines the data-only shapes exchanged by `src.services.prompt_loader`
+and `src.services.llm_executor`, including source metadata and rendered prompt
+text. It performs no prompt loading, caching, Langfuse access, or LLM execution;
+those operations belong to the collaborating service modules.
+"""
 
 from pydantic import BaseModel
 

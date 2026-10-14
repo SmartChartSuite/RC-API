@@ -1,3 +1,8 @@
+"""Tests the embedded batch worker's claim, execution, failure, and shutdown paths.
+
+The tests monkeypatch `src.services.batch_worker` persistence and orchestration seams, driving the worker
+loop without a real database."""
+
 import asyncio
 
 from src.services import batch_worker

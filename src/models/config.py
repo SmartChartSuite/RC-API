@@ -1,3 +1,11 @@
+"""Pydantic models for the configuration representation returned by `/config`.
+
+This module defines the client-facing primary-identifier shape and its schema
+examples. It contains data validation and serialization only and performs no
+settings loading or I/O; environment parsing and derived configuration belong to
+`src.util.settings`.
+"""
+
 from pydantic import BaseModel
 
 

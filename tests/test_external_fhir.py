@@ -1,3 +1,8 @@
+"""Tests external-FHIR Patient fetching and non-success, malformed-response, and transport-error handling.
+
+A local `_FakeAsyncClient` is patched into `src.services.external_fhir`; settings provide the base URL and
+auth, while router behavior belongs in `test_patient.py`."""
+
 from typing import ClassVar
 
 import httpx

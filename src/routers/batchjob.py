@@ -1,4 +1,12 @@
-"""POST/GET/DELETE /batchjob — batch job submission and status/results retrieval."""
+"""HTTP adapter for batch-job submission, listing, polling, results retrieval, and deletion.
+
+This router binds `/batchjob` parameters, selects `validate_token` or
+`require_admin`, delegates use cases to `src.services.batch_job_service`, and maps
+service outcomes to FHIR `Parameters`, Bundles, or OperationOutcome responses.
+Questionnaire resolution, filtering, persistence, worker execution, and domain logic
+belong to the service layer (`batch_job_service`, `batch_job_filters`, `job_state`,
+and `batch_worker`), not this router.
+"""
 
 from typing import Annotated
 

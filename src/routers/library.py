@@ -1,4 +1,11 @@
-"""CRUD /library — FHIR Library resources proxied to HAPI FHIR."""
+"""HTTP adapter for CQL Library search and CRUD operations.
+
+This router binds request parameters, selects auth, calls `src.services.fhir_proxy`
+for HAPI FHIR transport, and maps upstream data to Library, Bundle, or
+OperationOutcome responses. It contains no CQL execution, persistence, or
+transport implementation; those responsibilities belong to `src.services` and
+`src.util`.
+"""
 
 from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse

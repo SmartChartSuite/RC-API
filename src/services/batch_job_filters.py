@@ -1,4 +1,9 @@
-"""Pure parsing and matching helpers for batch-job list filters."""
+"""Pure parsing and matching helpers for batch-job list filters.
+
+This module normalizes CSV and ISO-date query values, then applies case-insensitive string and
+date-range matching for batch-job searches. It contains no I/O, persistence, or HTTP response
+handling; callers in ``batch_job_service`` combine these predicates with database and FHIR data.
+"""
 
 from dataclasses import dataclass
 from datetime import date

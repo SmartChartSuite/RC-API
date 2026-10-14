@@ -1,4 +1,11 @@
-"""Helpers for safely resolving, validating, and comparing outbound HTTP URLs."""
+"""Validate and resolve outbound HTTP references under origin and SSRF safeguards.
+
+This module handles FHIR id path encoding, HTTP reference resolution, same-origin
+comparison, DNS/IP internal-address checks, and attachment host allowlisting. It
+does not perform outbound fetches or define document-fetch behavior; callers such
+as `src.util.http_clients` and `src.services.fhir_context` apply these checks
+before their own transport or domain operations.
+"""
 
 import asyncio
 import ipaddress

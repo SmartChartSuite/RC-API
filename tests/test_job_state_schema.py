@@ -1,3 +1,8 @@
+"""Tests job-state migrations, ORM schema alignment, queue leasing, fenced writes, retries, and document storage.
+
+The `db` fixture points `job_state` at fresh in-memory SQLite and uses `monkeypatch`; this module covers
+persistence rather than router or orchestration logic."""
+
 import importlib
 import time
 from dataclasses import dataclass

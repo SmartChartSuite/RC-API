@@ -1,4 +1,11 @@
-"""Error handling utilities for v1."""
+"""Shared HTTP error and FHIR OperationOutcome response helpers.
+
+This module builds OperationOutcome payloads and JSON responses, describes OperationOutcome
+responses for OpenAPI, handles missing-configuration errors, validates resource-or-OperationOutcome
+payloads, and maps FHIR proxy failures to RC-API status codes. Routers and services use it for response
+shaping; it does not perform upstream transport, persistence, or domain logic, which belong in
+``fhir_proxy``, ``job_state``, and the calling service modules.
+"""
 
 from collections.abc import Mapping
 from typing import Any, TypeVar

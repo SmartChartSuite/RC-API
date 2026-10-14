@@ -1,3 +1,13 @@
+"""Create and configure the RC-API FastAPI application.
+
+This module owns application-wide logging, lifespan startup and shutdown (database
+initialization, prompt-source setup, HTTP client cleanup, and the embedded batch
+worker), middleware, exception handling, router registration, and health checks.
+Business logic belongs in `src.services`, HTTP adapters in `src.routers`, and
+shared infrastructure in `src.util`; this module wires those pieces together
+rather than implementing domain or persistence behavior.
+"""
+
 import logging
 import sys
 from contextlib import asynccontextmanager

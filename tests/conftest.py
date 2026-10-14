@@ -1,4 +1,7 @@
-"""Shared pytest setup for a freshly migrated test database."""
+"""Shared pytest setup for the migrated test database and test isolation.
+
+The session hook migrates SQLite and autouse fixtures clear prompt caches and HTTP-client registries;
+shared fakes live in `tests.fakes`, while behavior belongs in the test modules."""
 
 import os
 from pathlib import Path
