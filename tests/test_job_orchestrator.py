@@ -32,27 +32,28 @@ def test_extract_job_lists_reads_both_extension_types():
     assert prompt_paths == ["prompts/a", "prompts/b"]
 
 
-def test_build_tuple_observation_returns_supporting_condition_resource(monkeypatch):
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "resource-123")
-
+def test_build_tuple_observation_returns_supporting_condition_resource():
+    pipe_value = "2026-05-22T12:00:00|http://loinc.org|1234-5|Example|positive"
     obs, supporting = job_orchestrator._build_tuple_observation(
-        "2026-05-22T12:00:00|http://loinc.org|1234-5|Example|positive",
+        pipe_value,
         "1.1",
         "Question text",
         "patient-123",
         "RegistryForm",
         "Condition_History",
+        "batch-1",
     )
 
-    assert obs["focus"] == [{"reference": "Condition/resource-123"}]
     assert supporting is not None
+    assert obs["id"] == job_orchestrator._stable_id("batch-1", "cql", "Condition_History", "1.1", 0, "String", pipe_value, "observation")
+    assert obs["identifier"] == [{"system": settings.deploy_url, "value": f"Observation/{obs['id']}"}]
+    assert obs["focus"] == [{"reference": f"Condition/{supporting['id']}"}]
+    assert supporting["id"] == job_orchestrator._stable_id("batch-1", "cql", "Condition_History", "1.1", 0, "String", pipe_value, "supporting", "Condition")
     assert supporting["resourceType"] == "Condition"
     assert supporting["code"]["coding"][0]["code"] == "1234-5"
 
 
-def test_build_llm_observations_deduplicates_same_document_and_text(monkeypatch):
-    ids = iter(["obs-1", "obs-2"])
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: next(ids))
+def test_build_llm_observations_deduplicates_same_document_and_text():
     questionnaire = {
         "item": [
             {
@@ -76,15 +77,14 @@ def test_build_llm_observations_deduplicates_same_document_and_text(monkeypatch)
         )
     ]
 
-    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123")
+    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     assert entries[0]["resource"]["valueString"] == "same answer"
     assert entries[0]["resource"]["focus"] == [{"reference": "DocumentReference/doc-1"}]
 
 
-def test_build_llm_observations_maps_json_response_to_components(monkeypatch):
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-1")
+def test_build_llm_observations_maps_json_response_to_components():
     questionnaire = {
         "item": [
             {
@@ -112,7 +112,7 @@ def test_build_llm_observations_maps_json_response_to_components(monkeypatch):
         )
     ]
 
-    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123")
+    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     resource = entries[0]["resource"]
@@ -158,8 +158,7 @@ def test_build_llm_observations_maps_json_response_to_components(monkeypatch):
     ]
 
 
-def test_build_llm_observations_maps_fenced_json_response_to_components(monkeypatch):
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-1")
+def test_build_llm_observations_maps_fenced_json_response_to_components():
     questionnaire = {
         "item": [
             {
@@ -187,7 +186,7 @@ def test_build_llm_observations_maps_fenced_json_response_to_components(monkeypa
         )
     ]
 
-    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123")
+    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     resource = entries[0]["resource"]
@@ -232,8 +231,7 @@ def test_build_llm_observations_maps_fenced_json_response_to_components(monkeypa
     ]
 
 
-def test_build_cql_observations_uses_matching_structured_task(monkeypatch):
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-123")
+def test_build_cql_observations_uses_matching_structured_task():
     questionnaire = {
         "item": [
             {
@@ -249,7 +247,7 @@ def test_build_cql_observations_uses_matching_structured_task(monkeypatch):
     }
     cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": "positive"}]})]
 
-    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123")
+    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     assert entries[0]["resource"]["valueString"] == "positive"
@@ -276,8 +274,7 @@ def test_build_cql_observations_uses_matching_structured_task(monkeypatch):
         ("Reference", {"reference": "Patient/patient-123"}, {"focus": [{"reference": "Patient/patient-123"}]}),
     ],
 )
-def test_build_cql_observations_maps_cql_value_types(monkeypatch, value_type, raw_value, expected):
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-typed")
+def test_build_cql_observations_maps_cql_value_types(value_type, raw_value, expected):
     questionnaire = {
         "item": [
             {
@@ -289,7 +286,7 @@ def test_build_cql_observations_maps_cql_value_types(monkeypatch, value_type, ra
     }
     cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": raw_value, "type": value_type}]})]
 
-    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123")
+    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     resource = entries[0]["resource"]
@@ -305,8 +302,7 @@ def test_build_cql_observations_maps_cql_value_types(monkeypatch, value_type, ra
         ("Unknown", "not-a-string-observation"),
     ],
 )
-def test_build_cql_observations_falls_back_to_compact_json(monkeypatch, value_type, raw_value):
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-fallback")
+def test_build_cql_observations_falls_back_to_compact_json(value_type, raw_value):
     questionnaire = {
         "item": [
             {
@@ -318,7 +314,7 @@ def test_build_cql_observations_falls_back_to_compact_json(monkeypatch, value_ty
     }
     cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": raw_value, "type": value_type}]})]
 
-    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123")
+    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     assert entries[0]["resource"]["valueString"] == json.dumps(raw_value, separators=(",", ":"), sort_keys=True)
@@ -328,8 +324,7 @@ def test_build_cql_observations_falls_back_to_compact_json(monkeypatch, value_ty
     ("raw_value", "expected"),
     [(True, {"valueBoolean": True}), ("positive", {"valueString": "positive"})],
 )
-def test_build_cql_observations_infers_legacy_value_types(monkeypatch, raw_value, expected):
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-legacy")
+def test_build_cql_observations_infers_legacy_value_types(raw_value, expected):
     questionnaire = {
         "item": [
             {
@@ -341,25 +336,108 @@ def test_build_cql_observations_infers_legacy_value_types(monkeypatch, raw_value
     }
     cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": raw_value}]})]
 
-    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123")
+    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     for key, expected_value in expected.items():
         assert entries[0]["resource"][key] == expected_value
 
 
-def test_build_result_bundle_includes_status_and_patient(monkeypatch):
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "bundle-123")
+def test_generated_result_ids_are_stable_and_distinct_per_batch():
+    questionnaire = {
+        "item": [
+            {
+                "linkId": "cql-question",
+                "text": "CQL question",
+                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+            },
+            {
+                "linkId": "llm-question",
+                "text": "LLM question",
+                "extension": [{"url": job_orchestrator._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}],
+            },
+        ]
+    }
+    cql_results = [
+        CqlResult(
+            library_name="LibOne",
+            patient_id="patient-123",
+            results={"TaskA": [{"value": "first"}, {"value": "second"}]},
+        )
+    ]
+    llm_results = [
+        LlmResult(
+            prompt_path="prompts/a",
+            document_results=[
+                LlmDocumentResult(doc_id="doc-1", doc_type="Visit Note", doc_date="2026-05-22", response="finding one"),
+                LlmDocumentResult(doc_id="doc-1", doc_type="Visit Note", doc_date="2026-05-22", response="finding two"),
+            ],
+        )
+    ]
+
+    def _build(batch_id: str) -> list[dict]:
+        return job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", batch_id) + job_orchestrator._build_llm_observations(
+            llm_results, questionnaire, "RegistryForm", "patient-123", batch_id
+        )
+
+    first = _build("batch-1")
+    repeat = _build("batch-1")
+    other_batch = _build("batch-2")
+
+    assert first == repeat
+    assert [entry["fullUrl"] for entry in first] == [entry["fullUrl"] for entry in repeat]
+    assert {entry["resource"]["id"] for entry in first}.isdisjoint({entry["resource"]["id"] for entry in other_batch})
+    assert len({entry["resource"]["id"] for entry in first}) == 4
+    assert len([entry for entry in first if entry["resource"]["id"]]) == 4
+    for entry in first:
+        resource = entry["resource"]
+        assert entry["fullUrl"] == f"{resource['resourceType']}/{resource['id']}"
+        assert resource["identifier"] == [{"system": settings.deploy_url, "value": f"Observation/{resource['id']}"}]
+
+
+def test_cql_resource_without_id_gets_stable_supporting_resource():
+    questionnaire = {
+        "item": [
+            {
+                "linkId": "1.1",
+                "text": "Question text",
+                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+            }
+        ]
+    }
+    cql_results = [
+        CqlResult(
+            library_name="LibOne",
+            patient_id="patient-123",
+            results={"TaskA": [{"resourceType": "Condition", "code": {"text": "stable"}}]},
+        )
+    ]
+
+    first = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+    repeat = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+
+    assert first == repeat
+    assert len(first) == 2
+    observation, supporting = first
+    supporting_resource = supporting["resource"]
+    assert supporting_resource["id"]
+    assert supporting_resource["id"] == supporting["resource"]["id"]
+    assert supporting["fullUrl"] == f"Condition/{supporting_resource['id']}"
+    assert observation["resource"]["focus"] == [{"reference": supporting["fullUrl"]}]
+
+
+def test_build_result_bundle_includes_status_and_patient():
 
     bundle = job_orchestrator._build_result_bundle(
         {"resourceType": "Patient", "id": "patient-123"},
         [{"fullUrl": "Observation/1", "resource": {"resourceType": "Observation", "id": "1"}}],
         [{"fullUrl": "Observation/2", "resource": {"resourceType": "Observation", "id": "2"}}],
         "complete",
+        batch_id="batch-1",
     )
 
     assert bundle["resourceType"] == "Bundle"
-    assert bundle["id"] == "bundle-123"
+    assert bundle["id"] == job_orchestrator._stable_id("batch-1", "bundle")
     assert bundle["total"] == 4
     assert bundle["entry"][0]["resource"]["id"] == "status-observation"
 
@@ -488,7 +566,6 @@ async def test_run_batch_job_requeues_missing_llm_result_when_attempts_remain(mo
     monkeypatch.setattr(job_orchestrator, "run_all_prompts", _fake_run_all_prompts)
     monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
     monkeypatch.setattr(settings, "use_llm", True)
-    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "job-123")
 
     await job_orchestrator.run_batch_job(
         "batch-1",
@@ -722,6 +799,110 @@ async def test_worker_retry_restores_completed_cql_without_rerunning(monkeypatch
     observations = [entry["resource"] for entry in final_bundles[-1]["entry"] if entry["resource"].get("code", {}).get("coding", [{}])[0].get("code") == "1.1"]
     assert len(observations) == 1
     assert observations[0]["valueString"] == "positive"
+
+
+async def test_retry_restored_child_keeps_partial_observation_identity(monkeypatch):
+    partial_bundles: list[tuple[int, dict]] = []
+    final_bundles: list[dict] = []
+    requeues: list[tuple] = []
+    current_attempt = [1]
+    cql_calls: list[list[str]] = []
+
+    async def _fake_fhir_get(resource_type, resource_id):
+        return {
+            "resourceType": "Questionnaire",
+            "name": "RegistryForm",
+            "extension": [
+                {
+                    "url": job_orchestrator._CQL_JOB_LIST_URL,
+                    "extension": [{"valueString": "LibDone"}, {"valueString": "LibFail"}],
+                }
+            ],
+            "item": [
+                {
+                    "linkId": "done-question",
+                    "text": "Done question",
+                    "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibDone.TaskA"}],
+                },
+                {
+                    "linkId": "failed-question",
+                    "text": "Failed question",
+                    "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibFail.TaskA"}],
+                },
+            ],
+        }
+
+    def _ensure_job(*args, **kwargs):
+        task_name = args[4]
+        if current_attempt[0] == 2 and task_name == "LibDone":
+            return LogicalJob("job-LibDone", "complete", {"results": {"TaskA": [{"value": "done"}]}, "error": None})
+        return LogicalJob(f"job-{task_name}", "running", None)
+
+    async def _fake_run_cql_libraries(library_names, patient_id, on_result=None):
+        cql_calls.append(list(library_names))
+        if len(cql_calls) == 1:
+            results = [
+                CqlResult(library_name="LibDone", patient_id=patient_id, results={"TaskA": [{"value": "done"}]}),
+                CqlResult(library_name="LibFail", patient_id=patient_id, results={}, error="temporary"),
+            ]
+        else:
+            results = [CqlResult(library_name="LibFail", patient_id=patient_id, results={"TaskA": [{"value": "fixed"}]})]
+        for result in results:
+            if on_result:
+                await on_result(result)
+        return results
+
+    def _capture_partial(batch_id, bundle, **kwargs):
+        partial_bundles.append((kwargs["attempt_count"], bundle))
+        return True
+
+    def _capture_final(batch_id, status, bundle=None, **kwargs):
+        assert bundle is not None
+        final_bundles.append(bundle)
+        return True
+
+    async def _fake_fetch_patient_resource(patient_id):
+        return {"resourceType": "Patient", "id": patient_id}
+
+    monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
+    monkeypatch.setattr(job_orchestrator, "ensure_job", _ensure_job)
+    monkeypatch.setattr(job_orchestrator, "run_cql_libraries", _fake_run_cql_libraries)
+    monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_result", _capture_partial)
+    monkeypatch.setattr(job_orchestrator, "requeue_batch_job_for_child_retry", lambda *args, **kwargs: requeues.append(args) or True)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_status", _capture_final)
+    monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
+
+    run_args = (
+        "batch-retry",
+        "patient-1",
+        "RegistryForm",
+        "questionnaire-1",
+    )
+    await job_orchestrator.run_batch_job(*run_args, worker_id="worker-1", attempt_count=1, max_attempts=2)
+
+    first_partial = partial_bundles[-1][1]
+    current_attempt[0] = 2
+    await job_orchestrator.run_batch_job(
+        *run_args,
+        worker_id="worker-1",
+        attempt_count=2,
+        max_attempts=2,
+        prior_bundle=first_partial,
+    )
+
+    def _find_observation(bundle, link_id):
+        return next(entry for entry in bundle["entry"] if entry["resource"].get("code", {}).get("coding", [{}])[0].get("code") == link_id)
+
+    first_observation = _find_observation(first_partial, "done-question")["resource"]
+    retry_final = final_bundles[-1]
+    retry_observation = _find_observation(retry_final, "done-question")["resource"]
+
+    assert cql_calls == [["LibDone", "LibFail"], ["LibFail"]]
+    assert requeues
+    assert first_observation["id"] == retry_observation["id"]
+    assert first_observation["identifier"] == retry_observation["identifier"]
+    assert first_partial["id"] == retry_final["id"]
 
 
 async def test_run_state_call_executes_synchronous_persistence_off_event_loop():

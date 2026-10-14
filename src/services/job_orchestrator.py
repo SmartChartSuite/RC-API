@@ -48,6 +48,15 @@ _STRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/structuredTask"
 _UNSTRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/unstructuredTask"
 _UNSTRUCTURED_COMPONENT_SYSTEM = "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label"
 
+# Stable namespace for result resources; changing it would change every generated result ID.
+_RESULT_RESOURCE_NAMESPACE = uuid.UUID("2f1c5e7a-1d84-5f36-8c0d-f1bdfb9412cb")
+
+
+def _stable_id(batch_id: str, *parts: object) -> str:
+    """Return a deterministic UUID for a result resource within one batch."""
+    name = "|".join(json.dumps(part, sort_keys=True, separators=(",", ":"), default=str) for part in (batch_id, *parts))
+    return str(uuid.uuid5(_RESULT_RESOURCE_NAMESPACE, name))
+
 
 class LeaseLostError(RuntimeError):
     """Raised when a worker attempt no longer owns its batch lease."""
@@ -252,8 +261,15 @@ def _build_llm_components(response_text: str) -> list[dict] | None:
 
 
 # Observation builders
-def _obs_base(link_id: str, question_text: str, patient_id: str, form_name: str) -> dict:
-    obs_id = str(uuid.uuid4())
+def _obs_base(
+    batch_id: str,
+    id_parts: tuple[object, ...],
+    link_id: str,
+    question_text: str,
+    patient_id: str,
+    form_name: str,
+) -> dict:
+    obs_id = _stable_id(batch_id, *id_parts)
     return {
         "resourceType": "Observation",
         "id": obs_id,
@@ -321,6 +337,7 @@ def _build_cql_observations(
     questionnaire: dict,
     form_name: str,
     patient_id: str,
+    batch_id: str = "",
 ) -> list[dict]:
     """Walk Questionnaire items, match structuredTask to CQL results, build Observations."""
     entries: list[dict] = []
@@ -352,7 +369,7 @@ def _build_cql_observations(
             logger.debug(f"No CQL data for task '{task_name}' in {library_name}")
             continue
 
-        for res_entry in result_entries:
+        for entry_index, res_entry in enumerate(result_entries):
             if not isinstance(res_entry, dict):
                 logger.debug(f"Skipping malformed CQL result entry for task '{task_name}'")
                 continue
@@ -361,8 +378,26 @@ def _build_cql_observations(
             raw_value = res_entry.get("value")
             stored_type = res_entry.get("type")
             value_type = stored_type if isinstance(stored_type, str) else _infer_cql_value_type(raw_value)
+            answer_key = (
+                "cql",
+                library_name,
+                task_name,
+                link_id,
+                entry_index,
+                value_type or "",
+                res_entry if res_entry.get("resourceType") else raw_value,
+            )
             if value_type == "String" and isinstance(raw_value, str) and "|" in raw_value:
-                obs, supporting = _build_tuple_observation(raw_value, link_id, question_text, patient_id, form_name, task_name)
+                obs, supporting = _build_tuple_observation(
+                    raw_value,
+                    link_id,
+                    question_text,
+                    patient_id,
+                    form_name,
+                    task_name,
+                    batch_id,
+                    answer_key=answer_key,
+                )
                 obs_url = f"Observation/{obs['id']}"
                 if obs_url not in seen_urls:
                     entries.append({"fullUrl": obs_url, "resource": obs})
@@ -374,7 +409,7 @@ def _build_cql_observations(
                         seen_urls.add(sup_url)
             elif value_type == "String" and isinstance(raw_value, str):
                 # Simple scalar valueString observation
-                obs = _obs_base(link_id, question_text, patient_id, form_name)
+                obs = _obs_base(batch_id, answer_key + ("observation",), link_id, question_text, patient_id, form_name)
                 obs["valueString"] = raw_value
                 obs_url = f"Observation/{obs['id']}"
                 if obs_url not in seen_urls:
@@ -382,9 +417,15 @@ def _build_cql_observations(
                     seen_urls.add(obs_url)
             elif res_entry.get("resourceType"):
                 # FHIR resource result — reference it via focus
-                res_type = res_entry["resourceType"]
-                res_id = res_entry.get("id", str(uuid.uuid4()))
-                obs = _obs_base(link_id, question_text, patient_id, form_name)
+                res_type = str(res_entry["resourceType"])
+                upstream_id = res_entry.get("id")
+                if upstream_id:
+                    res_id = str(upstream_id)
+                    supporting_resource = res_entry
+                else:
+                    res_id = _stable_id(batch_id, "cql", "supporting", res_type, res_entry)
+                    supporting_resource = {**res_entry, "id": res_id}
+                obs = _obs_base(batch_id, answer_key + ("observation",), link_id, question_text, patient_id, form_name)
                 obs["focus"] = [{"reference": f"{res_type}/{res_id}"}]
                 obs_url = f"Observation/{obs['id']}"
                 if obs_url not in seen_urls:
@@ -392,10 +433,10 @@ def _build_cql_observations(
                     seen_urls.add(obs_url)
                 sup_url = f"{res_type}/{res_id}"
                 if sup_url not in seen_urls:
-                    entries.append({"fullUrl": sup_url, "resource": res_entry})
+                    entries.append({"fullUrl": sup_url, "resource": supporting_resource})
                     seen_urls.add(sup_url)
             else:
-                obs = _obs_base(link_id, question_text, patient_id, form_name)
+                obs = _obs_base(batch_id, answer_key + ("observation",), link_id, question_text, patient_id, form_name)
                 _set_cql_observation_value(obs, raw_value, value_type, task_name)
                 obs_url = f"Observation/{obs['id']}"
                 if obs_url not in seen_urls:
@@ -412,6 +453,9 @@ def _build_tuple_observation(
     patient_id: str,
     form_name: str,
     task_name: str,
+    batch_id: str = "",
+    *,
+    answer_key: tuple[object, ...] | None = None,
 ) -> tuple[dict, dict | None]:
     """Parse a pipe-delimited CQL return value and build Observation + supporting resource.
 
@@ -419,72 +463,84 @@ def _build_tuple_observation(
       "{date}|{system}|{code}|{display}|{value}[|{unit}]"
 
     The task_name prefix determines supporting resource type
-    (e.g. "Condition_", "Observation_", "MedicationStatement_", etc.)
+    (e.g. "Condition_", "Observation_", "MedicationStatement_", etc.).
     """
     parts = pipe_value.split("|")
     effective_dt = parts[0] if parts else datetime.now(UTC).isoformat()
     if len(effective_dt) == 19:
         effective_dt += "Z"
 
-    res_id = str(uuid.uuid4())
-    obs = _obs_base(link_id, question_text, patient_id, form_name)
+    id_parts = answer_key or ("cql", task_name, link_id, 0, "String", pipe_value)
+    obs = _obs_base(batch_id, id_parts + ("observation",), link_id, question_text, patient_id, form_name)
     obs["effectiveDateTime"] = effective_dt
-    obs["focus"] = [{"reference": f"Unknown/{res_id}"}]  # overridden below per type
-
-    supporting: dict | None = None
 
     def _coding():
         return [{"system": parts[1] if len(parts) > 1 else "", "code": parts[2] if len(parts) > 2 else "", "display": parts[3] if len(parts) > 3 else ""}]
 
     task_upper = task_name.upper()
     if "CONDITION" in task_upper:
+        resource_type = "Condition"
+    elif "MEDICATION" in task_upper and "REQUEST" in task_upper:
+        resource_type = "MedicationRequest"
+    elif "MEDICATION" in task_upper:
+        resource_type = "MedicationStatement"
+    elif "PROCEDURE" in task_upper:
+        resource_type = "Procedure"
+    elif "OBSERVATION" in task_upper:
+        resource_type = "Observation"
+    else:
+        resource_type = None
+
+    if resource_type is None:
+        # Unknown type — fall back to valueString on the answer Observation
+        obs["valueString"] = pipe_value
+        return obs, None
+
+    res_id = _stable_id(batch_id, *id_parts, "supporting", resource_type)
+    if resource_type == "Condition":
         supporting = {
-            "resourceType": "Condition",
+            "resourceType": resource_type,
             "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"Condition/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
             "code": {"coding": _coding()},
             "onsetDateTime": effective_dt,
             "subject": {"reference": f"Patient/{patient_id}"},
         }
-        obs["focus"] = [{"reference": f"Condition/{res_id}"}]
-    elif "MEDICATION" in task_upper and "REQUEST" in task_upper:
+    elif resource_type == "MedicationRequest":
         supporting = {
-            "resourceType": "MedicationRequest",
+            "resourceType": resource_type,
             "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"MedicationRequest/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
             "status": "active",
             "intent": "order",
             "medicationCodeableConcept": {"coding": _coding()},
             "authoredOn": effective_dt,
             "subject": {"reference": f"Patient/{patient_id}"},
         }
-        obs["focus"] = [{"reference": f"MedicationRequest/{res_id}"}]
-    elif "MEDICATION" in task_upper:
+    elif resource_type == "MedicationStatement":
         supporting = {
-            "resourceType": "MedicationStatement",
+            "resourceType": resource_type,
             "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"MedicationStatement/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
             "status": "active",
             "medicationCodeableConcept": {"coding": _coding()},
             "effectiveDateTime": effective_dt,
             "subject": {"reference": f"Patient/{patient_id}"},
         }
-        obs["focus"] = [{"reference": f"MedicationStatement/{res_id}"}]
-    elif "PROCEDURE" in task_upper:
+    elif resource_type == "Procedure":
         supporting = {
-            "resourceType": "Procedure",
+            "resourceType": resource_type,
             "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"Procedure/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
             "code": {"coding": _coding()},
             "performedDateTime": effective_dt,
             "subject": {"reference": f"Patient/{patient_id}"},
         }
-        obs["focus"] = [{"reference": f"Procedure/{res_id}"}]
-    elif "OBSERVATION" in task_upper:
+    else:
         supporting = {
-            "resourceType": "Observation",
+            "resourceType": resource_type,
             "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"Observation/{res_id}"}],
+            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
             "status": "final",
             "code": {"coding": _coding()},
             "effectiveDateTime": effective_dt,
@@ -492,12 +548,8 @@ def _build_tuple_observation(
         }
         if len(parts) > 4:
             supporting["valueString"] = parts[4]
-        obs["focus"] = [{"reference": f"Observation/{res_id}"}]
-    else:
-        # Unknown type — fall back to valueString on the answer Observation
-        obs.pop("focus", None)
-        obs["valueString"] = pipe_value
 
+    obs["focus"] = [{"reference": f"{resource_type}/{res_id}"}]
     return obs, supporting
 
 
@@ -506,10 +558,11 @@ def _build_llm_observations(
     questionnaire: dict,
     form_name: str,
     patient_id: str,
+    batch_id: str = "",
 ) -> list[dict]:
     """Walk Questionnaire items, match unstructuredTask to LLM results, build Observations."""
     entries: list[dict] = []
-    seen_urls: set[str] = set()
+    seen_keys: set[tuple[str, str, str, str]] = set()
 
     llm_by_path: dict[str, LlmResult] = {r.prompt_path: r for r in llm_results}
 
@@ -529,7 +582,8 @@ def _build_llm_observations(
             if doc_result.error or not doc_result.response:
                 continue
 
-            obs = _obs_base(link_id, question_text, patient_id, form_name)
+            dedup_key = (link_id, prompt_path, doc_result.doc_id, doc_result.response)
+            obs = _obs_base(batch_id, ("llm", *dedup_key, "observation"), link_id, question_text, patient_id, form_name)
             obs["effectiveDateTime"] = doc_result.doc_date
             obs["focus"] = [{"reference": f"DocumentReference/{doc_result.doc_id}"}]
             components = _build_llm_components(doc_result.response)
@@ -541,10 +595,9 @@ def _build_llm_observations(
             obs_url = f"Observation/{obs['id']}"
             # Deduplicate per question on focus + value (mirrors v0 NLPQL dedup); the same
             # finding under two different questions is two distinct answers.
-            dedup_key = f"{link_id}::{doc_result.doc_id}::{doc_result.response}"
-            if dedup_key not in seen_urls:
+            if dedup_key not in seen_keys:
                 entries.append({"fullUrl": obs_url, "resource": obs})
-                seen_urls.add(dedup_key)
+                seen_keys.add(dedup_key)
 
     return entries
 
@@ -678,6 +731,8 @@ def _build_result_bundle(
     llm_entries: list[dict],
     overall_status: str,
     bundle_id: str | None = None,
+    *,
+    batch_id: str = "",
 ) -> dict:
     """Assemble a partial or final result FHIR Bundle."""
     status_obs = _create_status_observation(overall_status)
@@ -691,7 +746,7 @@ def _build_result_bundle(
 
     return {
         "resourceType": "Bundle",
-        "id": bundle_id or str(uuid.uuid4()),
+        "id": bundle_id or _stable_id(batch_id, "bundle"),
         "type": "collection",
         "total": len(all_entries),
         "entry": all_entries,
@@ -891,9 +946,9 @@ async def run_batch_job(
 
         # 4. Rebuild terminal task output, then checkpoint the retry-safe partial Bundle.
         prior_bundle_id = prior_bundle.get("id") if isinstance(prior_bundle, dict) else None
-        bundle_id = prior_bundle_id if isinstance(prior_bundle_id, str) and prior_bundle_id else str(uuid.uuid4())
-        cql_entries_by_name: dict[str, list[dict]] = {name: _build_cql_observations([result], questionnaire, form_name, patient_id) for name, result in restored_cql_results.items()}
-        llm_entries_by_path: dict[str, list[dict]] = {path: _build_llm_observations([result], questionnaire, form_name, patient_id) for path, result in restored_llm_results.items()}
+        bundle_id = prior_bundle_id if isinstance(prior_bundle_id, str) and prior_bundle_id else _stable_id(batch_id, "bundle")
+        cql_entries_by_name: dict[str, list[dict]] = {name: _build_cql_observations([result], questionnaire, form_name, patient_id, batch_id) for name, result in restored_cql_results.items()}
+        llm_entries_by_path: dict[str, list[dict]] = {path: _build_llm_observations([result], questionnaire, form_name, patient_id, batch_id) for path, result in restored_llm_results.items()}
         document_entries = _build_document_entries(documents, patient_id, batch_id)
 
         def _current_result_entries() -> tuple[list[dict], list[dict]]:
@@ -910,6 +965,7 @@ async def run_batch_job(
                 current_llm_entries + document_entries,
                 "preliminary",
                 bundle_id,
+                batch_id=batch_id,
             )
             updated = await _run_state_call(
                 update_batch_job_result,
@@ -939,7 +995,7 @@ async def run_batch_job(
                         "error": cql_result.error,
                     }
                 )
-                cql_entries_by_name[task_name] = _build_cql_observations([cql_result], questionnaire, form_name, patient_id)
+                cql_entries_by_name[task_name] = _build_cql_observations([cql_result], questionnaire, form_name, patient_id, batch_id)
                 await _persist_partial_bundle()
 
         async def _record_llm_result(llm_result: LlmResult) -> None:
@@ -951,7 +1007,7 @@ async def run_batch_job(
                 if job_id:
                     await _update_task(job_id, status, result_payload)
                 task_results.append(_with_excluded_documents({"task_name": task_name, "task_type": "unstructured", "status": status}))
-                llm_entries_by_path[task_name] = _build_llm_observations([llm_result], questionnaire, form_name, patient_id)
+                llm_entries_by_path[task_name] = _build_llm_observations([llm_result], questionnaire, form_name, patient_id, batch_id)
                 await _persist_partial_bundle()
 
         async def _empty() -> list:
@@ -1016,6 +1072,7 @@ async def run_batch_job(
             final_llm_entries + document_entries,
             overall_status,
             bundle_id,
+            batch_id=batch_id,
         )
 
         if all_errors and attempt_count < max_attempts:
