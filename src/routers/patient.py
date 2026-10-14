@@ -12,9 +12,9 @@ from src.models.fhir import BundleResource, FHIRProxyResult, OperationOutcome, O
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_response, fhir_result_response, make_operation_outcome, operation_outcome_response
 from src.services.fhir_proxy import FHIRProxyResponse
 from src.util.auth import validate_token
-from src.util.http_clients import get_http_client
+from src.util.http_clients import fhir_headers, get_http_client, send_with_retry
 from src.util.outbound_url import is_valid_fhir_id, path_segment
-from src.util.settings import require_setting, secret_value, settings
+from src.util.settings import require_setting, settings
 
 router = APIRouter(tags=["Patients"])
 
@@ -28,13 +28,6 @@ def _check_config():
     return None
 
 
-def _headers() -> dict[str, str]:
-    headers = {"Accept": "application/fhir+json"}
-    if auth := secret_value(settings.external_fhir_server_auth):
-        headers["Authorization"] = auth
-    return headers
-
-
 def _base_url(resource_id: str | None = None) -> str:
     base = f"{require_setting(settings.external_fhir_server_url, 'EXTERNAL_FHIR_SERVER_URL').rstrip('/')}/Patient"
     if resource_id:
@@ -46,7 +39,14 @@ async def _external_patient_get(resource_id: str | None = None, params: Sequence
     url = _base_url(resource_id)
     client = get_http_client("external_patient")
     try:
-        resp = await client.get(url, headers=_headers(), params=cast(Any, list(params) if params is not None else None))
+        resp = await send_with_retry(
+            client,
+            "GET",
+            url,
+            profile="external_patient",
+            headers=fhir_headers(url, with_auth=True),
+            params=cast(Any, list(params) if params is not None else None),
+        )
         logger.info(f"FHIR GET Patient → {resp.status_code}")
     except httpx.TimeoutException as exc:
         logger.error(f"Patient GET failed: {type(exc).__name__}")

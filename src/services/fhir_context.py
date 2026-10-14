@@ -16,9 +16,10 @@ from datetime import UTC, datetime
 import httpx
 from loguru import logger
 
-from src.util.http_clients import get_http_client
+from src.util.fhir_bundle import get_bundle_next_link, get_bundle_resources
+from src.util.http_clients import fhir_headers, get_http_client, send_with_retry
 from src.util.outbound_url import is_allowed_attachment_url, is_same_origin, resolve_http_reference, resolves_to_internal_address
-from src.util.settings import require_setting, secret_value, settings
+from src.util.settings import require_setting, settings
 
 _PAGE_SIZE = 100
 
@@ -39,18 +40,10 @@ class _AttachmentTooLargeError(Exception):
     pass
 
 
-def _auth_headers(target_url: str) -> dict[str, str]:
-    """Build FHIR headers without forwarding credentials to another origin."""
-    headers = {"Accept": "application/fhir+json"}
-    auth = secret_value(settings.external_fhir_server_auth)
-    if auth and settings.external_fhir_server_url and is_same_origin(target_url, settings.external_fhir_server_url):
-        headers["Authorization"] = auth
-    return headers
-
-
 async def _read_capped_text(client: httpx.AsyncClient, url: str) -> str | None:
     """Stream an attachment body, aborting once it exceeds settings.doc_max_bytes."""
-    async with client.stream("GET", url, headers=_auth_headers(url), follow_redirects=False) as resp:
+    # Streamed attachments are intentionally unretried: a retry cannot safely resume after body bytes are consumed.
+    async with client.stream("GET", url, headers=fhir_headers(url, with_auth=True), follow_redirects=False) as resp:
         if not resp.is_success:
             logger.warning(f"Attachment fetch returned HTTP {resp.status_code}")
             return None
@@ -74,7 +67,14 @@ async def _search_document_entries(client: httpx.AsyncClient, base_url: str, pat
     entries: list[dict] = []
     while url and len(entries) < settings.doc_max_count:
         try:
-            resp = await client.get(url, headers=_auth_headers(url), params=params)
+            resp = await send_with_retry(
+                client,
+                "GET",
+                url,
+                profile="attachments",
+                headers=fhir_headers(url, with_auth=True),
+                params=params,
+            )
         except httpx.RequestError as exc:
             raise DocumentFetchError(f"DocumentReference search request failed ({type(exc).__name__})") from exc
         if not resp.is_success:
@@ -86,12 +86,12 @@ async def _search_document_entries(client: httpx.AsyncClient, base_url: str, pat
         if not isinstance(bundle, dict) or bundle.get("resourceType") != "Bundle":
             raise DocumentFetchError("DocumentReference search did not return a Bundle")
 
-        page_entries = bundle.get("entry") or []
-        entries.extend(entry for entry in page_entries if isinstance(entry, dict))
+        page_resources = get_bundle_resources(bundle)
+        entries.extend({"resource": resource} for resource in page_resources)
 
-        next_url = next((link.get("url") for link in bundle.get("link") or [] if isinstance(link, dict) and link.get("relation") == "next"), None)
+        next_url = get_bundle_next_link(bundle)
         url, params = None, None
-        if isinstance(next_url, str) and page_entries:
+        if next_url and page_resources:
             resolved = resolve_http_reference(base_url, next_url)
             if resolved and is_same_origin(resolved, base_url):
                 url = resolved

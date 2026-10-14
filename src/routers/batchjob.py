@@ -27,6 +27,7 @@ from src.services.job_state import (
     query_batch_jobs,
 )
 from src.util.auth import require_admin, validate_token
+from src.util.fhir_bundle import get_bundle_resources
 from src.util.outbound_url import is_valid_fhir_id
 from src.util.settings import settings
 from src.util.threading import run_db
@@ -219,7 +220,7 @@ async def _resolve_questionnaire(job_package: str, job_package_version: str | No
     if questionnaire_bundle.get("resourceType") == "OperationOutcome":
         return operation_outcome_response(503, "transient", "Could not resolve Questionnaire for the requested job package.")
 
-    entries = questionnaire_bundle.get("entry", [])
+    entries = get_bundle_resources(questionnaire_bundle)
     if not entries:
         details = f"No Questionnaire found with name '{job_package}'"
         if job_package_version:
@@ -233,7 +234,7 @@ async def _resolve_questionnaire(job_package: str, job_package_version: str | No
             f"Multiple Questionnaires matched jobPackage '{job_package}'. Specify both jobPackage and jobPackageVersion to select a single Questionnaire.",
         )
 
-    questionnaire = entries[0].get("resource", {})
+    questionnaire = entries[0]
     if questionnaire.get("resourceType") != "Questionnaire":
         return operation_outcome_response(503, "transient", "FHIR server returned an unexpected resource while resolving the Questionnaire.")
     return questionnaire

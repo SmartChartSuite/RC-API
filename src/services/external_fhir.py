@@ -3,9 +3,9 @@
 import httpx
 from loguru import logger
 
-from src.util.http_clients import get_http_client
+from src.util.http_clients import fhir_headers, get_http_client, send_with_retry
 from src.util.outbound_url import is_valid_fhir_id, path_segment
-from src.util.settings import require_setting, secret_value, settings
+from src.util.settings import require_setting, settings
 
 
 async def fetch_patient(patient_id: str) -> dict | None:
@@ -15,12 +15,9 @@ async def fetch_patient(patient_id: str) -> dict | None:
         logger.warning("Refusing to fetch Patient with an invalid FHIR id")
         return None
     url = f"{base_url.rstrip('/')}/Patient/{path_segment(patient_id)}"
-    headers = {"Accept": "application/fhir+json"}
-    if auth := secret_value(settings.external_fhir_server_auth):
-        headers["Authorization"] = auth
     client = get_http_client("external_fhir")
     try:
-        resp = await client.get(url, headers=headers)
+        resp = await send_with_retry(client, "GET", url, profile="external_fhir", headers=fhir_headers(url, with_auth=True))
         if resp.is_success:
             return resp.json()
     except (httpx.HTTPError, ValueError) as exc:

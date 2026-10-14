@@ -7,6 +7,7 @@ from src.models.fhir import OperationOutcome, QuestionnaireResource
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
+from src.util.fhir_bundle import get_bundle_resources
 from src.util.settings import settings
 
 router = APIRouter(tags=["Job Packages"])
@@ -48,8 +49,7 @@ async def search_job_packages(
     data = result.data
     if data.get("resourceType") == "OperationOutcome":
         return OperationOutcome.model_validate(data)
-    entries = data.get("entry", []) or []
-    return [QuestionnaireResource.model_validate(entry.get("resource", {})) for entry in entries if entry.get("resource", {}).get("resourceType") == "Questionnaire"]
+    return [QuestionnaireResource.model_validate(resource) for resource in get_bundle_resources(data, "Questionnaire")]
 
 
 @router.get("/jobpackage/{resource_id}", summary="Get Job Package", response_model=QuestionnaireResult, responses=FHIR_PROXY_ERROR_RESPONSES)

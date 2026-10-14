@@ -11,13 +11,9 @@ from loguru import logger
 
 from src.models.fhir import FHIRProxyResponse, FHIRProxyResult, OperationOutcomeJSON
 from src.services.errorhandler import make_operation_outcome
-from src.util.http_clients import get_http_client
+from src.util.http_clients import fhir_headers, get_http_client, send_with_retry
 from src.util.outbound_url import is_valid_fhir_id, path_segment
 from src.util.settings import require_setting, settings
-
-
-def _headers() -> dict:
-    return {"Content-Type": "application/fhir+json", "Accept": "application/fhir+json"}
 
 
 def _base_url(resource_type: str, resource_id: str | None = None) -> str:
@@ -47,7 +43,7 @@ async def _request(
     if resource_id is not None and not is_valid_fhir_id(resource_id):
         return _invalid_id_outcome(resource_type)
     url = _base_url(resource_type, resource_id)
-    request_kwargs: dict[str, Any] = {"headers": _headers()}
+    request_kwargs: dict[str, Any] = {"headers": fhir_headers(content_type=True)}
     if method == "GET":
         request_kwargs["params"] = params or {}
     elif method in {"POST", "PUT"}:
@@ -55,7 +51,7 @@ async def _request(
 
     client = get_http_client("fhir")
     try:
-        resp = await client.request(method, url, **request_kwargs)
+        resp = await send_with_retry(client, method, url, profile="fhir", **request_kwargs)
     except httpx.TimeoutException:
         logger.error(f"FHIR {method} {resource_type} timed out")
         return FHIRProxyResponse(

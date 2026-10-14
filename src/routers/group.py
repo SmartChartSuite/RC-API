@@ -15,9 +15,9 @@ from src.models.fhir import BundleResource, GroupResource, OperationOutcome, Pat
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response, model_or_operation_outcome, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
-from src.util.http_clients import get_http_client
+from src.util.http_clients import fhir_headers, get_http_client, send_with_retry
 from src.util.outbound_url import is_same_origin, resolve_http_reference
-from src.util.settings import require_setting, secret_value, settings
+from src.util.settings import require_setting, settings
 
 router = APIRouter(tags=["Groups"])
 
@@ -36,13 +36,6 @@ GroupWriteResult = GroupResource | OperationOutcome
 
 # Keep group member fan-out aligned with the batch-job Patient fetch bound.
 _PATIENT_FETCH_MAX_CONCURRENCY = 8
-
-
-def _patient_headers() -> dict:
-    headers = {"Accept": "application/fhir+json"}
-    if auth := secret_value(settings.external_fhir_server_auth):
-        headers["Authorization"] = auth
-    return headers
 
 
 @router.get("/group", summary="Search Groups", response_model=list[GroupSearchResult], responses=operation_outcome_responses(503))
@@ -82,7 +75,13 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
     async def _fetch_member(patient_ref: str, patient_url: str) -> PatientResource | None:
         async with semaphore:
             try:
-                patient_resp = await client.get(patient_url, headers=_patient_headers())
+                patient_resp = await send_with_retry(
+                    client,
+                    "GET",
+                    patient_url,
+                    profile="external_patient",
+                    headers=fhir_headers(patient_url, with_auth=True),
+                )
                 logger.info(f"FHIR GET {patient_url} → {patient_resp.status_code}")
                 if patient_resp.is_success:
                     try:
