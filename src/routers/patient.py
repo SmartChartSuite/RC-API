@@ -15,7 +15,7 @@ from fastapi import APIRouter, Request, Security
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-from src.models.fhir import BundleResource, FHIRProxyResult, OperationOutcome, OperationOutcomeJSON, PatientResource
+from src.models.fhir import FHIRJSON, BundleResource, FHIRProxyResult, OperationOutcome, PatientResource
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_response, fhir_result_response, make_operation_outcome, operation_outcome_response
 from src.services.fhir_proxy import FHIRProxyResponse
 from src.util.auth import validate_token
@@ -58,14 +58,14 @@ async def _external_patient_get(resource_id: str | None = None, params: Sequence
     except httpx.TimeoutException as exc:
         logger.error(f"Patient GET failed: {type(exc).__name__}")
         return FHIRProxyResponse(
-            data=cast(OperationOutcomeJSON, make_operation_outcome("transient", "External FHIR server request failed for GET Patient")),
+            data=cast(FHIRJSON, make_operation_outcome("transient", "External FHIR server request failed for GET Patient")),
             status_code=504,
             error_type="timeout",
         )
     except httpx.RequestError as exc:
         logger.error(f"Patient GET failed: {type(exc).__name__}")
         return FHIRProxyResponse(
-            data=cast(OperationOutcomeJSON, make_operation_outcome("transient", "External FHIR server request failed for GET Patient")),
+            data=cast(FHIRJSON, make_operation_outcome("transient", "External FHIR server request failed for GET Patient")),
             status_code=502,
             error_type="transport",
         )
@@ -82,12 +82,12 @@ async def _external_patient_get(resource_id: str | None = None, params: Sequence
         return FHIRProxyResponse(data=cast(FHIRProxyResult, data), status_code=resp.status_code)
 
     if data.get("resourceType") == "OperationOutcome":
-        return FHIRProxyResponse(data=cast(OperationOutcomeJSON, data), status_code=resp.status_code)
+        return FHIRProxyResponse(data=cast(FHIRJSON, data), status_code=resp.status_code)
 
     logger.error(f"Patient GET returned HTTP {resp.status_code}")
     logger.debug(f"Patient GET error body (truncated): {resp.text[:500]}")
     return FHIRProxyResponse(
-        data=cast(OperationOutcomeJSON, make_operation_outcome("transient", f"External FHIR server returned HTTP {resp.status_code} for GET Patient")),
+        data=cast(FHIRJSON, make_operation_outcome("transient", f"External FHIR server returned HTTP {resp.status_code} for GET Patient")),
         status_code=resp.status_code,
     )
 

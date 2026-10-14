@@ -1,7 +1,7 @@
 """Tests the job-package router's Questionnaire search, read, create, and configuration-error responses.
 
-The tests monkeypatch `src.routers.jobpackage` FHIR proxy calls and settings; transport details are
-covered in `test_fhir_proxy.py`."""
+The tests monkeypatch `src.routers.jobpackage` FHIR proxy calls and settings; write calls use the canonical
+QuestionnaireResource model, while transport details are covered in `test_fhir_proxy.py`."""
 
 from fastapi.responses import JSONResponse
 
@@ -73,7 +73,7 @@ async def test_create_job_package_returns_questionnaire(monkeypatch):
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(jobpackage, "fhir_post_with_status", _fake_fhir_post_with_status)
 
-    result = await jobpackage.create_job_package({"resourceType": "Questionnaire", "name": "Registry"}, claims={})
+    result = await jobpackage.create_job_package(QuestionnaireResource.model_validate({"resourceType": "Questionnaire", "name": "Registry"}), claims={})
 
     assert isinstance(result, QuestionnaireResource)
     assert result.id == "q-1"

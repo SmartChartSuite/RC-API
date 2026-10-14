@@ -13,7 +13,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Response, Security
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import BundleJSON, BundleResource, ParametersParameter, ParametersResponse
+from src.models.fhir import FHIRJSON, BundleResource, ParametersParameter, ParametersResponse
 from src.models.job_request import JobRequest
 from src.models.job_response import BatchJobAcceptedResponse
 from src.services import batch_job_service
@@ -100,7 +100,7 @@ async def list_batch_jobs(
     job_run_start_date: Annotated[str | None, Query(alias="jobRunStartDate")] = None,
     job_run_end_date: Annotated[str | None, Query(alias="jobRunEndDate")] = None,
     claims: dict = Security(validate_token),
-) -> BundleJSON | JSONResponse:
+) -> FHIRJSON | JSONResponse:
     """List batch jobs as FHIR ``Parameters`` resources.
 
     Set ``include_patient=true`` to embed each Patient resource from the
@@ -129,7 +129,7 @@ async def list_batch_jobs(
 
 
 @router.get("/batchjob/{batch_id}", summary="Get Batch Job Results", response_model=BundleResource, responses=operation_outcome_responses(202, 404, 500))
-async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_token)) -> BundleJSON | JSONResponse:
+async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_token)) -> FHIRJSON | JSONResponse:
     """Get the latest stored FHIR result Bundle for a batch job.
 
     Running jobs return HTTP 200 once a preliminary Bundle has been persisted;

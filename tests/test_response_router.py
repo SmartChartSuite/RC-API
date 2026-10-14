@@ -1,7 +1,8 @@
 """Tests QuestionnaireResponse search, CRUD mapping, batch linkage validation, and metadata preservation.
 
-The tests monkeypatch `src.routers.response` persistence seams and UUID generation; database behavior
-belongs in the `src.services.job_state` package tests."""
+The tests monkeypatch `src.routers.response` persistence seams and UUID generation; write calls use the
+canonical QuestionnaireResponseResource model, while database behavior belongs in the `src.services.job_state`
+package tests."""
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -123,7 +124,7 @@ async def test_update_response_record_returns_operation_outcome(monkeypatch):
     monkeypatch.setattr(response_router, "update_response_body", _fake_update_response_body)
     monkeypatch.setattr(response_router, "get_response", lambda response_id: _make_record(response_id))
 
-    result = await response_router.update_response_record("response-1", {"resourceType": "QuestionnaireResponse"}, claims={"sub": "user-456"})
+    result = await response_router.update_response_record("response-1", QuestionnaireResponseResource.model_validate({"resourceType": "QuestionnaireResponse"}), claims={"sub": "user-456"})
 
     assert isinstance(result, OperationOutcome)
     assert result.issue[0].diagnostics == "Response response-1 updated."
@@ -170,7 +171,7 @@ async def test_create_response_record_rejects_patient_mismatch_with_batch(monkey
 async def test_update_response_record_returns_404_when_missing(monkeypatch):
     monkeypatch.setattr(response_router, "get_response", lambda response_id: None)
 
-    result = await response_router.update_response_record("missing", {"resourceType": "QuestionnaireResponse"}, claims={})
+    result = await response_router.update_response_record("missing", QuestionnaireResponseResource.model_validate({"resourceType": "QuestionnaireResponse"}), claims={})
 
     assert isinstance(result, JSONResponse)
     assert result.status_code == 404
@@ -182,7 +183,7 @@ async def test_update_response_record_rejects_relinking_subject(monkeypatch):
 
     result = await response_router.update_response_record(
         "response-1",
-        {"resourceType": "QuestionnaireResponse", "subject": {"reference": "Patient/other-patient"}},
+        QuestionnaireResponseResource.model_validate({"resourceType": "QuestionnaireResponse", "subject": {"reference": "Patient/other-patient"}}),
         claims={},
     )
 
@@ -200,7 +201,7 @@ async def test_update_response_record_preserves_stored_linkage(monkeypatch):
 
     monkeypatch.setattr(response_router, "update_response_body", _fake_update)
 
-    await response_router.update_response_record("response-1", {"resourceType": "QuestionnaireResponse", "status": "completed"}, claims={})
+    await response_router.update_response_record("response-1", QuestionnaireResponseResource.model_validate({"resourceType": "QuestionnaireResponse", "status": "completed"}), claims={})
 
     assert captured["body"]["subject"] == {"reference": "Patient/patient-123"}
     assert captured["body"]["questionnaire"] == "SyphilisRegistry"

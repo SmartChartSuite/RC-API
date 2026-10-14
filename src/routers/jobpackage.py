@@ -2,16 +2,17 @@
 
 This router binds request parameters, selects auth, calls `src.services.fhir_proxy`
 for HAPI FHIR transport, and maps upstream data to Questionnaire or OperationOutcome
-responses. It contains no Questionnaire resolution, batch-job logic, persistence, or
-transport implementation; those responsibilities belong to `src.services` and
-`src.util`.
+responses. Questionnaire write bodies use the canonical QuestionnaireResource model
+and round-trip unknown FHIR fields. It contains no Questionnaire resolution,
+batch-job logic, persistence, or transport implementation; those responsibilities
+belong to `src.services` and `src.util`.
 """
 
 from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import OperationOutcome, QuestionnaireResource
-from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response
+from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response, operation_outcome_response
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
 from src.util.fhir_bundle import get_bundle_resources
@@ -73,26 +74,29 @@ async def get_job_package(
 
 @router.post("/jobpackage", summary="Create Job Package", response_model=QuestionnaireResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def create_job_package(
-    body: dict = Body(..., openapi_examples={"questionnaire": {"summary": "Questionnaire job package", "value": _QUESTIONNAIRE_EXAMPLE}}),
+    body: QuestionnaireResource = Body(..., openapi_examples={"questionnaire": {"summary": "Questionnaire job package", "value": _QUESTIONNAIRE_EXAMPLE}}),
     claims: dict = Security(validate_token),
 ) -> JSONResponse | QuestionnaireResult:
     """Create a new Questionnaire resource on HAPI FHIR for use as a job package."""
     if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    result = await fhir_post_with_status("Questionnaire", body)
+    result = await fhir_post_with_status("Questionnaire", body.to_fhir_json())
     return fhir_result_response(result, QuestionnaireResource)
 
 
 @router.put("/jobpackage/{resource_id}", summary="Update Job Package", response_model=QuestionnaireResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def update_job_package(
     resource_id: str,
-    body: dict = Body(..., openapi_examples={"questionnaire": {"summary": "Questionnaire job package", "value": _QUESTIONNAIRE_EXAMPLE}}),
+    body: QuestionnaireResource = Body(..., openapi_examples={"questionnaire": {"summary": "Questionnaire job package", "value": _QUESTIONNAIRE_EXAMPLE}}),
     claims: dict = Security(validate_token),
 ) -> JSONResponse | QuestionnaireResult:
     """Update an existing HAPI FHIR Questionnaire used as a job package."""
+    body_json = body.to_fhir_json()
+    if "id" in body_json and body_json["id"] != resource_id:
+        return operation_outcome_response(400, "invariant", f"Questionnaire body id {body_json['id']!r} does not match path id {resource_id!r}.")
     if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    result = await fhir_put_with_status("Questionnaire", resource_id, body)
+    result = await fhir_put_with_status("Questionnaire", resource_id, body_json)
     return fhir_result_response(result, QuestionnaireResource)
 
 

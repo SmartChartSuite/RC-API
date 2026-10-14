@@ -2,16 +2,17 @@
 
 This router binds request parameters, selects auth, calls `src.services.fhir_proxy`
 for HAPI FHIR transport, and maps upstream data to Library, Bundle, or
-OperationOutcome responses. It contains no CQL execution, persistence, or
-transport implementation; those responsibilities belong to `src.services` and
-`src.util`.
+OperationOutcome responses. Library write bodies use the canonical LibraryResource
+model and round-trip unknown FHIR fields. It contains no CQL execution,
+persistence, or transport implementation; those responsibilities belong to
+`src.services` and `src.util`.
 """
 
 from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse
 
 from src.models.fhir import BundleResource, LibraryResource, OperationOutcome
-from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response
+from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response, operation_outcome_response
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
 from src.util.settings import settings
@@ -63,26 +64,29 @@ async def get_library(
 
 @router.post("/library", summary="Create Library", response_model=LibraryResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def create_library(
-    body: dict = Body(..., openapi_examples={"library": {"summary": "FHIR Library", "value": _LIBRARY_EXAMPLE}}),
+    body: LibraryResource = Body(..., openapi_examples={"library": {"summary": "FHIR Library", "value": _LIBRARY_EXAMPLE}}),
     claims: dict = Security(validate_token),
 ) -> JSONResponse | LibraryResult:
     """Create a new Library resource on HAPI FHIR."""
     if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    result = await fhir_post_with_status("Library", body)
+    result = await fhir_post_with_status("Library", body.to_fhir_json())
     return fhir_result_response(result, LibraryResource)
 
 
 @router.put("/library/{resource_id}", summary="Update Library", response_model=LibraryResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def update_library(
     resource_id: str,
-    body: dict = Body(..., openapi_examples={"library": {"summary": "FHIR Library", "value": _LIBRARY_EXAMPLE}}),
+    body: LibraryResource = Body(..., openapi_examples={"library": {"summary": "FHIR Library", "value": _LIBRARY_EXAMPLE}}),
     claims: dict = Security(validate_token),
 ) -> JSONResponse | LibraryResult:
     """Update a Library resource."""
+    body_json = body.to_fhir_json()
+    if "id" in body_json and body_json["id"] != resource_id:
+        return operation_outcome_response(400, "invariant", f"Library body id {body_json['id']!r} does not match path id {resource_id!r}.")
     if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    result = await fhir_put_with_status("Library", resource_id, body)
+    result = await fhir_put_with_status("Library", resource_id, body_json)
     return fhir_result_response(result, LibraryResource)
 
 

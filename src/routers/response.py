@@ -1,10 +1,11 @@
 """HTTP adapter for locally stored QuestionnaireResponse CRUD operations.
 
-This router binds FHIR bodies and query/path parameters, selects auth, normalizes
-the linkage needed for response records, delegates persistence to
-the `src.services.job_state` package through `src.util.threading`, and maps results to FHIR
-resources or OperationOutcome responses. It never proxies Patient-linked responses
-to HAPI FHIR; batch execution and broader domain workflows belong to `src.services`.
+This router binds canonical FHIR bodies and query/path parameters, selects auth,
+normalizes the linkage needed for response records, delegates persistence to the
+`src.services.job_state` package through `src.util.threading`, and maps results to
+FHIR resources or OperationOutcome responses. Its resource serializer preserves
+unknown fields and explicit values. It never proxies Patient-linked responses to
+HAPI FHIR; batch execution and broader domain workflows belong to `src.services`.
 """
 
 import uuid
@@ -124,7 +125,7 @@ async def create_response_record(
     """
     last_updated_by = claims.get("sub", "unknown")
 
-    response_resource = body.model_dump(mode="json", exclude_none=True)
+    response_resource = body.to_fhir_json()
     patient_id = _extract_patient_id(response_resource)
     job_package = _derive_job_package(response_resource)
 
@@ -165,7 +166,7 @@ async def create_response_record(
 @router.put("/response/{response_id}", summary="Update Response", response_model=OperationOutcome, responses=operation_outcome_responses(400, 404))
 async def update_response_record(
     response_id: str,
-    body: dict = Body(..., openapi_examples={"questionnaireResponse": {"summary": "FHIR QuestionnaireResponse", "value": _QUESTIONNAIRE_RESPONSE_EXAMPLE}}),
+    body: QuestionnaireResponseResource = Body(..., openapi_examples={"questionnaireResponse": {"summary": "FHIR QuestionnaireResponse", "value": _QUESTIONNAIRE_RESPONSE_EXAMPLE}}),
     claims: dict = Security(validate_token),
 ) -> OperationOutcome | JSONResponse:
     """Update an existing stored QuestionnaireResponse.
@@ -174,16 +175,19 @@ async def update_response_record(
     to persist for the given local ``response_id``. The ``subject`` and
     ``questionnaire`` linkage of a stored response cannot be changed.
     """
+    body_json = body.to_fhir_json()
+    if "id" in body_json and body_json["id"] != response_id:
+        return operation_outcome_response(400, "invariant", f"QuestionnaireResponse body id {body_json['id']!r} does not match path id {response_id!r}.")
     existing = await run_db(get_response, response_id)
     if existing is None:
         return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
-    new_patient_id = _extract_patient_id(body)
-    new_job_package = _derive_job_package(body)
+    new_patient_id = _extract_patient_id(body_json)
+    new_job_package = _derive_job_package(body_json)
     if (new_patient_id is not None and new_patient_id != existing.patient_id) or (new_job_package is not None and new_job_package != existing.job_package):
         return operation_outcome_response(400, "invariant", "The subject and questionnaire of a stored QuestionnaireResponse cannot be changed.")
 
     now = datetime.now(UTC)
-    normalized_response = _normalize_questionnaire_response(response_id, body)
+    normalized_response = _normalize_questionnaire_response(response_id, body_json)
     normalized_response["subject"] = {"reference": f"Patient/{existing.patient_id}"}
     normalized_response["questionnaire"] = existing.job_package
     meta = normalized_response.get("meta")

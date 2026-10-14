@@ -18,7 +18,7 @@ from typing import Any, cast
 
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import BundleJSON, ParametersParameter, ParametersResponse
+from src.models.fhir import FHIRJSON, ParametersParameter, ParametersResponse
 from src.models.job_request import JobRequest
 from src.services.batch_job_filters import (
     InvalidDateFilter,
@@ -349,7 +349,7 @@ async def list_batch_jobs(
     dob_end_date: str | None,
     job_run_start_date: str | None,
     job_run_end_date: str | None,
-) -> BundleJSON | BatchJobError:
+) -> FHIRJSON | BatchJobError:
     dob_start, error = parse_iso_date_filter(dob_start_date, "dobStartDate")
     if error:
         return _invalid_date_filter_error(error)
@@ -425,7 +425,7 @@ async def list_batch_jobs(
     ]
 
     return cast(
-        BundleJSON,
+        FHIRJSON,
         {
             "resourceType": "Bundle",
             "type": "searchset",
@@ -472,7 +472,7 @@ def hydrate_document_entries(bundle: dict, document_texts: dict[str, str]) -> di
     return bundle
 
 
-async def get_batch_job_results(batch_id: str) -> BundleJSON | BatchJobError | StoredErrorBundle:
+async def get_batch_job_results(batch_id: str) -> FHIRJSON | BatchJobError | StoredErrorBundle:
     job = await run_db(get_batch_job, batch_id)
     if not job:
         return BatchJobError(404, "not-found", f"Batch Job ID {batch_id} was not found.")
@@ -480,7 +480,7 @@ async def get_batch_job_results(batch_id: str) -> BundleJSON | BatchJobError | S
         child_jobs = await run_db(get_jobs_for_batch, batch_id)
         bundle = with_batch_progress(job.result_bundle, child_jobs, job.status)
         document_texts = await run_db(get_batch_job_document_texts, batch_id)
-        return BundleJSON(**hydrate_document_entries(bundle, document_texts))
+        return dict(hydrate_document_entries(bundle, document_texts))
     if job.status in ("pending", "running"):
         return BatchJobError(
             202,

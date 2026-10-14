@@ -13,7 +13,7 @@ from typing import Any, cast
 import httpx
 from loguru import logger
 
-from src.models.fhir import FHIRProxyResponse, FHIRProxyResult, OperationOutcomeJSON
+from src.models.fhir import FHIRJSON, FHIRProxyResponse, FHIRProxyResult
 from src.services.errorhandler import make_operation_outcome
 from src.util.http_clients import fhir_headers, get_http_client, send_with_retry
 from src.util.outbound_url import is_valid_fhir_id, path_segment
@@ -30,7 +30,7 @@ def _base_url(resource_type: str, resource_id: str | None = None) -> str:
 
 def _invalid_id_outcome(resource_type: str) -> FHIRProxyResponse:
     return FHIRProxyResponse(
-        data=cast(OperationOutcomeJSON, make_operation_outcome("invalid", f"Invalid {resource_type} id. FHIR ids must be 1-64 characters of [A-Za-z0-9-.].")),
+        data=cast(FHIRJSON, make_operation_outcome("invalid", f"Invalid {resource_type} id. FHIR ids must be 1-64 characters of [A-Za-z0-9-.].")),
         status_code=400,
     )
 
@@ -59,14 +59,14 @@ async def _request(
     except httpx.TimeoutException:
         logger.error(f"FHIR {method} {resource_type} timed out")
         return FHIRProxyResponse(
-            data=cast(OperationOutcomeJSON, make_operation_outcome("timeout", f"The FHIR server did not respond in time for {method} {resource_type}.")),
+            data=cast(FHIRJSON, make_operation_outcome("timeout", f"The FHIR server did not respond in time for {method} {resource_type}.")),
             status_code=504,
             error_type="timeout",
         )
     except httpx.RequestError as exc:
         logger.error(f"FHIR {method} {resource_type} request failed: {type(exc).__name__}")
         return FHIRProxyResponse(
-            data=cast(OperationOutcomeJSON, make_operation_outcome("transient", f"The FHIR server could not be reached for {method} {resource_type}.")),
+            data=cast(FHIRJSON, make_operation_outcome("transient", f"The FHIR server could not be reached for {method} {resource_type}.")),
             status_code=502,
             error_type="transport",
         )
@@ -139,19 +139,19 @@ def _handle(resp: httpx.Response, method: str, target: str) -> FHIRProxyResponse
         # HAPI commonly answers DELETE with 204 No Content (or 200 with no body); routers
         # validate the result as an OperationOutcome, so synthesize an informational one.
         if method == "DELETE" and data.get("resourceType") != "OperationOutcome":
-            data = cast(OperationOutcomeJSON, make_operation_outcome("informational", f"Successfully deleted {target}.", severity="information"))
+            data = cast(FHIRJSON, make_operation_outcome("informational", f"Successfully deleted {target}.", severity="information"))
         return FHIRProxyResponse(data=cast(FHIRProxyResult, data), status_code=resp.status_code)
 
     # Pass through FHIR OperationOutcomes from the server as-is
     if data.get("resourceType") == "OperationOutcome":
-        return FHIRProxyResponse(data=cast(OperationOutcomeJSON, data), status_code=resp.status_code)
+        return FHIRProxyResponse(data=cast(FHIRJSON, data), status_code=resp.status_code)
 
     # Upstream bodies may contain sensitive detail; keep a truncated copy at debug level only.
     logger.error(f"FHIR {method} {target} failed with HTTP {resp.status_code}")
     logger.debug(f"FHIR {method} {target} error body (truncated): {resp.text[:500]}")
     return FHIRProxyResponse(
         data=cast(
-            OperationOutcomeJSON,
+            FHIRJSON,
             make_operation_outcome(
                 "transient",
                 f"FHIR server returned HTTP {resp.status_code} for {method} {target}",

@@ -1,14 +1,17 @@
-"""Typed FHIR resource shapes and proxy payload types shared across the API.
+"""Canonical FHIR resource models and raw proxy payload types shared across the API.
 
-This module defines Pydantic models, TypedDicts, aliases, and validation for the
-FHIR resources, Bundles, Parameters, and OperationOutcomes exchanged by routers and
-services. It performs no transport, persistence, or domain orchestration; HTTP
-proxying belongs to `src.services.fhir_proxy`, while application workflows belong
-to other `src.services` modules.
+This module defines the canonical Pydantic models for FHIR resources, Bundles,
+Parameters, and OperationOutcomes. Resource models allow unknown FHIR fields and
+provide round-trip JSON serialization for write endpoints; the transport layer uses
+one unstructured raw-JSON alias rather than a parallel resource hierarchy. This
+module performs no transport, persistence, or domain orchestration; HTTP proxying
+belongs to `src.services.fhir_proxy`, while application workflows belong to other
+`src.services` modules.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Literal, TypeAlias, TypedDict
+from typing import Any, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -58,67 +61,8 @@ class OperationOutcome(BaseModel):
     issue: list[OperationOutcomeIssue]
 
 
-class FHIRResourceJSON(TypedDict, total=False):
-    resourceType: str
-    id: str
-    name: str
-    version: str
-
-
-class BundleEntryJSON(TypedDict):
-    resource: dict[str, Any]
-
-
-class BundleJSON(TypedDict, total=False):
-    resourceType: Literal["Bundle"]
-    type: str
-    total: int
-    entry: list[BundleEntryJSON]
-
-
-class OperationOutcomeIssueJSON(TypedDict, total=False):
-    severity: Literal["fatal", "error", "warning", "information"]
-    code: str
-    details: dict[str, Any]
-    diagnostics: str
-    expression: list[str]
-
-
-class OperationOutcomeJSON(TypedDict):
-    resourceType: Literal["OperationOutcome"]
-    issue: list[OperationOutcomeIssueJSON]
-
-
-class GroupJSON(TypedDict, total=False):
-    resourceType: Literal["Group"]
-    id: str
-    name: str
-    version: str
-    member: list[dict[str, Any]]
-
-
-class PatientJSON(TypedDict, total=False):
-    resourceType: Literal["Patient"]
-    id: str
-    name: str
-    version: str
-
-
-class QuestionnaireJSON(TypedDict, total=False):
-    resourceType: Literal["Questionnaire"]
-    id: str
-    name: str
-    version: str
-
-
-class LibraryJSON(TypedDict, total=False):
-    resourceType: Literal["Library"]
-    id: str
-    name: str
-    version: str
-
-
-FHIRProxyResult: TypeAlias = BundleJSON | GroupJSON | PatientJSON | QuestionnaireJSON | LibraryJSON | OperationOutcomeJSON | FHIRResourceJSON
+FHIRJSON: TypeAlias = dict[str, Any]
+FHIRProxyResult: TypeAlias = FHIRJSON
 
 
 @dataclass(frozen=True)
@@ -131,9 +75,24 @@ class FHIRProxyResponse:
 
 
 class FHIRBaseModel(BaseModel):
-    """Base model for FHIR resources where fields beyond the typed subset are allowed."""
+    """Canonical base for resource models with typed fields and unknown-field passthrough."""
 
     model_config = ConfigDict(extra="allow")
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_resource_type(cls, value: Any) -> Any:
+        """Require resourceType when a concrete resource model declares it."""
+        if "resourceType" in cls.model_fields and isinstance(value, Mapping) and "resourceType" not in value:
+            raise ValueError("resourceType is required")
+        return value
+
+    def to_fhir_json(self) -> FHIRJSON:
+        """Dump only fields supplied by the client while preserving explicit nulls and extras."""
+        payload = self.model_dump(mode="json", exclude_unset=True)
+        if "resourceType" not in payload:
+            raise ValueError("FHIR resource payload must include resourceType")
+        return payload
 
 
 class BundleEntry(FHIRBaseModel):

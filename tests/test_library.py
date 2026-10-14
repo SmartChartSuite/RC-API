@@ -1,7 +1,7 @@
 """Tests the library router's FHIR search, read, create, and configuration-error responses.
 
-The tests monkeypatch `src.routers.library` FHIR proxy calls and settings; transport details are covered
-in `test_fhir_proxy.py`."""
+The tests monkeypatch `src.routers.library` FHIR proxy calls and settings; write calls use the canonical
+LibraryResource model, while transport details are covered in `test_fhir_proxy.py`."""
 
 from fastapi.responses import JSONResponse
 
@@ -71,7 +71,7 @@ async def test_create_library_returns_library_resource(monkeypatch):
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(library, "fhir_post_with_status", _fake_fhir_post_with_status)
 
-    result = await library.create_library({"resourceType": "Library", "name": "RiskLib"}, claims={})
+    result = await library.create_library(LibraryResource.model_validate({"resourceType": "Library", "name": "RiskLib"}), claims={})
 
     assert isinstance(result, LibraryResource)
     assert result.id == "lib-1"

@@ -2,10 +2,11 @@
 
 The CRUD endpoints call `src.services.fhir_proxy` for HAPI FHIR transport; Group
 search also fetches referenced Patients through shared HTTP infrastructure and
-preserves the API's flat implicit-include result. This router binds parameters,
-selects auth, and maps results to FHIR responses, but does not own persistence or
-domain workflows. Those belong to `src.services`; shared transport details belong
-to `src.util`.
+preserves the API's flat implicit-include result. Write bodies use the canonical
+GroupResource model and round-trip unknown FHIR fields. This router binds
+parameters, selects auth, and maps results to FHIR responses, but does not own
+persistence or domain workflows. Those belong to `src.services`; shared transport
+details belong to `src.util`.
 """
 
 import asyncio
@@ -16,7 +17,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from src.models.fhir import BundleResource, GroupResource, OperationOutcome, PatientResource
-from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response, model_or_operation_outcome, operation_outcome_responses
+from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response, model_or_operation_outcome, operation_outcome_response, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
 from src.util.http_clients import fhir_headers, get_http_client, send_with_retry
@@ -139,26 +140,29 @@ async def get_group(resource_id: str, claims: dict = Security(validate_token)) -
 
 @router.post("/group", summary="Create Group", response_model=GroupWriteResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def create_group(
-    body: dict = Body(..., openapi_examples={"group": {"summary": "FHIR Group", "value": _GROUP_EXAMPLE}}),
+    body: GroupResource = Body(..., openapi_examples={"group": {"summary": "FHIR Group", "value": _GROUP_EXAMPLE}}),
     claims: dict = Security(validate_token),
 ) -> JSONResponse | GroupWriteResult:
     """Create a new Group resource on HAPI FHIR."""
     if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    result = await fhir_post_with_status("Group", body)
+    result = await fhir_post_with_status("Group", body.to_fhir_json())
     return fhir_result_response(result, GroupResource)
 
 
 @router.put("/group/{resource_id}", summary="Update Group", response_model=GroupWriteResult, responses=FHIR_PROXY_ERROR_RESPONSES)
 async def update_group(
     resource_id: str,
-    body: dict = Body(..., openapi_examples={"group": {"summary": "FHIR Group", "value": _GROUP_EXAMPLE}}),
+    body: GroupResource = Body(..., openapi_examples={"group": {"summary": "FHIR Group", "value": _GROUP_EXAMPLE}}),
     claims: dict = Security(validate_token),
 ) -> JSONResponse | GroupWriteResult:
     """Update an existing Group resource."""
+    body_json = body.to_fhir_json()
+    if "id" in body_json and body_json["id"] != resource_id:
+        return operation_outcome_response(400, "invariant", f"Group body id {body_json['id']!r} does not match path id {resource_id!r}.")
     if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
-    result = await fhir_put_with_status("Group", resource_id, body)
+    result = await fhir_put_with_status("Group", resource_id, body_json)
     return fhir_result_response(result, GroupResource)
 
 

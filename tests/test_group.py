@@ -1,7 +1,7 @@
 """Tests Group router search, member expansion, CRUD responses, concurrency, and upstream-error handling.
 
-The tests patch `src.services.fhir_proxy`, `src.routers.group`, settings, and shared fakes; HAPI transport
-details are covered in `test_fhir_proxy.py`."""
+The tests patch `src.services.fhir_proxy`, `src.routers.group`, settings, and shared fakes; write calls use the
+canonical GroupResource model and HAPI transport details are covered in `test_fhir_proxy.py`."""
 
 import asyncio
 
@@ -99,7 +99,7 @@ async def test_create_group_returns_group_resource(monkeypatch):
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(group, "fhir_post_with_status", _fake_fhir_post_with_status)
 
-    result = await group.create_group({"resourceType": "Group", "name": "Panel"}, claims={})
+    result = await group.create_group(GroupResource.model_validate({"resourceType": "Group", "name": "Panel"}), claims={})
 
     assert isinstance(result, GroupResource)
     assert result.id == "group-1"
