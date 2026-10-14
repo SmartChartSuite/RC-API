@@ -1,3 +1,4 @@
+import json
 import threading
 
 import pytest
@@ -252,6 +253,99 @@ def test_build_cql_observations_uses_matching_structured_task(monkeypatch):
 
     assert len(entries) == 1
     assert entries[0]["resource"]["valueString"] == "positive"
+
+
+@pytest.mark.parametrize(
+    ("value_type", "raw_value", "expected"),
+    [
+        ("String", "positive", {"valueString": "positive"}),
+        ("Boolean", True, {"valueBoolean": True}),
+        ("Integer", 4, {"valueInteger": 4}),
+        ("DateTime", "2026-05-22T12:00:00Z", {"valueDateTime": "2026-05-22T12:00:00Z"}),
+        ("Time", "12:00:00", {"valueTime": "12:00:00"}),
+        ("Period", {"start": "2026-05-22"}, {"valuePeriod": {"start": "2026-05-22"}}),
+        ("Quantity", {"value": 12.5, "unit": "mg"}, {"valueQuantity": {"value": 12.5, "unit": "mg"}}),
+        ("CodeableConcept", {"coding": [{"code": "abc"}]}, {"valueCodeableConcept": {"coding": [{"code": "abc"}]}}),
+        ("Range", {"low": {"value": 1}, "high": {"value": 2}}, {"valueRange": {"low": {"value": 1}, "high": {"value": 2}}}),
+        ("Ratio", {"numerator": {"value": 1}, "denominator": {"value": 2}}, {"valueRatio": {"numerator": {"value": 1}, "denominator": {"value": 2}}}),
+        ("SampledData", {"origin": {"value": 0}, "data": "1 2"}, {"valueSampledData": {"origin": {"value": 0}, "data": "1 2"}}),
+        ("Decimal", 1.25, {"valueQuantity": {"value": 1.25}}),
+        ("Coding", {"system": "http://loinc.org", "code": "1234-5"}, {"valueCodeableConcept": {"coding": [{"system": "http://loinc.org", "code": "1234-5"}]}}),
+        ("Code", "final", {"valueCodeableConcept": {"coding": [{"code": "final"}]}}),
+        ("Date", "2026-05-22", {"valueDateTime": "2026-05-22"}),
+        ("Reference", {"reference": "Patient/patient-123"}, {"focus": [{"reference": "Patient/patient-123"}]}),
+    ],
+)
+def test_build_cql_observations_maps_cql_value_types(monkeypatch, value_type, raw_value, expected):
+    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-typed")
+    questionnaire = {
+        "item": [
+            {
+                "linkId": "1.1",
+                "text": "Question text",
+                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+            }
+        ]
+    }
+    cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": raw_value, "type": value_type}]})]
+
+    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123")
+
+    assert len(entries) == 1
+    resource = entries[0]["resource"]
+    for key, expected_value in expected.items():
+        assert resource[key] == expected_value
+
+
+@pytest.mark.parametrize(
+    ("value_type", "raw_value"),
+    [
+        ("part", {"component": [{"value": 1, "type": "Integer"}]}),
+        ("Attachment", {"contentType": "text/plain", "data": "abc"}),
+        ("Unknown", "not-a-string-observation"),
+    ],
+)
+def test_build_cql_observations_falls_back_to_compact_json(monkeypatch, value_type, raw_value):
+    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-fallback")
+    questionnaire = {
+        "item": [
+            {
+                "linkId": "1.1",
+                "text": "Question text",
+                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+            }
+        ]
+    }
+    cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": raw_value, "type": value_type}]})]
+
+    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123")
+
+    assert len(entries) == 1
+    assert entries[0]["resource"]["valueString"] == json.dumps(raw_value, separators=(",", ":"), sort_keys=True)
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected"),
+    [(True, {"valueBoolean": True}), ("positive", {"valueString": "positive"})],
+)
+def test_build_cql_observations_infers_legacy_value_types(monkeypatch, raw_value, expected):
+    monkeypatch.setattr(job_orchestrator.uuid, "uuid4", lambda: "obs-legacy")
+    questionnaire = {
+        "item": [
+            {
+                "linkId": "1.1",
+                "text": "Question text",
+                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+            }
+        ]
+    }
+    cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": raw_value}]})]
+
+    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123")
+
+    assert len(entries) == 1
+    for key, expected_value in expected.items():
+        assert entries[0]["resource"][key] == expected_value
 
 
 def test_build_result_bundle_includes_status_and_patient(monkeypatch):

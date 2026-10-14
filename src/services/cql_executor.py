@@ -91,6 +91,61 @@ def _build_parameters_body(patient_id: str) -> dict:
     }
 
 
+_MAX_PARAMETER_PART_DEPTH = 10
+
+
+def _append_parameter_entry(grouped: dict[str, list[dict]], name: str, entry: dict) -> None:
+    grouped.setdefault(name, []).append(entry)
+
+
+def _parse_parameter_entry(param: dict, depth: int) -> tuple[dict | None, str | None]:
+    """Return one raw resource or one typed value entry from a Parameters parameter."""
+    raw_name = param.get("name")
+    name = raw_name if isinstance(raw_name, str) else ""
+    if name.endswith("_concept"):
+        return None, None
+
+    resource = param.get("resource")
+    if resource is not None:
+        if not isinstance(resource, dict):
+            logger.warning(f"CQL parameter '{name}' has a non-object resource")
+            return None, None
+        if resource.get("resourceType") == "OperationOutcome":
+            return None, _extract_operation_outcome_diagnostics(resource)
+        return resource, None
+
+    value_key = next((key for key in param if isinstance(key, str) and key.startswith("value")), None)
+    if value_key is not None:
+        return {"value": param[value_key], "type": value_key[5:]}, None
+
+    if "part" in param:
+        if depth >= _MAX_PARAMETER_PART_DEPTH:
+            logger.warning(f"CQL parameter '{name}' exceeded nested part depth limit")
+            return {"value": {}, "type": "part"}, None
+
+        raw_parts = param.get("part")
+        if not isinstance(raw_parts, list):
+            logger.warning(f"CQL parameter '{name}' has malformed nested parts")
+            return {"value": {}, "type": "part"}, None
+
+        grouped_parts: dict[str, list[dict]] = {}
+        for part in raw_parts:
+            if not isinstance(part, dict):
+                logger.warning(f"CQL parameter '{name}' has a malformed nested part")
+                continue
+            raw_part_name = part.get("name")
+            part_name = raw_part_name if isinstance(raw_part_name, str) else ""
+            part_entry, error = _parse_parameter_entry(part, depth + 1)
+            if error is not None:
+                return None, error
+            if part_entry is not None:
+                _append_parameter_entry(grouped_parts, part_name, part_entry)
+        return {"value": grouped_parts, "type": "part"}, None
+
+    logger.debug(f"CQL parameter '{name}' has no value")
+    return None, None
+
+
 def _parse_parameters_response(library_name: str, patient_id: str, data: dict) -> CqlResult:
     """Parse the FHIR Parameters response from Library/$evaluate.
 
@@ -103,24 +158,23 @@ def _parse_parameters_response(library_name: str, patient_id: str, data: dict) -
         return CqlResult(library_name=library_name, patient_id=patient_id, error=diagnostics)
 
     grouped: dict[str, list[dict]] = {}
-    for param in data.get("parameter", []):
-        name: str = param.get("name", "")
-        # Skip terminology/concept filter entries
-        if name.endswith("_concept"):
+    parameters = data.get("parameter", [])
+    if not isinstance(parameters, list):
+        logger.warning(f"CQL Parameters response for {library_name} has malformed parameters")
+        return CqlResult(library_name=library_name, patient_id=patient_id, results=grouped)
+
+    for param in parameters:
+        if not isinstance(param, dict):
+            logger.warning(f"CQL Parameters response for {library_name} has a malformed parameter")
             continue
-        resource = param.get("resource")
-        if resource is not None:
-            if resource.get("resourceType") == "OperationOutcome":
-                diagnostics = _extract_operation_outcome_diagnostics(resource)
-                logger.error(f"CQL evaluation error for {library_name}: {diagnostics}")
-                return CqlResult(library_name=library_name, patient_id=patient_id, error=diagnostics)
-            grouped.setdefault(name, []).append(resource)
-        elif "valueString" in param:
-            grouped.setdefault(name, []).append({"value": param["valueString"]})
-        elif "valueBoolean" in param:
-            grouped.setdefault(name, []).append({"value": param["valueBoolean"]})
-        elif "valueDateTime" in param:
-            grouped.setdefault(name, []).append({"value": param["valueDateTime"]})
+        raw_name = param.get("name")
+        name = raw_name if isinstance(raw_name, str) else ""
+        entry, diagnostics = _parse_parameter_entry(param, 0)
+        if diagnostics is not None:
+            logger.error(f"CQL evaluation error for {library_name}: {diagnostics}")
+            return CqlResult(library_name=library_name, patient_id=patient_id, error=diagnostics)
+        if entry is not None and not name.endswith("_concept"):
+            _append_parameter_entry(grouped, name, entry)
 
     return CqlResult(library_name=library_name, patient_id=patient_id, results=grouped)
 

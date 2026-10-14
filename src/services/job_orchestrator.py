@@ -283,6 +283,39 @@ def _obs_base(link_id: str, question_text: str, patient_id: str, form_name: str)
     }
 
 
+def _infer_cql_value_type(raw_value: object) -> str | None:
+    """Infer the compatible FHIR value type for a legacy persisted CQL value."""
+    if isinstance(raw_value, bool):
+        return "Boolean"
+    if isinstance(raw_value, int):
+        return "Integer"
+    if isinstance(raw_value, float):
+        return "Decimal"
+    if isinstance(raw_value, str):
+        return "String"
+    return None
+
+
+def _set_cql_observation_value(obs: dict, raw_value: object, value_type: str | None, task_name: str) -> None:
+    """Set an Observation value[x] for a typed CQL entry, using JSON for unsupported types."""
+    direct_types = {"Boolean", "Integer", "DateTime", "Time", "Period", "Quantity", "CodeableConcept", "Range", "Ratio", "SampledData"}
+    if value_type in direct_types:
+        obs[f"value{value_type}"] = raw_value
+    elif value_type == "Decimal":
+        obs["valueQuantity"] = {"value": raw_value}
+    elif value_type == "Coding":
+        obs["valueCodeableConcept"] = {"coding": [raw_value]}
+    elif value_type == "Code":
+        obs["valueCodeableConcept"] = {"coding": [{"code": raw_value}]}
+    elif value_type == "Date":
+        obs["valueDateTime"] = raw_value
+    elif value_type == "Reference":
+        obs["focus"] = [raw_value if isinstance(raw_value, dict) else {"reference": str(raw_value)}]
+    else:
+        obs["valueString"] = json.dumps(raw_value, separators=(",", ":"), sort_keys=True)
+        logger.debug(f"Unsupported CQL value type '{value_type}' for task '{task_name}'; using valueString")
+
+
 def _build_cql_observations(
     cql_results: list[CqlResult],
     questionnaire: dict,
@@ -320,9 +353,15 @@ def _build_cql_observations(
             continue
 
         for res_entry in result_entries:
+            if not isinstance(res_entry, dict):
+                logger.debug(f"Skipping malformed CQL result entry for task '{task_name}'")
+                continue
+
             # Tuple result (pipe-delimited value string from CQL)
             raw_value = res_entry.get("value")
-            if isinstance(raw_value, str) and "|" in raw_value:
+            stored_type = res_entry.get("type")
+            value_type = stored_type if isinstance(stored_type, str) else _infer_cql_value_type(raw_value)
+            if value_type == "String" and isinstance(raw_value, str) and "|" in raw_value:
                 obs, supporting = _build_tuple_observation(raw_value, link_id, question_text, patient_id, form_name, task_name)
                 obs_url = f"Observation/{obs['id']}"
                 if obs_url not in seen_urls:
@@ -333,7 +372,7 @@ def _build_cql_observations(
                     if sup_url not in seen_urls:
                         entries.append({"fullUrl": sup_url, "resource": supporting})
                         seen_urls.add(sup_url)
-            elif isinstance(raw_value, str):
+            elif value_type == "String" and isinstance(raw_value, str):
                 # Simple scalar valueString observation
                 obs = _obs_base(link_id, question_text, patient_id, form_name)
                 obs["valueString"] = raw_value
@@ -341,7 +380,7 @@ def _build_cql_observations(
                 if obs_url not in seen_urls:
                     entries.append({"fullUrl": obs_url, "resource": obs})
                     seen_urls.add(obs_url)
-            elif isinstance(res_entry, dict) and res_entry.get("resourceType"):
+            elif res_entry.get("resourceType"):
                 # FHIR resource result — reference it via focus
                 res_type = res_entry["resourceType"]
                 res_id = res_entry.get("id", str(uuid.uuid4()))
@@ -355,6 +394,13 @@ def _build_cql_observations(
                 if sup_url not in seen_urls:
                     entries.append({"fullUrl": sup_url, "resource": res_entry})
                     seen_urls.add(sup_url)
+            else:
+                obs = _obs_base(link_id, question_text, patient_id, form_name)
+                _set_cql_observation_value(obs, raw_value, value_type, task_name)
+                obs_url = f"Observation/{obs['id']}"
+                if obs_url not in seen_urls:
+                    entries.append({"fullUrl": obs_url, "resource": obs})
+                    seen_urls.add(obs_url)
 
     return entries
 

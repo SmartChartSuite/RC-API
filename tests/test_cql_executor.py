@@ -68,7 +68,93 @@ def test_parse_parameters_response_groups_normal_results():
     )
 
     assert result.error is None
-    assert result.results == {"simple": [{"value": "value-1"}, {"value": True}]}
+    assert result.results == {"simple": [{"value": "value-1", "type": "String"}, {"value": True, "type": "Boolean"}]}
+
+
+def test_parse_parameters_response_extracts_generic_values_and_parts():
+    result = _parse_parameters_response(
+        "ExampleLibrary",
+        "patient-123",
+        {
+            "resourceType": "Parameters",
+            "parameter": [
+                {"name": "integer", "valueInteger": 7},
+                {"name": "decimal", "valueDecimal": 1.25},
+                {"name": "boolean", "valueBoolean": True},
+                {"name": "code", "valueCode": "final"},
+                {"name": "quantity", "valueQuantity": {"value": 12.5, "unit": "mg"}},
+                {"name": "concept", "valueCodeableConcept": {"coding": [{"code": "abc"}]}},
+                {"name": "null_result"},
+                {"name": "repeat", "valueString": "first"},
+                {"name": "repeat", "valueInteger": 2},
+                {
+                    "name": "parted",
+                    "part": [
+                        {"name": "amount", "valueDecimal": 3.5},
+                        {"name": "ignored_concept", "valueString": "ignored"},
+                        {
+                            "name": "nested",
+                            "part": [
+                                {"name": "flag", "valueBoolean": False},
+                                {"name": "nested_concept", "valueCode": "ignored"},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+    )
+
+    assert result.error is None
+    assert result.results["integer"] == [{"value": 7, "type": "Integer"}]
+    assert result.results["decimal"] == [{"value": 1.25, "type": "Decimal"}]
+    assert result.results["boolean"] == [{"value": True, "type": "Boolean"}]
+    assert result.results["code"] == [{"value": "final", "type": "Code"}]
+    assert result.results["quantity"] == [{"value": {"value": 12.5, "unit": "mg"}, "type": "Quantity"}]
+    assert result.results["concept"] == [{"value": {"coding": [{"code": "abc"}]}, "type": "CodeableConcept"}]
+    assert "null_result" not in result.results
+    assert result.results["repeat"] == [{"value": "first", "type": "String"}, {"value": 2, "type": "Integer"}]
+    assert result.results["parted"] == [
+        {
+            "value": {
+                "amount": [{"value": 3.5, "type": "Decimal"}],
+                "nested": [{"value": {"flag": [{"value": False, "type": "Boolean"}]}, "type": "part"}],
+            },
+            "type": "part",
+        }
+    ]
+
+
+def test_parse_parameters_response_returns_error_for_nested_operation_outcome():
+    result = _parse_parameters_response(
+        "ExampleLibrary",
+        "patient-123",
+        {
+            "resourceType": "Parameters",
+            "parameter": [
+                {
+                    "name": "outer",
+                    "part": [
+                        {
+                            "name": "inner",
+                            "part": [
+                                {
+                                    "name": "failure",
+                                    "resource": {
+                                        "resourceType": "OperationOutcome",
+                                        "issue": [{"code": "exception", "diagnostics": "nested failure"}],
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert result.error == "nested failure"
+    assert result.results == {}
 
 
 async def test_run_cql_libraries_reports_each_result_as_it_finishes(monkeypatch):
