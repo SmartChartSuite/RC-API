@@ -723,9 +723,16 @@ def test_hydration_preserves_legacy_inline_content_and_missing_rows():
     assert hydrated == original
 
 
-async def test_get_batch_job_results_returns_partial_bundle_while_running(monkeypatch):
+@pytest.mark.parametrize(
+    ("batch_status", "child_statuses", "expected_progress"),
+    [
+        ("running", ["complete", "running", "skipped"], "Batch job status: 67% (2/3)"),
+        ("partial", ["complete", "error"], "Batch job status: 100% (2/2)"),
+    ],
+)
+async def test_get_batch_job_results_returns_stored_bundle_with_live_progress(monkeypatch, batch_status, child_statuses, expected_progress):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
-    partial_bundle = {
+    stored_bundle = {
         "resourceType": "Bundle",
         "id": "bundle-123",
         "type": "collection",
@@ -733,12 +740,7 @@ async def test_get_batch_job_results_returns_partial_bundle_while_running(monkey
         "entry": [
             {
                 "fullUrl": "Observation/status-observation",
-                "resource": {
-                    "resourceType": "Observation",
-                    "id": "status-observation",
-                    "status": "preliminary",
-                    "code": {"coding": [{"code": "result-status"}]},
-                },
+                "resource": {"resourceType": "Observation", "id": "status-observation", "status": "preliminary", "code": {"coding": [{"code": "result-status"}]}},
             },
             {
                 "fullUrl": "Observation/obs-1",
@@ -754,75 +756,22 @@ async def test_get_batch_job_results_returns_partial_bundle_while_running(monkey
             patient_id="patient-123",
             job_package="Registry",
             started_by="user-123",
-            status="running",
-            result_bundle=partial_bundle,
+            status=batch_status,
+            result_bundle=stored_bundle,
             created_at=created_at,
-            completed_at=None,
+            completed_at=None if batch_status == "running" else created_at,
         ),
     )
-    monkeypatch.setattr(
-        batchjob,
-        "get_jobs_for_batch",
-        lambda batch_id: [
-            type("Job", (), {"status": "complete"})(),
-            type("Job", (), {"status": "running"})(),
-            type("Job", (), {"status": "skipped"})(),
-        ],
-    )
-
-    result = await batchjob.get_batch_job_results("batch-123", claims={})
-
-    assert isinstance(result, dict)
-    result_entries = result.get("entry")
-    assert result_entries is not None
-    assert result_entries[0]["resource"]["valueCodeableConcept"]["text"] == "Batch job status: 67% (2/3)"
-    assert "valueCodeableConcept" not in partial_bundle["entry"][0]["resource"]
-
-
-async def test_get_batch_job_results_returns_partial_bundle(monkeypatch):
-    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
-    partial_bundle = {
-        "resourceType": "Bundle",
-        "id": "bundle-partial",
-        "type": "collection",
-        "total": 1,
-        "entry": [
-            {
-                "fullUrl": "Observation/status-observation",
-                "resource": {
-                    "resourceType": "Observation",
-                    "id": "status-observation",
-                    "status": "preliminary",
-                    "code": {"coding": [{"code": "result-status"}]},
-                },
-            }
-        ],
-    }
-    monkeypatch.setattr(
-        batchjob,
-        "get_batch_job",
-        lambda batch_id: BatchJobs(
-            batch_id=batch_id,
-            patient_id="patient-123",
-            job_package="Registry",
-            started_by="user-123",
-            status="partial",
-            result_bundle=partial_bundle,
-            created_at=created_at,
-            completed_at=created_at,
-        ),
-    )
-    monkeypatch.setattr(batchjob, "get_jobs_for_batch", lambda batch_id: [type("Job", (), {"status": "complete"})(), type("Job", (), {"status": "error"})()])
+    monkeypatch.setattr(batchjob, "get_jobs_for_batch", lambda batch_id: [type("Job", (), {"status": status})() for status in child_statuses])
 
     result = await batchjob.get_batch_job_results("batch-123", claims={})
 
     assert isinstance(result, dict)
     validated = BundleResource.model_validate(result)
-    assert validated.resourceType == "Bundle"
-    assert validated.model_dump()["id"] == "bundle-partial"
+    assert validated.model_dump()["id"] == "bundle-123"
     assert validated.entry is not None
-    assert validated.entry[0].resource["valueCodeableConcept"]["text"] == "Batch job status: 100% (2/2)"
-    assert "valueCodeableConcept" not in partial_bundle["entry"][0]["resource"]
+    assert validated.entry[0].resource["valueCodeableConcept"]["text"] == expected_progress
+    assert "valueCodeableConcept" not in stored_bundle["entry"][0]["resource"]
 
 
 def test_with_batch_progress_reports_complete_zero_task_batch():

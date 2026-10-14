@@ -36,17 +36,9 @@ def _configure_langfuse(monkeypatch, client: object, *, ttl_seconds: float = 60.
     monkeypatch.setattr(settings, "langfuse_prompt_fetch_timeout_seconds", 5)
 
 
-def test_parse_md_frontmatter_extracts_metadata_and_body():
-    metadata, body = prompt_loader._parse_md_frontmatter("---\nname: Prompt One\nversion: '1'\n---\nPrompt body")
-
-    assert metadata == {"name": "Prompt One", "version": "1"}
-    assert body == "Prompt body"
-
-
-def test_load_from_folder_reads_prompt_files(tmp_path, monkeypatch):
+def test_load_from_folder_parses_frontmatter(tmp_path, monkeypatch):
     prompt_root = tmp_path / "prompts"
-    prompt_file = _write_prompt(prompt_root, "2025_08/example", "---\nname: Prompt One\nversion: '2'\ndescription: Test prompt\n---\nPrompt body")
-
+    _write_prompt(prompt_root, "2025_08/example", "---\nname: Prompt One\nversion: '2'\ndescription: Test prompt\n---\nPrompt body")
     monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
 
     prompts = prompt_loader._load_from_folder(["2025_08/example"])
@@ -55,12 +47,11 @@ def test_load_from_folder_reads_prompt_files(tmp_path, monkeypatch):
     assert prompts[0].metadata.name == "Prompt One"
     assert prompts[0].metadata.version == "2"
     assert prompts[0].content == "Prompt body"
-    assert prompt_file.exists()
 
 
-def test_local_prompt_cache_reuses_file_and_isolates_models(tmp_path, monkeypatch):
+def test_local_prompt_cache_lifecycle(tmp_path, monkeypatch):
     prompt_root = tmp_path / "prompts"
-    _write_prompt(prompt_root, "package/example", "---\nname: Cached prompt\n---\nPrompt body")
+    prompt_file = _write_prompt(prompt_root, "package/example", "---\nname: Cached prompt\n---\nShort")
     monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
     read_calls = 0
     original_read_text = Path.read_text
@@ -72,39 +63,19 @@ def test_local_prompt_cache_reuses_file_and_isolates_models(tmp_path, monkeypatc
 
     monkeypatch.setattr(Path, "read_text", counted_read_text)
 
+    # Hits reuse the parsed file, and callers get isolated copies.
     first = prompt_loader._load_from_folder(["package/example"])
-    second = prompt_loader._load_from_folder(["package/example"])
     first[0].metadata.name = "Caller mutation"
-    third = prompt_loader._load_from_folder(["package/example"])
-
-    assert read_calls == 1
-    assert first[0] is not second[0]
-    assert second[0].metadata.name == "Cached prompt"
-    assert third[0].metadata.name == "Cached prompt"
-
-
-def test_local_prompt_cache_reloads_when_file_signature_changes(tmp_path, monkeypatch):
-    prompt_root = tmp_path / "prompts"
-    prompt_file = _write_prompt(prompt_root, "package/example", "---\nname: Before\n---\nShort")
-    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
-
-    first = prompt_loader._load_from_folder(["package/example"])
-    prompt_file.write_text("---\nname: After\n---\nA much longer replacement body", encoding="utf-8")
     second = prompt_loader._load_from_folder(["package/example"])
+    assert read_calls == 1
+    assert second[0].metadata.name == "Cached prompt"
 
-    assert first[0].metadata.name == "Before"
-    assert second[0].metadata.name == "After"
-    assert second[0].content == "A much longer replacement body"
+    # A changed file signature reloads it.
+    prompt_file.write_text("---\nname: After\n---\nA much longer replacement body", encoding="utf-8")
+    assert prompt_loader._load_from_folder(["package/example"])[0].content == "A much longer replacement body"
 
-
-def test_local_prompt_cache_evicts_deleted_file(tmp_path, monkeypatch):
-    prompt_root = tmp_path / "prompts"
-    prompt_file = _write_prompt(prompt_root, "package/example", "---\nname: Existing\n---\nBody")
-    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
-
-    assert prompt_loader._load_from_folder(["package/example"])[0].metadata.name == "Existing"
+    # A deleted file is evicted, and a recreated one loads fresh.
     prompt_file.unlink()
-
     assert prompt_loader._load_from_folder(["package/example"]) == []
     _write_prompt(prompt_root, "package/example", "---\nname: Recreated\n---\nNew body")
     assert prompt_loader._load_from_folder(["package/example"])[0].metadata.name == "Recreated"
@@ -121,15 +92,8 @@ async def test_load_prompts_uses_folder_loader_when_langfuse_disabled(monkeypatc
     monkeypatch.setattr(settings, "use_langfuse", False)
     monkeypatch.setattr(prompt_loader, "_load_from_folder", lambda prompt_paths: ["folder-result"])
 
-    result = await prompt_loader.load_prompts(["any/path"])
-
-    assert result == ["folder-result"]
-
-
-async def test_load_prompts_returns_empty_for_no_paths():
-    result = await prompt_loader.load_prompts([])
-
-    assert result == []
+    assert await prompt_loader.load_prompts(["any/path"]) == ["folder-result"]
+    assert await prompt_loader.load_prompts([]) == []
 
 
 async def test_initialize_prompt_source_disables_langfuse_when_unreachable(monkeypatch):
@@ -209,62 +173,55 @@ async def test_load_from_langfuse_runs_synchronous_sdk_off_event_loop(monkeypatc
 
     monkeypatch.setattr(prompt_loader, "_load_from_langfuse_sync", _fake_sync_loader)
 
-    result = await prompt_loader._load_from_langfuse(["prompt/a"])
-
-    assert result == ["prompt/a"]
-    assert observed_threads
-    assert observed_threads[0] != event_loop_thread
+    assert await prompt_loader._load_from_langfuse(["prompt/a"]) == ["prompt/a"]
+    assert observed_threads and observed_threads[0] != event_loop_thread
 
 
-def test_langfuse_cache_hit_within_ttl_avoids_fetch(monkeypatch):
-    client = _FakeLangfuse()
-    _configure_langfuse(monkeypatch, client)
-    clock = [100.0]
-    monkeypatch.setattr(prompt_loader.time, "monotonic", lambda: clock[0])
-
-    first = prompt_loader._load_from_langfuse_sync(["package/prompt"])
-    clock[0] = 159.9
-    second = prompt_loader._load_from_langfuse_sync(["package/prompt"])
-
-    assert len(client.calls) == 1
-    assert first[0].content == second[0].content
-    assert client.calls[0][1] == {
-        "label": "latest",
-        "cache_ttl_seconds": 0,
-        "max_retries": 1,
-        "fetch_timeout_seconds": 5,
-    }
-
-
-def test_langfuse_cache_refetches_after_ttl(monkeypatch):
+def test_langfuse_cache_ttl_stale_if_error_and_clear(monkeypatch):
     client = _FakeLangfuse()
     _configure_langfuse(monkeypatch, client, ttl_seconds=10.0)
     clock = [100.0]
+    warnings: list[str] = []
     monkeypatch.setattr(prompt_loader.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(prompt_loader.logger, "warning", lambda message: warnings.append(str(message)))
 
-    first = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    # A hit within the TTL makes no call, and the SDK cache is disabled.
+    assert prompt_loader._load_from_langfuse_sync(["package/prompt"])[0].content == "Langfuse body 1"
+    clock[0] = 109.9
+    assert prompt_loader._load_from_langfuse_sync(["package/prompt"])[0].content == "Langfuse body 1"
+    assert len(client.calls) == 1
+    assert client.calls[0][1] == {"label": "latest", "cache_ttl_seconds": 0, "max_retries": 1, "fetch_timeout_seconds": 5}
+
+    # After the TTL it refetches.
     clock[0] = 110.0
-    second = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    assert prompt_loader._load_from_langfuse_sync(["package/prompt"])[0].content == "Langfuse body 2"
 
-    assert len(client.calls) == 2
-    assert first[0].content == "Langfuse body 1"
-    assert second[0].content == "Langfuse body 2"
+    # A failed refresh serves the stale Langfuse entry and logs a warning.
+    client.fail = True
+    clock[0] = 121.0
+    assert prompt_loader._load_from_langfuse_sync(["package/prompt"])[0].content == "Langfuse body 2"
+    assert any("stale cached Langfuse prompt" in message for message in warnings)
+
+    # Clearing the cache forces a refetch.
+    client.fail = False
+    clock[0] = 121.5
+    prompt_loader.clear_prompt_cache()
+    assert prompt_loader._load_from_langfuse_sync(["package/prompt"])[0].content == "Langfuse body 4"
 
 
 def test_langfuse_cache_ttl_zero_always_fetches(monkeypatch):
     client = _FakeLangfuse()
     _configure_langfuse(monkeypatch, client, ttl_seconds=0.0)
 
-    first = prompt_loader._load_from_langfuse_sync(["package/prompt"])
-    second = prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    prompt_loader._load_from_langfuse_sync(["package/prompt"])
+    prompt_loader._load_from_langfuse_sync(["package/prompt"])
 
     assert len(client.calls) == 2
-    assert first[0].content != second[0].content
 
 
-def test_langfuse_failure_falls_back_locally_and_does_not_poison_cache(tmp_path, monkeypatch):
+def test_langfuse_failure_falls_back_locally_without_poisoning_cache(tmp_path, monkeypatch):
     prompt_root = tmp_path / "prompts"
-    _write_prompt(prompt_root, "package/prompt", "---\nname: Local fallback\n---\nFallback body")
+    _write_prompt(prompt_root, "package/prompt", "---\nname: Local fallback\nversion: '3'\n---\nFallback body")
     monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
     client = _FakeLangfuse()
     client.fail = True
@@ -274,39 +231,8 @@ def test_langfuse_failure_falls_back_locally_and_does_not_poison_cache(tmp_path,
     client.fail = False
     fetched = prompt_loader._load_from_langfuse_sync(["package/prompt"])
 
-    assert fallback[0].content == "Fallback body"
+    assert (fallback[0].metadata.name, fallback[0].metadata.version, fallback[0].content) == ("Local fallback", "3", "Fallback body")
     assert fetched[0].content == "Langfuse body 2"
-    assert len(client.calls) == 2
-
-
-def test_langfuse_stale_cache_is_used_on_fetch_failure_and_warning_logged(monkeypatch):
-    client = _FakeLangfuse()
-    _configure_langfuse(monkeypatch, client, ttl_seconds=10.0)
-    clock = [100.0]
-    warnings: list[str] = []
-    monkeypatch.setattr(prompt_loader.time, "monotonic", lambda: clock[0])
-    monkeypatch.setattr(prompt_loader.logger, "warning", lambda message: warnings.append(str(message)))
-
-    fresh = prompt_loader._load_from_langfuse_sync(["package/prompt"])
-    client.fail = True
-    clock[0] = 111.0
-    stale = prompt_loader._load_from_langfuse_sync(["package/prompt"])
-
-    assert fresh[0].content == "Langfuse body 1"
-    assert stale[0].content == "Langfuse body 1"
-    assert len(client.calls) == 2
-    assert any("stale cached Langfuse prompt" in message for message in warnings)
-
-
-def test_clear_prompt_cache_forces_langfuse_refetch(monkeypatch):
-    client = _FakeLangfuse()
-    _configure_langfuse(monkeypatch, client)
-
-    prompt_loader._load_from_langfuse_sync(["package/prompt"])
-    prompt_loader.clear_prompt_cache()
-    prompt_loader._load_from_langfuse_sync(["package/prompt"])
-
-    assert len(client.calls) == 2
 
 
 def test_langfuse_fetches_are_bounded_and_preserve_input_order(monkeypatch):
@@ -329,46 +255,10 @@ def test_langfuse_fetches_are_bounded_and_preserve_input_order(monkeypatch):
                     active -= 1
             return SimpleNamespace(version=1, commit_message="", prompt=f"body for {path}")
 
-    client = _ConcurrentLangfuse()
-    _configure_langfuse(monkeypatch, client, concurrency=bound)
+    _configure_langfuse(monkeypatch, _ConcurrentLangfuse(), concurrency=bound)
     paths = [f"package/prompt-{index}" for index in range(6)]
 
     prompts = prompt_loader._load_from_langfuse_sync(paths)
 
     assert max_active == bound
     assert [prompt.metadata.path for prompt in prompts] == paths
-
-
-def test_langfuse_failure_uses_bounded_call_and_local_fallback(tmp_path, monkeypatch):
-    prompt_root = tmp_path / "prompts"
-    prompt_path = prompt_root / "package" / "fallback.md"
-    prompt_path.parent.mkdir(parents=True)
-    prompt_path.write_text("---\nname: Local fallback\nversion: '3'\n---\nFallback body", encoding="utf-8")
-    calls: list[dict] = []
-
-    class _FailingLangfuse:
-        def get_prompt(self, path, **kwargs):
-            calls.append({"path": path, **kwargs})
-            raise RuntimeError("langfuse unavailable")
-
-    monkeypatch.setattr(prompt_loader, "_langfuse_client", _FailingLangfuse())
-    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
-    monkeypatch.setattr(settings, "langfuse_prompt_fetch_timeout_seconds", 4)
-    monkeypatch.setattr(settings, "langfuse_prompt_max_retries", 1)
-
-    prompts = prompt_loader._load_from_langfuse_sync(["package/fallback"])
-
-    assert calls == [
-        {
-            "path": "package/fallback",
-            "label": "latest",
-            "cache_ttl_seconds": 0,
-            "max_retries": 1,
-            "fetch_timeout_seconds": 4,
-        }
-    ]
-    assert len(prompts) == 1
-    assert prompts[0].metadata.name == "Local fallback"
-    assert prompts[0].metadata.path == "package/fallback"
-    assert prompts[0].metadata.version == "3"
-    assert prompts[0].content == "Fallback body"

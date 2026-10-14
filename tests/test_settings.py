@@ -1,19 +1,19 @@
+import pytest
+
 from src.util.settings import Settings, secret_value
 
 
 def test_root_path_uses_env_var(monkeypatch):
     monkeypatch.setenv("ROOT_PATH", "rc-api/")
 
-    configured = Settings()
-    assert configured.root_path == "/rc-api"
+    assert Settings().root_path == "/rc-api"
 
 
 def test_root_path_falls_back_to_deploy_url_path(monkeypatch):
     monkeypatch.delenv("ROOT_PATH", raising=False)
     monkeypatch.setenv("DEPLOY_URL", "https://example.org/api/v1/")
 
-    configured = Settings()
-    assert configured.root_path == "/api/v1"
+    assert Settings().root_path == "/api/v1"
 
 
 def test_worker_lease_outlasts_heartbeat_interval():
@@ -34,52 +34,25 @@ def test_secrets_are_masked_and_unwrapped_at_use(monkeypatch):
     assert configured.langfuse_secret_key is None
 
 
-def test_cql_concurrency_uses_default_for_zero_env(monkeypatch):
-    monkeypatch.setenv("CQL_MAX_CONCURRENCY", "0")
+@pytest.mark.parametrize(
+    ("env_name", "attribute", "raw", "expected"),
+    [
+        ("CQL_MAX_CONCURRENCY", "cql_max_concurrency", None, 4),
+        ("CQL_MAX_CONCURRENCY", "cql_max_concurrency", "0", 4),
+        ("BATCH_JOB_CHECKPOINT_INTERVAL_SECONDS", "batch_job_checkpoint_interval_seconds", None, 5.0),
+        ("BATCH_JOB_CHECKPOINT_INTERVAL_SECONDS", "batch_job_checkpoint_interval_seconds", "0", 0.0),
+        ("BATCH_JOB_CHECKPOINT_INTERVAL_SECONDS", "batch_job_checkpoint_interval_seconds", "not-a-number", 5.0),
+        ("BATCH_JOB_CHECKPOINT_EVERY_TASKS", "batch_job_checkpoint_every_tasks", None, 10),
+        ("BATCH_JOB_CHECKPOINT_EVERY_TASKS", "batch_job_checkpoint_every_tasks", "0", 10),
+        ("LANGFUSE_PROMPT_CACHE_TTL_SECONDS", "langfuse_prompt_cache_ttl_seconds", "0", 0.0),
+        ("LANGFUSE_PROMPT_CACHE_TTL_SECONDS", "langfuse_prompt_cache_ttl_seconds", "not-a-number", 60.0),
+        ("LANGFUSE_PROMPT_FETCH_CONCURRENCY", "langfuse_prompt_fetch_concurrency", "0", 4),
+    ],
+)
+def test_numeric_settings_defaults_and_invalid_fallbacks(monkeypatch, env_name, attribute, raw, expected):
+    if raw is None:
+        monkeypatch.delenv(env_name, raising=False)
+    else:
+        monkeypatch.setenv(env_name, raw)
 
-    configured = Settings()
-
-    assert configured.cql_max_concurrency == 4
-
-
-def test_batch_checkpoint_settings_use_defaults():
-    configured = Settings()
-
-    assert configured.batch_job_checkpoint_interval_seconds == 5.0
-    assert configured.batch_job_checkpoint_every_tasks == 10
-
-
-def test_batch_checkpoint_interval_allows_zero(monkeypatch):
-    monkeypatch.setenv("BATCH_JOB_CHECKPOINT_INTERVAL_SECONDS", "0")
-
-    configured = Settings()
-
-    assert configured.batch_job_checkpoint_interval_seconds == 0.0
-
-
-def test_batch_checkpoint_settings_invalid_values_use_defaults(monkeypatch):
-    monkeypatch.setenv("BATCH_JOB_CHECKPOINT_INTERVAL_SECONDS", "not-a-number")
-    monkeypatch.setenv("BATCH_JOB_CHECKPOINT_EVERY_TASKS", "0")
-
-    configured = Settings()
-
-    assert configured.batch_job_checkpoint_interval_seconds == 5.0
-    assert configured.batch_job_checkpoint_every_tasks == 10
-
-
-def test_langfuse_prompt_cache_ttl_allows_zero(monkeypatch):
-    monkeypatch.setenv("LANGFUSE_PROMPT_CACHE_TTL_SECONDS", "0")
-
-    configured = Settings()
-
-    assert configured.langfuse_prompt_cache_ttl_seconds == 0.0
-
-
-def test_langfuse_prompt_settings_invalid_values_use_defaults(monkeypatch):
-    monkeypatch.setenv("LANGFUSE_PROMPT_CACHE_TTL_SECONDS", "not-a-number")
-    monkeypatch.setenv("LANGFUSE_PROMPT_FETCH_CONCURRENCY", "0")
-
-    configured = Settings()
-
-    assert configured.langfuse_prompt_cache_ttl_seconds == 60.0
-    assert configured.langfuse_prompt_fetch_concurrency == 4
+    assert getattr(Settings(), attribute) == expected

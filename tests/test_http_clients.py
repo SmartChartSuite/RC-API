@@ -105,129 +105,61 @@ def test_fhir_headers_omit_unconfigured_secret_and_require_target(monkeypatch):
         fhir_headers(with_auth=True)
 
 
-async def test_send_with_retry_get_retries_503_then_succeeds(patched_sleep):
-    client = _RequestSequenceClient(_response(503), _response(200))
-
-    response = await send_with_retry(client, "GET", "https://fhir.example/Observation?patient=secret", profile="fhir")
-
-    assert response.status_code == 200
-    assert len(client.calls) == 2
-    assert len(patched_sleep) == 1
+_EVALUATE_URL = "https://hapi.example/fhir/Library/Demographics/$evaluate"
+_FHIR_URL = "https://fhir.example/Observation"
 
 
-async def test_send_with_retry_honours_capped_retry_after_seconds(patched_sleep):
-    client = _RequestSequenceClient(_response(429, {"Retry-After": "30"}), _response(200))
+@pytest.mark.parametrize(
+    ("method", "url", "profile", "outcomes", "expected_status", "expected_calls"),
+    [
+        pytest.param("GET", _FHIR_URL, "fhir", (503, 200), 200, 2, id="get-503-then-ok"),
+        pytest.param("GET", _FHIR_URL, "fhir", ("connect", 200), 200, 2, id="get-connect-error-then-ok"),
+        pytest.param("GET", _FHIR_URL, "fhir", (503, 503, 503), 503, 3, id="get-exhausts-attempts"),
+        pytest.param("GET", _FHIR_URL, "fhir", (500, 200), 500, 1, id="get-500-not-transient"),
+        pytest.param("GET", _FHIR_URL, "fhir", (404, 200), 404, 1, id="get-404-not-transient"),
+        pytest.param("POST", "https://hapi.example/fhir/Patient/1", "fhir", (503, 200), 503, 1, id="proxy-post"),
+        pytest.param("PUT", "https://hapi.example/fhir/Patient/1", "fhir", (503, 200), 503, 1, id="proxy-put"),
+        pytest.param("DELETE", "https://hapi.example/fhir/Patient/1", "fhir", (503, 200), 503, 1, id="proxy-delete"),
+        pytest.param("POST", _EVALUATE_URL, "cql", (503, 200), 200, 2, id="cql-evaluate-post"),
+        pytest.param("POST", "https://hapi.example/fhir/Library", "cql", (503, 200), 503, 1, id="cql-non-evaluate-post"),
+        pytest.param("GET", _FHIR_URL, "jwks", (503, 200), 503, 1, id="jwks-no-retry"),
+        pytest.param("GET", _FHIR_URL, "langfuse_health", (503, 200), 503, 1, id="langfuse-health-no-retry"),
+    ],
+)
+async def test_send_with_retry_policy(method, url, profile: ProfileName, outcomes, expected_status, expected_calls, patched_sleep):
+    client = _RequestSequenceClient(*(httpx.ConnectError("connection failed") if outcome == "connect" else _response(outcome) for outcome in outcomes))
 
-    response = await send_with_retry(client, "GET", "https://fhir.example/Observation", profile="fhir")
+    response = await send_with_retry(client, method, url, profile=profile)
+
+    assert response.status_code == expected_status
+    assert len(client.calls) == expected_calls
+    assert len(patched_sleep) == expected_calls - 1
+
+
+@pytest.mark.parametrize("retry_after", ["30", "http-date"])
+async def test_send_with_retry_honours_capped_retry_after(retry_after, patched_sleep):
+    if retry_after == "http-date":
+        from datetime import UTC, datetime, timedelta
+        from email.utils import format_datetime
+
+        retry_after = format_datetime(datetime.now(UTC) + timedelta(seconds=30), usegmt=True)
+    client = _RequestSequenceClient(_response(429, {"Retry-After": retry_after}), _response(200))
+
+    response = await send_with_retry(client, "GET", _FHIR_URL, profile="fhir")
 
     assert response.status_code == 200
     assert patched_sleep == [8.0]
 
 
-@pytest.mark.parametrize("status_code", [500, 404])
-async def test_send_with_retry_does_not_retry_non_transient_status(status_code, patched_sleep):
-    client = _RequestSequenceClient(_response(status_code), _response(200))
-
-    response = await send_with_retry(client, "GET", "https://fhir.example/Observation", profile="fhir")
-
-    assert response.status_code == status_code
-    assert len(client.calls) == 1
-    assert patched_sleep == []
-
-
-@pytest.mark.parametrize("method", ["POST", "PUT", "DELETE"])
-async def test_send_with_retry_does_not_retry_non_idempotent_fhir_proxy_methods(method, patched_sleep):
-    client = _RequestSequenceClient(_response(503), _response(200))
-
-    response = await send_with_retry(client, method, "https://hapi.example/fhir/Patient/1", profile="fhir")
-
-    assert response.status_code == 503
-    assert len(client.calls) == 1
-    assert patched_sleep == []
-
-
-async def test_send_with_retry_retries_connect_error_then_succeeds(patched_sleep):
-    client = _RequestSequenceClient(httpx.ConnectError("connection failed"), _response(200))
-
-    response = await send_with_retry(client, "GET", "https://fhir.example/Observation", profile="fhir")
-
-    assert response.status_code == 200
-    assert len(client.calls) == 2
-    assert len(patched_sleep) == 1
-
-
-async def test_send_with_retry_returns_final_response_after_max_attempts(patched_sleep):
-    client = _RequestSequenceClient(_response(503), _response(503), _response(503))
-
-    response = await send_with_retry(client, "GET", "https://fhir.example/Observation", profile="fhir")
-
-    assert response.status_code == 503
-    assert len(client.calls) == 3
-    assert len(patched_sleep) == 2
-
-
-async def test_send_with_retry_reraises_final_retryable_exception(patched_sleep):
+async def test_send_with_retry_reraises_final_retryable_exception_and_redacts_query(monkeypatch, patched_sleep):
+    messages: list[str] = []
+    monkeypatch.setattr(http_clients.logger, "warning", lambda message: messages.append(message))
     error = httpx.ConnectError("connection failed")
     client = _RequestSequenceClient(error, error, error)
 
     with pytest.raises(httpx.ConnectError):
-        await send_with_retry(client, "GET", "https://fhir.example/Observation", profile="fhir")
+        await send_with_retry(client, "GET", "https://fhir.example/Observation?patient=secret", profile="fhir")
 
     assert len(client.calls) == 3
     assert len(patched_sleep) == 2
-
-
-async def test_retry_warning_omits_query_string(monkeypatch, patched_sleep):
-    messages: list[str] = []
-    monkeypatch.setattr(http_clients.logger, "warning", lambda message: messages.append(message))
-    client = _RequestSequenceClient(_response(503), _response(200))
-
-    await send_with_retry(client, "GET", "https://fhir.example/Observation?patient=secret", profile="fhir")
-
-    assert messages
-    assert "/Observation" in messages[0]
-    assert "patient=secret" not in messages[0]
-
-
-async def test_send_with_retry_allows_read_only_cql_evaluate_post(patched_sleep):
-    client = _RequestSequenceClient(_response(503), _response(200))
-
-    response = await send_with_retry(client, "POST", "https://hapi.example/fhir/Library/Demographics/$evaluate", profile="cql")
-
-    assert response.status_code == 200
-    assert len(client.calls) == 2
-    assert len(patched_sleep) == 1
-
-
-async def test_send_with_retry_rejects_non_evaluate_cql_post(patched_sleep):
-    client = _RequestSequenceClient(_response(503), _response(200))
-
-    response = await send_with_retry(client, "POST", "https://hapi.example/fhir/Library", profile="cql")
-
-    assert response.status_code == 503
-    assert len(client.calls) == 1
-    assert patched_sleep == []
-
-
-async def test_send_with_retry_honours_capped_retry_after_http_date(monkeypatch, patched_sleep):
-    from datetime import UTC, datetime, timedelta
-    from email.utils import format_datetime
-
-    retry_at = datetime.now(UTC) + timedelta(seconds=30)
-    client = _RequestSequenceClient(_response(503, {"Retry-After": format_datetime(retry_at, usegmt=True)}), _response(200))
-
-    response = await send_with_retry(client, "GET", "https://fhir.example/Observation", profile="fhir")
-
-    assert response.status_code == 200
-    assert patched_sleep == [8.0]
-
-
-@pytest.mark.parametrize("profile", ["jwks", "langfuse_health"])
-async def test_send_with_retry_disables_profiles_without_retry(profile: ProfileName, patched_sleep):
-    client = _RequestSequenceClient(_response(503), _response(200))
-
-    response = await send_with_retry(client, "GET", "https://fhir.example/Observation", profile=profile)
-
-    assert response.status_code == 503
-    assert len(client.calls) == 1
-    assert patched_sleep == []
+    assert messages and all("/Observation" in message and "patient=secret" not in message for message in messages)
