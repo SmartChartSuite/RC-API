@@ -124,6 +124,16 @@ Same CRUD pattern (`GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}`) for:
 
 `POST /response` expects a raw `QuestionnaireResponse` resource body. The related local batch job id is passed as the `batch_job_id` query parameter. The API derives `patient_id` from `subject.reference`, stores the `questionnaire` value as the local `job_package`, and normalizes the resource `id` to the local response id.
 
+### Write validation
+
+`POST` and `PUT` bodies for `/jobpackage`, `/group`, `/library`, and `PUT /response/{id}` are validated against the matching resource model in `src/models/fhir.py`. `POST /response` already used its model. The checks are:
+
+- `resourceType` is required and must match the endpoint. For example, a `Patient` sent to `/group` is rejected.
+- Fields the model declares, such as `name`, `version`, `member`, and `subject`, must have the declared types.
+- On `PUT`, a body `id` must be omitted or equal the path id. A mismatch, including an explicit `"id": null`, returns 400 with an `invariant` OperationOutcome.
+
+Validation failures return a 400 FHIR `OperationOutcome` and nothing is forwarded or stored. Valid bodies are passed on exactly as sent: extensions, unknown or nested fields, and explicit `null` values are kept, and no defaults are added. `/response` still applies its normalization of `id`, `meta.lastUpdated`, `authored`, and the stored subject/questionnaire linkage.
+
 ### Patients
 
 | Method | Path | Description |
@@ -406,7 +416,7 @@ RC-API/
 ├── src/
 │   ├── models/
 │   │   ├── config.py               # Public /config response models
-│   │   ├── fhir.py                 # Shared FHIR response/resource models
+│   │   ├── fhir.py                 # Canonical FHIR resource models + write validation
 │   │   ├── job_request.py          # FHIR Parameters request model
 │   │   ├── job_response.py         # Batch job status/result models
 │   │   └── prompt.py               # Prompt metadata model
@@ -421,21 +431,36 @@ RC-API/
 │   │   └── response.py             # CRUD /response → local DB
 │   │
 │   ├── services/
+│   │   ├── batch_job_service.py    # Batch job use cases behind the /batchjob router
+│   │   ├── batch_job_filters.py    # Pure batch-list filter parsing and matching
 │   │   ├── batch_worker.py         # Embedded durable database-backed worker
 │   │   ├── cql_executor.py         # HAPI FHIR Library/$evaluate wrapper
 │   │   ├── errorhandler.py         # FHIR OperationOutcome helpers
 │   │   ├── external_fhir.py        # Best-effort external FHIR resource fetches
 │   │   ├── fhir_context.py         # Patient DocumentReference fetcher
 │   │   ├── fhir_proxy.py           # HAPI FHIR CRUD proxy
-│   │   ├── job_orchestrator.py     # Async batch job pipeline
-│   │   ├── job_state.py            # SQLAlchemy ORM + DB helpers
+│   │   ├── job_orchestrator.py     # Runs one batch attempt (lease, tasks, checkpoints)
+│   │   ├── job_package.py          # Reads CQL/prompt task lists from a Questionnaire
+│   │   ├── result_observations.py  # CQL/LLM result → Observation builders
+│   │   ├── result_bundle.py        # Result Bundle and DocumentReference assembly
 │   │   ├── llm_executor.py         # LiteLLM per-document execution
-│   │   └── prompt_loader.py        # Langfuse + local ./prompts/ loader
+│   │   ├── prompt_loader.py        # Langfuse + local ./prompts/ loader
+│   │   └── job_state/              # The only database layer
+│   │       ├── models.py           # SQLAlchemy ORM tables + claim/job snapshots
+│   │       ├── database.py         # Engine, Alembic revision check, initialize_db
+│   │       ├── batch_queue.py      # Claiming, leases, fencing, retry, recovery
+│   │       ├── batch_records.py    # Batch CRUD, result writes, document store
+│   │       ├── child_jobs.py       # Per-task child job rows
+│   │       └── responses.py        # QuestionnaireResponse CRUD
 │   │
 │   └── util/
 │       ├── auth.py                 # OAuth 2 JWT validation dependencies
+│       ├── documents.py            # DocumentReference text encoding
+│       ├── fhir_bundle.py          # Tolerant Bundle parsing helpers
+│       ├── http_clients.py         # Shared outbound HTTP client profiles + retries
 │       ├── outbound_url.py         # Safe outbound URL helpers
-│       └── settings.py             # Environment variable configuration
+│       ├── settings.py             # Typed environment configuration
+│       └── threading.py            # run_db: database calls off the event loop
 │
 └── tests/                          # Pytest coverage for routers, services, and models
 ```
