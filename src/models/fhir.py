@@ -11,7 +11,7 @@ belongs to `src.services.fhir_proxy`, while application workflows belong to othe
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -61,8 +61,8 @@ class OperationOutcome(BaseModel):
     issue: list[OperationOutcomeIssue]
 
 
-FHIRJSON: TypeAlias = dict[str, Any]
-FHIRProxyResult: TypeAlias = FHIRJSON
+type FHIRJSON = dict[str, Any]
+type FHIRProxyResult = FHIRJSON
 
 
 @dataclass(frozen=True)
@@ -163,10 +163,10 @@ class ParametersParameter(BaseModel):
     valueCodeableConcept: dict | None = None
     # Can add more value types as needed
     resource: dict | None = None
-    part: list["ParametersParameter"] | None = None
+    part: list[ParametersParameter] | None = None
 
     @model_validator(mode="after")
-    def check_inv_1(self) -> "ParametersParameter":
+    def check_inv_1(self) -> ParametersParameter:
         value_fields = [
             "valueString",
             "valueReference",

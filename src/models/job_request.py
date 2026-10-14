@@ -26,7 +26,7 @@ class JobRequest(BaseModel):
     parameter: list[JobRequestParameter]
 
     @model_validator(mode="after")
-    def validate_required_params(self) -> "JobRequest":
+    def validate_required_params(self) -> JobRequest:
         names = {p.name for p in self.parameter}
         missing = [n for n in ("patientId", "jobPackage") if n not in names]
         if missing:

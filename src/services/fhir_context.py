@@ -149,7 +149,7 @@ async def fetch_patient_documents(patient_id: str) -> DocumentFetchResult:
         # Best-effort type display
         try:
             doc_type = doc_ref["type"]["coding"][0].get("display", "Unknown")
-        except (KeyError, IndexError):
+        except KeyError, IndexError:
             doc_type = doc_ref.get("type", {}).get("text", "Unknown")
 
         # Find text/plain content entries

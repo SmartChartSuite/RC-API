@@ -94,7 +94,7 @@ async def resolves_to_internal_address(url: str) -> bool:
         return True
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
-    except (OSError, UnicodeError):
+    except OSError, UnicodeError:
         return False
     for info in infos:
         try:

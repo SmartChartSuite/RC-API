@@ -206,7 +206,7 @@ class Settings(BaseSettings):
         return value
 
     @model_validator(mode="after")
-    def _derive_values(self) -> "Settings":
+    def _derive_values(self) -> Settings:
         """Record config errors and derive dependent values without failing startup."""
         # Empty secrets count as unset so the "configured together" checks below stay correct.
         for field_name in ("external_fhir_server_auth", "litellm_api_key", "langfuse_secret_key"):

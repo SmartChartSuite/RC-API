@@ -2,7 +2,7 @@
 name = "rc-api"
 version = "1.0.0"
 description = "SmartChart Suite Results Combining API"
-requires-python = ">=3.11,<3.15"
+requires-python = ">=3.14,<3.15"
 dependencies = [
     "alembic>=1.20,<2",
     "boto3>=1.43.108,<2",
@@ -32,6 +32,7 @@ dev = [
 ]
 
 [tool.uv]
+required-version = ">=0.13,<0.14"
 package = false
 exclude-newer = "7 days"
 

@@ -8,14 +8,12 @@ shaping; it does not perform upstream transport, persistence, or domain logic, w
 """
 
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any
 
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from src.models.fhir import FHIRProxyResponse, OperationOutcome
-
-_ModelT = TypeVar("_ModelT", bound=BaseModel)
 
 
 def make_operation_outcome(code: str, diagnostics: str, severity: str = "error") -> dict:
@@ -64,7 +62,7 @@ def config_error_for(errors: Mapping[str, str], *required_vars: str) -> JSONResp
     return config_error_response(missing_vars) if missing_vars else None
 
 
-def model_or_operation_outcome(data: Mapping[str, Any], model: type[_ModelT]) -> _ModelT | OperationOutcome:
+def model_or_operation_outcome[ModelT: BaseModel](data: Mapping[str, Any], model: type[ModelT]) -> ModelT | OperationOutcome:
     """Validate a FHIR payload as an OperationOutcome or the requested resource model."""
     if data.get("resourceType") == "OperationOutcome":
         return OperationOutcome.model_validate(data)
@@ -84,7 +82,7 @@ def _map_fhir_status(status_code: int, error_type: str | None = None) -> int:
     return status_code
 
 
-def fhir_result_response(result: FHIRProxyResponse, model: type[_ModelT]) -> _ModelT | OperationOutcome | JSONResponse:
+def fhir_result_response[ModelT: BaseModel](result: FHIRProxyResponse, model: type[ModelT]) -> ModelT | OperationOutcome | JSONResponse:
     """Validate successful FHIR data or return a mapped OperationOutcome response."""
     if 200 <= result.status_code < 300:
         return model_or_operation_outcome(result.data, model)
