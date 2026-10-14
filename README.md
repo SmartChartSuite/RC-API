@@ -182,6 +182,7 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `AUTH_DISABLED` | `false` | Local development only: disables authentication entirely |
 | `CORS_ALLOW_ORIGINS` | *(none)* | Comma-separated browser origins permitted by CORS; unset sends no CORS headers |
 | `ATTACHMENT_ALLOWED_HOSTS` | *(none)* | Extra hosts (beyond the external FHIR origin) from which attachment URLs may be fetched; `.example.org` includes subdomains |
+| `CQL_MAX_CONCURRENCY` | `4` | Maximum concurrent in-flight CQL library evaluations across batch jobs |
 | `DOC_MAX_COUNT` | `500` | Maximum DocumentReferences processed per patient |
 | `DOC_MAX_BYTES` | `5000000` | Maximum bytes per document attachment (inline or fetched) |
 | `DB_CONNECTION_STRING` | `sqlite+pysqlite:///rcapi_jobs.sqlite` | SQLAlchemy connection string |

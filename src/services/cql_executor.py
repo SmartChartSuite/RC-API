@@ -9,6 +9,7 @@ settings.external_fhir_server_auth is set.
 """
 
 import asyncio
+import weakref
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
@@ -18,6 +19,20 @@ from loguru import logger
 from src.util.http_clients import get_http_client
 from src.util.outbound_url import path_segment
 from src.util.settings import require_setting, secret_value, settings
+
+# Asyncio synchronization primitives can bind to the loop that first contends on them.
+# Keep one limiter per running loop so all jobs on the application loop share it while
+# test clients using separate loops remain isolated.
+_cql_semaphores: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = weakref.WeakKeyDictionary()
+
+
+def _get_cql_semaphore() -> asyncio.Semaphore:
+    loop = asyncio.get_running_loop()
+    semaphore = _cql_semaphores.get(loop)
+    if semaphore is None:
+        semaphore = asyncio.Semaphore(settings.cql_max_concurrency)
+        _cql_semaphores[loop] = semaphore
+    return semaphore
 
 
 @dataclass
@@ -172,7 +187,8 @@ async def run_cql_libraries(
     client = get_http_client("cql")
 
     async def _evaluate_and_report(library_name: str) -> CqlResult:
-        result = await _evaluate_library(client, library_name, patient_id)
+        async with _get_cql_semaphore():
+            result = await _evaluate_library(client, library_name, patient_id)
         if on_result:
             await on_result(result)
         return result

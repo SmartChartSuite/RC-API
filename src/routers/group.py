@@ -4,6 +4,8 @@ GET /group implicitly includes all Patient resources referenced as members,
 mirroring v0's search_group() logic.
 """
 
+import asyncio
+
 import httpx
 from fastapi import APIRouter, Body, Security
 from fastapi.responses import JSONResponse
@@ -30,6 +32,10 @@ _GROUP_EXAMPLE = {
 
 GroupSearchResult = GroupResource | PatientResource
 GroupWriteResult = GroupResource | OperationOutcome
+
+
+# Keep group member fan-out aligned with the batch-job Patient fetch bound.
+_PATIENT_FETCH_MAX_CONCURRENCY = 8
 
 
 def _patient_headers() -> dict:
@@ -68,15 +74,36 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
 
     entries = bundle_response.entry or []
 
-    result: list[GroupSearchResult] = []
     client = get_http_client("external_patient")
+    semaphore = asyncio.Semaphore(_PATIENT_FETCH_MAX_CONCURRENCY)
+    member_requests: list[tuple[str, str]] = []
+    groups_with_members: list[tuple[GroupResource, list[int]]] = []
+
+    async def _fetch_member(patient_ref: str, patient_url: str) -> PatientResource | None:
+        async with semaphore:
+            try:
+                patient_resp = await client.get(patient_url, headers=_patient_headers())
+                logger.info(f"FHIR GET {patient_url} → {patient_resp.status_code}")
+                if patient_resp.is_success:
+                    try:
+                        patient = patient_resp.json()
+                    except ValueError as exc:
+                        logger.warning(f"Could not parse Patient response for {patient_ref}: {type(exc).__name__}")
+                        return None
+                    if isinstance(patient, dict) and patient.get("resourceType") == "Patient":
+                        return PatientResource.model_validate(patient)
+                else:
+                    logger.warning(f"Could not fetch {patient_ref}: {patient_resp.status_code}")
+            except httpx.RequestError as exc:
+                logger.warning(f"Request error fetching {patient_ref}: {exc}")
+        return None
+
     for entry in entries:
         group = entry.resource
         if group.get("resourceType") != "Group":
             continue
-        result.append(GroupResource.model_validate(group))
-
-        # Fetch each member Patient from external FHIR server
+        group_resource = GroupResource.model_validate(group)
+        member_indexes: list[int] = []
         for member in group.get("member", []):
             patient_ref: str = member.get("entity", {}).get("reference", "")
             if not patient_ref:
@@ -85,17 +112,15 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
             if patient_url is None or not is_same_origin(patient_url, external_base):
                 logger.warning(f"Skipping unsafe cross-origin Patient reference: {patient_ref}")
                 continue
-            try:
-                patient_resp = await client.get(patient_url, headers=_patient_headers())
-                logger.info(f"FHIR GET {patient_url} → {patient_resp.status_code}")
-                if patient_resp.is_success:
-                    patient = patient_resp.json()
-                    if patient.get("resourceType") == "Patient":
-                        result.append(PatientResource.model_validate(patient))
-                else:
-                    logger.warning(f"Could not fetch {patient_ref}: {patient_resp.status_code}")
-            except httpx.RequestError as exc:
-                logger.warning(f"Request error fetching {patient_ref}: {exc}")
+            member_indexes.append(len(member_requests))
+            member_requests.append((patient_ref, patient_url))
+        groups_with_members.append((group_resource, member_indexes))
+
+    patients = await asyncio.gather(*(_fetch_member(patient_ref, patient_url) for patient_ref, patient_url in member_requests))
+    result: list[GroupSearchResult] = []
+    for group_resource, member_indexes in groups_with_members:
+        result.append(group_resource)
+        result.extend(patient for index in member_indexes if (patient := patients[index]) is not None)
 
     return result
 

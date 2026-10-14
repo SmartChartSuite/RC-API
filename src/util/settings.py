@@ -92,6 +92,8 @@ class Settings(BaseSettings):
     external_fhir_server_auth: SecretStr | None = None
     # HAPI FHIR CQL Execution Service: POST {hapi_fhir_cql_execution_url}/Library/{LibraryName}/$evaluate
     hapi_fhir_cql_execution_url: str | None = None
+    # Max concurrent in-flight CQL library evaluations across batch jobs.
+    cql_max_concurrency: int = 4
 
     # LiteLLM (all three required together for LLM operations)
     litellm_model: str | None = None

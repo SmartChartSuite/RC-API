@@ -32,3 +32,11 @@ def test_secrets_are_masked_and_unwrapped_at_use(monkeypatch):
     assert "top-secret" not in rendered and "llm-secret" not in rendered
     assert secret_value(configured.external_fhir_server_auth) == "Bearer top-secret"
     assert configured.langfuse_secret_key is None
+
+
+def test_cql_concurrency_uses_default_for_zero_env(monkeypatch):
+    monkeypatch.setenv("CQL_MAX_CONCURRENCY", "0")
+
+    configured = Settings()
+
+    assert configured.cql_max_concurrency == 4

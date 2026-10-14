@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi.responses import JSONResponse
 from pydantic import SecretStr
 
@@ -166,3 +168,75 @@ async def test_search_groups_skips_cross_origin_patient_reference(monkeypatch):
     assert len(result) == 1
     assert isinstance(result[0], GroupResource)
     assert len(_FakeAsyncClient.calls) == 1
+
+
+async def test_search_groups_fetches_members_concurrently_and_preserves_order(monkeypatch):
+    patient_ids = ["patient-1", "patient-2", "patient-3", "patient-4"]
+    all_started = asyncio.Event()
+    completed = {patient_id: asyncio.Event() for patient_id in patient_ids}
+    started: list[str] = []
+    in_flight = 0
+    max_in_flight = 0
+
+    class _ReverseCompletionClient:
+        async def get(self, url, headers):
+            nonlocal in_flight, max_in_flight
+            del headers
+            patient_id = url.rsplit("/", 1)[-1]
+            started.append(patient_id)
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+            if len(started) == len(patient_ids):
+                all_started.set()
+            await all_started.wait()
+            patient_index = patient_ids.index(patient_id)
+            if patient_index < len(patient_ids) - 1:
+                await completed[patient_ids[patient_index + 1]].wait()
+            completed[patient_id].set()
+            in_flight -= 1
+            return _FakeResponse({"resourceType": "Patient", "id": patient_id})
+
+    client = _ReverseCompletionClient()
+
+    async def _fake_fhir_get(resource_type, params=None):
+        assert resource_type == "Group"
+        assert params == {"name": "Panel"}
+        return {
+            "resourceType": "Bundle",
+            "entry": [
+                {
+                    "resource": {
+                        "resourceType": "Group",
+                        "id": "group-1",
+                        "name": "Panel",
+                        "member": [
+                            {"entity": {"reference": "Patient/patient-1"}},
+                            {"entity": {"reference": "Patient/patient-2"}},
+                        ],
+                    }
+                },
+                {
+                    "resource": {
+                        "resourceType": "Group",
+                        "id": "group-2",
+                        "name": "Panel",
+                        "member": [
+                            {"entity": {"reference": "Patient/patient-3"}},
+                            {"entity": {"reference": "Patient/patient-4"}},
+                        ],
+                    }
+                },
+            ],
+        }
+
+    monkeypatch.setattr(settings, "config_errors", {})
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
+    monkeypatch.setattr(group, "fhir_get", _fake_fhir_get)
+    monkeypatch.setattr(group, "get_http_client", lambda profile: client)
+
+    result = await group.search_groups(name="Panel", claims={})
+
+    assert not isinstance(result, JSONResponse)
+    assert max_in_flight == len(patient_ids)
+    assert started == patient_ids
+    assert [resource.id for resource in result] == ["group-1", "patient-1", "patient-2", "group-2", "patient-3", "patient-4"]

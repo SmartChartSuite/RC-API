@@ -2,6 +2,7 @@ import asyncio
 
 from src.services import cql_executor
 from src.services.cql_executor import _parse_parameters_response
+from src.util.settings import settings
 
 
 def test_parse_parameters_response_returns_error_for_top_level_operation_outcome():
@@ -95,3 +96,40 @@ async def test_run_cql_libraries_reports_each_result_as_it_finishes(monkeypatch)
 
     assert callback_order == ["fast", "slow"]
     assert [result.library_name for result in results] == ["slow", "fast"]
+
+
+async def test_run_cql_libraries_shares_limit_across_calls_and_preserves_order(monkeypatch):
+    monkeypatch.setattr(settings, "cql_max_concurrency", 2)
+    cql_executor._cql_semaphores.clear()
+    first_started = asyncio.Event()
+    second_started = asyncio.Event()
+    release = asyncio.Event()
+    in_flight = 0
+    max_in_flight = 0
+
+    async def _fake_evaluate_library(client, library_name, patient_id):
+        nonlocal in_flight, max_in_flight
+        del client
+        in_flight += 1
+        max_in_flight = max(max_in_flight, in_flight)
+        if patient_id == "patient-a":
+            first_started.set()
+        else:
+            second_started.set()
+        await release.wait()
+        in_flight -= 1
+        return cql_executor.CqlResult(library_name=library_name, patient_id=patient_id)
+
+    monkeypatch.setattr(cql_executor, "_evaluate_library", _fake_evaluate_library)
+    first_task = asyncio.create_task(cql_executor.run_cql_libraries(["first"], "patient-a"))
+    await first_started.wait()
+    second_libraries = [f"library-{index}" for index in range(1, 6)]
+    second_task = asyncio.create_task(cql_executor.run_cql_libraries(second_libraries, "patient-b"))
+    await second_started.wait()
+
+    assert max_in_flight == 2
+    release.set()
+    first_results, second_results = await asyncio.gather(first_task, second_task)
+
+    assert [result.library_name for result in first_results] == ["first"]
+    assert [result.library_name for result in second_results] == second_libraries
