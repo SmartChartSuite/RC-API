@@ -1,29 +1,22 @@
-"""Execute the CQL and LLM pipeline for one worker-owned batch attempt.
+"""Execute one worker-owned batch attempt from Questionnaire package to result Bundle.
 
-The orchestrator:
-1. fetches the Questionnaire (job package) from HAPI FHIR;
-2. extracts structured CQL library names and unstructured prompt paths;
-3. loads prompts and fetches patient DocumentReferences concurrently;
-4. runs CQL libraries and, when documents exist, LLM prompts concurrently;
-5. checkpoints child progress and builds a result FHIR Bundle with Observations and supporting
-   resources;
-6. persists task and batch state, requeues retryable child failures, or finalizes the batch.
+This module owns the execution pipeline for a claimed batch attempt: lease maintenance, supervised
+CQL/LLM execution, Langfuse parent-span setup, child callbacks, partial checkpoints, retry handoff,
+and finalization. Questionnaire parsing belongs to ``job_package`` and FHIR Observation/Bundle
+assembly belongs to ``result_bundle``; external fetching and execution remain in their service
+modules, while all durable persistence belongs to ``job_state``.
 
-It maintains the worker lease while external work runs and restores prior child results on retries.
-Batch HTTP use cases belong in ``batch_job_service``/``src/routers``. The embedded claim/recovery loop
-belongs in ``batch_worker``, and database access belongs in ``job_state``.
+The pipeline fetches and filters the Questionnaire, prepares child tasks and document context, runs
+remaining CQL and LLM work concurrently, records missing-result failures, and either requeues or
+finalizes the worker-owned attempt.
 """
 
 import asyncio
-import json
-import re
 import time
 import uuid
-from collections.abc import Callable, Coroutine, Iterator
+from collections.abc import Coroutine
 from contextlib import asynccontextmanager, suppress
-from dataclasses import asdict
-from datetime import UTC, datetime
-from pathlib import Path
+from functools import partial
 from typing import Any, cast
 
 from loguru import logger
@@ -33,6 +26,7 @@ from src.services.cql_executor import CqlResult, run_cql_libraries
 from src.services.external_fhir import fetch_patient as _fetch_patient_resource
 from src.services.fhir_context import fetch_patient_documents
 from src.services.fhir_proxy import fhir_get
+from src.services.job_package import extract_job_lists, filter_requested_jobs
 from src.services.job_state import (
     ensure_job,
     get_batch_job_documents,
@@ -43,27 +37,24 @@ from src.services.job_state import (
     update_job_result,
     upsert_batch_job_documents,
 )
-from src.services.llm_executor import LlmDocumentResult, LlmResult, run_all_prompts
+from src.services.llm_executor import LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
-from src.util.documents import add_document_text_content
+from src.services.result_bundle import (
+    build_document_entries,
+    build_result_bundle,
+    ordered_document_set,
+    ordered_task_entries,
+)
+from src.services.result_observations import (
+    build_cql_observations,
+    build_llm_observations,
+    cql_result_from_payload,
+    llm_result_from_payload,
+    stable_id,
+    summarize_llm_result,
+)
 from src.util.settings import settings
 from src.util.threading import run_db
-
-# Questionnaire extension URLs
-_CQL_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/structured-form-job-list"
-_LLM_JOB_LIST_URL = "http://gtri.gatech.edu/fakeFormIg/unstructured-form-job-list"
-_STRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/structuredTask"
-_UNSTRUCTURED_TASK_URL = "http://gtri.gatech.edu/fakeFormIg/unstructuredTask"
-_UNSTRUCTURED_COMPONENT_SYSTEM = "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label"
-
-# Stable namespace for result resources; changing it would change every generated result ID.
-_RESULT_RESOURCE_NAMESPACE = uuid.UUID("2f1c5e7a-1d84-5f36-8c0d-f1bdfb9412cb")
-
-
-def _stable_id(batch_id: str, *parts: object) -> str:
-    """Return a deterministic UUID for a result resource within one batch."""
-    name = "|".join(json.dumps(part, sort_keys=True, separators=(",", ":"), default=str) for part in (batch_id, *parts))
-    return str(uuid.uuid5(_RESULT_RESOURCE_NAMESPACE, name))
 
 
 class LeaseLostError(RuntimeError):
@@ -125,662 +116,343 @@ async def _langfuse_batch_parent(
         yield otel_trace.get_current_span()
 
 
-# Questionnaire parsing
-def _extract_job_lists(questionnaire: dict) -> tuple[list[str], list[str]]:
-    """Extract CQL library names and LLM prompt paths from a Questionnaire resource."""
-    cql_names: list[str] = []
-    prompt_paths: list[str] = []
-    for ext in questionnaire.get("extension", []):
-        if ext.get("url") == _CQL_JOB_LIST_URL:
-            for sub in ext.get("extension", []):
-                val = sub.get("valueString")
-                if val:
-                    cql_names.append(val)
-        elif ext.get("url") == _LLM_JOB_LIST_URL:
-            for sub in ext.get("extension", []):
-                val = sub.get("valueString")
-                if val:
-                    prompt_paths.append(val)
-    return cql_names, prompt_paths
+class _BatchAttempt:
+    """Hold one worker attempt's identity, task results, entries, and checkpoint state."""
 
+    def __init__(
+        self,
+        batch_id: str,
+        patient_id: str,
+        job_package: str,
+        worker_id: str,
+        attempt_count: int,
+        max_attempts: int,
+        questionnaire: dict,
+        form_name: str,
+        cql_names: list[str],
+        prompt_paths: list[str],
+        prior_bundle: dict | None,
+        checkpoint_interval_seconds: float,
+        checkpoint_every_tasks: int,
+    ) -> None:
+        self.batch_id = batch_id
+        self.patient_id = patient_id
+        self.job_package = job_package
+        self.worker_id = worker_id
+        self.attempt_count = attempt_count
+        self.max_attempts = max_attempts
+        self.questionnaire = questionnaire
+        self.form_name = form_name
+        self.cql_names = cql_names
+        self.prompt_paths = prompt_paths
+        self.prior_bundle = prior_bundle
 
-def _filter_requested_jobs(cql_names: list[str], prompt_paths: list[str], requested_jobs: list[str] | None) -> tuple[list[str], list[str]]:
-    """Limit execution to the named CQL libraries and prompt paths requested by the client."""
-    if not requested_jobs:
-        return cql_names, prompt_paths
+        self.task_results: list[dict] = []
+        self.job_ids_by_task: dict[tuple[str, str], str] = {}
+        self.excluded_documents: list[dict] = []
+        self.cql_names_to_run: list[str] = []
+        self.prompt_paths_to_run: list[str] = []
+        self.restored_cql_results: dict[str, CqlResult] = {}
+        self.restored_llm_results: dict[str, LlmResult] = {}
+        self.prompts: list = []
+        self.documents: list[dict] = []
+        self.document_entries: list[dict] = []
+        self.cql_entries_by_name: dict[str, list[dict]] = {}
+        self.llm_entries_by_path: dict[str, list[dict]] = {}
+        self.bundle_id: str | None = None
 
-    requested = list(dict.fromkeys(job for job in requested_jobs if job))
-    if not requested:
-        return cql_names, prompt_paths
+        self.checkpoint_interval_seconds = checkpoint_interval_seconds
+        self.checkpoint_every_tasks = checkpoint_every_tasks
+        self.last_partial_write_at: float | None = None
+        self.tasks_since_partial_write = 0
+        self.partial_snapshot_dirty = False
+        self.snapshot_lock = asyncio.Lock()
 
-    available_cql = set(cql_names)
-    available_prompts = set(prompt_paths)
-    prompt_names: dict[str, list[str]] = {}
-    for path in prompt_paths:
-        prompt_names.setdefault(Path(path).name, []).append(path)
+    def with_excluded_documents(self, payload: dict) -> dict:
+        if self.excluded_documents:
+            payload["excluded_documents"] = self.excluded_documents
+        return payload
 
-    selected_cql: set[str] = set()
-    selected_prompts: set[str] = set()
-    missing_jobs: list[str] = []
-    ambiguous_jobs: dict[str, list[str]] = {}
+    def require_owned(self, updated: bool) -> None:
+        if not updated:
+            raise LeaseLostError(f"Worker {self.worker_id} lost batch {self.batch_id} attempt {self.attempt_count}")
 
-    for job_name in requested:
-        if job_name in available_cql:
-            selected_cql.add(job_name)
-            continue
-        if job_name in available_prompts:
-            selected_prompts.add(job_name)
-            continue
+    async def ensure_task(self, task_name: str, task_type: str):
+        task_job_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.batch_id}:{task_type}:{task_name}"))
+        snapshot = await _run_state_call(
+            ensure_job,
+            task_job_id,
+            self.batch_id,
+            self.patient_id,
+            self.job_package,
+            task_name,
+            task_type,
+            worker_id=self.worker_id,
+            attempt_count=self.attempt_count,
+        )
+        if snapshot is None:
+            self.require_owned(False)
+            raise RuntimeError(f"Could not create child job for {task_type}:{task_name}")
+        self.job_ids_by_task[(task_type, task_name)] = snapshot.job_id
+        return snapshot
 
-        prompt_matches = prompt_names.get(job_name, [])
-        if len(prompt_matches) == 1:
-            selected_prompts.add(prompt_matches[0])
-            continue
-        if len(prompt_matches) > 1:
-            ambiguous_jobs[job_name] = prompt_matches
-            continue
+    async def update_task(self, job_id: str, status: str, result: dict | None = None) -> None:
+        updated = await _run_state_call(
+            update_job_result,
+            job_id,
+            status,
+            result,
+            batch_id=self.batch_id,
+            worker_id=self.worker_id,
+            attempt_count=self.attempt_count,
+        )
+        self.require_owned(updated)
 
-        missing_jobs.append(job_name)
+    async def prepare_tasks(self) -> None:
+        for library_name in self.cql_names:
+            snapshot = await self.ensure_task(library_name, "structured")
+            restored = cql_result_from_payload(library_name, self.patient_id, snapshot.result) if snapshot.status == "complete" else None
+            if restored is not None:
+                self.restored_cql_results[library_name] = restored
+                self.task_results.append({"task_name": library_name, "task_type": "structured", "status": snapshot.status})
+            elif snapshot.status in {"error", "skipped"}:
+                self.task_results.append({"task_name": library_name, "task_type": "structured", "status": snapshot.status})
+            else:
+                self.cql_names_to_run.append(library_name)
 
-    if ambiguous_jobs:
-        details = "; ".join(f"{job_name}: {matches}" for job_name, matches in sorted(ambiguous_jobs.items()))
-        raise ValueError(f"Requested job name matches multiple prompts in job package '{details}'")
-    if missing_jobs:
-        raise ValueError(f"Requested job(s) not found in job package: {', '.join(missing_jobs)}")
+        for prompt_path in self.prompt_paths:
+            snapshot = await self.ensure_task(prompt_path, "unstructured")
+            restored = llm_result_from_payload(prompt_path, snapshot.result) if snapshot.status == "complete" else None
+            if restored is not None:
+                self.restored_llm_results[prompt_path] = restored
+                self.task_results.append({"task_name": prompt_path, "task_type": "unstructured", "status": snapshot.status})
+            elif snapshot.status in {"error", "skipped"}:
+                self.task_results.append({"task_name": prompt_path, "task_type": "unstructured", "status": snapshot.status})
+            else:
+                self.prompt_paths_to_run.append(prompt_path)
 
-    return [name for name in cql_names if name in selected_cql], [path for path in prompt_paths if path in selected_prompts]
+    async def prepare_context(self) -> None:
+        # Concurrently load prompts and fetch patient documents when LLM jobs still need to run.
+        # A failed DocumentReference search raises DocumentFetchError, failing this attempt so the
+        # worker retries it — only a successful, empty search marks prompts as skipped.
+        if self.prompt_paths_to_run:
+            self.prompts, document_fetch_result = await _gather_supervised(
+                load_prompts(self.prompt_paths_to_run),
+                fetch_patient_documents(self.patient_id),
+            )
+            self.documents = document_fetch_result.documents
+            self.excluded_documents = document_fetch_result.excluded
+            stored = await _run_state_call(
+                upsert_batch_job_documents,
+                self.batch_id,
+                self.documents,
+                worker_id=self.worker_id,
+                attempt_count=self.attempt_count,
+            )
+            self.require_owned(stored)
+            if not self.documents:
+                logger.info(f"[batch={self.batch_id}] No DocumentReferences found — skipping LLM execution")
+                for path in self.prompt_paths_to_run:
+                    job_id = self.job_ids_by_task.get(("unstructured", path))
+                    if job_id:
+                        await self.update_task(job_id, "skipped", self.with_excluded_documents({"message": "skipped — no supporting documents"}))
+                    self.task_results.append(
+                        self.with_excluded_documents(
+                            {
+                                "task_name": path,
+                                "task_type": "unstructured",
+                                "status": "skipped",
+                                "result": "skipped — no supporting documents",
+                            }
+                        )
+                    )
+            elif not settings.use_llm:
+                logger.info(f"[batch={self.batch_id}] LiteLLM is not configured — skipping LLM execution")
+                for path in self.prompt_paths_to_run:
+                    job_id = self.job_ids_by_task.get(("unstructured", path))
+                    if job_id:
+                        await self.update_task(job_id, "skipped", self.with_excluded_documents({"message": "skipped — llm not configured"}))
+                    self.task_results.append(
+                        self.with_excluded_documents(
+                            {
+                                "task_name": path,
+                                "task_type": "unstructured",
+                                "status": "skipped",
+                                "result": "skipped — llm not configured",
+                            }
+                        )
+                    )
 
+        stored_documents = await _run_state_call(get_batch_job_documents, self.batch_id)
+        bundle_documents = ordered_document_set(self.documents, stored_documents)
+        prior_bundle_id = self.prior_bundle.get("id") if isinstance(self.prior_bundle, dict) else None
+        self.bundle_id = prior_bundle_id if isinstance(prior_bundle_id, str) and prior_bundle_id else stable_id(self.batch_id, "bundle")
+        self.cql_entries_by_name = {name: build_cql_observations([result], self.questionnaire, self.form_name, self.patient_id, self.batch_id) for name, result in self.restored_cql_results.items()}
+        self.llm_entries_by_path = {path: build_llm_observations([result], self.questionnaire, self.form_name, self.patient_id, self.batch_id) for path, result in self.restored_llm_results.items()}
+        self.document_entries = build_document_entries(bundle_documents, self.patient_id, self.batch_id)
+        await self.persist_partial_bundle()
 
-def _get_item_task(item: dict, extension_url: str) -> str | None:
-    for ext in item.get("extension", []):
-        if ext.get("url") == extension_url:
-            return ext.get("valueString")
-    return None
+    async def prepare(self) -> None:
+        await self.prepare_tasks()
+        await self.prepare_context()
 
-
-def _iter_questionnaire_items(items: list | None) -> Iterator[dict]:
-    """Yield every Questionnaire item depth-first, regardless of nesting level."""
-    for item in items or []:
-        if not isinstance(item, dict):
-            continue
-        yield item
-        yield from _iter_questionnaire_items(item.get("item"))
-
-
-def _format_component_display(component_key: str) -> str:
-    normalized = component_key.replace("-", " ").replace("_", " ")
-    normalized = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", normalized)
-    return normalized.title()
-
-
-def _extract_json_payload(response_text: str) -> str:
-    stripped = response_text.strip()
-    if not stripped.startswith("```"):
-        return stripped
-
-    lines = stripped.splitlines()
-    if len(lines) < 3:
-        return stripped
-
-    first_line = lines[0].strip().lower()
-    last_line = lines[-1].strip()
-    if first_line not in {"```", "```json"} or last_line != "```":
-        return stripped
-
-    return "\n".join(lines[1:-1]).strip()
-
-
-def _build_llm_components(response_text: str) -> list[dict] | None:
-    try:
-        parsed = json.loads(_extract_json_payload(response_text))
-    except json.JSONDecodeError:
-        return None
-
-    if not isinstance(parsed, dict):
-        return None
-
-    components: list[dict] = []
-    for key, value in parsed.items():
-        if isinstance(value, str):
-            value_string = value
-        elif value is None:
-            value_string = "null"
-        elif isinstance(value, (int, float, bool)):
-            value_string = str(value)
-        else:
-            value_string = json.dumps(value)
-
-        components.append(
-            {
-                "code": {
-                    "coding": [
-                        {
-                            "system": _UNSTRUCTURED_COMPONENT_SYSTEM,
-                            "code": key,
-                            "display": _format_component_display(key),
-                        }
-                    ]
-                },
-                "valueString": value_string,
-            }
+    def current_result_entries(self) -> tuple[list[dict], list[dict]]:
+        return (
+            ordered_task_entries(self.cql_names, self.cql_entries_by_name),
+            ordered_task_entries(self.prompt_paths, self.llm_entries_by_path),
         )
 
-    return components
+    async def persist_partial_bundle(self) -> None:
+        current_cql_entries, current_llm_entries = self.current_result_entries()
+        partial_bundle = build_result_bundle(
+            None,
+            current_cql_entries,
+            current_llm_entries + self.document_entries,
+            "preliminary",
+            self.bundle_id,
+            batch_id=self.batch_id,
+        )
+        updated = await _run_state_call(
+            update_batch_job_result,
+            self.batch_id,
+            partial_bundle,
+            worker_id=self.worker_id,
+            attempt_count=self.attempt_count,
+        )
+        self.require_owned(updated)
+        self.last_partial_write_at = time.monotonic()
+        self.tasks_since_partial_write = 0
+        self.partial_snapshot_dirty = False
 
+    async def checkpoint_partial_bundle(self) -> None:
+        self.tasks_since_partial_write += 1
+        self.partial_snapshot_dirty = True
+        now = time.monotonic()
+        elapsed = now - self.last_partial_write_at if self.last_partial_write_at is not None else self.checkpoint_interval_seconds
+        if self.checkpoint_interval_seconds == 0 or elapsed >= self.checkpoint_interval_seconds or self.tasks_since_partial_write >= self.checkpoint_every_tasks:
+            await self.persist_partial_bundle()
 
-# Observation builders
-def _obs_base(
-    batch_id: str,
-    id_parts: tuple[object, ...],
-    link_id: str,
-    question_text: str,
-    patient_id: str,
-    form_name: str,
-) -> dict:
-    obs_id = _stable_id(batch_id, *id_parts)
-    return {
-        "resourceType": "Observation",
-        "id": obs_id,
-        "identifier": [{"system": settings.deploy_url, "value": f"Observation/{obs_id}"}],
-        "status": "final",
-        "category": [
-            {
-                "coding": [
-                    {
-                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                        "code": "survey",
-                        "display": "Survey",
-                    }
-                ]
-            }
-        ],
-        "code": {
-            "coding": [
+    async def flush_dirty_partial_bundle(self) -> None:
+        if self.partial_snapshot_dirty:
+            await self.persist_partial_bundle()
+
+    async def record_cql_result(self, cql_result: CqlResult) -> None:
+        async with self.snapshot_lock:
+            task_name = cql_result.library_name
+            status = "error" if cql_result.error else "complete"
+            job_id = self.job_ids_by_task.get(("structured", task_name))
+            if job_id:
+                await self.update_task(job_id, status, {"error": cql_result.error, "results": cql_result.results})
+            self.task_results.append(
                 {
-                    "system": f"urn:gtri:heat:form:{form_name}",
-                    "code": link_id,
-                    "display": question_text,
+                    "task_name": task_name,
+                    "task_type": "structured",
+                    "status": status,
+                    "error": cql_result.error,
                 }
-            ]
-        },
-        "subject": {"reference": f"Patient/{patient_id}"},
-    }
-
-
-def _infer_cql_value_type(raw_value: object) -> str | None:
-    """Infer the compatible FHIR value type for a legacy persisted CQL value."""
-    if isinstance(raw_value, bool):
-        return "Boolean"
-    if isinstance(raw_value, int):
-        return "Integer"
-    if isinstance(raw_value, float):
-        return "Decimal"
-    if isinstance(raw_value, str):
-        return "String"
-    return None
-
-
-def _set_cql_observation_value(obs: dict, raw_value: object, value_type: str | None, task_name: str) -> None:
-    """Set an Observation value[x] for a typed CQL entry, using JSON for unsupported types."""
-    direct_types = {"Boolean", "Integer", "DateTime", "Time", "Period", "Quantity", "CodeableConcept", "Range", "Ratio", "SampledData"}
-    if value_type in direct_types:
-        obs[f"value{value_type}"] = raw_value
-    elif value_type == "Decimal":
-        obs["valueQuantity"] = {"value": raw_value}
-    elif value_type == "Coding":
-        obs["valueCodeableConcept"] = {"coding": [raw_value]}
-    elif value_type == "Code":
-        obs["valueCodeableConcept"] = {"coding": [{"code": raw_value}]}
-    elif value_type == "Date":
-        obs["valueDateTime"] = raw_value
-    elif value_type == "Reference":
-        obs["focus"] = [raw_value if isinstance(raw_value, dict) else {"reference": str(raw_value)}]
-    else:
-        obs["valueString"] = json.dumps(raw_value, separators=(",", ":"), sort_keys=True)
-        logger.debug(f"Unsupported CQL value type '{value_type}' for task '{task_name}'; using valueString")
-
-
-def _build_cql_observations(
-    cql_results: list[CqlResult],
-    questionnaire: dict,
-    form_name: str,
-    patient_id: str,
-    batch_id: str = "",
-) -> list[dict]:
-    """Walk Questionnaire items, match structuredTask to CQL results, build Observations."""
-    entries: list[dict] = []
-    seen_urls: set[str] = set()
-
-    # Index CQL results by library name for O(1) lookup
-    cql_by_lib: dict[str, CqlResult] = {r.library_name: r for r in cql_results if not r.error}
-
-    for question in _iter_questionnaire_items(questionnaire.get("item")):
-        link_id = question.get("linkId", "")
-        question_text = question.get("text", "")
-        task_ext = _get_item_task(question, _STRUCTURED_TASK_URL)
-        if not task_ext:
-            continue
-
-        try:
-            library_name, task_name = task_ext.split(".", 1)
-        except ValueError:
-            logger.warning(f"structuredTask has unexpected format: {task_ext}")
-            continue
-
-        cql_result = cql_by_lib.get(library_name)
-        if not cql_result:
-            logger.debug(f"No CQL result for library '{library_name}', skipping {link_id}")
-            continue
-
-        result_entries = cql_result.results.get(task_name, [])
-        if not result_entries:
-            logger.debug(f"No CQL data for task '{task_name}' in {library_name}")
-            continue
-
-        for entry_index, res_entry in enumerate(result_entries):
-            if not isinstance(res_entry, dict):
-                logger.debug(f"Skipping malformed CQL result entry for task '{task_name}'")
-                continue
-
-            # Tuple result (pipe-delimited value string from CQL)
-            raw_value = res_entry.get("value")
-            stored_type = res_entry.get("type")
-            value_type = stored_type if isinstance(stored_type, str) else _infer_cql_value_type(raw_value)
-            answer_key = (
-                "cql",
-                library_name,
-                task_name,
-                link_id,
-                entry_index,
-                value_type or "",
-                res_entry if res_entry.get("resourceType") else raw_value,
             )
-            if value_type == "String" and isinstance(raw_value, str) and "|" in raw_value:
-                obs, supporting = _build_tuple_observation(
-                    raw_value,
-                    link_id,
-                    question_text,
-                    patient_id,
-                    form_name,
-                    task_name,
-                    batch_id,
-                    answer_key=answer_key,
-                )
-                obs_url = f"Observation/{obs['id']}"
-                if obs_url not in seen_urls:
-                    entries.append({"fullUrl": obs_url, "resource": obs})
-                    seen_urls.add(obs_url)
-                if supporting:
-                    sup_url = f"{supporting['resourceType']}/{supporting['id']}"
-                    if sup_url not in seen_urls:
-                        entries.append({"fullUrl": sup_url, "resource": supporting})
-                        seen_urls.add(sup_url)
-            elif value_type == "String" and isinstance(raw_value, str):
-                # Simple scalar valueString observation
-                obs = _obs_base(batch_id, answer_key + ("observation",), link_id, question_text, patient_id, form_name)
-                obs["valueString"] = raw_value
-                obs_url = f"Observation/{obs['id']}"
-                if obs_url not in seen_urls:
-                    entries.append({"fullUrl": obs_url, "resource": obs})
-                    seen_urls.add(obs_url)
-            elif res_entry.get("resourceType"):
-                # FHIR resource result — reference it via focus
-                res_type = str(res_entry["resourceType"])
-                upstream_id = res_entry.get("id")
-                if upstream_id:
-                    res_id = str(upstream_id)
-                    supporting_resource = res_entry
-                else:
-                    res_id = _stable_id(batch_id, "cql", "supporting", res_type, res_entry)
-                    supporting_resource = {**res_entry, "id": res_id}
-                obs = _obs_base(batch_id, answer_key + ("observation",), link_id, question_text, patient_id, form_name)
-                obs["focus"] = [{"reference": f"{res_type}/{res_id}"}]
-                obs_url = f"Observation/{obs['id']}"
-                if obs_url not in seen_urls:
-                    entries.append({"fullUrl": obs_url, "resource": obs})
-                    seen_urls.add(obs_url)
-                sup_url = f"{res_type}/{res_id}"
-                if sup_url not in seen_urls:
-                    entries.append({"fullUrl": sup_url, "resource": supporting_resource})
-                    seen_urls.add(sup_url)
-            else:
-                obs = _obs_base(batch_id, answer_key + ("observation",), link_id, question_text, patient_id, form_name)
-                _set_cql_observation_value(obs, raw_value, value_type, task_name)
-                obs_url = f"Observation/{obs['id']}"
-                if obs_url not in seen_urls:
-                    entries.append({"fullUrl": obs_url, "resource": obs})
-                    seen_urls.add(obs_url)
+            self.cql_entries_by_name[task_name] = build_cql_observations([cql_result], self.questionnaire, self.form_name, self.patient_id, self.batch_id)
+            await self.checkpoint_partial_bundle()
 
-    return entries
+    async def record_llm_result(self, llm_result: LlmResult) -> None:
+        async with self.snapshot_lock:
+            task_name = llm_result.prompt_path
+            status, result_payload = summarize_llm_result(llm_result)
+            result_payload = self.with_excluded_documents(result_payload)
+            job_id = self.job_ids_by_task.get(("unstructured", task_name))
+            if job_id:
+                await self.update_task(job_id, status, result_payload)
+            self.task_results.append(self.with_excluded_documents({"task_name": task_name, "task_type": "unstructured", "status": status}))
+            self.llm_entries_by_path[task_name] = build_llm_observations([llm_result], self.questionnaire, self.form_name, self.patient_id, self.batch_id)
+            await self.checkpoint_partial_bundle()
 
+    async def empty(self) -> list:
+        return []
 
-def _build_tuple_observation(
-    pipe_value: str,
-    link_id: str,
-    question_text: str,
-    patient_id: str,
-    form_name: str,
-    task_name: str,
-    batch_id: str = "",
-    *,
-    answer_key: tuple[object, ...] | None = None,
-) -> tuple[dict, dict | None]:
-    """Parse a pipe-delimited CQL return value and build Observation + supporting resource.
-
-    Expected format (mirrors v0 create_linked_results):
-      "{date}|{system}|{code}|{display}|{value}[|{unit}]"
-
-    The task_name prefix determines supporting resource type
-    (e.g. "Condition_", "Observation_", "MedicationStatement_", etc.).
-    """
-    parts = pipe_value.split("|")
-    effective_dt = parts[0] if parts else datetime.now(UTC).isoformat()
-    if len(effective_dt) == 19:
-        effective_dt += "Z"
-
-    id_parts = answer_key or ("cql", task_name, link_id, 0, "String", pipe_value)
-    obs = _obs_base(batch_id, id_parts + ("observation",), link_id, question_text, patient_id, form_name)
-    obs["effectiveDateTime"] = effective_dt
-
-    def _coding():
-        return [{"system": parts[1] if len(parts) > 1 else "", "code": parts[2] if len(parts) > 2 else "", "display": parts[3] if len(parts) > 3 else ""}]
-
-    task_upper = task_name.upper()
-    if "CONDITION" in task_upper:
-        resource_type = "Condition"
-    elif "MEDICATION" in task_upper and "REQUEST" in task_upper:
-        resource_type = "MedicationRequest"
-    elif "MEDICATION" in task_upper:
-        resource_type = "MedicationStatement"
-    elif "PROCEDURE" in task_upper:
-        resource_type = "Procedure"
-    elif "OBSERVATION" in task_upper:
-        resource_type = "Observation"
-    else:
-        resource_type = None
-
-    if resource_type is None:
-        # Unknown type — fall back to valueString on the answer Observation
-        obs["valueString"] = pipe_value
-        return obs, None
-
-    res_id = _stable_id(batch_id, *id_parts, "supporting", resource_type)
-    if resource_type == "Condition":
-        supporting = {
-            "resourceType": resource_type,
-            "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
-            "code": {"coding": _coding()},
-            "onsetDateTime": effective_dt,
-            "subject": {"reference": f"Patient/{patient_id}"},
-        }
-    elif resource_type == "MedicationRequest":
-        supporting = {
-            "resourceType": resource_type,
-            "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
-            "status": "active",
-            "intent": "order",
-            "medicationCodeableConcept": {"coding": _coding()},
-            "authoredOn": effective_dt,
-            "subject": {"reference": f"Patient/{patient_id}"},
-        }
-    elif resource_type == "MedicationStatement":
-        supporting = {
-            "resourceType": resource_type,
-            "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
-            "status": "active",
-            "medicationCodeableConcept": {"coding": _coding()},
-            "effectiveDateTime": effective_dt,
-            "subject": {"reference": f"Patient/{patient_id}"},
-        }
-    elif resource_type == "Procedure":
-        supporting = {
-            "resourceType": resource_type,
-            "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
-            "code": {"coding": _coding()},
-            "performedDateTime": effective_dt,
-            "subject": {"reference": f"Patient/{patient_id}"},
-        }
-    else:
-        supporting = {
-            "resourceType": resource_type,
-            "id": res_id,
-            "identifier": [{"system": settings.deploy_url, "value": f"{resource_type}/{res_id}"}],
-            "status": "final",
-            "code": {"coding": _coding()},
-            "effectiveDateTime": effective_dt,
-            "subject": {"reference": f"Patient/{patient_id}"},
-        }
-        if len(parts) > 4:
-            supporting["valueString"] = parts[4]
-
-    obs["focus"] = [{"reference": f"{resource_type}/{res_id}"}]
-    return obs, supporting
-
-
-def _build_llm_observations(
-    llm_results: list[LlmResult],
-    questionnaire: dict,
-    form_name: str,
-    patient_id: str,
-    batch_id: str = "",
-) -> list[dict]:
-    """Walk Questionnaire items, match unstructuredTask to LLM results, build Observations."""
-    entries: list[dict] = []
-    seen_keys: set[tuple[str, str, str, str]] = set()
-
-    llm_by_path: dict[str, LlmResult] = {r.prompt_path: r for r in llm_results}
-
-    for question in _iter_questionnaire_items(questionnaire.get("item")):
-        link_id = question.get("linkId", "")
-        question_text = question.get("text", "")
-        prompt_path = _get_item_task(question, _UNSTRUCTURED_TASK_URL)
-        if not prompt_path:
-            continue
-
-        llm_result = llm_by_path.get(prompt_path)
-        if not llm_result:
-            logger.debug(f"No LLM result for prompt '{prompt_path}', skipping {link_id}")
-            continue
-
-        for doc_result in llm_result.document_results:
-            if doc_result.error or not doc_result.response:
-                continue
-
-            dedup_key = (link_id, prompt_path, doc_result.doc_id, doc_result.response)
-            obs = _obs_base(batch_id, ("llm", *dedup_key, "observation"), link_id, question_text, patient_id, form_name)
-            obs["effectiveDateTime"] = doc_result.doc_date
-            obs["focus"] = [{"reference": f"DocumentReference/{doc_result.doc_id}"}]
-            components = _build_llm_components(doc_result.response)
-            if components is not None:
-                obs["component"] = components
-            else:
-                obs["valueString"] = doc_result.response
-
-            obs_url = f"Observation/{obs['id']}"
-            # Deduplicate per question on focus + value (mirrors v0 NLPQL dedup); the same
-            # finding under two different questions is two distinct answers.
-            if dedup_key not in seen_keys:
-                entries.append({"fullUrl": obs_url, "resource": obs})
-                seen_keys.add(dedup_key)
-
-    return entries
-
-
-def _summarize_llm_result(llm_result: LlmResult) -> tuple[str, dict]:
-    has_success = any(doc_result.response for doc_result in llm_result.document_results if not doc_result.error)
-    errors = [doc_result.error for doc_result in llm_result.document_results if doc_result.error]
-
-    if has_success:
-        return "complete", asdict(llm_result)
-    if errors:
-        return "error", {"message": "llm execution produced no usable response", "errors": errors, "document_results": [asdict(doc) for doc in llm_result.document_results]}
-    return "skipped", {"message": "llm execution produced no response", "document_results": [asdict(doc) for doc in llm_result.document_results]}
-
-
-def _cql_result_from_payload(library_name: str, patient_id: str, payload: dict | None) -> CqlResult | None:
-    if not isinstance(payload, dict):
-        return None
-    results = payload.get("results")
-    if not isinstance(results, dict):
-        return None
-    error = payload.get("error")
-    return CqlResult(
-        library_name=library_name,
-        patient_id=patient_id,
-        results=results,
-        error=error if isinstance(error, str) else None,
-    )
-
-
-def _llm_result_from_payload(prompt_path: str, payload: dict | None) -> LlmResult | None:
-    if not isinstance(payload, dict):
-        return None
-    raw_documents = payload.get("document_results")
-    if not isinstance(raw_documents, list):
-        return None
-    documents: list[LlmDocumentResult] = []
-    for raw in raw_documents:
-        if not isinstance(raw, dict):
-            return None
-        try:
-            documents.append(
-                LlmDocumentResult(
-                    doc_id=str(raw["doc_id"]),
-                    doc_type=str(raw.get("doc_type", "Unknown")),
-                    doc_date=str(raw.get("doc_date", "")),
-                    response=str(raw.get("response", "")),
-                    error=raw.get("error") if isinstance(raw.get("error"), str) else None,
-                )
+    async def run_concurrent_tasks(self, parent_otel_span: Any | None):
+        cql_task = run_cql_libraries(self.cql_names_to_run, self.patient_id, on_result=self.record_cql_result) if self.cql_names_to_run else self.empty()
+        llm_task = (
+            run_all_prompts(
+                self.prompts,
+                self.documents,
+                on_result=self.record_llm_result,
+                trace_id=self.batch_id,
+                job_package=self.job_package,
+                parent_otel_span=parent_otel_span,
             )
-        except KeyError:
-            return None
-    return LlmResult(prompt_path=prompt_path, document_results=documents)
+            if (self.prompt_paths_to_run and self.documents and settings.use_llm)
+            else self.empty()
+        )
+        return await _gather_supervised(cql_task, llm_task)
 
+    async def record_missing_results(self, cql_results: list[CqlResult], llm_results: list[LlmResult]) -> None:
+        completed_cql_names = {result.library_name for result in cql_results}
+        for library_name in self.cql_names_to_run:
+            if library_name in completed_cql_names:
+                continue
+            logger.warning(f"[batch={self.batch_id}] No CQL result returned for library '{library_name}'")
+            job_id = self.job_ids_by_task.get(("structured", library_name))
+            if job_id:
+                await self.update_task(job_id, "error", {"message": "no cql result returned for library"})
+            self.task_results.append({"task_name": library_name, "task_type": "structured", "status": "error"})
+            await self.checkpoint_partial_bundle()
 
-def _create_status_observation(overall_status: str) -> dict:
-    """Create a status Observation (mirrors v0 create_results_status_observation)."""
-    status_code = "complete" if overall_status == "complete" else "in-progress"
-    return {
-        "resourceType": "Observation",
-        "id": "status-observation",
-        "status": overall_status,
-        "code": {"coding": [{"code": "result-status"}]},
-        "valueCodeableConcept": {
-            "coding": [{"code": status_code}],
-            "text": f"Batch job status: {overall_status}",
-        },
-    }
-
-
-def _append_unique_entries(entries: list[dict], new_entries: list[dict]) -> None:
-    """Append Bundle entries while preserving stable resources across partial updates."""
-    seen_urls = {entry.get("fullUrl") for entry in entries}
-    for entry in new_entries:
-        full_url = entry.get("fullUrl")
-        if full_url not in seen_urls:
-            entries.append(entry)
-            seen_urls.add(full_url)
-
-
-def _ordered_task_entries(task_names: list[str], entries_by_task: dict[str, list[dict]]) -> list[dict]:
-    """Flatten completed task entries in configured order and deduplicate by fullUrl."""
-    entries: list[dict] = []
-    for task_name in task_names:
-        _append_unique_entries(entries, entries_by_task.get(task_name, []))
-    return entries
-
-
-def _build_document_entries(documents: list[dict], patient_id: str, batch_id: str) -> list[dict]:
-    """Build supporting DocumentReference entries for LLM result focus references."""
-    entries: list[dict] = []
-    for doc in documents:
-        try:
-            original = doc.get("resource")
-            if original and original.get("resourceType") == "DocumentReference":
-                doc_id = original.get("id", doc.get("id"))
-                if not doc_id:
+        if self.prompt_paths_to_run and self.documents and settings.use_llm:
+            completed_llm_paths = {result.prompt_path for result in llm_results}
+            for prompt_path in self.prompt_paths_to_run:
+                if prompt_path in completed_llm_paths:
                     continue
-                entries.append({"fullUrl": f"DocumentReference/{doc_id}", "resource": original})
-                continue
+                logger.warning(f"[batch={self.batch_id}] No LLM result returned for prompt '{prompt_path}'")
+                job_id = self.job_ids_by_task.get(("unstructured", prompt_path))
+                if job_id:
+                    await self.update_task(job_id, "error", self.with_excluded_documents({"message": "no llm result returned for prompt"}))
+                self.task_results.append(self.with_excluded_documents({"task_name": prompt_path, "task_type": "unstructured", "status": "error"}))
+                await self.checkpoint_partial_bundle()
 
-            doc_id = doc.get("id")
-            if not doc_id:
-                continue
-            supporting_doc: dict = {
-                "resourceType": "DocumentReference",
-                "id": doc_id,
-                "status": "current",
-                "type": {"text": doc.get("type", "Unknown")},
-                "subject": {"reference": f"Patient/{patient_id}"},
-                "date": doc.get("date", ""),
-            }
-            if doc.get("text"):
-                try:
-                    add_document_text_content(supporting_doc, doc["text"])
-                except (UnicodeEncodeError, TypeError) as exc:
-                    logger.warning(f"[batch={batch_id}] Failed to base64-encode text for DocumentReference/{doc_id}: {exc}")
+    async def finalize(self) -> None:
+        # Fetch the Patient resource and assemble the final Bundle.
+        patient_resource = await _fetch_patient_resource(self.patient_id)
+        all_errors = [task for task in self.task_results if task.get("status") == "error"]
+        overall_status = "complete" if not all_errors else "preliminary"
+        final_cql_entries, final_llm_entries = self.current_result_entries()
+        result_bundle = build_result_bundle(
+            patient_resource,
+            final_cql_entries,
+            final_llm_entries + self.document_entries,
+            overall_status,
+            self.bundle_id,
+            batch_id=self.batch_id,
+        )
 
-            entries.append({"fullUrl": f"DocumentReference/{doc_id}", "resource": supporting_doc})
-        except (AttributeError, KeyError, TypeError, ValueError) as exc:
-            logger.warning(f"[batch={batch_id}] Skipping malformed document entry (id={doc.get('id', 'unknown')}): {exc}")
+        if all_errors and self.attempt_count < self.max_attempts:
+            failed_task_names = [str(task.get("task_name", "unknown")) for task in all_errors]
+            failure_message = f"{len(failed_task_names)} child task(s) failed: {', '.join(failed_task_names)}"
+            await self.flush_dirty_partial_bundle()
+            requeued = await _run_state_call(
+                requeue_batch_job_for_child_retry,
+                self.batch_id,
+                self.worker_id,
+                self.attempt_count,
+                failure_message,
+                settings.batch_job_retry_delay_seconds,
+            )
+            self.require_owned(requeued)
+            logger.info(f"[batch={self.batch_id}] Requeued after child failures for attempt {self.attempt_count + 1}")
+            return
 
-    return entries
-
-
-def _without_document_content(entry: dict) -> dict:
-    """Return a stored Bundle entry with DocumentReference content removed."""
-    resource = entry.get("resource")
-    if not isinstance(resource, dict) or resource.get("resourceType") != "DocumentReference" or "content" not in resource:
-        return entry
-    return {**entry, "resource": {key: value for key, value in resource.items() if key != "content"}}
-
-
-def _ordered_document_set(fetched_documents: list[dict], stored_documents: list[dict]) -> list[dict]:
-    """Order current fetched documents first, then stored-only documents by date and ID."""
-    ordered: list[dict] = []
-    seen_ids: set[str] = set()
-    for document in fetched_documents:
-        doc_id = document.get("id")
-        if isinstance(doc_id, str) and doc_id and doc_id not in seen_ids:
-            ordered.append(document)
-            seen_ids.add(doc_id)
-
-    stored_only = [document for document in stored_documents if isinstance(document.get("id"), str) and document["id"] not in seen_ids]
-    stored_only.sort(key=lambda document: (str(document.get("date") or ""), str(document.get("id") or "")))
-    ordered.extend(stored_only)
-    return ordered
-
-
-def _build_result_bundle(
-    patient_resource: dict | None,
-    cql_entries: list[dict],
-    llm_entries: list[dict],
-    overall_status: str,
-    bundle_id: str | None = None,
-    *,
-    batch_id: str = "",
-) -> dict:
-    """Assemble a partial or final result FHIR Bundle."""
-    status_obs = _create_status_observation(overall_status)
-    all_entries: list[dict] = [{"fullUrl": "Observation/status-observation", "resource": status_obs}]
-    if patient_resource:
-        pid = patient_resource.get("id", "unknown")
-        all_entries.append({"fullUrl": f"Patient/{pid}", "resource": patient_resource})
-
-    all_entries.extend(_without_document_content(entry) for entry in cql_entries)
-    all_entries.extend(_without_document_content(entry) for entry in llm_entries)
-
-    return {
-        "resourceType": "Bundle",
-        "id": bundle_id or _stable_id(batch_id, "bundle"),
-        "type": "collection",
-        "total": len(all_entries),
-        "entry": all_entries,
-    }
+        # Child errors keep the Bundle preliminary while the batch status distinguishes an exhausted
+        # partial result from a total failure.
+        final_status = "complete" if not all_errors else "partial" if any(task.get("status") == "complete" for task in self.task_results) else "error"
+        updated = await _run_state_call(
+            update_batch_job_status,
+            self.batch_id,
+            final_status,
+            result_bundle,
+            worker_id=self.worker_id,
+            attempt_count=self.attempt_count,
+        )
+        self.require_owned(updated)
+        logger.info(f"[batch={self.batch_id}] Completed with status={final_status}. Bundle entries: {result_bundle['total']}")
 
 
 async def _maintain_batch_lease(batch_id: str, worker_id: str, attempt_count: int) -> None:
@@ -814,7 +486,11 @@ async def _gather_supervised(*coros: Coroutine[Any, Any, Any]) -> list[Any]:
     return [task.result() for task in tasks]
 
 
-# Main orchestrator
+def _on_heartbeat_done(pipeline_task: asyncio.Task[Any] | None, task: asyncio.Task[None]) -> None:
+    if not task.cancelled() and isinstance(task.exception(), LeaseLostError) and pipeline_task is not None:
+        pipeline_task.cancel()
+
+
 async def run_batch_job(
     batch_id: str,
     patient_id: str,
@@ -831,269 +507,49 @@ async def run_batch_job(
     """Run the full CQL + LLM pipeline for one worker-owned batch attempt."""
     max_attempts = max_attempts if max_attempts is not None else settings.batch_job_max_attempts
     logger.info(f"[batch={batch_id}] Starting batch job for Patient/{patient_id}, pkg={job_package}, jobs={requested_jobs or 'all'}, attempt={attempt_count}/{max_attempts}")
-
-    task_results: list[dict] = []
-    job_ids_by_task: dict[tuple[str, str], str] = {}
-    excluded_documents: list[dict] = []
-    heartbeat_task: asyncio.Task[None] | None = None
     checkpoint_interval_seconds = settings.batch_job_checkpoint_interval_seconds
     checkpoint_every_tasks = settings.batch_job_checkpoint_every_tasks
-    last_partial_write_at: float | None = None
-    tasks_since_partial_write = 0
-    partial_snapshot_dirty = False
-    flush_dirty_partial_bundle: Callable[[], Coroutine[Any, Any, None]] | None = None
 
-    def _with_excluded_documents(payload: dict) -> dict:
-        if excluded_documents:
-            payload["excluded_documents"] = excluded_documents
-        return payload
-
-    def _require_owned(updated: bool) -> None:
-        if not updated:
-            raise LeaseLostError(f"Worker {worker_id} lost batch {batch_id} attempt {attempt_count}")
-
+    attempt: _BatchAttempt | None = None
+    heartbeat_task: asyncio.Task[None] | None = None
     try:
         heartbeat_task = asyncio.create_task(_maintain_batch_lease(batch_id, worker_id, attempt_count))
         # If the lease cannot be renewed, stop the pipeline instead of letting it keep calling
         # CQL/LLM services for an attempt another worker may already own.
         pipeline_task = asyncio.current_task()
+        heartbeat_task.add_done_callback(partial(_on_heartbeat_done, pipeline_task))
 
-        def _on_heartbeat_done(task: asyncio.Task[None]) -> None:
-            if not task.cancelled() and isinstance(task.exception(), LeaseLostError) and pipeline_task is not None:
-                pipeline_task.cancel()
-
-        heartbeat_task.add_done_callback(_on_heartbeat_done)
-
-        # 1. Fetch Questionnaire from HAPI FHIR
+        # 1. Fetch Questionnaire from HAPI FHIR.
         questionnaire_data = await fhir_get("Questionnaire", questionnaire_id)
-
         if questionnaire_data.get("resourceType") == "OperationOutcome":
             raise RuntimeError(f"Could not fetch Questionnaire/{questionnaire_id}: {questionnaire_data}")
 
         questionnaire = cast(dict[str, Any], questionnaire_data)
-
         form_name = questionnaire.get("name", job_package)
         logger.info(f"[batch={batch_id}] Loaded Questionnaire '{form_name}'")
 
-        # 2. Extract task lists
-        cql_names, prompt_paths = _extract_job_lists(questionnaire)
-        cql_names, prompt_paths = _filter_requested_jobs(cql_names, prompt_paths, requested_jobs)
+        # 2. Extract task lists and build the attempt state.
+        cql_names, prompt_paths = extract_job_lists(questionnaire)
+        cql_names, prompt_paths = filter_requested_jobs(cql_names, prompt_paths, requested_jobs)
         logger.info(f"[batch={batch_id}] CQL libs={cql_names}, LLM prompts={prompt_paths}")
+        attempt = _BatchAttempt(
+            batch_id,
+            patient_id,
+            job_package,
+            worker_id,
+            attempt_count,
+            max_attempts,
+            questionnaire,
+            form_name,
+            cql_names,
+            prompt_paths,
+            prior_bundle,
+            checkpoint_interval_seconds,
+            checkpoint_every_tasks,
+        )
+        await attempt.prepare()
 
-        cql_names_to_run: list[str] = []
-        prompt_paths_to_run: list[str] = []
-        restored_cql_results: dict[str, CqlResult] = {}
-        restored_llm_results: dict[str, LlmResult] = {}
-
-        async def _ensure_task(task_name: str, task_type: str):
-            task_job_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{batch_id}:{task_type}:{task_name}"))
-            snapshot = await _run_state_call(
-                ensure_job,
-                task_job_id,
-                batch_id,
-                patient_id,
-                job_package,
-                task_name,
-                task_type,
-                worker_id=worker_id,
-                attempt_count=attempt_count,
-            )
-            if snapshot is None:
-                _require_owned(False)
-                raise RuntimeError(f"Could not create child job for {task_type}:{task_name}")
-            job_ids_by_task[(task_type, task_name)] = snapshot.job_id
-            return snapshot
-
-        async def _update_task(job_id: str, status: str, result: dict | None = None) -> None:
-            updated = await _run_state_call(
-                update_job_result,
-                job_id,
-                status,
-                result,
-                batch_id=batch_id,
-                worker_id=worker_id,
-                attempt_count=attempt_count,
-            )
-            _require_owned(updated)
-
-        for library_name in cql_names:
-            snapshot = await _ensure_task(library_name, "structured")
-            restored = _cql_result_from_payload(library_name, patient_id, snapshot.result) if snapshot.status == "complete" else None
-            if restored is not None:
-                restored_cql_results[library_name] = restored
-                task_results.append({"task_name": library_name, "task_type": "structured", "status": snapshot.status})
-            elif snapshot.status in {"error", "skipped"}:
-                task_results.append({"task_name": library_name, "task_type": "structured", "status": snapshot.status})
-            else:
-                cql_names_to_run.append(library_name)
-
-        for prompt_path in prompt_paths:
-            snapshot = await _ensure_task(prompt_path, "unstructured")
-            restored = _llm_result_from_payload(prompt_path, snapshot.result) if snapshot.status == "complete" else None
-            if restored is not None:
-                restored_llm_results[prompt_path] = restored
-                task_results.append({"task_name": prompt_path, "task_type": "unstructured", "status": snapshot.status})
-            elif snapshot.status in {"error", "skipped"}:
-                task_results.append({"task_name": prompt_path, "task_type": "unstructured", "status": snapshot.status})
-            else:
-                prompt_paths_to_run.append(prompt_path)
-
-        # 3. Concurrently load prompts and fetch patient documents when LLM jobs still need to run.
-        #    A failed DocumentReference search raises DocumentFetchError, failing this attempt so the
-        #    worker retries it — only a successful, empty search marks prompts as skipped.
-        prompts = []
-        documents: list[dict] = []
-        if prompt_paths_to_run:
-            prompts, document_fetch_result = await _gather_supervised(load_prompts(prompt_paths_to_run), fetch_patient_documents(patient_id))
-            documents = document_fetch_result.documents
-            excluded_documents = document_fetch_result.excluded
-            stored = await _run_state_call(
-                upsert_batch_job_documents,
-                batch_id,
-                documents,
-                worker_id=worker_id,
-                attempt_count=attempt_count,
-            )
-            _require_owned(stored)
-            if not documents:
-                logger.info(f"[batch={batch_id}] No DocumentReferences found — skipping LLM execution")
-                for path in prompt_paths_to_run:
-                    job_id = job_ids_by_task.get(("unstructured", path))
-                    if job_id:
-                        await _update_task(job_id, "skipped", _with_excluded_documents({"message": "skipped — no supporting documents"}))
-                    task_results.append(
-                        _with_excluded_documents(
-                            {
-                                "task_name": path,
-                                "task_type": "unstructured",
-                                "status": "skipped",
-                                "result": "skipped — no supporting documents",
-                            }
-                        )
-                    )
-            elif not settings.use_llm:
-                logger.info(f"[batch={batch_id}] LiteLLM is not configured — skipping LLM execution")
-                for path in prompt_paths_to_run:
-                    job_id = job_ids_by_task.get(("unstructured", path))
-                    if job_id:
-                        await _update_task(job_id, "skipped", _with_excluded_documents({"message": "skipped — llm not configured"}))
-                    task_results.append(
-                        _with_excluded_documents(
-                            {
-                                "task_name": path,
-                                "task_type": "unstructured",
-                                "status": "skipped",
-                                "result": "skipped — llm not configured",
-                            }
-                        )
-                    )
-
-        stored_documents = await _run_state_call(get_batch_job_documents, batch_id)
-        bundle_documents = _ordered_document_set(documents, stored_documents)
-
-        # 4. Rebuild terminal task output, then checkpoint the retry-safe partial Bundle.
-        prior_bundle_id = prior_bundle.get("id") if isinstance(prior_bundle, dict) else None
-        bundle_id = prior_bundle_id if isinstance(prior_bundle_id, str) and prior_bundle_id else _stable_id(batch_id, "bundle")
-        cql_entries_by_name: dict[str, list[dict]] = {name: _build_cql_observations([result], questionnaire, form_name, patient_id, batch_id) for name, result in restored_cql_results.items()}
-        llm_entries_by_path: dict[str, list[dict]] = {path: _build_llm_observations([result], questionnaire, form_name, patient_id, batch_id) for path, result in restored_llm_results.items()}
-        document_entries = _build_document_entries(bundle_documents, patient_id, batch_id)
-
-        def _current_result_entries() -> tuple[list[dict], list[dict]]:
-            return (
-                _ordered_task_entries(cql_names, cql_entries_by_name),
-                _ordered_task_entries(prompt_paths, llm_entries_by_path),
-            )
-
-        async def _persist_partial_bundle() -> None:
-            nonlocal last_partial_write_at, tasks_since_partial_write, partial_snapshot_dirty
-            current_cql_entries, current_llm_entries = _current_result_entries()
-            partial_bundle = _build_result_bundle(
-                None,
-                current_cql_entries,
-                current_llm_entries + document_entries,
-                "preliminary",
-                bundle_id,
-                batch_id=batch_id,
-            )
-            updated = await _run_state_call(
-                update_batch_job_result,
-                batch_id,
-                partial_bundle,
-                worker_id=worker_id,
-                attempt_count=attempt_count,
-            )
-            _require_owned(updated)
-            last_partial_write_at = time.monotonic()
-            tasks_since_partial_write = 0
-            partial_snapshot_dirty = False
-
-        async def _checkpoint_partial_bundle() -> None:
-            nonlocal tasks_since_partial_write, partial_snapshot_dirty
-            tasks_since_partial_write += 1
-            partial_snapshot_dirty = True
-            now = time.monotonic()
-            elapsed = now - last_partial_write_at if last_partial_write_at is not None else checkpoint_interval_seconds
-            if checkpoint_interval_seconds == 0 or elapsed >= checkpoint_interval_seconds or tasks_since_partial_write >= checkpoint_every_tasks:
-                await _persist_partial_bundle()
-
-        async def _flush_dirty_partial_bundle() -> None:
-            if partial_snapshot_dirty:
-                await _persist_partial_bundle()
-
-        flush_dirty_partial_bundle = _flush_dirty_partial_bundle
-        await _persist_partial_bundle()
-
-        snapshot_lock = asyncio.Lock()
-
-        async def _record_cql_result(cql_result: CqlResult) -> None:
-            async with snapshot_lock:
-                task_name = cql_result.library_name
-                status = "error" if cql_result.error else "complete"
-                job_id = job_ids_by_task.get(("structured", task_name))
-                if job_id:
-                    await _update_task(job_id, status, {"error": cql_result.error, "results": cql_result.results})
-                task_results.append(
-                    {
-                        "task_name": task_name,
-                        "task_type": "structured",
-                        "status": status,
-                        "error": cql_result.error,
-                    }
-                )
-                cql_entries_by_name[task_name] = _build_cql_observations([cql_result], questionnaire, form_name, patient_id, batch_id)
-                await _checkpoint_partial_bundle()
-
-        async def _record_llm_result(llm_result: LlmResult) -> None:
-            async with snapshot_lock:
-                task_name = llm_result.prompt_path
-                status, result_payload = _summarize_llm_result(llm_result)
-                result_payload = _with_excluded_documents(result_payload)
-                job_id = job_ids_by_task.get(("unstructured", task_name))
-                if job_id:
-                    await _update_task(job_id, status, result_payload)
-                task_results.append(_with_excluded_documents({"task_name": task_name, "task_type": "unstructured", "status": status}))
-                llm_entries_by_path[task_name] = _build_llm_observations([llm_result], questionnaire, form_name, patient_id, batch_id)
-                await _checkpoint_partial_bundle()
-
-        async def _empty() -> list:
-            return []
-
-        async def _run_concurrent_tasks(parent_otel_span: Any | None):
-            cql_task = run_cql_libraries(cql_names_to_run, patient_id, on_result=_record_cql_result) if cql_names_to_run else _empty()
-            llm_task = (
-                run_all_prompts(
-                    prompts,
-                    documents,
-                    on_result=_record_llm_result,
-                    trace_id=batch_id,
-                    job_package=job_package,
-                    parent_otel_span=parent_otel_span,
-                )
-                if (prompt_paths_to_run and documents and settings.use_llm)
-                else _empty()
-            )
-            return await _gather_supervised(cql_task, llm_task)
-
+        # 3. Run remaining CQL and LLM tasks under one Langfuse parent span.
         async with _langfuse_batch_parent(
             batch_id,
             job_package,
@@ -1101,74 +557,11 @@ async def run_batch_job(
             job_package_version,
             requested_jobs,
         ) as parent_otel_span:
-            cql_results, llm_results = await _run_concurrent_tasks(parent_otel_span)
+            cql_results, llm_results = await attempt.run_concurrent_tasks(parent_otel_span)
+        await attempt.record_missing_results(cql_results, llm_results)
 
-        completed_cql_names = {result.library_name for result in cql_results}
-        for library_name in cql_names_to_run:
-            if library_name in completed_cql_names:
-                continue
-            logger.warning(f"[batch={batch_id}] No CQL result returned for library '{library_name}'")
-            job_id = job_ids_by_task.get(("structured", library_name))
-            if job_id:
-                await _update_task(job_id, "error", {"message": "no cql result returned for library"})
-            task_results.append({"task_name": library_name, "task_type": "structured", "status": "error"})
-            await _checkpoint_partial_bundle()
-
-        if prompt_paths_to_run and documents and settings.use_llm:
-            completed_llm_paths = {result.prompt_path for result in llm_results}
-            for prompt_path in prompt_paths_to_run:
-                if prompt_path in completed_llm_paths:
-                    continue
-                logger.warning(f"[batch={batch_id}] No LLM result returned for prompt '{prompt_path}'")
-                job_id = job_ids_by_task.get(("unstructured", prompt_path))
-                if job_id:
-                    await _update_task(job_id, "error", _with_excluded_documents({"message": "no llm result returned for prompt"}))
-                task_results.append(_with_excluded_documents({"task_name": prompt_path, "task_type": "unstructured", "status": "error"}))
-                await _checkpoint_partial_bundle()
-
-        # 5. Fetch the Patient resource and assemble the final Bundle.
-        patient_resource = await _fetch_patient_resource(patient_id)
-        all_errors = [task for task in task_results if task.get("status") == "error"]
-        overall_status = "complete" if not all_errors else "preliminary"
-        final_cql_entries, final_llm_entries = _current_result_entries()
-        result_bundle = _build_result_bundle(
-            patient_resource,
-            final_cql_entries,
-            final_llm_entries + document_entries,
-            overall_status,
-            bundle_id,
-            batch_id=batch_id,
-        )
-
-        if all_errors and attempt_count < max_attempts:
-            failed_task_names = [str(task.get("task_name", "unknown")) for task in all_errors]
-            failure_message = f"{len(failed_task_names)} child task(s) failed: {', '.join(failed_task_names)}"
-            await _flush_dirty_partial_bundle()
-            requeued = await _run_state_call(
-                requeue_batch_job_for_child_retry,
-                batch_id,
-                worker_id,
-                attempt_count,
-                failure_message,
-                settings.batch_job_retry_delay_seconds,
-            )
-            _require_owned(requeued)
-            logger.info(f"[batch={batch_id}] Requeued after child failures for attempt {attempt_count + 1}")
-            return
-
-        # 6. Persist the final result. Child errors keep the Bundle preliminary while the
-        # batch status distinguishes an exhausted partial result from a total failure.
-        final_status = "complete" if not all_errors else "partial" if any(task.get("status") == "complete" for task in task_results) else "error"
-        updated = await _run_state_call(
-            update_batch_job_status,
-            batch_id,
-            final_status,
-            result_bundle,
-            worker_id=worker_id,
-            attempt_count=attempt_count,
-        )
-        _require_owned(updated)
-        logger.info(f"[batch={batch_id}] Completed with status={final_status}. Bundle entries: {result_bundle['total']}")
+        # 4. Fetch the Patient, then retry or finalize the attempt.
+        await attempt.finalize()
 
     except asyncio.CancelledError:
         heartbeat_error = heartbeat_task.exception() if heartbeat_task is not None and heartbeat_task.done() and not heartbeat_task.cancelled() else None
@@ -1183,9 +576,9 @@ async def run_batch_job(
         logger.warning(f"[batch={batch_id}] Stopping work after losing lease ownership")
         raise
     except Exception as exc:
-        if flush_dirty_partial_bundle is not None and partial_snapshot_dirty:
+        if attempt is not None and attempt.partial_snapshot_dirty:
             try:
-                await flush_dirty_partial_bundle()
+                await attempt.flush_dirty_partial_bundle()
             except Exception as checkpoint_exc:  # noqa: BLE001
                 logger.warning(f"[batch={batch_id}] Could not flush dirty partial Bundle before failure: {type(checkpoint_exc).__name__}")
         logger.exception(f"[batch={batch_id}] Unhandled error in run_batch_job: {exc}")

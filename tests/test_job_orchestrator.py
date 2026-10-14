@@ -1,7 +1,8 @@
-"""Tests batch orchestration from questionnaire job extraction through CQL/LLM result Bundle assembly.
+"""Test the worker-owned batch execution pipeline and its persistence decisions.
 
-The `run_harness` fixture and autouse document-state stubs patch persistence and execution seams to cover
-checkpointing, retries, deterministic IDs, and child finalization."""
+The `run_harness` fixture and autouse document-state stubs patch orchestration seams to cover
+checkpointing, retries, lease-safe child updates, and finalization; pure builders are tested from
+their dedicated service modules."""
 
 import json
 from dataclasses import dataclass, field
@@ -9,7 +10,7 @@ from dataclasses import dataclass, field
 import pytest
 
 from src.models.prompt import Prompt, PromptMetadata
-from src.services import job_orchestrator
+from src.services import job_orchestrator, job_package, result_bundle, result_observations
 from src.services.cql_executor import CqlResult
 from src.services.fhir_context import DocumentFetchResult
 from src.services.job_state import LogicalJob
@@ -26,14 +27,14 @@ def _stub_document_state(monkeypatch):
 def _questionnaire(*, cql: list[str] | None = None, prompts: list[str] | None = None, items: list[dict] | None = None) -> dict:
     extensions = []
     if cql:
-        extensions.append({"url": job_orchestrator._CQL_JOB_LIST_URL, "extension": [{"valueString": name} for name in cql]})
+        extensions.append({"url": job_package._CQL_JOB_LIST_URL, "extension": [{"valueString": name} for name in cql]})
     if prompts:
-        extensions.append({"url": job_orchestrator._LLM_JOB_LIST_URL, "extension": [{"valueString": path} for path in prompts]})
+        extensions.append({"url": job_package._LLM_JOB_LIST_URL, "extension": [{"valueString": path} for path in prompts]})
     return {"resourceType": "Questionnaire", "name": "RegistryForm", "extension": extensions, "item": items or []}
 
 
 def _structured_item(link_id: str, task: str) -> dict:
-    return {"linkId": link_id, "text": f"Question {link_id}", "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": task}]}
+    return {"linkId": link_id, "text": f"Question {link_id}", "extension": [{"url": job_package._STRUCTURED_TASK_URL, "valueString": task}]}
 
 
 def _observations_for(bundle: dict, link_id: str) -> list[dict]:
@@ -101,17 +102,17 @@ def test_extract_job_lists_reads_both_extension_types():
     questionnaire = {
         "extension": [
             {
-                "url": job_orchestrator._CQL_JOB_LIST_URL,
+                "url": job_package._CQL_JOB_LIST_URL,
                 "extension": [{"valueString": "LibOne"}, {"valueString": "LibTwo"}],
             },
             {
-                "url": job_orchestrator._LLM_JOB_LIST_URL,
+                "url": job_package._LLM_JOB_LIST_URL,
                 "extension": [{"valueString": "prompts/a"}, {"valueString": "prompts/b"}],
             },
         ]
     }
 
-    cql_names, prompt_paths = job_orchestrator._extract_job_lists(questionnaire)
+    cql_names, prompt_paths = job_package.extract_job_lists(questionnaire)
 
     assert cql_names == ["LibOne", "LibTwo"]
     assert prompt_paths == ["prompts/a", "prompts/b"]
@@ -119,7 +120,7 @@ def test_extract_job_lists_reads_both_extension_types():
 
 def test_build_tuple_observation_returns_supporting_condition_resource():
     pipe_value = "2026-05-22T12:00:00|http://loinc.org|1234-5|Example|positive"
-    obs, supporting = job_orchestrator._build_tuple_observation(
+    obs, supporting = result_observations.build_tuple_observation(
         pipe_value,
         "1.1",
         "Question text",
@@ -130,10 +131,10 @@ def test_build_tuple_observation_returns_supporting_condition_resource():
     )
 
     assert supporting is not None
-    assert obs["id"] == job_orchestrator._stable_id("batch-1", "cql", "Condition_History", "1.1", 0, "String", pipe_value, "observation")
+    assert obs["id"] == result_observations.stable_id("batch-1", "cql", "Condition_History", "1.1", 0, "String", pipe_value, "observation")
     assert obs["identifier"] == [{"system": settings.deploy_url, "value": f"Observation/{obs['id']}"}]
     assert obs["focus"] == [{"reference": f"Condition/{supporting['id']}"}]
-    assert supporting["id"] == job_orchestrator._stable_id("batch-1", "cql", "Condition_History", "1.1", 0, "String", pipe_value, "supporting", "Condition")
+    assert supporting["id"] == result_observations.stable_id("batch-1", "cql", "Condition_History", "1.1", 0, "String", pipe_value, "supporting", "Condition")
     assert supporting["resourceType"] == "Condition"
     assert supporting["code"]["coding"][0]["code"] == "1234-5"
 
@@ -146,7 +147,7 @@ def test_build_llm_observations_deduplicates_same_document_and_text():
                     {
                         "linkId": "1.1",
                         "text": "Question text",
-                        "extension": [{"url": job_orchestrator._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}],
+                        "extension": [{"url": job_package._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}],
                     }
                 ]
             }
@@ -162,7 +163,7 @@ def test_build_llm_observations_deduplicates_same_document_and_text():
         )
     ]
 
-    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+    entries = result_observations.build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     assert entries[0]["resource"]["valueString"] == "same answer"
@@ -200,10 +201,10 @@ def _component(code: str, display: str, value: str) -> dict:
     ],
 )
 def test_build_llm_observations_maps_json_response_to_components(response, expected_components):
-    questionnaire = {"item": [{"item": [{"linkId": "1.1", "text": "Question text", "extension": [{"url": job_orchestrator._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}]}]}]}
+    questionnaire = {"item": [{"item": [{"linkId": "1.1", "text": "Question text", "extension": [{"url": job_package._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}]}]}]}
     llm_results = [LlmResult(prompt_path="prompts/a", document_results=[LlmDocumentResult(doc_id="doc-1", doc_type="Visit Note", doc_date="2026-05-22", response=response)])]
 
-    entries = job_orchestrator._build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+    entries = result_observations.build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     resource = entries[0]["resource"]
@@ -221,14 +222,14 @@ def test_build_llm_observations_maps_json_response_to_components(response, expec
     ],
 )
 def test_summarize_llm_result_omits_document_text(document_result, expected_status):
-    status, payload = job_orchestrator._summarize_llm_result(LlmResult(prompt_path="prompts/a", document_results=[document_result]))
+    status, payload = result_observations.summarize_llm_result(LlmResult(prompt_path="prompts/a", document_results=[document_result]))
 
     assert status == expected_status
     assert all("doc_text" not in document for document in payload["document_results"])
 
 
 def test_llm_result_restore_ignores_legacy_document_text():
-    restored = job_orchestrator._llm_result_from_payload(
+    restored = result_observations.llm_result_from_payload(
         "prompts/a",
         {
             "document_results": [
@@ -257,7 +258,7 @@ def test_build_cql_observations_uses_matching_structured_task():
                     {
                         "linkId": "1.1",
                         "text": "Question text",
-                        "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+                        "extension": [{"url": job_package._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
                     }
                 ]
             }
@@ -265,7 +266,7 @@ def test_build_cql_observations_uses_matching_structured_task():
     }
     cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": "positive"}]})]
 
-    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+    entries = result_observations.build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     assert entries[0]["resource"]["valueString"] == "positive"
@@ -298,13 +299,13 @@ def test_build_cql_observations_maps_cql_value_types(value_type, raw_value, expe
             {
                 "linkId": "1.1",
                 "text": "Question text",
-                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+                "extension": [{"url": job_package._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
             }
         ]
     }
     cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": raw_value, "type": value_type}]})]
 
-    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+    entries = result_observations.build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     resource = entries[0]["resource"]
@@ -326,13 +327,13 @@ def test_build_cql_observations_falls_back_to_compact_json(value_type, raw_value
             {
                 "linkId": "1.1",
                 "text": "Question text",
-                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+                "extension": [{"url": job_package._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
             }
         ]
     }
     cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": raw_value, "type": value_type}]})]
 
-    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+    entries = result_observations.build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     assert entries[0]["resource"]["valueString"] == json.dumps(raw_value, separators=(",", ":"), sort_keys=True)
@@ -348,13 +349,13 @@ def test_build_cql_observations_infers_legacy_value_types(raw_value, expected):
             {
                 "linkId": "1.1",
                 "text": "Question text",
-                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+                "extension": [{"url": job_package._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
             }
         ]
     }
     cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": raw_value}]})]
 
-    entries = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+    entries = result_observations.build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert len(entries) == 1
     for key, expected_value in expected.items():
@@ -367,12 +368,12 @@ def test_generated_result_ids_are_stable_and_distinct_per_batch():
             {
                 "linkId": "cql-question",
                 "text": "CQL question",
-                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+                "extension": [{"url": job_package._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
             },
             {
                 "linkId": "llm-question",
                 "text": "LLM question",
-                "extension": [{"url": job_orchestrator._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}],
+                "extension": [{"url": job_package._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}],
             },
         ]
     }
@@ -394,7 +395,7 @@ def test_generated_result_ids_are_stable_and_distinct_per_batch():
     ]
 
     def _build(batch_id: str) -> list[dict]:
-        return job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", batch_id) + job_orchestrator._build_llm_observations(
+        return result_observations.build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", batch_id) + result_observations.build_llm_observations(
             llm_results, questionnaire, "RegistryForm", "patient-123", batch_id
         )
 
@@ -419,7 +420,7 @@ def test_cql_resource_without_id_gets_stable_supporting_resource():
             {
                 "linkId": "1.1",
                 "text": "Question text",
-                "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+                "extension": [{"url": job_package._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
             }
         ]
     }
@@ -431,8 +432,8 @@ def test_cql_resource_without_id_gets_stable_supporting_resource():
         )
     ]
 
-    first = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
-    repeat = job_orchestrator._build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+    first = result_observations.build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+    repeat = result_observations.build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
 
     assert first == repeat
     assert len(first) == 2
@@ -446,7 +447,7 @@ def test_cql_resource_without_id_gets_stable_supporting_resource():
 
 def test_build_result_bundle_includes_status_and_patient():
 
-    bundle = job_orchestrator._build_result_bundle(
+    bundle = result_bundle.build_result_bundle(
         {"resourceType": "Patient", "id": "patient-123"},
         [{"fullUrl": "Observation/1", "resource": {"resourceType": "Observation", "id": "1"}}],
         [{"fullUrl": "Observation/2", "resource": {"resourceType": "Observation", "id": "2"}}],
@@ -455,7 +456,7 @@ def test_build_result_bundle_includes_status_and_patient():
     )
 
     assert bundle["resourceType"] == "Bundle"
-    assert bundle["id"] == job_orchestrator._stable_id("batch-1", "bundle")
+    assert bundle["id"] == result_observations.stable_id("batch-1", "bundle")
     assert bundle["total"] == 4
     assert bundle["entry"][0]["resource"]["id"] == "status-observation"
 
@@ -471,9 +472,9 @@ def test_document_bundle_storage_strips_content_and_retry_order_is_deterministic
         {"id": "doc-b", "type": "Old Note", "date": "2026-05-01", "text": "old B"},
     ]
 
-    document_entries = job_orchestrator._build_document_entries(fetched, "patient-1", "batch-1")
-    stored_bundle = job_orchestrator._build_result_bundle(None, [], document_entries, "preliminary", batch_id="batch-1")
-    ordered = job_orchestrator._ordered_document_set(fetched, stored_only)
+    document_entries = result_bundle.build_document_entries(fetched, "patient-1", "batch-1")
+    stored_bundle = result_bundle.build_result_bundle(None, [], document_entries, "preliminary", batch_id="batch-1")
+    ordered = result_bundle.ordered_document_set(fetched, stored_only)
 
     assert [document["id"] for document in ordered] == ["doc-b", "doc-c", "doc-z", "doc-a"]
     assert document_entries[0]["resource"]["content"][0]["attachment"] == {"contentType": "text/plain", "data": "Qg=="}

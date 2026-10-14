@@ -1,7 +1,8 @@
-"""Tests the batch-job router's submission, listing, status, result, filtering, and hydration behavior.
+"""Test batch-job HTTP use cases, filtering, and result hydration behavior.
 
-The tests patch `batch_job_service` persistence and patient-lookup seams, and call a few
-`job_orchestrator` helpers directly; durable persistence is covered in `test_job_state_schema.py`."""
+The tests patch `batch_job_service` persistence and patient-lookup seams, and call the pure
+`job_package` and `result_bundle` helpers directly; durable persistence is covered in
+`test_job_state_schema.py`."""
 
 from copy import deepcopy
 from datetime import UTC, datetime
@@ -16,7 +17,7 @@ from src.models.fhir import BundleResource, ParametersResponse
 from src.models.job_request import JobRequest, JobRequestParameter
 from src.models.job_response import BatchJobAcceptedResponse
 from src.routers import batchjob
-from src.services import batch_job_service, job_orchestrator
+from src.services import batch_job_service, job_package, result_bundle
 from src.services.job_state import BatchJobs
 from src.util.settings import settings
 from tests.fakes import patient_resource
@@ -177,7 +178,7 @@ def test_filter_requested_jobs_supports_multiple_job_parameters():
         "prompts/2025_08/syphilis/ig_lt",
     ]
 
-    filtered_cql, filtered_prompts = job_orchestrator._filter_requested_jobs(
+    filtered_cql, filtered_prompts = job_package.filter_requested_jobs(
         cql_names,
         prompt_paths,
         ["SyphilisHistory", "ig_hc"],
@@ -192,7 +193,7 @@ def test_filter_requested_jobs_rejects_unknown_names():
     prompt_paths = ["prompts/2025_08/syphilis/ig_hc"]
 
     try:
-        job_orchestrator._filter_requested_jobs(cql_names, prompt_paths, ["missing-job"])
+        job_package.filter_requested_jobs(cql_names, prompt_paths, ["missing-job"])
     except ValueError as exc:
         assert "missing-job" in str(exc)
     else:
@@ -634,8 +635,8 @@ async def test_list_batch_jobs_rejects_invalid_date_filters(monkeypatch):
 
 def test_hydration_matches_pre_change_bundle_shape():
     documents = [{"id": "doc-1", "type": "Note", "date": "2026-05-22", "text": "plain text"}]
-    full_entries = job_orchestrator._build_document_entries(documents, "patient-123", "batch-123")
-    stored_bundle = job_orchestrator._build_result_bundle(None, [], full_entries, "preliminary", batch_id="batch-123")
+    full_entries = result_bundle.build_document_entries(documents, "patient-123", "batch-123")
+    stored_bundle = result_bundle.build_result_bundle(None, [], full_entries, "preliminary", batch_id="batch-123")
     pre_change_bundle = deepcopy(stored_bundle)
     pre_change_bundle["entry"] = [stored_bundle["entry"][0], *full_entries]
 
