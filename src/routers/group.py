@@ -13,6 +13,7 @@ from src.models.fhir import BundleResource, GroupResource, OperationOutcome, Pat
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response, model_or_operation_outcome, operation_outcome_responses
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
 from src.util.auth import require_admin, validate_token
+from src.util.http_clients import get_http_client
 from src.util.outbound_url import is_same_origin, resolve_http_reference
 from src.util.settings import require_setting, secret_value, settings
 
@@ -68,33 +69,33 @@ async def search_groups(name: str | None = None, claims: dict = Security(validat
     entries = bundle_response.entry or []
 
     result: list[GroupSearchResult] = []
-    async with httpx.AsyncClient(timeout=60) as client:
-        for entry in entries:
-            group = entry.resource
-            if group.get("resourceType") != "Group":
-                continue
-            result.append(GroupResource.model_validate(group))
+    client = get_http_client("external_patient")
+    for entry in entries:
+        group = entry.resource
+        if group.get("resourceType") != "Group":
+            continue
+        result.append(GroupResource.model_validate(group))
 
-            # Fetch each member Patient from external FHIR server
-            for member in group.get("member", []):
-                patient_ref: str = member.get("entity", {}).get("reference", "")
-                if not patient_ref:
-                    continue
-                patient_url = resolve_http_reference(external_base, patient_ref)
-                if patient_url is None or not is_same_origin(patient_url, external_base):
-                    logger.warning(f"Skipping unsafe cross-origin Patient reference: {patient_ref}")
-                    continue
-                try:
-                    patient_resp = await client.get(patient_url, headers=_patient_headers())
-                    logger.info(f"FHIR GET {patient_url} → {patient_resp.status_code}")
-                    if patient_resp.is_success:
-                        patient = patient_resp.json()
-                        if patient.get("resourceType") == "Patient":
-                            result.append(PatientResource.model_validate(patient))
-                    else:
-                        logger.warning(f"Could not fetch {patient_ref}: {patient_resp.status_code}")
-                except httpx.RequestError as exc:
-                    logger.warning(f"Request error fetching {patient_ref}: {exc}")
+        # Fetch each member Patient from external FHIR server
+        for member in group.get("member", []):
+            patient_ref: str = member.get("entity", {}).get("reference", "")
+            if not patient_ref:
+                continue
+            patient_url = resolve_http_reference(external_base, patient_ref)
+            if patient_url is None or not is_same_origin(patient_url, external_base):
+                logger.warning(f"Skipping unsafe cross-origin Patient reference: {patient_ref}")
+                continue
+            try:
+                patient_resp = await client.get(patient_url, headers=_patient_headers())
+                logger.info(f"FHIR GET {patient_url} → {patient_resp.status_code}")
+                if patient_resp.is_success:
+                    patient = patient_resp.json()
+                    if patient.get("resourceType") == "Patient":
+                        result.append(PatientResource.model_validate(patient))
+                else:
+                    logger.warning(f"Could not fetch {patient_ref}: {patient_resp.status_code}")
+            except httpx.RequestError as exc:
+                logger.warning(f"Request error fetching {patient_ref}: {exc}")
 
     return result
 

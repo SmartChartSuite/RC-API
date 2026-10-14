@@ -12,6 +12,7 @@ from src.models.fhir import BundleResource, FHIRProxyResult, OperationOutcome, O
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_response, fhir_result_response, make_operation_outcome, operation_outcome_response
 from src.services.fhir_proxy import FHIRProxyResponse
 from src.util.auth import validate_token
+from src.util.http_clients import get_http_client
 from src.util.outbound_url import is_valid_fhir_id, path_segment
 from src.util.settings import require_setting, secret_value, settings
 
@@ -43,24 +44,24 @@ def _base_url(resource_id: str | None = None) -> str:
 
 async def _external_patient_get(resource_id: str | None = None, params: Sequence[tuple[str, str]] | None = None) -> FHIRProxyResponse:
     url = _base_url(resource_id)
-    async with httpx.AsyncClient(timeout=60) as client:
-        try:
-            resp = await client.get(url, headers=_headers(), params=cast(Any, list(params) if params is not None else None))
-            logger.info(f"FHIR GET Patient → {resp.status_code}")
-        except httpx.TimeoutException as exc:
-            logger.error(f"Patient GET failed: {type(exc).__name__}")
-            return FHIRProxyResponse(
-                data=cast(OperationOutcomeJSON, make_operation_outcome("transient", "External FHIR server request failed for GET Patient")),
-                status_code=504,
-                error_type="timeout",
-            )
-        except httpx.RequestError as exc:
-            logger.error(f"Patient GET failed: {type(exc).__name__}")
-            return FHIRProxyResponse(
-                data=cast(OperationOutcomeJSON, make_operation_outcome("transient", "External FHIR server request failed for GET Patient")),
-                status_code=502,
-                error_type="transport",
-            )
+    client = get_http_client("external_patient")
+    try:
+        resp = await client.get(url, headers=_headers(), params=cast(Any, list(params) if params is not None else None))
+        logger.info(f"FHIR GET Patient → {resp.status_code}")
+    except httpx.TimeoutException as exc:
+        logger.error(f"Patient GET failed: {type(exc).__name__}")
+        return FHIRProxyResponse(
+            data=cast(OperationOutcomeJSON, make_operation_outcome("transient", "External FHIR server request failed for GET Patient")),
+            status_code=504,
+            error_type="timeout",
+        )
+    except httpx.RequestError as exc:
+        logger.error(f"Patient GET failed: {type(exc).__name__}")
+        return FHIRProxyResponse(
+            data=cast(OperationOutcomeJSON, make_operation_outcome("transient", "External FHIR server request failed for GET Patient")),
+            status_code=502,
+            error_type="transport",
+        )
 
     try:
         data = resp.json()

@@ -20,11 +20,11 @@ from jose import JWTError, jwt
 from loguru import logger
 
 from src.services.errorhandler import make_operation_outcome
+from src.util.http_clients import get_http_client
 from src.util.settings import settings
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
-_JWKS_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 # Minimum seconds between forced refreshes triggered by an unknown key id, to stop
 # tokens with random `kid` values from hammering the identity provider.
 _JWKS_MIN_REFRESH_SECONDS = 60
@@ -48,9 +48,9 @@ def _reset_jwks_cache() -> None:
 async def _fetch_jwks() -> dict:
     if not settings.oauth2_jwks_url:
         raise JWKSUnavailableError("OAUTH2_JWKS_URL is not configured")
+    client = get_http_client("jwks")
     try:
-        async with httpx.AsyncClient(timeout=_JWKS_TIMEOUT, follow_redirects=False) as client:
-            resp = await client.get(settings.oauth2_jwks_url)
+        resp = await client.get(settings.oauth2_jwks_url)
         resp.raise_for_status()
         data = resp.json()
     except (httpx.HTTPError, ValueError) as exc:

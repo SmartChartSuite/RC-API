@@ -15,11 +15,9 @@ from dataclasses import dataclass, field
 import httpx
 from loguru import logger
 
+from src.util.http_clients import get_http_client
 from src.util.outbound_url import path_segment
 from src.util.settings import require_setting, secret_value, settings
-
-_TIMEOUT = 300
-_TRANSPORT = httpx.AsyncHTTPTransport(retries=5)
 
 
 @dataclass
@@ -171,14 +169,14 @@ async def run_cql_libraries(
         return []
     library_names = list(dict.fromkeys(library_names))
 
-    async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
+    client = get_http_client("cql")
 
-        async def _evaluate_and_report(library_name: str) -> CqlResult:
-            result = await _evaluate_library(client, library_name, patient_id)
-            if on_result:
-                await on_result(result)
-            return result
+    async def _evaluate_and_report(library_name: str) -> CqlResult:
+        result = await _evaluate_library(client, library_name, patient_id)
+        if on_result:
+            await on_result(result)
+        return result
 
-        results = await asyncio.gather(*[_evaluate_and_report(library_name) for library_name in library_names])
+    results = await asyncio.gather(*[_evaluate_and_report(library_name) for library_name in library_names])
     logger.info(f"CQL evaluation complete for {len(library_names)} library(ies)")
     return list(results)

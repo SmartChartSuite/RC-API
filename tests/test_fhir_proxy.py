@@ -10,9 +10,10 @@ class _FakeAsyncClient:
     queued_response: httpx.Response | None = None
     calls: ClassVar[list[dict]] = []
 
-    def __init__(self, timeout=None, transport=None):
+    def __init__(self, timeout=None, transport=None, **kwargs):
         self.timeout = timeout
         self.transport = transport
+        self.kwargs = kwargs
 
     async def __aenter__(self):
         return self

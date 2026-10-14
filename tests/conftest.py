@@ -7,6 +7,7 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
+from src.util.http_clients import clear_transport_factories, reset_http_clients
 
 _ROOT = Path(__file__).resolve().parents[1]
 _TEST_DATABASE = _ROOT / "rcapi_test.sqlite"
@@ -22,3 +23,12 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     _TEST_DATABASE.unlink(missing_ok=True)
     config = Config(_ROOT / "alembic.ini")
     command.upgrade(config, "head")
+
+
+@pytest.fixture(autouse=True)
+async def _reset_http_client_registry():
+    await reset_http_clients()
+    clear_transport_factories()
+    yield
+    await reset_http_clients()
+    clear_transport_factories()

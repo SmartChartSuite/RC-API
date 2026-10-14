@@ -19,6 +19,7 @@ from src.services.batch_worker import EmbeddedBatchWorker
 from src.services.errorhandler import make_operation_outcome
 from src.services.job_state import initialize_db
 from src.services.prompt_loader import initialize_prompt_source
+from src.util.http_clients import shutdown_http_clients, startup_http_clients
 from src.util.settings import settings
 
 LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{extra[source_name]}</cyan>:<cyan>{extra[source_function]}</cyan>:<cyan>{extra[source_line]}</cyan> - <level>{message}</level>"
@@ -71,17 +72,21 @@ configure_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    initialize_db()
-    await initialize_prompt_source()
-    worker = EmbeddedBatchWorker() if settings.batch_worker_enabled else None
-    app.state.batch_worker = worker
-    if worker is not None:
-        await worker.start()
+    clients = startup_http_clients()
+    app.state.http_clients = clients
+    worker = None
     try:
+        initialize_db()
+        await initialize_prompt_source()
+        worker = EmbeddedBatchWorker() if settings.batch_worker_enabled else None
+        app.state.batch_worker = worker
+        if worker is not None:
+            await worker.start()
         yield
     finally:
         if worker is not None:
             await worker.stop()
+        await shutdown_http_clients()
 
 
 # App

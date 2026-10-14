@@ -16,11 +16,10 @@ from datetime import UTC, datetime
 import httpx
 from loguru import logger
 
+from src.util.http_clients import get_http_client
 from src.util.outbound_url import is_allowed_attachment_url, is_same_origin, resolve_http_reference, resolves_to_internal_address
 from src.util.settings import require_setting, secret_value, settings
 
-_TIMEOUT = 60
-_TRANSPORT = httpx.AsyncHTTPTransport(retries=3)
 _PAGE_SIZE = 100
 
 
@@ -127,99 +126,99 @@ async def fetch_patient_documents(patient_id: str) -> DocumentFetchResult:
 
     documents: list[dict] = []
     semaphore = asyncio.Semaphore(settings.doc_fetch_max_concurrency)
-    async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
-        entries, count_exclusion = await _search_document_entries(client, base_url, patient_id)
-        if not entries:
-            logger.info(f"No DocumentReferences found for Patient/{patient_id}")
-            return DocumentFetchResult(documents=[], excluded=[count_exclusion] if count_exclusion else [])
+    client = get_http_client("attachments")
+    entries, count_exclusion = await _search_document_entries(client, base_url, patient_id)
+    if not entries:
+        logger.info(f"No DocumentReferences found for Patient/{patient_id}")
+        return DocumentFetchResult(documents=[], excluded=[count_exclusion] if count_exclusion else [])
 
-        async def _process_entry(entry: dict) -> tuple[dict | None, dict | None]:
-            doc_ref = entry.get("resource", {})
-            if doc_ref.get("resourceType") != "DocumentReference":
-                return None, None
-            doc_id = doc_ref.get("id", "unknown")
-            doc_date = doc_ref.get("date", datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
-            excluded_reason: str | None = None
+    async def _process_entry(entry: dict) -> tuple[dict | None, dict | None]:
+        doc_ref = entry.get("resource", {})
+        if doc_ref.get("resourceType") != "DocumentReference":
+            return None, None
+        doc_id = doc_ref.get("id", "unknown")
+        doc_date = doc_ref.get("date", datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        excluded_reason: str | None = None
 
-            def mark_excluded(reason: str) -> None:
-                nonlocal excluded_reason
-                if excluded_reason is None:
-                    excluded_reason = reason
+        def mark_excluded(reason: str) -> None:
+            nonlocal excluded_reason
+            if excluded_reason is None:
+                excluded_reason = reason
 
-            # Best-effort type display
-            try:
-                doc_type = doc_ref["type"]["coding"][0].get("display", "Unknown")
-            except (KeyError, IndexError):
-                doc_type = doc_ref.get("type", {}).get("text", "Unknown")
+        # Best-effort type display
+        try:
+            doc_type = doc_ref["type"]["coding"][0].get("display", "Unknown")
+        except (KeyError, IndexError):
+            doc_type = doc_ref.get("type", {}).get("text", "Unknown")
 
-            # Find text/plain content entries
-            for content_entry in doc_ref.get("content", []):
-                attachment = content_entry.get("attachment", {})
-                if attachment.get("contentType") != "text/plain":
+        # Find text/plain content entries
+        for content_entry in doc_ref.get("content", []):
+            attachment = content_entry.get("attachment", {})
+            if attachment.get("contentType") != "text/plain":
+                continue
+
+            plain_text: str | None = None
+
+            # Inline base64-encoded data
+            if "data" in attachment:
+                data = attachment["data"]
+                # base64 expands by 4/3; reject before decoding to bound memory.
+                if isinstance(data, str) and len(data) > (settings.doc_max_bytes * 4) // 3 + 4:
+                    mark_excluded("exceeds_max_bytes")
+                    logger.warning(f"Skipping inline attachment for DocRef {doc_id}: exceeds DOC_MAX_BYTES")
                     continue
+                try:
+                    plain_text = base64.b64decode(data).decode("utf-8")
+                except (binascii.Error, TypeError, UnicodeError, ValueError) as exc:
+                    mark_excluded("decode_error")
+                    logger.warning(f"Failed to decode base64 data for DocRef {doc_id}: {exc}")
 
-                plain_text: str | None = None
+            # External URL
+            elif "url" in attachment:
+                attachment_url = resolve_http_reference(base_url, attachment["url"])
+                if attachment_url is None:
+                    mark_excluded("unsafe_url")
+                    logger.warning(f"Skipping unsafe attachment URL for DocRef {doc_id}")
+                    continue
+                if not is_allowed_attachment_url(attachment_url, base_url, settings.attachment_allowed_hosts):
+                    mark_excluded("host_not_allowed")
+                    logger.warning(f"Skipping attachment for DocRef {doc_id}: host is not the FHIR server or in ATTACHMENT_ALLOWED_HOSTS")
+                    continue
+                if not is_same_origin(attachment_url, base_url) and await resolves_to_internal_address(attachment_url):
+                    mark_excluded("non_public_address")
+                    logger.warning(f"Skipping attachment for DocRef {doc_id}: allowlisted host resolves to a non-public address")
+                    continue
+                try:
+                    async with semaphore:
+                        plain_text = await _read_capped_text(client, attachment_url)
+                except _AttachmentTooLargeError:
+                    mark_excluded("exceeds_max_bytes")
+                    logger.warning(f"Skipping attachment for DocRef {doc_id}: exceeds DOC_MAX_BYTES")
+                    continue
+                except httpx.RequestError as exc:
+                    mark_excluded("fetch_error")
+                    logger.warning(f"Request error fetching attachment for DocRef {doc_id}: {type(exc).__name__}")
+                    continue
+                if plain_text is None:
+                    mark_excluded("fetch_error")
 
-                # Inline base64-encoded data
-                if "data" in attachment:
-                    data = attachment["data"]
-                    # base64 expands by 4/3; reject before decoding to bound memory.
-                    if isinstance(data, str) and len(data) > (settings.doc_max_bytes * 4) // 3 + 4:
-                        mark_excluded("exceeds_max_bytes")
-                        logger.warning(f"Skipping inline attachment for DocRef {doc_id}: exceeds DOC_MAX_BYTES")
-                        continue
-                    try:
-                        plain_text = base64.b64decode(data).decode("utf-8")
-                    except (binascii.Error, TypeError, UnicodeError, ValueError) as exc:
-                        mark_excluded("decode_error")
-                        logger.warning(f"Failed to decode base64 data for DocRef {doc_id}: {exc}")
+            if plain_text:
+                return (
+                    {
+                        "id": doc_id,
+                        "type": doc_type,
+                        "date": doc_date,
+                        "text": plain_text,
+                        "resource": doc_ref,
+                    },
+                    None,
+                )
+        exclusion = {"doc_id": doc_id, "reason": excluded_reason} if excluded_reason else None
+        return None, exclusion
 
-                # External URL
-                elif "url" in attachment:
-                    attachment_url = resolve_http_reference(base_url, attachment["url"])
-                    if attachment_url is None:
-                        mark_excluded("unsafe_url")
-                        logger.warning(f"Skipping unsafe attachment URL for DocRef {doc_id}")
-                        continue
-                    if not is_allowed_attachment_url(attachment_url, base_url, settings.attachment_allowed_hosts):
-                        mark_excluded("host_not_allowed")
-                        logger.warning(f"Skipping attachment for DocRef {doc_id}: host is not the FHIR server or in ATTACHMENT_ALLOWED_HOSTS")
-                        continue
-                    if not is_same_origin(attachment_url, base_url) and await resolves_to_internal_address(attachment_url):
-                        mark_excluded("non_public_address")
-                        logger.warning(f"Skipping attachment for DocRef {doc_id}: allowlisted host resolves to a non-public address")
-                        continue
-                    try:
-                        async with semaphore:
-                            plain_text = await _read_capped_text(client, attachment_url)
-                    except _AttachmentTooLargeError:
-                        mark_excluded("exceeds_max_bytes")
-                        logger.warning(f"Skipping attachment for DocRef {doc_id}: exceeds DOC_MAX_BYTES")
-                        continue
-                    except httpx.RequestError as exc:
-                        mark_excluded("fetch_error")
-                        logger.warning(f"Request error fetching attachment for DocRef {doc_id}: {type(exc).__name__}")
-                        continue
-                    if plain_text is None:
-                        mark_excluded("fetch_error")
-
-                if plain_text:
-                    return (
-                        {
-                            "id": doc_id,
-                            "type": doc_type,
-                            "date": doc_date,
-                            "text": plain_text,
-                            "resource": doc_ref,
-                        },
-                        None,
-                    )
-            exclusion = {"doc_id": doc_id, "reason": excluded_reason} if excluded_reason else None
-            return None, exclusion
-
-        results = await asyncio.gather(*[_process_entry(entry) for entry in entries])
-        documents = [doc for doc, _ in results if doc is not None]
-        excluded = [exclusion for _, exclusion in results if exclusion is not None]
+    results = await asyncio.gather(*[_process_entry(entry) for entry in entries])
+    documents = [doc for doc, _ in results if doc is not None]
+    excluded = [exclusion for _, exclusion in results if exclusion is not None]
 
     excluded_documents = ([count_exclusion] if count_exclusion else []) + excluded
     logger.info(f"Fetched {len(documents)} text/plain DocumentReference(s) for Patient/{patient_id}")

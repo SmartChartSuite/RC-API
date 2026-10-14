@@ -11,11 +11,9 @@ from loguru import logger
 
 from src.models.fhir import FHIRProxyResponse, FHIRProxyResult, OperationOutcomeJSON
 from src.services.errorhandler import make_operation_outcome
+from src.util.http_clients import get_http_client
 from src.util.outbound_url import is_valid_fhir_id, path_segment
 from src.util.settings import require_setting, settings
-
-_TIMEOUT = 60
-_TRANSPORT = httpx.AsyncHTTPTransport(retries=3)
 
 
 def _headers() -> dict:
@@ -55,9 +53,9 @@ async def _request(
     elif method in {"POST", "PUT"}:
         request_kwargs["json"] = body
 
+    client = get_http_client("fhir")
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT, transport=_TRANSPORT) as client:
-            resp = await client.request(method, url, **request_kwargs)
+        resp = await client.request(method, url, **request_kwargs)
     except httpx.TimeoutException:
         logger.error(f"FHIR {method} {resource_type} timed out")
         return FHIRProxyResponse(

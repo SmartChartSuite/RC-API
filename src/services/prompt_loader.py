@@ -10,12 +10,13 @@ import re
 from pathlib import Path
 from typing import Any
 
-import httpx
+import httpx  # noqa: F401  # retained as a compatibility seam for tests
 import litellm
 import yaml
 from loguru import logger
 
 from src.models.prompt import Prompt, PromptMetadata
+from src.util.http_clients import get_http_client
 from src.util.settings import secret_value, settings
 
 _langfuse_client: Any | None = None
@@ -185,8 +186,8 @@ async def initialize_prompt_source() -> None:
         return
 
     try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            response = await client.get(str(settings.langfuse_host))
+        client = get_http_client("langfuse_health")
+        response = await client.get(str(settings.langfuse_host))
         response.raise_for_status()
         _enable_langfuse_tracing()
         logger.info(f"Langfuse is configured and reachable at {settings.langfuse_host}")

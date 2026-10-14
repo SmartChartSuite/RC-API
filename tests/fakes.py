@@ -26,7 +26,8 @@ class FakeAsyncClient:
     queued_responses: ClassVar[list[list[FakeResponse]]] = []
     calls: ClassVar[list[dict[str, Any]]] = []
 
-    def __init__(self, timeout: Any = None, transport: Any = None):
+    def __init__(self, timeout: Any = None, transport: Any = None, **kwargs: Any):
+        del timeout, transport, kwargs
         self._responses = type(self).queued_responses.pop(0)
 
     async def __aenter__(self):
