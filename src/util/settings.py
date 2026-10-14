@@ -134,6 +134,7 @@ class Settings(BaseSettings):
     batch_job_checkpoint_every_tasks: int = 10
     batch_job_max_attempts: int = 3
     batch_job_retry_delay_seconds: int = 30
+    batch_job_recovery_chunk_size: int = 100
 
     # Langfuse (all three required together for prompt retrieval)
     langfuse_public_key: str | None = None

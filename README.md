@@ -197,6 +197,7 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `BATCH_JOB_CHECKPOINT_EVERY_TASKS` | `10` | Minimum task completions between partial Bundle checkpoint writes |
 | `BATCH_JOB_MAX_ATTEMPTS` | `3` | Maximum claimed execution attempts before terminal error |
 | `BATCH_JOB_RETRY_DELAY_SECONDS` | `30` | Seconds before a failed or expired attempt is runnable again |
+| `BATCH_JOB_RECOVERY_CHUNK_SIZE` | `100` | Maximum expired batches processed per recovery transaction |
 | `DEPLOY_URL` | `http://example.org/` | Base URL used in Observation identifiers as well as determining root_path |
 | `ROOT_PATH` | *(derived from `DEPLOY_URL` path, or empty)* | FastAPI `root_path` for deployments behind a URL prefix, e.g. `/rc-api` |
 | `PRIMARYIDENTIFIER_SYSTEM` | *(none)* | If set, enables `/config.primaryIdentifier.system` in the public config response |

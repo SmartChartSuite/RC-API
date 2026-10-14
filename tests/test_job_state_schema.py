@@ -36,6 +36,15 @@ def test_metadata_schema_uses_non_sqlite_schema():
     assert job_state._metadata_schema("sqlite+pysqlite:///rcapi_jobs.sqlite", "custom_schema") is None
 
 
+def test_postgresql_claim_statement_uses_skip_locked():
+    from sqlalchemy.dialects import postgresql
+
+    statement = job_state._runnable_batch_job_statement(datetime.now(UTC)).with_for_update(skip_locked=True)
+    compiled = str(statement.compile(dialect=postgresql.dialect()))
+
+    assert "FOR UPDATE SKIP LOCKED" in compiled
+
+
 def test_models_apply_configured_schema_for_named_schema_backends(monkeypatch):
     original_connection_string = settings.db_connection_string
     original_schema = settings.db_schema
@@ -246,6 +255,7 @@ def test_get_responses_for_batches_returns_deterministic_mapping(monkeypatch):
 
 
 def test_recover_expired_batch_job_leases_preserves_partial_and_terminal_results(monkeypatch):
+    monkeypatch.setattr(settings, "batch_job_recovery_chunk_size", 1)
     engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
     monkeypatch.setattr(job_state, "db_engine", engine)
     job_state.Base.metadata.create_all(engine)
