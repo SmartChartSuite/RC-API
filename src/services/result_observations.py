@@ -3,7 +3,7 @@
 This module owns deterministic result IDs, Observation construction, JSON component extraction,
 and restoration/summarization of persisted child results. It is pure representation logic and
 does not fetch documents, execute jobs, assemble the enclosing Bundle, or persist state; those
-responsibilities belong to ``fhir_context``, the executors, ``result_bundle``, and ``job_state``.
+responsibilities belong to ``fhir_context``, the executors, ``result_bundle``, and the ``job_state`` package.
 It retains the existing ``settings.deploy_url`` reads used by generated resources.
 """
 

@@ -1,10 +1,10 @@
 """Configure Alembic's offline and online migration environments for RC-API.
 
-This module supplies the application's database URL and `job_state.Base.metadata`,
+This module supplies the application's database URL and `job_state.models.Base.metadata`,
 creates the configured schema when running online migrations, and enables schema,
 type, and server-default comparisons. Migration definitions belong in
 `alembic/versions`; database models and runtime persistence belong in
-`src/services/job_state`, not here.
+`src/services/job_state` package, not here.
 """
 
 from logging.config import fileConfig
@@ -13,7 +13,7 @@ from sqlalchemy import engine_from_config, pool
 from sqlalchemy.schema import CreateSchema
 
 from alembic import context
-from src.services.job_state import Base
+from src.services.job_state.models import Base
 from src.util.settings import settings
 
 config = context.config

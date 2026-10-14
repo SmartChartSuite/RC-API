@@ -3,7 +3,7 @@
 This module defines the accepted-job `Parameters` envelope and its documented
 status and example metadata. It contains serialization and schema declarations
 only; batch-job use cases, state transitions, and result generation belong to
-`src.services.batch_job_service`, `src.services.job_state`, and
+`src.services.batch_job_service`, the `src.services.job_state` package, and
 `src.services.job_orchestrator`.
 """
 

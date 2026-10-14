@@ -2,7 +2,7 @@
 
 This router binds FHIR bodies and query/path parameters, selects auth, normalizes
 the linkage needed for response records, delegates persistence to
-`src.services.job_state` through `src.util.threading`, and maps results to FHIR
+the `src.services.job_state` package through `src.util.threading`, and maps results to FHIR
 resources or OperationOutcome responses. It never proxies Patient-linked responses
 to HAPI FHIR; batch execution and broader domain workflows belong to `src.services`.
 """
@@ -15,14 +15,8 @@ from fastapi.responses import JSONResponse
 
 from src.models.fhir import BundleResource, OperationOutcome, OperationOutcomeIssue, QuestionnaireResponseResource
 from src.services.errorhandler import operation_outcome_response, operation_outcome_responses
-from src.services.job_state import (
-    create_response,
-    delete_response_record,
-    get_batch_job,
-    get_response,
-    get_responses,
-    update_response_body,
-)
+from src.services.job_state.batch_records import get_batch_job
+from src.services.job_state.responses import create_response, delete_response_record, get_response, get_responses, update_response_body
 from src.util.auth import require_admin, validate_token
 from src.util.threading import run_db
 

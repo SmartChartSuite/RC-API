@@ -1,7 +1,7 @@
 """Tests QuestionnaireResponse search, CRUD mapping, batch linkage validation, and metadata preservation.
 
 The tests monkeypatch `src.routers.response` persistence seams and UUID generation; database behavior
-belongs in `src.services.job_state` tests."""
+belongs in the `src.services.job_state` package tests."""
 
 from datetime import UTC, datetime
 from types import SimpleNamespace

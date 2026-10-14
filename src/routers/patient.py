@@ -4,7 +4,7 @@ This router binds query and path parameters, selects `validate_token`, performs
 external Patient reads through shared HTTP/retry and URL-safety utilities, and maps
 upstream results to FHIR responses. It does not own patient enrichment, document
 filtering, persistence, or domain use cases; those responsibilities belong to
-`src.services` and `src.services.job_state` as applicable.
+`src.services` and the `src.services.job_state` package as applicable.
 """
 
 from collections.abc import Sequence

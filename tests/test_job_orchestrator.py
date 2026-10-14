@@ -13,7 +13,7 @@ from src.models.prompt import Prompt, PromptMetadata
 from src.services import job_orchestrator, job_package, result_bundle, result_observations
 from src.services.cql_executor import CqlResult
 from src.services.fhir_context import DocumentFetchResult
-from src.services.job_state import LogicalJob
+from src.services.job_state.models import LogicalJob
 from src.services.llm_executor import LlmDocumentResult, LlmResult
 from src.util.settings import settings
 

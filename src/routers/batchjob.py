@@ -4,7 +4,7 @@ This router binds `/batchjob` parameters, selects `validate_token` or
 `require_admin`, delegates use cases to `src.services.batch_job_service`, and maps
 service outcomes to FHIR `Parameters`, Bundles, or OperationOutcome responses.
 Questionnaire resolution, filtering, persistence, worker execution, and domain logic
-belong to the service layer (`batch_job_service`, `batch_job_filters`, `job_state`,
+belong to the service layer (`batch_job_service`, `batch_job_filters`, the `job_state` package,
 and `batch_worker`), not this router.
 """
 

@@ -16,7 +16,8 @@ from sqlalchemy import create_engine
 
 import main as main_module
 from main import app
-from src.services import job_state, llm_executor
+from src.services import llm_executor
+from src.services.job_state import database, models
 from src.util.settings import settings
 
 FIXTURES = Path(__file__).parent / "fixtures" / "batchjob_integration"
@@ -85,10 +86,10 @@ def _llm_side_effect(request: httpx.Request) -> httpx.Response:
 
 @pytest.fixture(autouse=True)
 def _isolated_db(monkeypatch, tmp_path):
-    """Point job_state at a throwaway SQLite file for this test only."""
+    """Point the job_state package database owner at a throwaway SQLite file for this test only."""
     engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'batchjob_integration.sqlite'}")
-    job_state.Base.metadata.create_all(engine)
-    monkeypatch.setattr(job_state, "db_engine", engine)
+    models.Base.metadata.create_all(engine)
+    monkeypatch.setattr(database, "db_engine", engine)
     yield
     engine.dispose()
 

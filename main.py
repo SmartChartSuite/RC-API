@@ -27,7 +27,7 @@ from src.routers.patient import router as patient_router
 from src.routers.response import router as response_router
 from src.services.batch_worker import EmbeddedBatchWorker
 from src.services.errorhandler import make_operation_outcome
-from src.services.job_state import initialize_db
+from src.services.job_state.database import initialize_db
 from src.services.prompt_loader import initialize_prompt_source
 from src.util.http_clients import shutdown_http_clients, startup_http_clients
 from src.util.settings import settings

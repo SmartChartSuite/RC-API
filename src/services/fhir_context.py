@@ -5,7 +5,7 @@ attachments, bounds attachment size/count/concurrency, and records safe metadata
 documents. It returns ``DocumentFetchResult`` or raises ``DocumentFetchError`` when the search
 fails, so the orchestrator can distinguish "no documents" (skip LLM execution) from a retryable
 outage. It does not execute prompts, build result Bundles, or persist documents. Those responsibilities
-belong in ``llm_executor``, ``job_orchestrator``, and ``job_state``.
+belong in ``llm_executor``, ``job_orchestrator``, and the ``job_state`` package.
 """
 
 import asyncio

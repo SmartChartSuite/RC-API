@@ -6,7 +6,7 @@ loop without a real database."""
 import asyncio
 
 from src.services import batch_worker
-from src.services.job_state import ClaimedBatchJob
+from src.services.job_state.models import ClaimedBatchJob
 from src.util.settings import settings
 
 

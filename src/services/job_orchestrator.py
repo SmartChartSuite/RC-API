@@ -4,7 +4,7 @@ This module owns the execution pipeline for a claimed batch attempt: lease maint
 CQL/LLM execution, Langfuse parent-span setup, child callbacks, partial checkpoints, retry handoff,
 and finalization. Questionnaire parsing belongs to ``job_package`` and FHIR Observation/Bundle
 assembly belongs to ``result_bundle``; external fetching and execution remain in their service
-modules, while all durable persistence belongs to ``job_state``.
+modules, while all durable persistence belongs to the ``job_state`` package.
 
 The pipeline fetches and filters the Questionnaire, prepares child tasks and document context, runs
 remaining CQL and LLM work concurrently, records missing-result failures, and either requeues or
@@ -27,16 +27,9 @@ from src.services.external_fhir import fetch_patient as _fetch_patient_resource
 from src.services.fhir_context import fetch_patient_documents
 from src.services.fhir_proxy import fhir_get
 from src.services.job_package import extract_job_lists, filter_requested_jobs
-from src.services.job_state import (
-    ensure_job,
-    get_batch_job_documents,
-    renew_batch_job_lease,
-    requeue_batch_job_for_child_retry,
-    update_batch_job_result,
-    update_batch_job_status,
-    update_job_result,
-    upsert_batch_job_documents,
-)
+from src.services.job_state.batch_queue import renew_batch_job_lease, requeue_batch_job_for_child_retry
+from src.services.job_state.batch_records import get_batch_job_documents, update_batch_job_result, update_batch_job_status, upsert_batch_job_documents
+from src.services.job_state.child_jobs import ensure_job, update_job_result
 from src.services.llm_executor import LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
 from src.services.result_bundle import (

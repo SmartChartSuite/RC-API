@@ -3,7 +3,7 @@
 This module validates and prepares submissions, resolves and prefills Questionnaires, and enriches
 listings and statuses with Patient data. It applies batch-job filters and assembles Parameters and
 Bundle responses for submission, listing, status, and result retrieval; it also coordinates deletion.
-It is called by the batchjob router; it persists through ``job_state`` and uses
+It is called by the batchjob router; it persists through the ``job_state`` package and uses
 ``fhir_proxy``/``external_fhir`` for upstream FHIR access. HTTP binding, auth, OpenAPI metadata, and
 response mapping do not belong here; those stay in ``src/routers``. Worker execution belongs in
 ``job_orchestrator`` and ``batch_worker``.
@@ -31,18 +31,17 @@ from src.services.batch_job_filters import (
 )
 from src.services.external_fhir import fetch_patient as _fetch_patient
 from src.services.fhir_proxy import fhir_get
-from src.services.job_state import (
-    BatchJobs,
-    QuestionnaireResponses,
+from src.services.job_state.batch_records import (
     create_batch_job_with_response,
     delete_batch_job_record,
     get_batch_job,
     get_batch_job_document_texts,
     get_batch_job_summary,
-    get_jobs_for_batch,
-    get_responses_for_batches,
     query_batch_jobs,
 )
+from src.services.job_state.child_jobs import get_jobs_for_batch
+from src.services.job_state.models import BatchJobs, QuestionnaireResponses
+from src.services.job_state.responses import get_responses_for_batches
 from src.util.documents import add_document_text_content
 from src.util.fhir_bundle import get_bundle_resources
 from src.util.outbound_url import is_valid_fhir_id
@@ -508,5 +507,5 @@ async def get_batch_job_status(batch_id: str, include_patient: bool) -> Paramete
 
 
 async def delete_batch_job(batch_id: str) -> JSONResponse:
-    """Let job_state build and return the deletion response unchanged."""
+    """Let the job_state package build and return the deletion response unchanged."""
     return await run_db(delete_batch_job_record, batch_id)

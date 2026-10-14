@@ -4,7 +4,7 @@ This module owns Questionnaire extension constants, job-list extraction, request
 and recursive item traversal for the batch execution pipeline. It is pure representation and
 selection logic; it does not execute CQL or LLM work, build result resources, or persist state.
 Those responsibilities belong to ``job_orchestrator``, ``result_bundle``, the executors, and
-``job_state``.
+the ``job_state`` package.
 """
 
 from collections.abc import Iterator

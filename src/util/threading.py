@@ -2,7 +2,7 @@
 
 This module provides the small `asyncio.to_thread` adapter used for synchronous
 database operations. It does not own database access or application concurrency
-policy; persistence belongs to `src.services.job_state`, and callers decide which
+policy; persistence belongs to the `src.services.job_state` package, and callers decide which
 work to offload.
 """
 

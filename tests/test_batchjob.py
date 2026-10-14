@@ -1,7 +1,7 @@
 """Test batch-job HTTP use cases, filtering, and result hydration behavior.
 
 The tests patch `batch_job_service` persistence and patient-lookup seams, and call the pure
-`job_package` and `result_bundle` helpers directly; durable persistence is covered in
+`job_package` and `result_bundle` helpers directly; durable persistence is covered by the job_state package tests in
 `test_job_state_schema.py`."""
 
 from copy import deepcopy
@@ -18,7 +18,7 @@ from src.models.job_request import JobRequest, JobRequestParameter
 from src.models.job_response import BatchJobAcceptedResponse
 from src.routers import batchjob
 from src.services import batch_job_service, job_package, result_bundle
-from src.services.job_state import BatchJobs
+from src.services.job_state.models import BatchJobs
 from src.util.settings import settings
 from tests.fakes import patient_resource
 

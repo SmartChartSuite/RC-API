@@ -4,7 +4,7 @@ This module bounds concurrent provider calls, isolates per-document failures, re
 aggregates, and emits optional per-prompt completion callbacks with Langfuse metadata. The
 orchestrator invokes it only when documents and LLM configuration are available; prompt sourcing
 belongs in ``prompt_loader`` and DocumentReference fetching in ``fhir_context``. It does not build
-FHIR Observations/Bundles or persist results; ``job_orchestrator`` handles assembly and ``job_state``
+FHIR Observations/Bundles or persist results; ``job_orchestrator`` handles assembly and the ``job_state`` package
 handles persistence.
 """
 

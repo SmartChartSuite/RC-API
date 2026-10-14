@@ -1,7 +1,7 @@
 """Tests that `run_db` executes synchronous database work off the event-loop thread.
 
-The module uses a blocking callable and compares thread identities; database persistence belongs in
-`test_job_state_schema.py`."""
+The module uses a blocking callable and compares thread identities; database persistence belongs in the
+job_state package tests in `test_job_state_schema.py`."""
 
 import threading
 

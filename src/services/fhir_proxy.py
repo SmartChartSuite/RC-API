@@ -5,7 +5,7 @@ lookups), this module validates FHIR IDs, sends retried GET/POST/PUT/DELETE requ
 ``HAPI_FHIR_CQL_EXECUTION_URL``, and normalizes transport, timeout, and upstream failures into
 ``FHIRProxyResponse``/OperationOutcome data. CRUD requests carry no patient data. It has no domain
 logic or persistence: parameter binding, auth and OpenAPI metadata belong in ``src/routers``, use
-cases in the calling services, and database access in ``job_state``.
+cases in the calling services, and database access in the ``job_state`` package.
 """
 
 from typing import Any, cast

@@ -3,7 +3,7 @@
 This module owns status Observations, deterministic task/document ordering, DocumentReference
 entry sanitization, and partial/final Bundle assembly. It performs no fetching, execution, or
 persistence; those responsibilities belong to ``job_orchestrator``, ``fhir_context``, the
-executors, and ``job_state``. Document text encoding remains delegated to ``src.util.documents``.
+executors, and the ``job_state`` package. Document text encoding remains delegated to ``src.util.documents``.
 """
 
 from loguru import logger

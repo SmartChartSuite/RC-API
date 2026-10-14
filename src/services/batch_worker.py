@@ -1,9 +1,9 @@
 """Embedded durable worker loop for database-backed batch jobs.
 
-This module polls ``job_state`` to recover expired leases and claim, execute, heartbeat, release, or
+This module polls the ``job_state`` package to recover expired leases and claim, execute, heartbeat, release, or
 fail one worker-owned batch attempt, delegating pipeline work to ``job_orchestrator``. It contains
 worker lifecycle and retry handoff only. HTTP handling and batch submission/results stay in
-``src/routers`` and ``batch_job_service``; database access remains in ``job_state``.
+``src/routers`` and ``batch_job_service``; database access remains in the ``job_state`` package.
 """
 
 import asyncio
@@ -15,13 +15,8 @@ from contextlib import suppress
 from loguru import logger
 
 from src.services.job_orchestrator import LeaseLostError, run_batch_job
-from src.services.job_state import (
-    ClaimedBatchJob,
-    claim_next_batch_job,
-    fail_batch_job_attempt,
-    recover_expired_batch_job_leases,
-    release_batch_job_attempt,
-)
+from src.services.job_state.batch_queue import claim_next_batch_job, fail_batch_job_attempt, recover_expired_batch_job_leases, release_batch_job_attempt
+from src.services.job_state.models import ClaimedBatchJob
 from src.util.settings import settings
 
 
