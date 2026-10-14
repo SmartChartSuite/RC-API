@@ -21,12 +21,14 @@ from src.services.job_state import (
     create_batch_job_with_response,
     delete_batch_job_record,
     get_batch_job,
+    get_batch_job_document_texts,
     get_batch_job_summary,
     get_jobs_for_batch,
     get_responses_for_batches,
     query_batch_jobs,
 )
 from src.util.auth import require_admin, validate_token
+from src.util.documents import add_document_text_content
 from src.util.fhir_bundle import get_bundle_resources
 from src.util.outbound_url import is_valid_fhir_id
 from src.util.settings import settings
@@ -485,6 +487,21 @@ def _with_batch_progress(result_bundle: dict, child_jobs: list[Any], batch_statu
     return bundle
 
 
+def _hydrate_document_entries(bundle: dict, document_texts: dict[str, str]) -> dict:
+    """Add persisted text to DocumentReferences that do not already contain content."""
+    for entry in bundle.get("entry", []):
+        resource = entry.get("resource", {})
+        if not isinstance(resource, dict) or resource.get("resourceType") != "DocumentReference" or "content" in resource:
+            continue
+        doc_id = resource.get("id")
+        if not isinstance(doc_id, str):
+            continue
+        text = document_texts.get(doc_id)
+        if text:
+            add_document_text_content(resource, text)
+    return bundle
+
+
 @router.get("/batchjob/{batch_id}", summary="Get Batch Job Results", response_model=BundleResource, responses=operation_outcome_responses(202, 404, 500))
 async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_token)) -> BundleJSON | JSONResponse:
     """Get the latest stored FHIR result Bundle for a batch job.
@@ -503,7 +520,9 @@ async def get_batch_job_results(batch_id: str, claims: dict = Security(validate_
         )
     if job.result_bundle and job.result_bundle.get("resourceType") == "Bundle":
         child_jobs = await run_db(get_jobs_for_batch, batch_id)
-        return BundleJSON(**_with_batch_progress(job.result_bundle, child_jobs, job.status))
+        bundle = _with_batch_progress(job.result_bundle, child_jobs, job.status)
+        document_texts = await run_db(get_batch_job_document_texts, batch_id)
+        return BundleJSON(**_hydrate_document_entries(bundle, document_texts))
     if job.status in ("pending", "running"):
         return operation_outcome_response(
             202,

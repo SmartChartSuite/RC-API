@@ -4,6 +4,7 @@ Tables:
     batch_jobs_v1       — one row per batch submission
     jobs_v1             — one row per task executed under a batch job
     questionnaire_responses — patient-linked response data
+    batch_job_documents  — fetched, filtered documents retained across attempts
 
 Uses SQLAlchemy Core + ORM with the same engine/session pattern as v0.
 """
@@ -92,6 +93,21 @@ class BatchJobs(Base):
     next_attempt_at: Mapped[datetime | None]
     max_attempts: Mapped[int] = mapped_column(default=settings.batch_job_max_attempts)
     last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class BatchJobDocuments(Base):
+    __tablename__ = "batch_job_documents"
+
+    batch_id: Mapped[str] = mapped_column(
+        ForeignKey("batch_jobs_v1.batch_id", name="fk_batch_job_documents_batch_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    doc_id: Mapped[str] = mapped_column(primary_key=True)
+    doc_type: Mapped[str]
+    doc_date: Mapped[str]
+    text: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(default=_utc_now)
+    updated_at: Mapped[datetime] = mapped_column(default=_utc_now, onupdate=_utc_now)
 
 
 @dataclass(frozen=True)
@@ -657,6 +673,76 @@ def update_batch_job_result(
     return updated
 
 
+def upsert_batch_job_documents(
+    batch_id: str,
+    documents: list[dict],
+    *,
+    worker_id: str | None = None,
+    attempt_count: int | None = None,
+) -> bool:
+    """Merge fetched documents into a batch store while optionally fencing the worker attempt."""
+    if (worker_id is None) != (attempt_count is None):
+        raise ValueError("worker_id and attempt_count must be provided together")
+
+    normalized: dict[str, tuple[str, str, str | None]] = {}
+    for document in documents:
+        doc_id = document.get("id")
+        if not isinstance(doc_id, str) or not doc_id:
+            continue
+        doc_type = document.get("type", "Unknown")
+        if not isinstance(doc_type, str) or not doc_type:
+            doc_type = "Unknown"
+        doc_date = document.get("date", "")
+        if not isinstance(doc_date, str):
+            doc_date = str(doc_date) if doc_date is not None else ""
+        text = document.get("text")
+        if text is not None and not isinstance(text, str):
+            text = str(text)
+        normalized[doc_id] = (doc_type, doc_date, text)
+
+    now = datetime.now(UTC)
+    with Session(db_engine) as session:
+        if worker_id is not None and attempt_count is not None and _lock_owned_batch(session, batch_id, worker_id, attempt_count, now) is None:
+            return False
+        for doc_id, (doc_type, doc_date, text) in normalized.items():
+            existing = session.get(BatchJobDocuments, (batch_id, doc_id))
+            if existing is None:
+                session.add(
+                    BatchJobDocuments(
+                        batch_id=batch_id,
+                        doc_id=doc_id,
+                        doc_type=doc_type,
+                        doc_date=doc_date,
+                        text=text,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                )
+            else:
+                existing.doc_type = doc_type
+                existing.doc_date = doc_date
+                existing.text = text
+                existing.updated_at = now
+        session.commit()
+    return True
+
+
+def get_batch_job_documents(batch_id: str) -> list[dict]:
+    """Return the complete stored document set in deterministic date/id order."""
+    statement = select(BatchJobDocuments).where(BatchJobDocuments.batch_id == batch_id).order_by(BatchJobDocuments.doc_date, BatchJobDocuments.doc_id)
+    with Session(db_engine) as session:
+        rows = session.execute(statement).scalars().all()
+    return [{"id": row.doc_id, "type": row.doc_type, "date": row.doc_date, "text": row.text} for row in rows]
+
+
+def get_batch_job_document_texts(batch_id: str) -> dict[str, str]:
+    """Return stored non-null document text with one batch-scoped query."""
+    statement = select(BatchJobDocuments.doc_id, BatchJobDocuments.text).where(BatchJobDocuments.batch_id == batch_id, BatchJobDocuments.text.is_not(None))
+    with Session(db_engine) as session:
+        rows = session.execute(statement).all()
+    return {doc_id: text for doc_id, text in rows if isinstance(text, str)}
+
+
 def delete_batch_job_record(batch_id: str) -> JSONResponse:
     existing = get_batch_job(batch_id)
     if not existing:
@@ -664,9 +750,10 @@ def delete_batch_job_record(batch_id: str) -> JSONResponse:
     with Session(db_engine) as session:
         session.execute(delete(Jobs).where(Jobs.batch_id == batch_id))
         session.execute(delete(QuestionnaireResponses).where(QuestionnaireResponses.batch_job_id == batch_id))
+        session.execute(delete(BatchJobDocuments).where(BatchJobDocuments.batch_id == batch_id))
         session.execute(delete(BatchJobs).where(BatchJobs.batch_id == batch_id))
         session.commit()
-    logger.info(f"Deleted batch job {batch_id}, its child jobs, and linked questionnaire responses.")
+    logger.info(f"Deleted batch job {batch_id}, its child jobs, documents, and linked questionnaire responses.")
     return JSONResponse(make_operation_outcome("deleted", f"Batch Job {batch_id} deleted successfully.", "information"))
 
 

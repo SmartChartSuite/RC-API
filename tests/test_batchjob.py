@@ -1,5 +1,7 @@
+from copy import deepcopy
 from datetime import UTC, datetime
 
+import pytest
 from fastapi import Response
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
@@ -631,6 +633,94 @@ async def test_list_batch_jobs_rejects_invalid_date_filters(monkeypatch):
 
     assert isinstance(result, JSONResponse)
     assert result.status_code == 400
+
+
+def test_hydration_matches_pre_change_bundle_shape():
+    documents = [{"id": "doc-1", "type": "Note", "date": "2026-05-22", "text": "plain text"}]
+    full_entries = job_orchestrator._build_document_entries(documents, "patient-123", "batch-123")
+    stored_bundle = job_orchestrator._build_result_bundle(None, [], full_entries, "preliminary", batch_id="batch-123")
+    pre_change_bundle = deepcopy(stored_bundle)
+    pre_change_bundle["entry"] = [stored_bundle["entry"][0], *full_entries]
+
+    hydrated = batchjob._hydrate_document_entries(deepcopy(stored_bundle), {"doc-1": "plain text"})
+
+    assert hydrated == pre_change_bundle
+
+
+@pytest.mark.parametrize("batch_status", ["running", "complete"])
+async def test_get_batch_job_results_hydrates_one_document_query_for_running_and_complete(monkeypatch, batch_status):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    stored_bundle = {
+        "resourceType": "Bundle",
+        "id": "bundle-123",
+        "type": "collection",
+        "total": 2,
+        "entry": [
+            {
+                "fullUrl": "Observation/status-observation",
+                "resource": {"resourceType": "Observation", "id": "status-observation", "code": {"coding": [{"code": "result-status"}]}},
+            },
+            {
+                "fullUrl": "DocumentReference/doc-1",
+                "resource": {
+                    "resourceType": "DocumentReference",
+                    "id": "doc-1",
+                    "status": "current",
+                    "type": {"text": "Note"},
+                    "subject": {"reference": "Patient/patient-123"},
+                    "date": "2026-05-22",
+                },
+            },
+        ],
+    }
+    document_queries: list[str] = []
+    monkeypatch.setattr(
+        batchjob,
+        "get_batch_job",
+        lambda batch_id: BatchJobs(
+            batch_id=batch_id,
+            patient_id="patient-123",
+            job_package="Registry",
+            started_by="user-123",
+            status=batch_status,
+            result_bundle=stored_bundle,
+            created_at=created_at,
+            completed_at=created_at if batch_status == "complete" else None,
+        ),
+    )
+    monkeypatch.setattr(batchjob, "get_jobs_for_batch", lambda batch_id: [])
+    monkeypatch.setattr(batchjob, "get_batch_job_document_texts", lambda batch_id: document_queries.append(batch_id) or {"doc-1": "plain text"})
+
+    result = await batchjob.get_batch_job_results("batch-123", claims={})
+
+    assert isinstance(result, dict)
+    result_entries = result.get("entry")
+    assert result_entries is not None
+    assert result_entries[1]["resource"]["content"] == [{"attachment": {"contentType": "text/plain", "data": "cGxhaW4gdGV4dA=="}}]
+    assert document_queries == ["batch-123"]
+    assert "content" not in stored_bundle["entry"][1]["resource"]
+
+
+def test_hydration_preserves_legacy_inline_content_and_missing_rows():
+    bundle = {
+        "resourceType": "Bundle",
+        "entry": [
+            {
+                "fullUrl": "DocumentReference/legacy",
+                "resource": {
+                    "resourceType": "DocumentReference",
+                    "id": "legacy",
+                    "content": [{"attachment": {"contentType": "text/plain", "data": "b2xk"}}],
+                },
+            },
+            {"fullUrl": "DocumentReference/missing", "resource": {"resourceType": "DocumentReference", "id": "missing"}},
+        ],
+    }
+    original = deepcopy(bundle)
+
+    hydrated = batchjob._hydrate_document_entries(bundle, {"legacy": "new text"})
+
+    assert hydrated == original
 
 
 async def test_get_batch_job_results_returns_partial_bundle_while_running(monkeypatch):

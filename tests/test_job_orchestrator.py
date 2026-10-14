@@ -12,6 +12,12 @@ from src.services.llm_executor import LlmDocumentResult, LlmResult
 from src.util.settings import settings
 
 
+@pytest.fixture(autouse=True)
+def _stub_document_state(monkeypatch):
+    monkeypatch.setattr(job_orchestrator, "upsert_batch_job_documents", lambda *args, **kwargs: True)
+    monkeypatch.setattr(job_orchestrator, "get_batch_job_documents", lambda *args, **kwargs: [])
+
+
 def test_extract_job_lists_reads_both_extension_types():
     questionnaire = {
         "extension": [
@@ -477,6 +483,26 @@ def test_build_result_bundle_includes_status_and_patient():
     assert bundle["id"] == job_orchestrator._stable_id("batch-1", "bundle")
     assert bundle["total"] == 4
     assert bundle["entry"][0]["resource"]["id"] == "status-observation"
+
+
+def test_document_bundle_storage_strips_content_and_retry_order_is_deterministic():
+    fetched = [
+        {"id": "doc-b", "type": "Note", "date": "2026-05-24", "text": "B"},
+        {"id": "doc-c", "type": "Note", "date": "2026-05-23", "text": "C"},
+    ]
+    stored_only = [
+        {"id": "doc-z", "type": "Note", "date": "2026-05-20", "text": "Z"},
+        {"id": "doc-a", "type": "Note", "date": "2026-05-22", "text": "A"},
+        {"id": "doc-b", "type": "Old Note", "date": "2026-05-01", "text": "old B"},
+    ]
+
+    document_entries = job_orchestrator._build_document_entries(fetched, "patient-1", "batch-1")
+    stored_bundle = job_orchestrator._build_result_bundle(None, [], document_entries, "preliminary", batch_id="batch-1")
+    ordered = job_orchestrator._ordered_document_set(fetched, stored_only)
+
+    assert [document["id"] for document in ordered] == ["doc-b", "doc-c", "doc-z", "doc-a"]
+    assert document_entries[0]["resource"]["content"][0]["attachment"] == {"contentType": "text/plain", "data": "Qg=="}
+    assert all("content" not in entry["resource"] for entry in stored_bundle["entry"])
 
 
 async def test_run_batch_job_persists_completed_task_results_while_running(monkeypatch):

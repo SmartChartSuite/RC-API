@@ -10,7 +10,6 @@ Orchestrates the full CQL + LLM pipeline for a batch job submission:
 """
 
 import asyncio
-import base64
 import json
 import re
 import time
@@ -31,14 +30,17 @@ from src.services.fhir_context import fetch_patient_documents
 from src.services.fhir_proxy import fhir_get
 from src.services.job_state import (
     ensure_job,
+    get_batch_job_documents,
     renew_batch_job_lease,
     requeue_batch_job_for_child_retry,
     update_batch_job_result,
     update_batch_job_status,
     update_job_result,
+    upsert_batch_job_documents,
 )
 from src.services.llm_executor import LlmDocumentResult, LlmResult, run_all_prompts
 from src.services.prompt_loader import load_prompts
+from src.util.documents import add_document_text_content
 from src.util.settings import settings
 from src.util.threading import run_db
 
@@ -713,8 +715,7 @@ def _build_document_entries(documents: list[dict], patient_id: str, batch_id: st
             }
             if doc.get("text"):
                 try:
-                    encoded = base64.b64encode(doc["text"].encode("utf-8")).decode("ascii")
-                    supporting_doc["content"] = [{"attachment": {"contentType": "text/plain", "data": encoded}}]
+                    add_document_text_content(supporting_doc, doc["text"])
                 except (UnicodeEncodeError, TypeError) as exc:
                     logger.warning(f"[batch={batch_id}] Failed to base64-encode text for DocumentReference/{doc_id}: {exc}")
 
@@ -723,6 +724,30 @@ def _build_document_entries(documents: list[dict], patient_id: str, batch_id: st
             logger.warning(f"[batch={batch_id}] Skipping malformed document entry (id={doc.get('id', 'unknown')}): {exc}")
 
     return entries
+
+
+def _without_document_content(entry: dict) -> dict:
+    """Return a stored Bundle entry with DocumentReference content removed."""
+    resource = entry.get("resource")
+    if not isinstance(resource, dict) or resource.get("resourceType") != "DocumentReference" or "content" not in resource:
+        return entry
+    return {**entry, "resource": {key: value for key, value in resource.items() if key != "content"}}
+
+
+def _ordered_document_set(fetched_documents: list[dict], stored_documents: list[dict]) -> list[dict]:
+    """Order current fetched documents first, then stored-only documents by date and ID."""
+    ordered: list[dict] = []
+    seen_ids: set[str] = set()
+    for document in fetched_documents:
+        doc_id = document.get("id")
+        if isinstance(doc_id, str) and doc_id and doc_id not in seen_ids:
+            ordered.append(document)
+            seen_ids.add(doc_id)
+
+    stored_only = [document for document in stored_documents if isinstance(document.get("id"), str) and document["id"] not in seen_ids]
+    stored_only.sort(key=lambda document: (str(document.get("date") or ""), str(document.get("id") or "")))
+    ordered.extend(stored_only)
+    return ordered
 
 
 def _build_result_bundle(
@@ -741,8 +766,8 @@ def _build_result_bundle(
         pid = patient_resource.get("id", "unknown")
         all_entries.append({"fullUrl": f"Patient/{pid}", "resource": patient_resource})
 
-    all_entries.extend(cql_entries)
-    all_entries.extend(llm_entries)
+    all_entries.extend(_without_document_content(entry) for entry in cql_entries)
+    all_entries.extend(_without_document_content(entry) for entry in llm_entries)
 
     return {
         "resourceType": "Bundle",
@@ -917,6 +942,14 @@ async def run_batch_job(
             prompts, document_fetch_result = await _gather_supervised(load_prompts(prompt_paths_to_run), fetch_patient_documents(patient_id))
             documents = document_fetch_result.documents
             excluded_documents = document_fetch_result.excluded
+            stored = await _run_state_call(
+                upsert_batch_job_documents,
+                batch_id,
+                documents,
+                worker_id=worker_id,
+                attempt_count=attempt_count,
+            )
+            _require_owned(stored)
             if not documents:
                 logger.info(f"[batch={batch_id}] No DocumentReferences found — skipping LLM execution")
                 for path in prompt_paths_to_run:
@@ -950,12 +983,15 @@ async def run_batch_job(
                         )
                     )
 
+        stored_documents = await _run_state_call(get_batch_job_documents, batch_id)
+        bundle_documents = _ordered_document_set(documents, stored_documents)
+
         # 4. Rebuild terminal task output, then checkpoint the retry-safe partial Bundle.
         prior_bundle_id = prior_bundle.get("id") if isinstance(prior_bundle, dict) else None
         bundle_id = prior_bundle_id if isinstance(prior_bundle_id, str) and prior_bundle_id else _stable_id(batch_id, "bundle")
         cql_entries_by_name: dict[str, list[dict]] = {name: _build_cql_observations([result], questionnaire, form_name, patient_id, batch_id) for name, result in restored_cql_results.items()}
         llm_entries_by_path: dict[str, list[dict]] = {path: _build_llm_observations([result], questionnaire, form_name, patient_id, batch_id) for path, result in restored_llm_results.items()}
-        document_entries = _build_document_entries(documents, patient_id, batch_id)
+        document_entries = _build_document_entries(bundle_documents, patient_id, batch_id)
 
         def _current_result_entries() -> tuple[list[dict], list[dict]]:
             return (

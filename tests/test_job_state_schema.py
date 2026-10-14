@@ -58,6 +58,7 @@ def test_models_apply_configured_schema_for_named_schema_backends(monkeypatch):
 
     monkeypatch.setattr(settings, "db_connection_string", "postgresql+psycopg://user:pass@host/db")
     monkeypatch.setattr(settings, "db_schema", "custom_schema")
+    real_create_engine = sqlalchemy.create_engine
     monkeypatch.setattr(sqlalchemy, "create_engine", lambda *args, **kwargs: _FakeEngine())
 
     reloaded = importlib.reload(job_state)
@@ -74,6 +75,7 @@ def test_models_apply_configured_schema_for_named_schema_backends(monkeypatch):
 
     monkeypatch.setattr(settings, "db_connection_string", original_connection_string)
     monkeypatch.setattr(settings, "db_schema", original_schema)
+    monkeypatch.setattr(sqlalchemy, "create_engine", real_create_engine)
     importlib.reload(reloaded)
 
 
@@ -342,6 +344,58 @@ def test_batch_claim_is_exclusive_and_writes_are_fenced(monkeypatch):
     assert batch.attempt_count == 0
     assert batch.worker_id is None
     assert batch.result_bundle == {"resourceType": "Bundle", "id": "owned"}
+
+
+def test_batch_document_store_merges_and_fences(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+    assert _create_batch_job("batch-docs", "patient-1", "Registry")
+    claim = job_state.claim_next_batch_job("worker-1", 60)
+    assert claim is not None
+    fence = {"worker_id": "worker-1", "attempt_count": claim.attempt_count}
+
+    assert job_state.upsert_batch_job_documents(
+        "batch-docs",
+        [
+            {"id": "doc-a", "type": "Note", "date": "2026-05-24", "text": "A"},
+            {"id": "doc-b", "type": "Note", "date": "2026-05-23", "text": "B-old"},
+        ],
+        **fence,
+    )
+    assert job_state.upsert_batch_job_documents(
+        "batch-docs",
+        [
+            {"id": "doc-b", "type": "Updated Note", "date": "2026-05-23", "text": "B-new"},
+            {"id": "doc-c", "type": "Note", "date": "2026-05-22", "text": "C"},
+        ],
+        **fence,
+    )
+
+    stored = job_state.get_batch_job_documents("batch-docs")
+    assert [document["id"] for document in stored] == ["doc-c", "doc-b", "doc-a"]
+    assert next(document for document in stored if document["id"] == "doc-b")["text"] == "B-new"
+    assert not job_state.upsert_batch_job_documents("batch-docs", [{"id": "doc-stale", "text": "stale"}], worker_id="other-worker", attempt_count=claim.attempt_count)
+
+    with Session(engine) as session:
+        session.execute(sqlalchemy.update(job_state.BatchJobs).where(job_state.BatchJobs.batch_id == "batch-docs").values(lease_expires_at=datetime.now(UTC) - timedelta(seconds=1)))
+        session.commit()
+    assert not job_state.upsert_batch_job_documents("batch-docs", [{"id": "doc-expired", "text": "expired"}], **fence)
+
+
+def test_deleting_batch_removes_persisted_documents(monkeypatch):
+    engine = sqlalchemy.create_engine("sqlite+pysqlite:///:memory:")
+    monkeypatch.setattr(job_state, "db_engine", engine)
+    job_state.Base.metadata.create_all(engine)
+    assert _create_batch_job("batch-delete", "patient-1", "Registry")
+    assert job_state.upsert_batch_job_documents("batch-delete", [{"id": "doc-1", "type": "Note", "date": "2026-05-22", "text": "note"}])
+
+    response = job_state.delete_batch_job_record("batch-delete")
+
+    assert response.status_code == 200
+    with Session(engine) as session:
+        assert session.query(job_state.BatchJobDocuments).count() == 0
+        assert session.get(job_state.BatchJobs, "batch-delete") is None
 
 
 def test_failed_attempt_retries_then_exhausts(monkeypatch):
