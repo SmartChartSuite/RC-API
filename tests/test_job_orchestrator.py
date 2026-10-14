@@ -231,6 +231,43 @@ def test_build_llm_observations_maps_fenced_json_response_to_components():
     ]
 
 
+@pytest.mark.parametrize(
+    ("document_result", "expected_status"),
+    [
+        (LlmDocumentResult(doc_id="doc-1", doc_type="Note", doc_date="2026-05-22", response="answer"), "complete"),
+        (LlmDocumentResult(doc_id="doc-1", doc_type="Note", doc_date="2026-05-22", response="", error="provider failure"), "error"),
+        (LlmDocumentResult(doc_id="doc-1", doc_type="Note", doc_date="2026-05-22", response=""), "skipped"),
+    ],
+)
+def test_summarize_llm_result_omits_document_text(document_result, expected_status):
+    status, payload = job_orchestrator._summarize_llm_result(LlmResult(prompt_path="prompts/a", document_results=[document_result]))
+
+    assert status == expected_status
+    assert all("doc_text" not in document for document in payload["document_results"])
+
+
+def test_llm_result_restore_ignores_legacy_document_text():
+    restored = job_orchestrator._llm_result_from_payload(
+        "prompts/a",
+        {
+            "document_results": [
+                {
+                    "doc_id": "doc-1",
+                    "doc_type": "Note",
+                    "doc_date": "2026-05-22",
+                    "response": "answer",
+                    "error": None,
+                    "doc_text": "legacy source text",
+                }
+            ]
+        },
+    )
+
+    assert restored is not None
+    assert restored.document_results[0].response == "answer"
+    assert not hasattr(restored.document_results[0], "doc_text")
+
+
 def test_build_cql_observations_uses_matching_structured_task():
     questionnaire = {
         "item": [
@@ -443,6 +480,7 @@ def test_build_result_bundle_includes_status_and_patient():
 
 
 async def test_run_batch_job_persists_completed_task_results_while_running(monkeypatch):
+    monkeypatch.setattr(settings, "batch_job_checkpoint_interval_seconds", 0.0)
     partial_bundles: list[dict] = []
     status_updates: list[tuple[str, dict | None]] = []
 
@@ -518,6 +556,82 @@ async def test_run_batch_job_persists_completed_task_results_while_running(monke
     assert final_bundle["id"] == completed_snapshot["id"]
     assert final_bundle["entry"][0]["resource"]["status"] == "complete"
     assert any(entry["resource"].get("resourceType") == "Patient" for entry in final_bundle["entry"])
+
+
+@pytest.mark.parametrize(
+    ("checkpoint_interval", "checkpoint_every_tasks", "expected_partial_writes"),
+    [(3600.0, 2, 3), (0.0, 10, 6)],
+)
+async def test_run_batch_job_throttles_partial_bundle_checkpoints(monkeypatch, checkpoint_interval, checkpoint_every_tasks, expected_partial_writes):
+    monkeypatch.setattr(settings, "batch_job_checkpoint_interval_seconds", checkpoint_interval)
+    monkeypatch.setattr(settings, "batch_job_checkpoint_every_tasks", checkpoint_every_tasks)
+    monkeypatch.setattr(settings, "use_llm", False)
+    library_names = [f"Lib{index}" for index in range(5)]
+    partial_bundles: list[dict] = []
+    child_updates: list[tuple[tuple, dict]] = []
+    final_updates: list[tuple[str, dict | None]] = []
+
+    async def _fake_fhir_get(resource_type, resource_id):
+        return {
+            "resourceType": "Questionnaire",
+            "name": "RegistryForm",
+            "extension": [
+                {
+                    "url": job_orchestrator._CQL_JOB_LIST_URL,
+                    "extension": [{"valueString": name} for name in library_names],
+                }
+            ],
+            "item": [
+                {
+                    "linkId": f"{name}-question",
+                    "text": f"Question for {name}",
+                    "extension": [{"url": job_orchestrator._STRUCTURED_TASK_URL, "valueString": f"{name}.TaskA"}],
+                }
+                for name in library_names
+            ],
+        }
+
+    async def _fake_run_cql_libraries(names, patient_id, on_result=None):
+        results = []
+        for name in names:
+            result = CqlResult(library_name=name, patient_id=patient_id, results={"TaskA": [{"value": name}]})
+            results.append(result)
+            if on_result:
+                await on_result(result)
+        return results
+
+    monkeypatch.setattr(job_orchestrator, "fhir_get", _fake_fhir_get)
+    monkeypatch.setattr(job_orchestrator, "ensure_job", lambda *args, **kwargs: LogicalJob(args[0], "running", None))
+    monkeypatch.setattr(job_orchestrator, "update_job_result", lambda *args, **kwargs: child_updates.append((args, kwargs)) or True)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_result", lambda batch_id, bundle, **kwargs: partial_bundles.append(bundle) or True)
+    monkeypatch.setattr(job_orchestrator, "update_batch_job_status", lambda batch_id, status, bundle=None, **kwargs: final_updates.append((status, bundle)) or True)
+
+    async def _fake_fetch_patient_resource(patient_id):
+        return None
+
+    monkeypatch.setattr(job_orchestrator, "run_cql_libraries", _fake_run_cql_libraries)
+    monkeypatch.setattr(job_orchestrator, "_fetch_patient_resource", _fake_fetch_patient_resource)
+
+    await job_orchestrator.run_batch_job(
+        "batch-throttled",
+        "patient-1",
+        "RegistryForm",
+        "questionnaire-1",
+        worker_id="worker-1",
+        attempt_count=1,
+    )
+
+    assert len(partial_bundles) == expected_partial_writes
+    if checkpoint_interval == 0:
+        assert len(partial_bundles) == len(library_names) + 1
+    else:
+        assert len(partial_bundles) < len(library_names)
+    assert len(child_updates) == len(library_names)
+    assert final_updates[-1][0] == "complete"
+    final_bundle = final_updates[-1][1]
+    assert final_bundle is not None
+    observations = [entry["resource"] for entry in final_bundle["entry"] if entry["resource"].get("resourceType") == "Observation" and entry["resource"].get("id") != "status-observation"]
+    assert len(observations) == len(library_names)
 
 
 async def test_run_batch_job_requeues_missing_llm_result_when_attempts_remain(monkeypatch):
@@ -802,6 +916,7 @@ async def test_worker_retry_restores_completed_cql_without_rerunning(monkeypatch
 
 
 async def test_retry_restored_child_keeps_partial_observation_identity(monkeypatch):
+    monkeypatch.setattr(settings, "batch_job_checkpoint_interval_seconds", 0.0)
     partial_bundles: list[tuple[int, dict]] = []
     final_bundles: list[dict] = []
     requeues: list[tuple] = []

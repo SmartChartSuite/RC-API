@@ -66,7 +66,6 @@ class LlmDocumentResult:
     doc_date: str
     response: str  # raw LLM response text
     error: str | None = None
-    doc_text: str | None = None
 
 
 @dataclass
@@ -96,7 +95,7 @@ async def run_prompt_on_document(
 
     if not settings.use_llm:
         logger.warning("LLM not configured — skipping prompt execution")
-        return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response="", error="LLM not configured", doc_text=document.get("text"))
+        return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response="", error="LLM not configured")
 
     try:
         model = require_setting(settings.litellm_model, "LITELLM_MODEL")
@@ -119,7 +118,7 @@ async def run_prompt_on_document(
             response = await litellm.aresponses(**request_kwargs)
         answer = getattr(response, "output_text", "") or ""
         logger.debug(f"LLM response received for prompt '{prompt.metadata.path}' / doc {doc_id}")
-        return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response=answer, doc_text=document.get("text"))
+        return LlmDocumentResult(doc_id=doc_id, doc_type=doc_type, doc_date=doc_date, response=answer)
     except Exception as exc:  # noqa: BLE001
         # Isolate provider failures to this document so other calls can complete.
         # Provider exception text can echo request content (PHI), so keep it at debug level.

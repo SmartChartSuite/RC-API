@@ -40,3 +40,28 @@ def test_cql_concurrency_uses_default_for_zero_env(monkeypatch):
     configured = Settings()
 
     assert configured.cql_max_concurrency == 4
+
+
+def test_batch_checkpoint_settings_use_defaults():
+    configured = Settings()
+
+    assert configured.batch_job_checkpoint_interval_seconds == 5.0
+    assert configured.batch_job_checkpoint_every_tasks == 10
+
+
+def test_batch_checkpoint_interval_allows_zero(monkeypatch):
+    monkeypatch.setenv("BATCH_JOB_CHECKPOINT_INTERVAL_SECONDS", "0")
+
+    configured = Settings()
+
+    assert configured.batch_job_checkpoint_interval_seconds == 0.0
+
+
+def test_batch_checkpoint_settings_invalid_values_use_defaults(monkeypatch):
+    monkeypatch.setenv("BATCH_JOB_CHECKPOINT_INTERVAL_SECONDS", "not-a-number")
+    monkeypatch.setenv("BATCH_JOB_CHECKPOINT_EVERY_TASKS", "0")
+
+    configured = Settings()
+
+    assert configured.batch_job_checkpoint_interval_seconds == 5.0
+    assert configured.batch_job_checkpoint_every_tasks == 10

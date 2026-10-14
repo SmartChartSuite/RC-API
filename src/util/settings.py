@@ -5,6 +5,7 @@ Missing or invalid values are recorded in ``config_errors`` so protected endpoin
 can return a FHIR OperationOutcome (HTTP 503) rather than crashing the API.
 """
 
+import math
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
@@ -81,6 +82,18 @@ def _parse_positive_int(raw: str, env_name: str, default: int) -> int:
     return parsed
 
 
+def _parse_nonnegative_float(raw: str, env_name: str, default: float) -> float:
+    try:
+        parsed = float(raw)
+    except ValueError:
+        logger.warning(f"{env_name}='{raw}' is not a valid number — using default {default}.")
+        return default
+    if not math.isfinite(parsed) or parsed < 0:
+        logger.warning(f"{env_name}={parsed} must be finite and >= 0 — using default {default}.")
+        return default
+    return parsed
+
+
 class Settings(BaseSettings):
     """Application configuration loaded from environment variables (field name upper-cased, unless aliased)."""
 
@@ -117,6 +130,8 @@ class Settings(BaseSettings):
     batch_worker_poll_interval_seconds: int = 2
     batch_worker_lease_seconds: int = 120
     batch_job_heartbeat_interval_seconds: int = 30
+    batch_job_checkpoint_interval_seconds: float = 5.0
+    batch_job_checkpoint_every_tasks: int = 10
     batch_job_max_attempts: int = 3
     batch_job_retry_delay_seconds: int = 30
 
@@ -172,6 +187,8 @@ class Settings(BaseSettings):
             return _parse_bool(value, env_name, field.default)
         if field.annotation is int:
             return _parse_positive_int(value, env_name, field.default)
+        if field.annotation is float:
+            return _parse_nonnegative_float(value, env_name, field.default)
         return value
 
     @field_validator("cors_allow_origins", "attachment_allowed_hosts", mode="before")

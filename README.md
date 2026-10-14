@@ -191,6 +191,8 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `BATCH_WORKER_POLL_INTERVAL_SECONDS` | `2` | Seconds between checks for runnable and expired jobs |
 | `BATCH_WORKER_LEASE_SECONDS` | `120` | Seconds a worker owns a claimed batch without renewal; keep this greater than the heartbeat interval |
 | `BATCH_JOB_HEARTBEAT_INTERVAL_SECONDS` | `30` | Seconds between lease renewals while a batch is executing |
+| `BATCH_JOB_CHECKPOINT_INTERVAL_SECONDS` | `5.0` | Minimum seconds between partial Bundle checkpoint writes; `0` writes after every task |
+| `BATCH_JOB_CHECKPOINT_EVERY_TASKS` | `10` | Minimum task completions between partial Bundle checkpoint writes |
 | `BATCH_JOB_MAX_ATTEMPTS` | `3` | Maximum claimed execution attempts before terminal error |
 | `BATCH_JOB_RETRY_DELAY_SECONDS` | `30` | Seconds before a failed or expired attempt is runnable again |
 | `DEPLOY_URL` | `http://example.org/` | Base URL used in Observation identifiers as well as determining root_path |

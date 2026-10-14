@@ -13,8 +13,9 @@ import asyncio
 import base64
 import json
 import re
+import time
 import uuid
-from collections.abc import Coroutine, Iterator
+from collections.abc import Callable, Coroutine, Iterator
 from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -646,7 +647,6 @@ def _llm_result_from_payload(prompt_path: str, payload: dict | None) -> LlmResul
                     doc_date=str(raw.get("doc_date", "")),
                     response=str(raw.get("response", "")),
                     error=raw.get("error") if isinstance(raw.get("error"), str) else None,
-                    doc_text=raw.get("doc_text") if isinstance(raw.get("doc_text"), str) else None,
                 )
             )
         except KeyError:
@@ -806,6 +806,12 @@ async def run_batch_job(
     job_ids_by_task: dict[tuple[str, str], str] = {}
     excluded_documents: list[dict] = []
     heartbeat_task: asyncio.Task[None] | None = None
+    checkpoint_interval_seconds = settings.batch_job_checkpoint_interval_seconds
+    checkpoint_every_tasks = settings.batch_job_checkpoint_every_tasks
+    last_partial_write_at: float | None = None
+    tasks_since_partial_write = 0
+    partial_snapshot_dirty = False
+    flush_dirty_partial_bundle: Callable[[], Coroutine[Any, Any, None]] | None = None
 
     def _with_excluded_documents(payload: dict) -> dict:
         if excluded_documents:
@@ -958,6 +964,7 @@ async def run_batch_job(
             )
 
         async def _persist_partial_bundle() -> None:
+            nonlocal last_partial_write_at, tasks_since_partial_write, partial_snapshot_dirty
             current_cql_entries, current_llm_entries = _current_result_entries()
             partial_bundle = _build_result_bundle(
                 None,
@@ -975,7 +982,24 @@ async def run_batch_job(
                 attempt_count=attempt_count,
             )
             _require_owned(updated)
+            last_partial_write_at = time.monotonic()
+            tasks_since_partial_write = 0
+            partial_snapshot_dirty = False
 
+        async def _checkpoint_partial_bundle() -> None:
+            nonlocal tasks_since_partial_write, partial_snapshot_dirty
+            tasks_since_partial_write += 1
+            partial_snapshot_dirty = True
+            now = time.monotonic()
+            elapsed = now - last_partial_write_at if last_partial_write_at is not None else checkpoint_interval_seconds
+            if checkpoint_interval_seconds == 0 or elapsed >= checkpoint_interval_seconds or tasks_since_partial_write >= checkpoint_every_tasks:
+                await _persist_partial_bundle()
+
+        async def _flush_dirty_partial_bundle() -> None:
+            if partial_snapshot_dirty:
+                await _persist_partial_bundle()
+
+        flush_dirty_partial_bundle = _flush_dirty_partial_bundle
         await _persist_partial_bundle()
 
         snapshot_lock = asyncio.Lock()
@@ -996,7 +1020,7 @@ async def run_batch_job(
                     }
                 )
                 cql_entries_by_name[task_name] = _build_cql_observations([cql_result], questionnaire, form_name, patient_id, batch_id)
-                await _persist_partial_bundle()
+                await _checkpoint_partial_bundle()
 
         async def _record_llm_result(llm_result: LlmResult) -> None:
             async with snapshot_lock:
@@ -1008,7 +1032,7 @@ async def run_batch_job(
                     await _update_task(job_id, status, result_payload)
                 task_results.append(_with_excluded_documents({"task_name": task_name, "task_type": "unstructured", "status": status}))
                 llm_entries_by_path[task_name] = _build_llm_observations([llm_result], questionnaire, form_name, patient_id, batch_id)
-                await _persist_partial_bundle()
+                await _checkpoint_partial_bundle()
 
         async def _empty() -> list:
             return []
@@ -1047,7 +1071,7 @@ async def run_batch_job(
             if job_id:
                 await _update_task(job_id, "error", {"message": "no cql result returned for library"})
             task_results.append({"task_name": library_name, "task_type": "structured", "status": "error"})
-            await _persist_partial_bundle()
+            await _checkpoint_partial_bundle()
 
         if prompt_paths_to_run and documents and settings.use_llm:
             completed_llm_paths = {result.prompt_path for result in llm_results}
@@ -1059,7 +1083,7 @@ async def run_batch_job(
                 if job_id:
                     await _update_task(job_id, "error", _with_excluded_documents({"message": "no llm result returned for prompt"}))
                 task_results.append(_with_excluded_documents({"task_name": prompt_path, "task_type": "unstructured", "status": "error"}))
-                await _persist_partial_bundle()
+                await _checkpoint_partial_bundle()
 
         # 5. Fetch the Patient resource and assemble the final Bundle.
         patient_resource = await _fetch_patient_resource(patient_id)
@@ -1078,6 +1102,7 @@ async def run_batch_job(
         if all_errors and attempt_count < max_attempts:
             failed_task_names = [str(task.get("task_name", "unknown")) for task in all_errors]
             failure_message = f"{len(failed_task_names)} child task(s) failed: {', '.join(failed_task_names)}"
+            await _flush_dirty_partial_bundle()
             requeued = await _run_state_call(
                 requeue_batch_job_for_child_retry,
                 batch_id,
@@ -1117,6 +1142,11 @@ async def run_batch_job(
         logger.warning(f"[batch={batch_id}] Stopping work after losing lease ownership")
         raise
     except Exception as exc:
+        if flush_dirty_partial_bundle is not None and partial_snapshot_dirty:
+            try:
+                await flush_dirty_partial_bundle()
+            except Exception as checkpoint_exc:  # noqa: BLE001
+                logger.warning(f"[batch={batch_id}] Could not flush dirty partial Bundle before failure: {type(checkpoint_exc).__name__}")
         logger.exception(f"[batch={batch_id}] Unhandled error in run_batch_job: {exc}")
         raise
     finally:
