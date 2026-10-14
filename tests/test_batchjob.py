@@ -11,7 +11,7 @@ from src.models.fhir import BundleResource, ParametersResponse
 from src.models.job_request import JobRequest, JobRequestParameter
 from src.models.job_response import BatchJobAcceptedResponse
 from src.routers import batchjob
-from src.services import job_orchestrator
+from src.services import batch_job_service, job_orchestrator
 from src.services.job_state import BatchJobs
 from src.util.settings import settings
 from tests.fakes import patient_resource
@@ -81,8 +81,8 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         captured["response_timestamp"] = response_timestamp
         return True
 
-    monkeypatch.setattr(batchjob, "_resolve_questionnaire", _fake_resolve_questionnaire)
-    monkeypatch.setattr(batchjob, "create_batch_job_with_response", _fake_create_batch_job_with_response)
+    monkeypatch.setattr(batch_job_service, "resolve_questionnaire", _fake_resolve_questionnaire)
+    monkeypatch.setattr(batch_job_service, "create_batch_job_with_response", _fake_create_batch_job_with_response)
 
     body = JobRequest(
         parameter=[
@@ -141,22 +141,14 @@ async def test_post_batch_job_rejects_multiple_questionnaire_matches(monkeypatch
     monkeypatch.setattr(settings, "config_errors", {})
 
     async def _fake_resolve_questionnaire(job_package, job_package_version):
-        return JSONResponse(
-            status_code=409,
-            content={
-                "resourceType": "OperationOutcome",
-                "issue": [
-                    {
-                        "severity": "error",
-                        "code": "multiple-matches",
-                        "diagnostics": "Multiple Questionnaires matched jobPackage 'SyphilisRegistry'. Specify both jobPackage and jobPackageVersion to select a single Questionnaire.",
-                    }
-                ],
-            },
+        return batch_job_service.BatchJobError(
+            409,
+            "multiple-matches",
+            "Multiple Questionnaires matched jobPackage 'SyphilisRegistry'. Specify both jobPackage and jobPackageVersion to select a single Questionnaire.",
         )
 
-    monkeypatch.setattr(batchjob, "_resolve_questionnaire", _fake_resolve_questionnaire)
-    monkeypatch.setattr(batchjob, "create_batch_job_with_response", lambda *args: True)
+    monkeypatch.setattr(batch_job_service, "resolve_questionnaire", _fake_resolve_questionnaire)
+    monkeypatch.setattr(batch_job_service, "create_batch_job_with_response", lambda *args: True)
 
     body = JobRequest(
         parameter=[
@@ -215,7 +207,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
     completed_at = datetime(2026, 5, 22, 12, 5, tzinfo=UTC)
     fetch_calls: list[str] = []
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "query_batch_jobs",
         lambda **kwargs: (
             [
@@ -245,7 +237,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "get_responses_for_batches",
         lambda batch_ids: {
             batch_id: type(
@@ -266,7 +258,7 @@ async def test_list_batch_jobs_returns_fhir_parameters(monkeypatch):
             gender="female",
         )
 
-    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+    monkeypatch.setattr(batch_job_service, "_fetch_patient", _fake_fetch_patient)
 
     result = await batchjob.list_batch_jobs(include_patient=True, claims={})
 
@@ -307,7 +299,7 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     fetch_calls: list[str] = []
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "query_batch_jobs",
         lambda **kwargs: (
             [
@@ -326,13 +318,13 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
             5,
         ),
     )
-    monkeypatch.setattr(batchjob, "get_responses_for_batches", lambda batch_ids: {})
+    monkeypatch.setattr(batch_job_service, "get_responses_for_batches", lambda batch_ids: {})
 
     async def _fake_fetch_patient(patient_id):
         fetch_calls.append(patient_id)
         return patient_resource(patient_id)
 
-    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+    monkeypatch.setattr(batch_job_service, "_fetch_patient", _fake_fetch_patient)
 
     result = await batchjob.list_batch_jobs(page=1, size=2, claims={})
 
@@ -360,7 +352,7 @@ async def test_list_batch_jobs_uses_one_bulk_response_load_for_page(monkeypatch)
         )
         for index in range(3)
     ]
-    monkeypatch.setattr(batchjob, "query_batch_jobs", lambda **kwargs: (jobs, len(jobs)))
+    monkeypatch.setattr(batch_job_service, "query_batch_jobs", lambda **kwargs: (jobs, len(jobs)))
 
     def _fake_get_responses_for_batches(batch_ids):
         loader_calls.append(list(batch_ids))
@@ -373,12 +365,12 @@ async def test_list_batch_jobs_uses_one_bulk_response_load_for_page(monkeypatch)
             for batch_id in batch_ids
         }
 
-    monkeypatch.setattr(batchjob, "get_responses_for_batches", _fake_get_responses_for_batches)
+    monkeypatch.setattr(batch_job_service, "get_responses_for_batches", _fake_get_responses_for_batches)
 
     async def _fake_fetch_patient(patient_id):
         return patient_resource(patient_id)
 
-    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+    monkeypatch.setattr(batch_job_service, "_fetch_patient", _fake_fetch_patient)
 
     result = await batchjob.list_batch_jobs(size=3, claims={})
 
@@ -425,7 +417,7 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
         )
 
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "query_batch_jobs",
         _fake_query_batch_jobs,
     )
@@ -433,7 +425,7 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
     def _fake_get_responses_for_batches(batch_ids):
         return {batch_id: type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "completed" if batch_id == "batch-match" else "in-progress"}})() for batch_id in batch_ids}
 
-    monkeypatch.setattr(batchjob, "get_responses_for_batches", _fake_get_responses_for_batches)
+    monkeypatch.setattr(batch_job_service, "get_responses_for_batches", _fake_get_responses_for_batches)
 
     async def _fake_fetch_patient(patient_id):
         if patient_id == "patient-match":
@@ -450,7 +442,7 @@ async def test_list_batch_jobs_applies_search_filters(monkeypatch):
             gender="male",
         )
 
-    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+    monkeypatch.setattr(batch_job_service, "_fetch_patient", _fake_fetch_patient)
 
     result = await batchjob.list_batch_jobs(
         questionnaire_response_status="completed",
@@ -493,9 +485,9 @@ async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypat
             1,
         )
 
-    monkeypatch.setattr(batchjob, "query_batch_jobs", _fake_query_batch_jobs)
+    monkeypatch.setattr(batch_job_service, "query_batch_jobs", _fake_query_batch_jobs)
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "get_responses_for_batches",
         lambda batch_ids: {batch_id: type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "in-progress"}})() for batch_id in batch_ids},
     )
@@ -503,7 +495,7 @@ async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypat
     async def _fake_fetch_patient(patient_id):
         return patient_resource(patient_id)
 
-    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+    monkeypatch.setattr(batch_job_service, "_fetch_patient", _fake_fetch_patient)
 
     result = await batchjob.list_batch_jobs(
         batch_job_status="pending, running , complete, partial",
@@ -520,7 +512,7 @@ async def test_list_batch_jobs_supports_comma_separated_status_filters(monkeypat
 async def test_list_batch_jobs_supports_comma_separated_patient_gender_filter(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "query_batch_jobs",
         lambda **kwargs: (
             [
@@ -548,14 +540,14 @@ async def test_list_batch_jobs_supports_comma_separated_patient_gender_filter(mo
             2,
         ),
     )
-    monkeypatch.setattr(batchjob, "get_responses_for_batches", lambda batch_ids: {})
+    monkeypatch.setattr(batch_job_service, "get_responses_for_batches", lambda batch_ids: {})
 
     async def _fake_fetch_patient(patient_id):
         if patient_id == "patient-match":
             return patient_resource(patient_id, gender="female")
         return patient_resource(patient_id, gender="unknown")
 
-    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+    monkeypatch.setattr(batch_job_service, "_fetch_patient", _fake_fetch_patient)
 
     result = await batchjob.list_batch_jobs(
         patient_gender="male, female , other",
@@ -573,7 +565,7 @@ async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
     matching_created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     nonmatching_created_at = datetime(2026, 5, 25, 12, 0, tzinfo=UTC)
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "query_batch_jobs",
         lambda **kwargs: (
             [
@@ -601,14 +593,14 @@ async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
             2,
         ),
     )
-    monkeypatch.setattr(batchjob, "get_responses_for_batches", lambda batch_ids: {})
+    monkeypatch.setattr(batch_job_service, "get_responses_for_batches", lambda batch_ids: {})
 
     async def _fake_fetch_patient(patient_id):
         if patient_id == "patient-match":
             return patient_resource(patient_id, birthDate="2020-01-01")
         return patient_resource(patient_id, birthDate="2020-02-01")
 
-    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+    monkeypatch.setattr(batch_job_service, "_fetch_patient", _fake_fetch_patient)
 
     result = await batchjob.list_batch_jobs(
         dob_start_date="2020-01-01",
@@ -627,7 +619,7 @@ async def test_list_batch_jobs_applies_inclusive_date_filters(monkeypatch):
 
 
 async def test_list_batch_jobs_rejects_invalid_date_filters(monkeypatch):
-    monkeypatch.setattr(batchjob, "query_batch_jobs", lambda **kwargs: ([], 0))
+    monkeypatch.setattr(batch_job_service, "query_batch_jobs", lambda **kwargs: ([], 0))
 
     result = await batchjob.list_batch_jobs(dob_start_date="01-01-2020", claims={})
 
@@ -642,7 +634,7 @@ def test_hydration_matches_pre_change_bundle_shape():
     pre_change_bundle = deepcopy(stored_bundle)
     pre_change_bundle["entry"] = [stored_bundle["entry"][0], *full_entries]
 
-    hydrated = batchjob._hydrate_document_entries(deepcopy(stored_bundle), {"doc-1": "plain text"})
+    hydrated = batch_job_service.hydrate_document_entries(deepcopy(stored_bundle), {"doc-1": "plain text"})
 
     assert hydrated == pre_change_bundle
 
@@ -675,7 +667,7 @@ async def test_get_batch_job_results_hydrates_one_document_query_for_running_and
     }
     document_queries: list[str] = []
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "get_batch_job",
         lambda batch_id: BatchJobs(
             batch_id=batch_id,
@@ -688,8 +680,8 @@ async def test_get_batch_job_results_hydrates_one_document_query_for_running_and
             completed_at=created_at if batch_status == "complete" else None,
         ),
     )
-    monkeypatch.setattr(batchjob, "get_jobs_for_batch", lambda batch_id: [])
-    monkeypatch.setattr(batchjob, "get_batch_job_document_texts", lambda batch_id: document_queries.append(batch_id) or {"doc-1": "plain text"})
+    monkeypatch.setattr(batch_job_service, "get_jobs_for_batch", lambda batch_id: [])
+    monkeypatch.setattr(batch_job_service, "get_batch_job_document_texts", lambda batch_id: document_queries.append(batch_id) or {"doc-1": "plain text"})
 
     result = await batchjob.get_batch_job_results("batch-123", claims={})
 
@@ -718,7 +710,7 @@ def test_hydration_preserves_legacy_inline_content_and_missing_rows():
     }
     original = deepcopy(bundle)
 
-    hydrated = batchjob._hydrate_document_entries(bundle, {"legacy": "new text"})
+    hydrated = batch_job_service.hydrate_document_entries(bundle, {"legacy": "new text"})
 
     assert hydrated == original
 
@@ -749,7 +741,7 @@ async def test_get_batch_job_results_returns_stored_bundle_with_live_progress(mo
         ],
     }
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "get_batch_job",
         lambda batch_id: BatchJobs(
             batch_id=batch_id,
@@ -762,7 +754,7 @@ async def test_get_batch_job_results_returns_stored_bundle_with_live_progress(mo
             completed_at=None if batch_status == "running" else created_at,
         ),
     )
-    monkeypatch.setattr(batchjob, "get_jobs_for_batch", lambda batch_id: [type("Job", (), {"status": status})() for status in child_statuses])
+    monkeypatch.setattr(batch_job_service, "get_jobs_for_batch", lambda batch_id: [type("Job", (), {"status": status})() for status in child_statuses])
 
     result = await batchjob.get_batch_job_results("batch-123", claims={})
 
@@ -789,7 +781,7 @@ def test_with_batch_progress_reports_complete_zero_task_batch():
         ],
     }
 
-    result = batchjob._with_batch_progress(bundle, [], "complete")
+    result = batch_job_service.with_batch_progress(bundle, [], "complete")
 
     assert result["entry"][0]["resource"]["valueCodeableConcept"]["text"] == "Batch job status: 100% (0/0)"
 
@@ -797,7 +789,7 @@ def test_with_batch_progress_reports_complete_zero_task_batch():
 async def test_get_batch_job_results_returns_202_when_running_without_snapshot(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "get_batch_job",
         lambda batch_id: BatchJobs(
             batch_id=batch_id,
@@ -821,7 +813,7 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     completed_at = datetime(2026, 5, 22, 12, 5, tzinfo=UTC)
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "get_batch_job_summary",
         lambda batch_id: BatchJobs(
             batch_id=batch_id,
@@ -835,7 +827,7 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        batchjob,
+        batch_job_service,
         "get_responses_for_batches",
         lambda batch_ids: {batch_id: type("ResponseRecord", (), {"response_id": "response-123", "response": {"status": "completed"}})() for batch_id in batch_ids},
     )
@@ -848,7 +840,7 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
             gender="female",
         )
 
-    monkeypatch.setattr(batchjob, "_fetch_patient", _fake_fetch_patient)
+    monkeypatch.setattr(batch_job_service, "_fetch_patient", _fake_fetch_patient)
 
     result = await batchjob.get_batch_job_status("batch-123", include_patient=True, claims={})
 
@@ -881,7 +873,7 @@ async def test_post_batch_job_rejects_invalid_patient_id(monkeypatch):
     async def _must_not_resolve(*args):
         raise AssertionError("questionnaire resolution must not run for an invalid patientId")
 
-    monkeypatch.setattr(batchjob, "_resolve_questionnaire", _must_not_resolve)
+    monkeypatch.setattr(batch_job_service, "resolve_questionnaire", _must_not_resolve)
     body = JobRequest(
         parameter=[
             JobRequestParameter(name="patientId", valueString="../DocumentReference?subject=x"),
