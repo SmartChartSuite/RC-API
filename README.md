@@ -377,7 +377,7 @@ The image does not apply migrations on startup. Run them from the same image wit
 ```bash
 docker run --rm --no-healthcheck \
   -e DB_CONNECTION_STRING=... -e DB_SCHEMA=... \
-  ghcr.io/smartchartsuite/rc-api-v1:latest \
+  ghcr.io/smartchartsuite/rc-api:latest \
   alembic upgrade head
 ```
 
