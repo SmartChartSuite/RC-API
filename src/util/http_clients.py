@@ -227,7 +227,7 @@ def _retry_delay(policy: RetryPolicy, response: httpx.Response | None, attempt: 
         if retry_after is not None:
             return min(policy.max_delay, retry_after)
     jitter_cap = min(policy.max_delay, policy.base_delay * (2 ** (attempt - 1)))
-    return random.uniform(0.0, jitter_cap)
+    return random.uniform(0.0, jitter_cap)  # noqa: S311 - retry jitter, not a security value
 
 
 def _retry_log_path(url: str) -> str:
