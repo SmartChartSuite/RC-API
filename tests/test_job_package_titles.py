@@ -11,12 +11,18 @@ from fastapi.testclient import TestClient
 
 from main import app
 from src.services import job_package_titles
-from src.services.job_package_titles import JobPackageTitle, get_job_package_titles, warm_job_package_titles
+from src.services.job_package_titles import JobPackageTitle, get_job_package_titles, invalidate_job_package_titles, warm_job_package_titles
 from src.util import http_clients
 from src.util.settings import settings
 
 HAPI_BASE = "http://localhost:8080/fhir"
 SEARCH_PARAMS = {"context": "smartchartui", "_elements": "name,title", "_count": "500"}
+
+_WRITE_CASES = (
+    pytest.param("post", "/jobpackage", "/Questionnaire", {"resourceType": "Questionnaire", "name": "Written"}, 201, id="post"),
+    pytest.param("put", "/jobpackage/q-1", "/Questionnaire/q-1", {"resourceType": "Questionnaire", "id": "q-1", "name": "Written"}, 200, id="put"),
+    pytest.param("delete", "/jobpackage/q-1", "/Questionnaire/q-1", None, 204, id="delete"),
+)
 
 
 def _bundle(*resources: dict, next_url: str | None = None) -> dict:
@@ -74,6 +80,48 @@ def test_title_list_is_cached_until_refresh(client, respx_mock):
     assert route.call_count == 2
     assert client.get("/jobpackage/title").json() == refreshed.json()
     assert route.call_count == 2
+
+
+@pytest.mark.parametrize(("method", "path", "upstream_path", "body", "status_code"), _WRITE_CASES)
+def test_successful_api_writes_invalidate_title_cache(client, respx_mock, method, path, upstream_path, body, status_code):
+    title_route = respx_mock.get(f"{HAPI_BASE}/Questionnaire", params=SEARCH_PARAMS)
+    title_route.side_effect = [
+        httpx.Response(200, json=_bundle(_questionnaire("Old", "Old title"))),
+        httpx.Response(200, json=_bundle(_questionnaire("New", "New title"))),
+    ]
+    write_route = getattr(respx_mock, method)(f"{HAPI_BASE}{upstream_path}")
+    if status_code == 204:
+        write_route.mock(return_value=httpx.Response(status_code))
+    else:
+        write_route.mock(return_value=httpx.Response(status_code, json={"resourceType": "Questionnaire", "id": "q-1", "name": "Written"}))
+
+    assert client.get("/jobpackage/title").json() == [{"name": "Old", "title": "Old title"}]
+    request_kwargs = {} if body is None else {"json": body}
+    written = client.request(method.upper(), path, **request_kwargs)
+
+    assert 200 <= written.status_code < 300
+    assert client.get("/jobpackage/title").json() == [{"name": "New", "title": "New title"}]
+    assert title_route.call_count == 2
+    assert write_route.call_count == 1
+
+
+@pytest.mark.parametrize(("method", "path", "upstream_path", "body", "success_status"), _WRITE_CASES)
+@pytest.mark.parametrize("status_code", [409, 500])
+def test_failed_api_writes_do_not_invalidate_title_cache(client, respx_mock, method, path, upstream_path, body, success_status, status_code):
+    del success_status
+    title_route = respx_mock.get(f"{HAPI_BASE}/Questionnaire", params=SEARCH_PARAMS).mock(return_value=httpx.Response(200, json=_bundle(_questionnaire("Old", "Old title"))))
+    write_route = getattr(respx_mock, method)(f"{HAPI_BASE}{upstream_path}").mock(
+        return_value=httpx.Response(status_code, json={"resourceType": "OperationOutcome", "issue": [{"severity": "error", "code": "transient"}]})
+    )
+    assert client.get("/jobpackage/title").json() == [{"name": "Old", "title": "Old title"}]
+
+    request_kwargs = {} if body is None else {"json": body}
+    written = client.request(method.upper(), path, **request_kwargs)
+
+    assert written.status_code >= 400
+    assert client.get("/jobpackage/title").json() == [{"name": "Old", "title": "Old title"}]
+    assert title_route.call_count == 1
+    assert write_route.call_count == 1
 
 
 def test_title_route_is_not_treated_as_a_questionnaire_id(client, respx_mock):
@@ -161,6 +209,30 @@ async def test_concurrent_cold_requests_share_one_fetch(monkeypatch):
 
     assert await first == await second == [JobPackageTitle(name="A", title="Alpha")]
     assert calls == 1
+
+
+async def test_invalidation_during_load_does_not_cache_result(monkeypatch):
+    started = asyncio.Event()
+    release = asyncio.Event()
+    calls = 0
+
+    async def _fetch_all():
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            started.set()
+            await release.wait()
+        return [JobPackageTitle(name=f"Call{calls}", title=f"Title {calls}")]
+
+    monkeypatch.setattr(job_package_titles, "_fetch_all", _fetch_all)
+    pending = asyncio.create_task(get_job_package_titles())
+    await started.wait()
+    invalidate_job_package_titles()
+    release.set()
+
+    assert await pending == [JobPackageTitle(name="Call1", title="Title 1")]
+    assert await get_job_package_titles() == [JobPackageTitle(name="Call2", title="Title 2")]
+    assert calls == 2
 
 
 async def test_warm_up_loads_cache_and_swallows_failures(monkeypatch, respx_mock):

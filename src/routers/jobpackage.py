@@ -2,10 +2,12 @@
 
 This router binds request parameters, selects auth, calls `src.services.fhir_proxy`
 for HAPI FHIR transport, and maps upstream data to Questionnaire or OperationOutcome
-responses. Questionnaire write bodies use the canonical QuestionnaireResource model
-and round-trip unknown FHIR fields. It contains no Questionnaire resolution,
-batch-job logic, persistence, or transport implementation; those responsibilities
-belong to `src.services` and `src.util`.
+responses. Successful API Questionnaire writes invalidate this process's cached title
+list; edits made directly on HAPI FHIR still require ``?refresh=true``. Questionnaire
+write bodies use the canonical QuestionnaireResource model and round-trip unknown FHIR
+fields. It contains no Questionnaire resolution, batch-job logic, persistence, or
+transport implementation; those responsibilities belong to `src.services` and
+`src.util`.
 """
 
 from fastapi import APIRouter, Body, Query, Security
@@ -14,7 +16,7 @@ from fastapi.responses import JSONResponse
 from src.models.fhir import FHIRProxyResponse, OperationOutcome, QuestionnaireResource
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response, operation_outcome_response
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
-from src.services.job_package_titles import JobPackageTitle, get_job_package_titles
+from src.services.job_package_titles import JobPackageTitle, get_job_package_titles, invalidate_job_package_titles
 from src.util.auth import require_admin, validate_token
 from src.util.fhir_bundle import get_bundle_resources
 from src.util.settings import settings
@@ -32,6 +34,12 @@ _QUESTIONNAIRE_EXAMPLE = {
 }
 
 QuestionnaireResult = QuestionnaireResource | OperationOutcome
+
+
+def _invalidate_title_cache_after_success(result: FHIRProxyResponse) -> None:
+    """Invalidate cached titles only after HAPI FHIR confirms a successful write."""
+    if 200 <= result.status_code < 300:
+        invalidate_job_package_titles()
 
 
 @router.get("/jobpackage", summary="Search Job Packages", response_model=list[QuestionnaireResource] | OperationOutcome, responses=FHIR_PROXY_ERROR_RESPONSES)
@@ -100,6 +108,7 @@ async def create_job_package(
     if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_post_with_status("Questionnaire", body.to_fhir_json())
+    _invalidate_title_cache_after_success(result)
     return fhir_result_response(result, QuestionnaireResource)
 
 
@@ -116,6 +125,7 @@ async def update_job_package(
     if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_put_with_status("Questionnaire", resource_id, body_json)
+    _invalidate_title_cache_after_success(result)
     return fhir_result_response(result, QuestionnaireResource)
 
 
@@ -128,4 +138,5 @@ async def delete_job_package(
     if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
         return err
     result = await fhir_delete_with_status("Questionnaire", resource_id)
+    _invalidate_title_cache_after_success(result)
     return fhir_result_response(result, OperationOutcome)

@@ -1,8 +1,10 @@
 """In-process cache of job-package Questionnaire names and titles for client type-ahead search.
 
 The cache is loaded once at startup (in the background, so a slow HAPI FHIR server cannot delay boot) and
-reloaded only when a caller forces a refresh. Concurrent cold or forced loads share one upstream fetch.
-A failed load never replaces a previously cached list. HTTP binding belongs in `src.routers.jobpackage`
+reloaded when a caller forces a refresh or a successful API write invalidates it. Concurrent cold or forced
+loads share one upstream fetch. A failed load never replaces a previously cached list, and a load that
+started before invalidation cannot repopulate the cache with its stale result. Direct HAPI FHIR edits are
+outside this process and still require ``?refresh=true``. HTTP binding belongs in `src.routers.jobpackage`
 and transport in `src.services.fhir_proxy`.
 """
 
@@ -28,6 +30,7 @@ class JobPackageTitle(BaseModel):
 
 
 _cache: list[JobPackageTitle] | None = None
+_generation = 0
 _lock = asyncio.Lock()
 
 
@@ -66,13 +69,22 @@ async def get_job_package_titles(*, refresh: bool = False) -> list[JobPackageTit
         # Another caller may have finished a load while this one waited; a forced refresh still refetches.
         if not refresh and _cache is not None:
             return list(_cache)
+        generation = _generation
         result = await _fetch_all()
         if isinstance(result, FHIRProxyResponse):
             logger.warning(f"Job package title load failed with HTTP {result.status_code}; keeping the previous cache")
             return result
-        _cache = result
-        logger.info(f"Cached {len(result)} job package titles")
+        if generation == _generation:
+            _cache = result
+            logger.info(f"Cached {len(result)} job package titles")
         return list(result)
+
+
+def invalidate_job_package_titles() -> None:
+    """Invalidate the process-local title cache after a successful job-package write."""
+    global _cache, _generation
+    _generation += 1
+    _cache = None
 
 
 async def warm_job_package_titles() -> None:
@@ -84,6 +96,5 @@ async def warm_job_package_titles() -> None:
 
 
 def clear_job_package_titles() -> None:
-    """Drop the cache (used by tests)."""
-    global _cache
-    _cache = None
+    """Drop the cache and advance its generation (used by tests)."""
+    invalidate_job_package_titles()

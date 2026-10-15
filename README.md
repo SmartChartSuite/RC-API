@@ -101,7 +101,7 @@ The batch job list and status endpoints include `startedBy`.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/jobpackage` | Search Questionnaires (`?name=`, `?version=`) within the `smartchartui` context and return a flat list of Questionnaire resources |
-| `GET` | `/jobpackage/title` | List `[{"name", "title"}]` for every job package, sorted by title, for client type-ahead prefix matching. The list is cached in memory, loaded at startup, and reloaded from HAPI FHIR only with `?refresh=true` |
+| `GET` | `/jobpackage/title` | List `[{"name", "title"}]` for every job package, sorted by title, for client type-ahead prefix matching. Each process keeps its own cache, loaded at startup; successful POST/PUT/DELETE writes through this API invalidate it, while edits made directly on HAPI FHIR still require `?refresh=true` |
 | `GET` | `/jobpackage/{id}` | Get a Questionnaire |
 | `POST` | `/jobpackage` | Create a Questionnaire |
 | `PUT` | `/jobpackage/{id}` | Update a Questionnaire |
