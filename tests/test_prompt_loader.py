@@ -1,11 +1,13 @@
 """Tests local and Langfuse prompt loading, path validation, caching, fallback, and bounded concurrency.
 
-The module uses temporary prompt roots and patches `prompt_loader`, `settings`, and Langfuse/HTTP seams;
-prompt execution belongs in `test_llm_executor.py`."""
+The module uses temporary prompt roots, respx routes, and patches to `prompt_loader`, `settings`, and the
+Langfuse seam; prompt execution belongs in `test_llm_executor.py`."""
 
 import threading
 from pathlib import Path
 from types import SimpleNamespace
+
+import httpx
 
 from src.services import prompt_loader
 from src.util.settings import settings
@@ -101,53 +103,26 @@ async def test_load_prompts_uses_folder_loader_when_langfuse_disabled(monkeypatc
     assert await prompt_loader.load_prompts([]) == []
 
 
-async def test_initialize_prompt_source_disables_langfuse_when_unreachable(monkeypatch):
-    class _FailingClient:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def get(self, url):
-            raise RuntimeError("connection refused")
-
+async def test_initialize_prompt_source_disables_langfuse_when_unreachable(monkeypatch, respx_mock):
     monkeypatch.setattr(settings, "use_langfuse", True)
     monkeypatch.setattr(settings, "langfuse_host", "https://langfuse.example")
     monkeypatch.setattr(settings, "prompts_dir", "./prompts")
-    monkeypatch.setattr(prompt_loader.httpx, "AsyncClient", _FailingClient)
+    route = respx_mock.get("https://langfuse.example").mock(side_effect=httpx.ConnectError("connection refused"))
     monkeypatch.setattr(prompt_loader.litellm, "callbacks", ["langfuse_otel", "other-callback"])
 
     await prompt_loader.initialize_prompt_source()
 
     assert settings.use_langfuse is False
     assert prompt_loader.litellm.callbacks == ["other-callback"]
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert str(route.calls.last.request.url) == "https://langfuse.example/"
 
 
-async def test_initialize_prompt_source_keeps_langfuse_when_reachable(monkeypatch):
-    class _Response:
-        def raise_for_status(self):
-            return None
-
-    class _HealthyClient:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def get(self, url):
-            return _Response()
-
+async def test_initialize_prompt_source_keeps_langfuse_when_reachable(monkeypatch, respx_mock):
     monkeypatch.setattr(settings, "use_langfuse", True)
     monkeypatch.setattr(settings, "langfuse_host", "https://langfuse.example")
-    monkeypatch.setattr(prompt_loader.httpx, "AsyncClient", _HealthyClient)
+    route = respx_mock.get("https://langfuse.example").mock(return_value=httpx.Response(200))
     monkeypatch.setattr(prompt_loader.litellm, "callbacks", [])
     monkeypatch.setattr(prompt_loader.litellm, "suppress_debug_info", False)
 
@@ -156,6 +131,9 @@ async def test_initialize_prompt_source_keeps_langfuse_when_reachable(monkeypatc
     assert settings.use_langfuse is True
     assert prompt_loader.litellm.callbacks == ["langfuse_otel"]
     assert prompt_loader.litellm.suppress_debug_info is True
+    assert route.called
+    assert route.calls.last.request.method == "GET"
+    assert str(route.calls.last.request.url) == "https://langfuse.example/"
 
 
 async def test_initialize_prompt_source_disables_langfuse_tracing_when_not_configured(monkeypatch):

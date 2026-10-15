@@ -1,7 +1,7 @@
 """Tests CQL Parameters parsing and concurrent library evaluation in `src.services.cql_executor`.
 
-The tests patch the evaluator and HTTP client, including shared limits and completion-order callbacks;
-FHIR transport behavior belongs in `test_fhir_proxy.py`."""
+The tests patch the evaluator and synchronization behavior, including shared limits and completion-order
+callbacks; FHIR transport behavior belongs in `test_fhir_proxy.py`."""
 
 import asyncio
 
@@ -165,14 +165,8 @@ def test_parse_parameters_response_returns_error_for_nested_operation_outcome():
 async def test_run_cql_libraries_reports_each_result_as_it_finishes(monkeypatch):
     callback_order: list[str] = []
 
-    class _FakeAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, traceback):
-            return False
-
     async def _fake_evaluate_library(client, library_name, patient_id):
+        del client
         if library_name == "slow":
             await asyncio.sleep(0.01)
         return cql_executor.CqlResult(library_name=library_name, patient_id=patient_id)
@@ -180,7 +174,7 @@ async def test_run_cql_libraries_reports_each_result_as_it_finishes(monkeypatch)
     async def _on_result(result):
         callback_order.append(result.library_name)
 
-    monkeypatch.setattr(cql_executor.httpx, "AsyncClient", lambda **kwargs: _FakeAsyncClient())
+    monkeypatch.setattr(cql_executor, "get_http_client", lambda _profile: object())
     monkeypatch.setattr(cql_executor, "_evaluate_library", _fake_evaluate_library)
 
     results = await cql_executor.run_cql_libraries(["slow", "fast"], "patient-1", on_result=_on_result)

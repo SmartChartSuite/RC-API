@@ -1,13 +1,14 @@
 """Tests OAuth2 bearer-token validation and admin-scope enforcement in `src.util.auth`.
 
-Module-scoped RSA fixtures and `_JWKSClient` cover JWKS caching, key rotation, claim failures, outages,
+Module-scoped RSA fixtures and a respx-backed `_JWKSServer` cover JWKS caching, key rotation, claim failures, outages,
 and incomplete configuration; implementation behavior belongs in `src.util.auth`."""
 
 import time
-from typing import ClassVar, cast
+from typing import cast
 
 import httpx
 import pytest
+import respx
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
@@ -53,42 +54,36 @@ def _creds(token: str) -> HTTPAuthorizationCredentials:
     return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
 
-class _JWKSClient:
-    """Fake httpx.AsyncClient serving a mutable JWKS document."""
+class _JWKSServer:
+    """Per-test JWKS endpoint state served through a respx route (no class-level state)."""
 
-    jwks: ClassVar[dict | Exception] = {"keys": []}
-    fetches: ClassVar[int] = 0
+    def __init__(self, jwks: dict | Exception):
+        self.jwks = jwks
+        self.route: respx.Route | None = None
 
-    def __init__(self, *args, **kwargs):
-        pass
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if isinstance(self.jwks, Exception):
+            raise self.jwks
+        return httpx.Response(200, json=self.jwks)
 
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *exc):
-        return False
-
-    async def get(self, url):
-        type(self).fetches += 1
-        payload = type(self).jwks
-        if isinstance(payload, Exception):
-            raise payload
-        return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
+    @property
+    def fetches(self) -> int:
+        assert self.route is not None
+        return self.route.call_count
 
 
 @pytest.fixture
-def oauth(monkeypatch, key_a):
+def oauth(monkeypatch, respx_mock, key_a):
     auth._reset_jwks_cache()
-    _JWKSClient.jwks = {"keys": [key_a[1]]}
-    _JWKSClient.fetches = 0
+    server = _JWKSServer({"keys": [key_a[1]]})
+    server.route = respx_mock.get(JWKS_URL).mock(side_effect=server)
     monkeypatch.setattr(settings, "oauth2_enabled", True)
     monkeypatch.setattr(settings, "oauth2_missing_config", [])
     monkeypatch.setattr(settings, "oauth2_jwks_url", JWKS_URL)
     monkeypatch.setattr(settings, "oauth2_issuer", ISSUER)
     monkeypatch.setattr(settings, "oauth2_audience", AUDIENCE)
     monkeypatch.setattr(auth, "_JWKS_MIN_REFRESH_SECONDS", 0)
-    monkeypatch.setattr(auth.httpx, "AsyncClient", _JWKSClient)
-    yield
+    yield server
     auth._reset_jwks_cache()
 
 
@@ -115,17 +110,17 @@ async def test_invalid_claims_are_rejected_without_leaking_details(oauth, key_a,
 async def test_unknown_kid_triggers_jwks_refresh_for_key_rotation(oauth, key_a, key_b):
     await auth.validate_token(_creds(_token(key_a[0], "key-a")))
     await auth.validate_token(_creds(_token(key_a[0], "key-a")))
-    assert _JWKSClient.fetches == 1  # cached
+    assert oauth.fetches == 1  # cached
 
-    _JWKSClient.jwks = {"keys": [key_a[1], key_b[1]]}
+    oauth.jwks = {"keys": [key_a[1], key_b[1]]}
     claims = await auth.validate_token(_creds(_token(key_b[0], "key-b")))
 
     assert claims["sub"] == "user-1"
-    assert _JWKSClient.fetches == 2
+    assert oauth.fetches == 2
 
 
 async def test_jwks_outage_returns_503(oauth, key_a):
-    _JWKSClient.jwks = httpx.ConnectError("idp down")
+    oauth.jwks = httpx.ConnectError("idp down")
 
     with pytest.raises(HTTPException) as exc_info:
         await auth.validate_token(_creds(_token(key_a[0], "key-a")))

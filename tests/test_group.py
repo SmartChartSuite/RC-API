@@ -1,10 +1,11 @@
 """Tests Group router search, member expansion, CRUD responses, concurrency, and upstream-error handling.
 
-The tests patch `src.services.fhir_proxy`, `src.routers.group`, settings, and shared fakes; write calls use the
-canonical GroupResource model and HAPI transport details are covered in `test_fhir_proxy.py`."""
+The tests patch `src.services.fhir_proxy`, `src.routers.group`, and settings; ordinary HTTP traffic uses respx,
+write calls use the canonical GroupResource model, and HAPI transport details are covered in `test_fhir_proxy.py`."""
 
 import asyncio
 
+import httpx
 from fastapi.responses import JSONResponse
 from pydantic import SecretStr
 
@@ -14,78 +15,69 @@ from src.services import fhir_proxy
 from src.services.fhir_proxy import FHIRProxyResponse
 from src.util.settings import settings
 from tests.fakes import FailingAsyncClient as _FailingClient
-from tests.fakes import FakeAsyncClient as _FakeAsyncClient
-from tests.fakes import FakeResponse as _FakeResponse
 
 
-async def test_search_groups_returns_group_and_patients(monkeypatch):
-    _FakeAsyncClient.calls = []
-    _FakeAsyncClient.queued_responses = [
-        [
-            _FakeResponse(
-                {
-                    "resourceType": "Bundle",
-                    "entry": [
-                        {
-                            "resource": {
-                                "resourceType": "Group",
-                                "id": "group-1",
-                                "name": "Panel",
-                                "member": [{"entity": {"reference": "Patient/patient-123"}}],
-                            }
+async def test_search_groups_returns_group_and_patients(monkeypatch, respx_mock):
+    group_route = respx_mock.get("http://hapi.example/fhir/Group", params={"name": "Panel"}).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "resourceType": "Bundle",
+                "entry": [
+                    {
+                        "resource": {
+                            "resourceType": "Group",
+                            "id": "group-1",
+                            "name": "Panel",
+                            "member": [{"entity": {"reference": "Patient/patient-123"}}],
                         }
-                    ],
-                }
-            )
-        ],
-        [_FakeResponse({"resourceType": "Patient", "id": "patient-123"})],
-    ]
+                    }
+                ],
+            },
+        )
+    )
+    patient_route = respx_mock.get("http://external.example/fhir/Patient/patient-123").mock(return_value=httpx.Response(200, json={"resourceType": "Patient", "id": "patient-123"}))
 
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await group.search_groups(name="Panel", claims={})
 
     assert not isinstance(result, JSONResponse)
     assert isinstance(result[0], GroupResource)
     assert isinstance(result[1], PatientResource)
-    assert _FakeAsyncClient.calls == [
-        {
-            "url": "http://hapi.example/fhir/Group",
-            "params": {"name": "Panel"},
-            "headers": {"Content-Type": "application/fhir+json", "Accept": "application/fhir+json"},
-        },
-        {
-            "url": "http://external.example/fhir/Patient/patient-123",
-            "params": None,
-            "headers": {"Accept": "application/fhir+json"},
-        },
-    ]
+    group_request = group_route.calls[0].request
+    assert str(group_request.url.copy_with(query=None)) == "http://hapi.example/fhir/Group"
+    assert dict(group_request.url.params) == {"name": "Panel"}
+    assert {key: group_request.headers[key] for key in ("content-type", "accept")} == {
+        "content-type": "application/fhir+json",
+        "accept": "application/fhir+json",
+    }
+    patient_request = patient_route.calls[0].request
+    assert str(patient_request.url) == "http://external.example/fhir/Patient/patient-123"
+    assert dict(patient_request.url.params) == {}
+    assert {"accept": patient_request.headers["accept"]} == {"accept": "application/fhir+json"}
 
 
-async def test_get_group_returns_operation_outcome(monkeypatch):
-    _FakeAsyncClient.calls = []
-    _FakeAsyncClient.queued_responses = [
-        [
-            _FakeResponse(
-                {
-                    "resourceType": "OperationOutcome",
-                    "issue": [{"severity": "error", "code": "not-found", "diagnostics": "missing group"}],
-                },
-                status_code=404,
-            )
-        ]
-    ]
+async def test_get_group_returns_operation_outcome(monkeypatch, respx_mock):
+    group_route = respx_mock.get("http://hapi.example/fhir/Group/missing").mock(
+        return_value=httpx.Response(
+            404,
+            json={
+                "resourceType": "OperationOutcome",
+                "issue": [{"severity": "error", "code": "not-found", "diagnostics": "missing group"}],
+            },
+        )
+    )
 
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
-    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await group.get_group("missing", claims={})
 
     assert isinstance(result, JSONResponse)
+    assert group_route.called
     assert result.status_code == 404
     assert bytes(result.body).decode("utf-8") == '{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"not-found","diagnostics":"missing group"}]}'
 
@@ -116,17 +108,16 @@ async def test_search_groups_handles_request_errors(monkeypatch):
     assert result == []
 
 
-async def test_search_groups_returns_empty_for_upstream_error(monkeypatch):
-    _FakeAsyncClient.calls = []
-    _FakeAsyncClient.queued_responses = [[_FakeResponse({"error": "boom"}, status_code=500)]]
+async def test_search_groups_returns_empty_for_upstream_error(monkeypatch, respx_mock):
+    group_route = respx_mock.get("http://hapi.example/fhir/Group", params={"name": "Panel"}).mock(return_value=httpx.Response(500, json={"error": "boom"}))
 
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
-    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await group.search_groups(name="Panel", claims={})
 
+    assert group_route.called
     assert result == []
 
 
@@ -139,40 +130,37 @@ async def test_delete_group_returns_config_error(monkeypatch):
     assert result.status_code == 503
 
 
-async def test_search_groups_skips_cross_origin_patient_reference(monkeypatch):
-    _FakeAsyncClient.calls = []
-    _FakeAsyncClient.queued_responses = [
-        [
-            _FakeResponse(
-                {
-                    "resourceType": "Bundle",
-                    "entry": [
-                        {
-                            "resource": {
-                                "resourceType": "Group",
-                                "id": "group-1",
-                                "name": "Panel",
-                                "member": [{"entity": {"reference": "https://attacker.example/Patient/patient-123"}}],
-                            }
+async def test_search_groups_skips_cross_origin_patient_reference(monkeypatch, respx_mock):
+    group_route = respx_mock.get("http://hapi.example/fhir/Group", params={"name": "Panel"}).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "resourceType": "Bundle",
+                "entry": [
+                    {
+                        "resource": {
+                            "resourceType": "Group",
+                            "id": "group-1",
+                            "name": "Panel",
+                            "member": [{"entity": {"reference": "https://attacker.example/Patient/patient-123"}}],
                         }
-                    ],
-                }
-            )
-        ],
-        [],
-    ]
+                    }
+                ],
+            },
+        )
+    )
     monkeypatch.setattr(settings, "config_errors", {})
     monkeypatch.setattr(settings, "hapi_fhir_cql_execution_url", "http://hapi.example/fhir")
     monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
     monkeypatch.setattr(settings, "external_fhir_server_auth", SecretStr("Bearer token"))
-    monkeypatch.setattr(fhir_proxy.httpx, "AsyncClient", _FakeAsyncClient)
 
     result = await group.search_groups(name="Panel", claims={})
 
     assert not isinstance(result, JSONResponse)
+    assert group_route.called
     assert len(result) == 1
     assert isinstance(result[0], GroupResource)
-    assert len(_FakeAsyncClient.calls) == 1
+    assert len(respx_mock.calls) == 1
 
 
 async def test_search_groups_fetches_members_concurrently_and_preserves_order(monkeypatch):
@@ -199,7 +187,7 @@ async def test_search_groups_fetches_members_concurrently_and_preserves_order(mo
                 await completed[patient_ids[patient_index + 1]].wait()
             completed[patient_id].set()
             in_flight -= 1
-            return _FakeResponse({"resourceType": "Patient", "id": patient_id})
+            return httpx.Response(200, json={"resourceType": "Patient", "id": patient_id})
 
     client = _ReverseCompletionClient()
 

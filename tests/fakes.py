@@ -1,74 +1,17 @@
-"""Reusable HTTP and FHIR resource fakes for the test suite.
+"""Reusable stateless HTTP and FHIR resource fakes for the test suite.
 
-This module supplies queued and failing clients, response wrappers, and a Patient factory; test-specific
-fixtures and assertions stay in their owning modules."""
+HTTP responses are mocked per test with respx (the `respx_mock` fixture); this module keeps only a client
+whose every call raises `httpx.RequestError` and a minimal Patient resource builder. Test-specific doubles
+and assertions stay in their owning modules, with per-instance state only."""
 
-from typing import Any, ClassVar
+from typing import Any
 
 import httpx
 
 
-class FakeResponse:
-    def __init__(self, payload: Any = None, status_code: int = 200, text: str | None = None, headers: dict[str, str] | None = None):
-        self._payload = payload if payload is not None else {}
-        self.status_code = status_code
-        self.text = text if text is not None else str(payload)
-        self.headers = headers or {}
-        self.encoding = "utf-8"
-
-    @property
-    def is_success(self) -> bool:
-        return 200 <= self.status_code < 300
-
-    def json(self) -> Any:
-        return self._payload
-
-    async def aiter_bytes(self):
-        yield self.text.encode("utf-8")
-
-
-class FakeAsyncClient:
-    queued_responses: ClassVar[list[list[FakeResponse]]] = []
-    calls: ClassVar[list[dict[str, Any]]] = []
-
-    def __init__(self, timeout: Any = None, transport: Any = None, **kwargs: Any):
-        del timeout, transport, kwargs
-        self._responses = type(self).queued_responses.pop(0)
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-    async def request(self, method, url, headers=None, params=None, json=None):
-        if method != "GET":
-            raise AssertionError(f"Unexpected fake HTTP method: {method}")
-        return await self.get(url, params=params, headers=headers)
-
-    async def get(self, url, params=None, headers=None):
-        type(self).calls.append({"url": url, "params": params, "headers": headers})
-        return self._responses.pop(0)
-
-    def stream(self, method, url, headers=None, params=None, follow_redirects=None):
-        if method != "GET":
-            raise AssertionError(f"Unexpected fake HTTP method: {method}")
-        type(self).calls.append({"url": url, "params": params, "headers": headers})
-        return _FakeStream(self._responses.pop(0))
-
-
-class _FakeStream:
-    def __init__(self, response: FakeResponse):
-        self._response = response
-
-    async def __aenter__(self) -> FakeResponse:
-        return self._response
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-
 class FailingAsyncClient:
+    """Stand-in `httpx.AsyncClient` whose requests always fail with `httpx.RequestError`."""
+
     def __init__(self, *args, **kwargs):
         pass
 
