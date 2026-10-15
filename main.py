@@ -111,7 +111,8 @@ async def lifespan(app: FastAPI):
 
 
 # App
-app = FastAPI(title="RC-API", description="SmartChart Suite Results Combining API — v1.0", version="1.0.0", root_path=settings.root_path, lifespan=lifespan)
+app_version = "1.0.0a1"
+app = FastAPI(title="RC-API", description="SmartChart Suite Results Combining API — v1.0", version=app_version, root_path=settings.root_path, lifespan=lifespan)
 
 # CORS — explicit allowlist from CORS_ALLOW_ORIGINS. Credentials are only allowed with concrete origins.
 if settings.cors_allow_origins:
@@ -152,6 +153,6 @@ async def health():
     """Basic health check."""
     return {
         "status": "ok" if not settings.config_errors else "degraded",
-        "version": "1.0.0",
+        "version": app_version,
         "configErrors": list(settings.config_errors.keys()) if settings.config_errors else [],
     }
