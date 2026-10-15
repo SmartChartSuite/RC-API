@@ -8,12 +8,13 @@ batch-job logic, persistence, or transport implementation; those responsibilitie
 belong to `src.services` and `src.util`.
 """
 
-from fastapi import APIRouter, Body, Security
+from fastapi import APIRouter, Body, Query, Security
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import OperationOutcome, QuestionnaireResource
+from src.models.fhir import FHIRProxyResponse, OperationOutcome, QuestionnaireResource
 from src.services.errorhandler import FHIR_PROXY_ERROR_RESPONSES, config_error_for, fhir_result_response, operation_outcome_response
 from src.services.fhir_proxy import fhir_delete_with_status, fhir_get_with_status, fhir_post_with_status, fhir_put_with_status
+from src.services.job_package_titles import JobPackageTitle, get_job_package_titles
 from src.util.auth import require_admin, validate_token
 from src.util.fhir_bundle import get_bundle_resources
 from src.util.settings import settings
@@ -58,6 +59,24 @@ async def search_job_packages(
     if data.get("resourceType") == "OperationOutcome":
         return OperationOutcome.model_validate(data)
     return [QuestionnaireResource.model_validate(resource) for resource in get_bundle_resources(data, "Questionnaire")]
+
+
+@router.get("/jobpackage/title", summary="List Job Package Titles", response_model=list[JobPackageTitle], responses=FHIR_PROXY_ERROR_RESPONSES)
+async def list_job_package_titles(
+    refresh: bool = Query(False, description="Reload the list from HAPI FHIR instead of serving the cached copy."),
+    claims: dict = Security(validate_token),
+) -> JSONResponse | list[JobPackageTitle] | OperationOutcome:
+    """List the ``name`` and ``title`` of every job package Questionnaire, for type-ahead title search.
+
+    The list is cached in memory: loaded at startup, then served without contacting HAPI FHIR until a
+    request passes ``refresh=true``. Entries are sorted by title. Prefix matching is done by the client.
+    """
+    if err := config_error_for(settings.config_errors, "HAPI_FHIR_CQL_EXECUTION_URL"):
+        return err
+    result = await get_job_package_titles(refresh=refresh)
+    if isinstance(result, FHIRProxyResponse):
+        return fhir_result_response(result, OperationOutcome)
+    return result
 
 
 @router.get("/jobpackage/{resource_id}", summary="Get Job Package", response_model=QuestionnaireResult, responses=FHIR_PROXY_ERROR_RESPONSES)

@@ -1,7 +1,7 @@
 """Shared pytest setup for the migrated test database and test isolation.
 
 Each pytest process migrates its own throwaway SQLite database (never a file in the repository root), and
-autouse fixtures clear prompt caches and HTTP-client registries. HTTP is mocked per test with respx (the
+autouse fixtures clear prompt caches, the job-package title cache, and HTTP-client registries. HTTP is mocked per test with respx (the
 `respx_mock` fixture); stateless shared fakes live in `tests.fakes` and builders in `tests.factories`, while
 behavior belongs in the test modules."""
 
@@ -41,6 +41,21 @@ def _reset_prompt_cache():
     clear_prompt_cache()
     yield
     clear_prompt_cache()
+
+
+@pytest.fixture(autouse=True)
+def _reset_job_package_titles(monkeypatch):
+    """Clear the title cache and make the lifespan warm-up inert; title tests exercise loading directly."""
+    import main
+    from src.services.job_package_titles import clear_job_package_titles
+
+    async def _no_warmup() -> None:
+        return None
+
+    monkeypatch.setattr(main, "warm_job_package_titles", _no_warmup)
+    clear_job_package_titles()
+    yield
+    clear_job_package_titles()
 
 
 @pytest.fixture(autouse=True)

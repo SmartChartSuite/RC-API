@@ -1,13 +1,16 @@
 """Create and configure the RC-API FastAPI application.
 
 This module owns application-wide logging, lifespan startup and shutdown (database
-initialization, prompt-source setup, HTTP client cleanup, and the embedded batch
+initialization, prompt-source setup, the background job-package title cache load,
+HTTP client cleanup, and the embedded batch
 worker), middleware, exception handling, router registration, and health checks.
 Business logic belongs in `src.services`, HTTP adapters in `src.routers`, and
 shared infrastructure in `src.util`; this module wires those pieces together
 rather than implementing domain or persistence behavior.
 """
 
+import asyncio
+import contextlib
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -27,6 +30,7 @@ from src.routers.patient import router as patient_router
 from src.routers.response import router as response_router
 from src.services.batch_worker import EmbeddedBatchWorker
 from src.services.errorhandler import make_operation_outcome
+from src.services.job_package_titles import warm_job_package_titles
 from src.services.job_state.database import initialize_db
 from src.services.prompt_loader import initialize_prompt_source
 from src.util.http_clients import shutdown_http_clients, startup_http_clients
@@ -85,15 +89,22 @@ async def lifespan(app: FastAPI):
     clients = startup_http_clients()
     app.state.http_clients = clients
     worker = None
+    titles_warmup = None
     try:
         initialize_db()
         await initialize_prompt_source()
+        if "HAPI_FHIR_CQL_EXECUTION_URL" not in settings.config_errors:
+            titles_warmup = asyncio.create_task(warm_job_package_titles())
         worker = EmbeddedBatchWorker() if settings.batch_worker_enabled else None
         app.state.batch_worker = worker
         if worker is not None:
             await worker.start()
         yield
     finally:
+        if titles_warmup is not None and not titles_warmup.done():
+            titles_warmup.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await titles_warmup
         if worker is not None:
             await worker.stop()
         await shutdown_http_clients()

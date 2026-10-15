@@ -16,7 +16,7 @@ from loguru import logger
 from src.models.fhir import FHIRJSON, FHIRProxyResponse, FHIRProxyResult
 from src.services.errorhandler import make_operation_outcome
 from src.util.http_clients import fhir_headers, get_http_client, send_with_retry
-from src.util.outbound_url import is_valid_fhir_id, path_segment
+from src.util.outbound_url import is_same_origin, is_valid_fhir_id, path_segment, resolve_http_reference
 from src.util.settings import require_setting, settings
 
 
@@ -46,10 +46,15 @@ async def _request(
     """Send one HAPI FHIR request using the shared proxy transport policy."""
     if resource_id is not None and not is_valid_fhir_id(resource_id):
         return _invalid_id_outcome(resource_type)
-    url = _base_url(resource_type, resource_id)
+    return await _send(method, resource_type, _base_url(resource_type, resource_id), params=params, body=body)
+
+
+async def _send(method: str, resource_type: str, url: str, *, params: dict[str, Any] | None = None, body: dict[str, Any] | None = None) -> FHIRProxyResponse:
     request_kwargs: dict[str, Any] = {"headers": fhir_headers(content_type=True)}
     if method == "GET":
-        request_kwargs["params"] = params or {}
+        # Omit params entirely when absent: httpx would otherwise replace a next-page URL's query string.
+        if params is not None:
+            request_kwargs["params"] = params
     elif method in {"POST", "PUT"}:
         request_kwargs["json"] = body
 
@@ -81,6 +86,19 @@ async def fhir_get_with_status(
 ) -> FHIRProxyResponse:
     """GET a FHIR resource or search while retaining the HTTP status."""
     return await _request("GET", resource_type, resource_id, params=params)
+
+
+async def fhir_get_page_with_status(resource_type: str, next_url: str) -> FHIRProxyResponse:
+    """GET a search-result page from a Bundle ``next`` link on the HAPI FHIR server's origin."""
+    base_url = require_setting(settings.hapi_fhir_cql_execution_url, "HAPI_FHIR_CQL_EXECUTION_URL")
+    resolved = resolve_http_reference(base_url, next_url)
+    if not resolved or not is_same_origin(resolved, base_url):
+        logger.warning(f"Refusing FHIR {resource_type} `next` link that is not on the FHIR server origin")
+        return FHIRProxyResponse(
+            data=cast(FHIRJSON, make_operation_outcome("transient", f"The FHIR server returned an unusable next-page link for {resource_type}.")),
+            status_code=502,
+        )
+    return await _send("GET", resource_type, resolved)
 
 
 async def fhir_get(
