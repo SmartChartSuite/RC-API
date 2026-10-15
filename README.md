@@ -244,7 +244,7 @@ cp .env.example .env
 pixi run migrate
 ```
 
-`pixi` is used for local task orchestration. Python dependencies live in `pyproject.toml`, and `uv` creates the project environment for both local development and Docker builds.
+`pixi` is used for local task orchestration. Python dependencies live in `pyproject.toml`, and `uv` creates the project environment for both local development and Docker builds. The project targets Python 3.14 and uv 0.13 everywhere: `pyproject.toml` (`requires-python` and `[tool.uv] required-version`) is the source of truth, Pixi pins matching versions, and CI reads the uv version from `pyproject.toml`. `uv.lock` is the only application lockfile; `pixi.lock` only pins the Python and uv toolchain.
 
 ### Database Migrations
 
@@ -359,6 +359,29 @@ The server binds to `:8080` and starts one Hypercorn worker process by default (
 
 Docker builds install dependencies with `uv` from the committed `uv.lock` file, while local development uses `pixi` tasks that wrap the same `uv`-managed environment. Local `.env` files are for developer machines only and are not copied into the image.
 
+### Docker Image
+
+```bash
+# Multi-platform build that reuses the layer cache
+pixi run build-image
+
+# Full rebuild: no cache, and pull fresh base images
+pixi run build-image-clean
+```
+
+The container runs as the unprivileged `rcapi` user (UID/GID 10001). The application code and virtualenv are read-only to that user. Only `/app` itself is writable, so the default SQLite database can be created there. If you mount a host volume for SQLite, make it writable by UID 10001. A `HEALTHCHECK` polls `/health` every 30 seconds.
+
+The image does not apply migrations on startup. Run them from the same image with the env vars the service uses:
+
+```bash
+docker run --rm --no-healthcheck \
+  -e DB_CONNECTION_STRING=... -e DB_SCHEMA=... \
+  ghcr.io/smartchartsuite/rc-api-v1:latest \
+  alembic upgrade head
+```
+
+`--no-healthcheck` keeps the one-off job from showing as `unhealthy`, because no server is listening while it runs.
+
 ### Code Quality
 
 ```bash
@@ -377,6 +400,8 @@ pixi run check
 # Run all pre-commit hooks
 uv run pre-commit run --all-files
 ```
+
+Ruff runs its default rules plus `B` (bugbear), `I` (import sorting), `UP` (pyupgrade), `ASYNC` and `S` (bandit security checks), with a 200-character line length. Tests ignore only `S101`, so pytest `assert` is allowed there. Pre-commit, `pixi run check` and CI all use the configuration in `pyproject.toml`.
 
 ---
 
