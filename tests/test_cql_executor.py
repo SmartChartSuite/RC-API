@@ -164,15 +164,18 @@ def test_parse_parameters_response_returns_error_for_nested_operation_outcome():
 
 async def test_run_cql_libraries_reports_each_result_as_it_finishes(monkeypatch):
     callback_order: list[str] = []
+    fast_result_reported = asyncio.Event()
 
     async def _fake_evaluate_library(client, library_name, patient_id):
         del client
         if library_name == "slow":
-            await asyncio.sleep(0.01)
+            await fast_result_reported.wait()
         return cql_executor.CqlResult(library_name=library_name, patient_id=patient_id)
 
     async def _on_result(result):
         callback_order.append(result.library_name)
+        if result.library_name == "fast":
+            fast_result_reported.set()
 
     monkeypatch.setattr(cql_executor, "get_http_client", lambda _profile: object())
     monkeypatch.setattr(cql_executor, "_evaluate_library", _fake_evaluate_library)

@@ -4,7 +4,6 @@ The `db` fixture points the job_state submodules at fresh in-memory SQLite and u
 module covers persistence rather than router or orchestration logic."""
 
 import importlib
-import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -154,22 +153,31 @@ def test_initialize_db_rejects_outdated_revision(monkeypatch):
 
 
 def test_orm_timestamp_defaults_are_evaluated_per_insert(db):
+    first_timestamp = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+    second_timestamp = datetime(2026, 1, 1, 12, 0, 1, tzinfo=UTC)
+    current = [first_timestamp]
 
-    before = datetime.now(UTC)
+    class _FixedDatetime:
+        @staticmethod
+        def now(_tz: object) -> datetime:
+            return current[0]
+
+    # The column captured `_utc_now` when the model class was defined, so patch the
+    # module-level datetime that `_utc_now` resolves at each default invocation.
+    db.monkeypatch.setattr(models, "datetime", _FixedDatetime)
+
     assert _create_batch_job("batch-1", "patient-1", "Registry")
     first = batch_records.get_batch_job("batch-1")
     assert first is not None
-    time.sleep(0.01)
+    current[0] = second_timestamp
     assert _create_batch_job("batch-2", "patient-2", "Registry")
     second = batch_records.get_batch_job("batch-2")
-    after = datetime.now(UTC)
 
     assert second is not None
     first_created_at = first.created_at.replace(tzinfo=UTC) if first.created_at.tzinfo is None else first.created_at
     second_created_at = second.created_at.replace(tzinfo=UTC) if second.created_at.tzinfo is None else second.created_at
-    assert before <= first_created_at <= after
-    assert before <= second_created_at <= after
-    assert first_created_at < second_created_at
+    assert first_created_at == first_timestamp
+    assert second_created_at == second_timestamp
 
 
 def test_query_batch_jobs_paginates_and_defers_result_bundle(db):

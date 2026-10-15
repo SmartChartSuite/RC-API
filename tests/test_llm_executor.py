@@ -132,6 +132,7 @@ async def test_run_all_prompts_returns_empty_when_missing_inputs():
 
 async def test_run_all_prompts_reports_each_result_as_it_finishes(monkeypatch):
     callback_order: list[str] = []
+    fast_result_reported = asyncio.Event()
     prompts = [
         Prompt(metadata=PromptMetadata(name="Slow", path="prompts/slow"), content="slow"),
         Prompt(metadata=PromptMetadata(name="Fast", path="prompts/fast"), content="fast"),
@@ -139,11 +140,13 @@ async def test_run_all_prompts_reports_each_result_as_it_finishes(monkeypatch):
 
     async def _fake_run_prompt_across_documents(prompt, documents, **kwargs):
         if prompt.metadata.path == "prompts/slow":
-            await asyncio.sleep(0.01)
+            await fast_result_reported.wait()
         return llm_executor.LlmResult(prompt_path=prompt.metadata.path)
 
     async def _on_result(result):
         callback_order.append(result.prompt_path)
+        if result.prompt_path == "prompts/fast":
+            fast_result_reported.set()
 
     monkeypatch.setattr(llm_executor, "run_prompt_across_documents", _fake_run_prompt_across_documents)
 

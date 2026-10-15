@@ -4,7 +4,7 @@ FastAPI `TestClient` runs the real pipeline with respx HTTP mocks; `_isolated_db
 `_configure_services` isolate SQLite state and settings for external services."""
 
 import json
-import time
+import threading
 from pathlib import Path
 
 import httpx
@@ -16,7 +16,7 @@ from sqlalchemy import create_engine
 
 import main as main_module
 from main import app
-from src.services import llm_executor
+from src.services import batch_worker, llm_executor
 from src.services.job_state import database, models
 from src.util.settings import settings
 
@@ -108,6 +108,8 @@ def _configure_services(monkeypatch):
     """
     monkeypatch.setattr(main_module, "initialize_db", lambda: None)
     monkeypatch.setattr(settings, "batch_worker_enabled", True)
+    # Only shortens the idle wait before the worker claims the submitted batch; completion is
+    # observed through the `batch_completed` event, not by timing.
     monkeypatch.setattr(settings, "batch_worker_poll_interval_seconds", 0.01)
     monkeypatch.setattr(settings, "oauth2_enabled", False)
     monkeypatch.setattr(settings, "use_langfuse", False)
@@ -147,7 +149,7 @@ def _is_observation(resource: dict) -> bool:
     return resource["resourceType"] == "Observation" and resource.get("id") != "status-observation"
 
 
-def test_post_batch_job_end_to_end_builds_expected_result_bundle():
+def test_post_batch_job_end_to_end_builds_expected_result_bundle(monkeypatch):
     """POST /batchjob -> full CQL+LLM pipeline -> GET result Bundle.
 
     Everything mocked is a real capture from the dev environment for
@@ -162,6 +164,16 @@ def test_post_batch_job_end_to_end_builds_expected_result_bundle():
     cql_response = _load_fixture("cql_evaluate_response.json")
     patient = _load_fixture("patient.json")
     document_references = _load_fixture("document_references.json")
+
+    batch_completed = threading.Event()
+    real_run_batch_job = batch_worker.run_batch_job
+
+    async def _run_batch_job(*args, **kwargs):
+        result = await real_run_batch_job(*args, **kwargs)
+        batch_completed.set()
+        return result
+
+    monkeypatch.setattr(batch_worker, "run_batch_job", _run_batch_job)
 
     questionnaire_search_bundle = {
         "resourceType": "Bundle",
@@ -197,16 +209,11 @@ def test_post_batch_job_end_to_end_builds_expected_result_bundle():
             assert accepted_params["batchJobStatus"]["valueString"] == "pending"
             batch_id = accepted_params["batchId"]["valueString"]
 
-            deadline = time.monotonic() + 5
-            while True:
-                status_response = client.get(f"/batchjob/{batch_id}/status")
-                assert status_response.status_code == 200, status_response.text
-                status_params = {p["name"]: p for p in status_response.json()["parameter"]}
-                status = status_params["batchJobStatus"]["valueString"]
-                if status in {"complete", "error"}:
-                    break
-                assert time.monotonic() < deadline, f"batch remained {status}"
-                time.sleep(0.01)
+            assert batch_completed.wait(timeout=10), "batch worker did not finish the pipeline"
+            status_response = client.get(f"/batchjob/{batch_id}/status")
+            assert status_response.status_code == 200, status_response.text
+            status_params = {p["name"]: p for p in status_response.json()["parameter"]}
+            status = status_params["batchJobStatus"]["valueString"]
 
             assert status == "complete"
             assert status_params["questionnaireResponseStatus"]["valueString"] == "in-progress"
