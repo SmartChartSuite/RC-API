@@ -75,14 +75,17 @@ class FHIRProxyResponse:
 
 
 class FHIRBaseModel(BaseModel):
-    """Canonical base for resource models with typed fields and unknown-field passthrough."""
+    """Canonical base for resource models with typed fields and unknown-field passthrough.
+
+    Concrete resource models declare `resourceType` as a required `Literal` with no default, so the
+    OpenAPI schema lists it as required and a body for another resource type is rejected."""
 
     model_config = ConfigDict(extra="allow")
 
     @model_validator(mode="before")
     @classmethod
     def require_resource_type(cls, value: Any) -> Any:
-        """Require resourceType when a concrete resource model declares it."""
+        """Reject a missing resourceType with a specific message instead of Pydantic's generic one."""
         if "resourceType" in cls.model_fields and isinstance(value, Mapping) and "resourceType" not in value:
             raise ValueError("resourceType is required")
         return value
@@ -100,7 +103,7 @@ class BundleEntry(FHIRBaseModel):
 
 
 class BundleResource(FHIRBaseModel):
-    resourceType: Literal["Bundle"] = "Bundle"
+    resourceType: Literal["Bundle"]
     type: str | None = None
     total: int | None = None
     entry: list[BundleEntry] | None = None
@@ -111,26 +114,26 @@ class GroupMember(FHIRBaseModel):
 
 
 class GroupResource(FHIRBaseModel):
-    resourceType: Literal["Group"] = "Group"
+    resourceType: Literal["Group"]
     id: str | None = None
     name: str | None = None
     member: list[GroupMember] | None = None
 
 
 class PatientResource(FHIRBaseModel):
-    resourceType: Literal["Patient"] = "Patient"
+    resourceType: Literal["Patient"]
     id: str | None = None
 
 
 class QuestionnaireResource(FHIRBaseModel):
-    resourceType: Literal["Questionnaire"] = "Questionnaire"
+    resourceType: Literal["Questionnaire"]
     id: str | None = None
     name: str | None = None
     version: str | None = None
 
 
 class QuestionnaireResponseResource(FHIRBaseModel):
-    resourceType: Literal["QuestionnaireResponse"] = "QuestionnaireResponse"
+    resourceType: Literal["QuestionnaireResponse"]
     id: str | None = None
     questionnaire: str | None = None
     status: str | None = None
@@ -140,7 +143,7 @@ class QuestionnaireResponseResource(FHIRBaseModel):
 
 
 class LibraryResource(FHIRBaseModel):
-    resourceType: Literal["Library"] = "Library"
+    resourceType: Literal["Library"]
     id: str | None = None
     name: str | None = None
     version: str | None = None
