@@ -93,9 +93,26 @@ class FHIRBaseModel(BaseModel):
     def to_fhir_json(self) -> FHIRJSON:
         """Dump only fields supplied by the client while preserving explicit nulls and extras."""
         payload = self.model_dump(mode="json", exclude_unset=True)
-        if "resourceType" not in payload:
+        if "resourceType" in type(self).model_fields and "resourceType" not in payload:
             raise ValueError("FHIR resource payload must include resourceType")
         return payload
+
+
+class Identifier(FHIRBaseModel):
+    """FHIR R4 Identifier datatype."""
+
+    use: str | None = None
+    system: str | None = None
+    value: str | None = None
+
+
+class Reference(FHIRBaseModel):
+    """FHIR R4 Reference datatype with the fields needed by local resources."""
+
+    reference: str | None = None
+    type: str | None = None
+    identifier: Identifier | None = None
+    display: str | None = None
 
 
 class BundleEntry(FHIRBaseModel):
@@ -140,6 +157,7 @@ class QuestionnaireResponseResource(FHIRBaseModel):
     subject: dict[str, Any] | None = None
     meta: dict[str, Any] | None = None
     authored: str | None = None
+    author: Reference | None = None
 
 
 class LibraryResource(FHIRBaseModel):

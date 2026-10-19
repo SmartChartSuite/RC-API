@@ -42,6 +42,7 @@ from src.services.job_state.batch_records import (
 from src.services.job_state.child_jobs import get_jobs_for_batch
 from src.services.job_state.models import BatchJobs, QuestionnaireResponses
 from src.services.job_state.responses import get_responses_for_batches
+from src.util.current_user import CurrentUser, build_questionnaire_response_author, user_from_claims
 from src.util.documents import add_document_text_content
 from src.util.fhir_bundle import get_bundle_resources
 from src.util.outbound_url import is_valid_fhir_id
@@ -251,16 +252,21 @@ async def resolve_questionnaire(job_package: str, job_package_version: str | Non
     return questionnaire
 
 
-async def submit_batch_job(body: JobRequest, claims: dict) -> BatchJobSubmission | BatchJobError | MissingConfig:
+async def submit_batch_job(
+    body: JobRequest,
+    claims: dict,
+    current_user: CurrentUser | None = None,
+) -> BatchJobSubmission | BatchJobError | MissingConfig:
     missing = required_batch_job_config()
     if missing:
         return MissingConfig(tuple(missing))
 
+    resolved_user = current_user or user_from_claims(claims)
     patient_id: str | None = body.get_param("patientId")
     job_package: str | None = body.get_param("jobPackage")
     job_package_version: str | None = body.get_param("jobPackageVersion")
     job_names = body.get_params("job")
-    started_by = claims.get("sub", "unknown")
+    started_by = resolved_user.sub
 
     if not patient_id or not job_package:
         return BatchJobError(400, "required", "The 'patientId' and 'jobPackage' parameters must have non-empty values.")
@@ -298,6 +304,7 @@ async def submit_batch_job(body: JobRequest, claims: dict) -> BatchJobSubmission
         "status": "in-progress",
         "questionnaire": questionnaire_ref,
         "subject": {"reference": f"Patient/{patient_id}"},
+        "author": build_questionnaire_response_author(resolved_user),
         "meta": {"lastUpdated": response_timestamp.isoformat()},
         "authored": response_timestamp.isoformat(),
         "item": prefill_questionnaire_response_items(questionnaire.get("item")),

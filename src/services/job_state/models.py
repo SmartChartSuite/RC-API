@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import ClassVar
 
-from sqlalchemy import JSON, Column, ForeignKey, Index, MetaData, String, Text
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Index, MetaData, String, Text, false
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from src.util.settings import settings
@@ -35,6 +35,18 @@ def _metadata_schema(connection_string: str, schema: str | None) -> str | None:
 class Base(DeclarativeBase):
     metadata = MetaData(schema=_metadata_schema(settings.db_connection_string, settings.db_schema))
     type_annotation_map: ClassVar = {dict: JSON}
+
+
+class Users(Base):
+    __tablename__ = "users"
+
+    sub: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str | None] = mapped_column(Text)
+    email: Mapped[str | None] = mapped_column(Text)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now)
+    profile_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class BatchJobs(Base):

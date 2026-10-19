@@ -10,8 +10,9 @@ from types import SimpleNamespace
 from fastapi import Response
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import BundleResource, OperationOutcome, QuestionnaireResponseResource
+from src.models.fhir import BundleResource, QuestionnaireResponseResource
 from src.routers import response as response_router
+from tests.factories import expected_author
 
 
 def _make_record(response_id: str = "response-1") -> SimpleNamespace:
@@ -66,6 +67,7 @@ async def test_get_response_record_returns_questionnaire_response(monkeypatch):
     assert isinstance(result, QuestionnaireResponseResource)
     assert result.resourceType == "QuestionnaireResponse"
     assert result.id == "response-1"
+    assert result.author is None
 
 
 async def test_create_response_record_sets_location_and_returns_questionnaire_response(monkeypatch):
@@ -85,6 +87,7 @@ async def test_create_response_record_sets_location_and_returns_questionnaire_re
             "questionnaire": "Questionnaire/ExampleRegistry",
             "status": "completed",
             "subject": {"reference": "Patient/patient-123"},
+            "author": {"display": "client-supplied"},
         }
     )
     response = Response()
@@ -99,6 +102,9 @@ async def test_create_response_record_sets_location_and_returns_questionnaire_re
     assert result.meta is not None
     assert captured["response"]["meta"]["lastUpdated"] == result.meta["lastUpdated"]
     assert captured["response"]["authored"] == result.authored
+    assert captured["response"]["author"] == expected_author("user-123", "user-123")
+    assert result.author is not None
+    assert result.author.to_fhir_json() == captured["response"]["author"]
 
 
 async def test_create_response_record_returns_400_when_required_fields_missing(monkeypatch):
@@ -111,7 +117,7 @@ async def test_create_response_record_returns_400_when_required_fields_missing(m
     assert result.status_code == 400
 
 
-async def test_update_response_record_returns_operation_outcome(monkeypatch):
+async def test_update_response_record_returns_stamped_questionnaire_response(monkeypatch):
     captured: dict = {}
 
     def _fake_update_response_body(response_id, body, last_updated_by, updated_at):
@@ -124,13 +130,19 @@ async def test_update_response_record_returns_operation_outcome(monkeypatch):
     monkeypatch.setattr(response_router, "update_response_body", _fake_update_response_body)
     monkeypatch.setattr(response_router, "get_response", lambda response_id: _make_record(response_id))
 
-    result = await response_router.update_response_record("response-1", QuestionnaireResponseResource.model_validate({"resourceType": "QuestionnaireResponse"}), claims={"sub": "user-456"})
+    result = await response_router.update_response_record(
+        "response-1",
+        QuestionnaireResponseResource.model_validate({"resourceType": "QuestionnaireResponse", "author": {"display": "client-supplied"}}),
+        claims={"sub": "user-456"},
+    )
 
-    assert isinstance(result, OperationOutcome)
-    assert result.issue[0].diagnostics == "Response response-1 updated."
+    assert isinstance(result, QuestionnaireResponseResource)
+    assert result.author is not None
+    assert result.author.to_fhir_json() == captured["body"]["author"]
     assert captured["last_updated_by"] == "user-456"
     assert captured["body"]["id"] == "response-1"
     assert captured["body"]["meta"]["lastUpdated"] == captured["body"]["authored"]
+    assert captured["body"]["author"] == expected_author("user-456", "user-456")
 
 
 async def test_delete_response_delegates_to_job_state(monkeypatch):

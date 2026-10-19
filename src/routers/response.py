@@ -14,11 +14,12 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Body, Query, Response, Security
 from fastapi.responses import JSONResponse
 
-from src.models.fhir import BundleResource, OperationOutcome, OperationOutcomeIssue, QuestionnaireResponseResource
+from src.models.fhir import BundleResource, QuestionnaireResponseResource
 from src.services.errorhandler import operation_outcome_response, operation_outcome_responses
 from src.services.job_state.batch_records import get_batch_job
 from src.services.job_state.responses import create_response, delete_response_record, get_response, get_responses, update_response_body
 from src.util.auth import require_admin, validate_token
+from src.util.current_user import CurrentUser, build_questionnaire_response_author, get_current_user, user_from_claims
 from src.util.threading import run_db
 
 router = APIRouter(tags=["Responses"])
@@ -115,6 +116,7 @@ async def create_response_record(
     batch_job_id: str = Query(..., description="Local batch job ID associated with this QuestionnaireResponse."),
     response: Response = None,  # type: ignore[assignment]
     claims: dict = Security(validate_token),
+    current_user: CurrentUser | None = Security(get_current_user),
 ) -> QuestionnaireResponseResource | JSONResponse:
     """Create a stored QuestionnaireResponse.
 
@@ -123,9 +125,11 @@ async def create_response_record(
     ``patient_id`` is derived from ``subject.reference`` and ``job_package`` is
     derived from ``questionnaire``.
     """
-    last_updated_by = claims.get("sub", "unknown")
+    resolved_user = current_user if isinstance(current_user, CurrentUser) else user_from_claims(claims)
+    last_updated_by = resolved_user.sub
 
     response_resource = body.to_fhir_json()
+    response_resource["author"] = build_questionnaire_response_author(resolved_user)
     patient_id = _extract_patient_id(response_resource)
     job_package = _derive_job_package(response_resource)
 
@@ -163,12 +167,13 @@ async def create_response_record(
     return QuestionnaireResponseResource.model_validate(normalized_response)
 
 
-@router.put("/response/{response_id}", summary="Update Response", response_model=OperationOutcome, responses=operation_outcome_responses(400, 404))
+@router.put("/response/{response_id}", summary="Update Response", response_model=QuestionnaireResponseResource, responses=operation_outcome_responses(400, 404))
 async def update_response_record(
     response_id: str,
     body: QuestionnaireResponseResource = Body(..., openapi_examples={"questionnaireResponse": {"summary": "FHIR QuestionnaireResponse", "value": _QUESTIONNAIRE_RESPONSE_EXAMPLE}}),
     claims: dict = Security(validate_token),
-) -> OperationOutcome | JSONResponse:
+    current_user: CurrentUser | None = Security(get_current_user),
+) -> QuestionnaireResponseResource | JSONResponse:
     """Update an existing stored QuestionnaireResponse.
 
     The request body should be the full FHIR ``QuestionnaireResponse`` resource
@@ -176,6 +181,8 @@ async def update_response_record(
     ``questionnaire`` linkage of a stored response cannot be changed.
     """
     body_json = body.to_fhir_json()
+    resolved_user = current_user if isinstance(current_user, CurrentUser) else user_from_claims(claims)
+    body_json["author"] = build_questionnaire_response_author(resolved_user)
     if "id" in body_json and body_json["id"] != response_id:
         return operation_outcome_response(400, "invariant", f"QuestionnaireResponse body id {body_json['id']!r} does not match path id {response_id!r}.")
     existing = await run_db(get_response, response_id)
@@ -195,10 +202,10 @@ async def update_response_record(
     normalized_meta["lastUpdated"] = now.isoformat()
     normalized_response["meta"] = normalized_meta
     normalized_response["authored"] = now.isoformat()
-    updated = await run_db(update_response_body, response_id, normalized_response, claims.get("sub", "unknown"), now)
+    updated = await run_db(update_response_body, response_id, normalized_response, resolved_user.sub, now)
     if not updated:
         return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
-    return OperationOutcome(issue=[OperationOutcomeIssue(severity="information", code="informational", diagnostics=f"Response {response_id} updated.")])
+    return QuestionnaireResponseResource.model_validate(normalized_response)
 
 
 @router.delete("/response/{response_id}", summary="Delete Response")

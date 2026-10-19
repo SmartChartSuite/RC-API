@@ -19,6 +19,7 @@ from src.models.job_response import BatchJobAcceptedResponse
 from src.services import batch_job_service
 from src.services.errorhandler import config_error_response, operation_outcome_response, operation_outcome_responses
 from src.util.auth import require_admin, validate_token
+from src.util.current_user import CurrentUser, get_current_user
 
 router = APIRouter(tags=["Batch Jobs"])
 
@@ -42,6 +43,7 @@ async def post_batch_job(
     body: JobRequest,
     response: Response,
     claims: dict = Security(validate_token),
+    current_user: CurrentUser | None = Security(get_current_user),
 ) -> BatchJobAcceptedResponse | JSONResponse:
     """Submit a job package run for a patient.
 
@@ -56,7 +58,8 @@ async def post_batch_job(
     Execution is persisted to the database and claimed asynchronously by the
     embedded durable batch worker.
     """
-    submission = await batch_job_service.submit_batch_job(body, claims)
+    resolved_user = current_user if isinstance(current_user, CurrentUser) else None
+    submission = await batch_job_service.submit_batch_job(body, claims, resolved_user)
     if not isinstance(submission, batch_job_service.BatchJobSubmission):
         return _service_error_response(submission)
 
