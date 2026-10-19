@@ -124,6 +124,7 @@ Same CRUD pattern (`GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}`) for:
 | `DELETE` | `/response/{id}` | Delete a stored `QuestionnaireResponse` *(requires `admin` scope)* |
 
 `POST /response` expects a raw `QuestionnaireResponse` resource body. The related local batch job id is passed as the `batch_job_id` query parameter. The API derives `patient_id` from `subject.reference`, stores the `questionnaire` value as the local `job_package`, and normalizes the resource `id` to the local response id.
+Successful POST and PUT responses return the normalized resource with the server-derived `author`; client-supplied author values are never retained.
 
 ### Write validation
 
@@ -192,6 +193,8 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `OAUTH2_ISSUER` | *(none)* | Expected `iss` claim in JWT. **Required** unless `AUTH_DISABLED=true` |
 | `OAUTH2_AUDIENCE` | *(none)* | Expected `aud` claim in JWT. **Required** unless `AUTH_DISABLED=true` |
 | `OAUTH2_JWKS_CACHE_SECONDS` | `3600` | JWKS cache lifetime; unknown key ids trigger an early (rate-limited) refresh |
+| `OAUTH2_USERINFO_TIMEOUT_SECONDS` | `3.0` | Timeout for the best-effort OAuth provider `/userinfo` lookup |
+| `OAUTH2_USERINFO_STALENESS_SECONDS` | `86400` | Cached profile lifetime before the next write refreshes it (24 hours) |
 | `AUTH_DISABLED` | `false` | Local development only: disables authentication entirely |
 | `CORS_ALLOW_ORIGINS` | *(none)* | Comma-separated browser origins permitted by CORS; unset sends no CORS headers |
 | `ATTACHMENT_ALLOWED_HOSTS` | *(none)* | Extra hosts (beyond the external FHIR origin) from which attachment URLs may be fetched; `.example.org` includes subdomains |
@@ -424,6 +427,24 @@ Authentication uses an OAuth 2 Bearer/JWT dependency with JWKS-backed RS256 vali
 Authorization: Bearer <token>
 ```
 
+### User Profile and QuestionnaireResponse Author
+
+On each write that can create or edit a local `QuestionnaireResponse` (`POST /batchjob`, `POST /response`, and `PUT /response/{id}`), RC-API resolves the JWT `sub` through the issuer's `/userinfo` endpoint using the incoming bearer token. The profile is stored in the `users` table and refreshed after `OAUTH2_USERINFO_STALENESS_SECONDS`; a provider timeout, non-2xx response, or malformed payload is logged and never prevents the write. Previously synchronized profile data is retained when a refresh fails.
+
+The server overwrites any client-supplied `QuestionnaireResponse.author` on every write. It stores the last editor as:
+
+```json
+{
+  "display": "User Name",
+  "identifier": {
+    "system": "https://your-auth-server.example.com/",
+    "value": "auth0|subject"
+  }
+}
+```
+
+`display` falls back to the subject when the provider has no name. Email is retained only in `users.email` and is not copied into the FHIR resource. Existing `started_by` and `last_updated_by` database audit fields continue to store the subject.
+
 ---
 
 ## Project Structure
@@ -477,10 +498,12 @@ RC-API/
 │   │       ├── batch_queue.py      # Claiming, leases, fencing, retry, recovery
 │   │       ├── batch_records.py    # Batch CRUD, result writes, document store
 │   │       ├── child_jobs.py       # Per-task child job rows
-│   │       └── responses.py        # QuestionnaireResponse CRUD
+│   │       ├── responses.py        # QuestionnaireResponse CRUD
+│   │       └── users.py            # Authenticated user profile persistence
 │   │
 │   └── util/
 │       ├── auth.py                 # OAuth 2 JWT validation dependencies
+│       ├── current_user.py         # Userinfo sync and trusted QR author mapping
 │       ├── documents.py            # DocumentReference text encoding
 │       ├── fhir_bundle.py          # Tolerant Bundle parsing helpers
 │       ├── http_clients.py         # Shared outbound HTTP client profiles + retries

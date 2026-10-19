@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
 from main import app
-from src.models.fhir import GroupResource, LibraryResource, OperationOutcome, QuestionnaireResource, QuestionnaireResponseResource
+from src.models.fhir import GroupResource, LibraryResource, QuestionnaireResource, QuestionnaireResponseResource
 from src.routers import group, jobpackage, library
 from src.routers import response as response_router
 from src.services.fhir_proxy import FHIRProxyResponse
@@ -178,6 +178,7 @@ def test_wrong_resource_type_is_operation_outcome_and_not_forwarded(
         pytest.param(library, "/library", "post", _LIBRARY_BODY, "version", {"not": "a string"}, "fhir_post_with_status", id="library"),
         pytest.param(jobpackage, "/jobpackage", "post", _QUESTIONNAIRE_BODY, "name", ["not", "a string"], "fhir_post_with_status", id="jobpackage"),
         pytest.param(response_router, "/response/response-1", "put", _QUESTIONNAIRE_RESPONSE_BODY, "subject", ["not", "an object"], "get_response", id="response"),
+        pytest.param(response_router, "/response/response-1", "put", _QUESTIONNAIRE_RESPONSE_BODY, "author", {"identifier": "not-an-identifier"}, "get_response", id="response-author"),
     ),
 )
 def test_wrongly_typed_declared_field_is_operation_outcome_and_not_forwarded(
@@ -351,8 +352,10 @@ async def test_response_put_keeps_subject_questionnaire_immutability_and_unknown
 
     result = await response_router.update_response_record("response-1", body, claims={})
 
-    assert isinstance(result, OperationOutcome)
+    assert isinstance(result, QuestionnaireResponseResource)
     persisted = captured["body"]
+    assert result.author is not None
+    assert result.author.to_fhir_json() == persisted["author"]
     assert persisted["subject"] == {"reference": "Patient/patient-1"}
     assert persisted["questionnaire"] == "Questionnaire/ExampleRegistry"
     assert persisted["item"] == _QUESTIONNAIRE_RESPONSE_BODY["item"]

@@ -19,8 +19,9 @@ from src.models.job_request import JobRequest, JobRequestParameter
 from src.models.job_response import BatchJobAcceptedResponse
 from src.routers import batchjob
 from src.services import batch_job_service, job_package, result_bundle
+from src.util.current_user import CurrentUser
 from src.util.settings import settings
-from tests.factories import batch_job, fake_fetch_patient, patient, response_record
+from tests.factories import batch_job, expected_author, fake_fetch_patient, patient, response_record
 
 
 @pytest.fixture
@@ -133,7 +134,12 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
     )
     response = Response()
 
-    result = await batchjob.post_batch_job(body, response, claims={"sub": "user-123"})
+    result = await batchjob.post_batch_job(
+        body,
+        response,
+        claims={"sub": "user-123"},
+        current_user=CurrentUser(sub="user-123", name="Named User"),
+    )
 
     assert isinstance(result, BatchJobAcceptedResponse)
     assert not isinstance(result, JSONResponse)
@@ -148,6 +154,7 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         "status": "in-progress",
         "questionnaire": "http://example.org/Questionnaire/questionnaire-123",
         "subject": {"reference": "Patient/patient-123"},
+        "author": expected_author("Named User", "user-123"),
         "meta": {"lastUpdated": captured["response_timestamp"].isoformat()},
         "authored": captured["response_timestamp"].isoformat(),
         "item": [

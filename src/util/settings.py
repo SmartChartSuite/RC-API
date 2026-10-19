@@ -160,6 +160,8 @@ class Settings(BaseSettings):
     oauth2_issuer: str | None = None
     oauth2_audience: str | None = None
     oauth2_jwks_cache_seconds: int = 3600
+    oauth2_userinfo_timeout_seconds: float = 3.0
+    oauth2_userinfo_staleness_seconds: float = 86_400.0
 
     # CORS — explicit allowlist. "*" is permitted but disables credentialed requests.
     cors_allow_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)

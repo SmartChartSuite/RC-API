@@ -31,6 +31,7 @@ ProfileName = Literal[
     "external_fhir",
     "external_patient",
     "jwks",
+    "userinfo",
     "langfuse_health",
 ]
 
@@ -80,6 +81,13 @@ HTTP_CLIENT_PROFILES: dict[ProfileName, HTTPClientProfile] = {
     # Patient router reads and Group member reads had the same 60-second policy.
     "external_patient": HTTPClientProfile("external_patient", httpx.Timeout(60.0, connect=10.0), 0, False, _limits()),
     "jwks": HTTPClientProfile("jwks", httpx.Timeout(10.0, connect=5.0), 0, False, _limits()),
+    "userinfo": HTTPClientProfile(
+        "userinfo",
+        httpx.Timeout(settings.oauth2_userinfo_timeout_seconds, connect=settings.oauth2_userinfo_timeout_seconds),
+        0,
+        False,
+        _limits(),
+    ),
     "langfuse_health": HTTPClientProfile("langfuse_health", httpx.Timeout(5.0, connect=5.0), 0, False, _limits()),
 }
 
@@ -100,6 +108,7 @@ RETRY_POLICIES: dict[ProfileName, RetryPolicy] = {
     "external_fhir": RetryPolicy(attempts=3, methods=frozenset({"GET"})),
     "external_patient": RetryPolicy(attempts=3, methods=frozenset({"GET"})),
     "jwks": RetryPolicy(attempts=1, methods=frozenset()),
+    "userinfo": RetryPolicy(attempts=1, methods=frozenset()),
     "langfuse_health": RetryPolicy(attempts=1, methods=frozenset()),
 }
 

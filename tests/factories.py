@@ -5,9 +5,16 @@ from datetime import UTC, datetime
 from typing import Any
 
 from src.services.job_state.models import BatchJobs, QuestionnaireResponses
+from src.util.settings import settings
 from tests.fakes import patient_resource
 
 _DEFAULT_CREATED_AT = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+
+
+def expected_author(display: str, sub: str) -> dict[str, Any]:
+    """Return the server-stamped QuestionnaireResponse.author for the current settings."""
+    identifier = {"system": settings.oauth2_issuer, "value": sub} if settings.oauth2_issuer else {"value": sub}
+    return {"display": display, "identifier": identifier}
 
 
 def batch_job(
