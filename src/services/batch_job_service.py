@@ -30,6 +30,7 @@ from src.services.batch_job_filters import (
     parse_iso_date_filter,
 )
 from src.services.external_fhir import fetch_patient as _fetch_patient
+from src.services.external_fhir import fetch_patient_summary as _fetch_patient_summary
 from src.services.fhir_proxy import fhir_get
 from src.services.job_state.batch_records import (
     create_batch_job_with_response,
@@ -182,6 +183,18 @@ async def fetch_patients(patient_ids: list[str]) -> dict[str, dict[str, Any] | N
     async def _fetch_one(patient_id: str) -> tuple[str, dict[str, Any] | None]:
         async with semaphore:
             return patient_id, await _fetch_patient(patient_id)
+
+    return dict(await asyncio.gather(*(_fetch_one(patient_id) for patient_id in unique_ids)))
+
+
+async def fetch_patient_summaries(patient_ids: list[str]) -> dict[str, dict[str, Any] | None]:
+    """Fetch projected Patient summaries through the shared process-local cache."""
+    unique_ids = list(dict.fromkeys(patient_ids))
+    semaphore = asyncio.Semaphore(_PATIENT_FETCH_MAX_CONCURRENCY)
+
+    async def _fetch_one(patient_id: str) -> tuple[str, dict[str, Any] | None]:
+        async with semaphore:
+            return patient_id, await _fetch_patient_summary(patient_id)
 
     return dict(await asyncio.gather(*(_fetch_one(patient_id) for patient_id in unique_ids)))
 
@@ -386,7 +399,8 @@ async def list_batch_jobs(
             run_start_date=run_start,
             run_end_date=run_end,
         )
-        patients_by_id = await fetch_patients([job.patient_id for job in all_jobs])
+        fetch = fetch_patients if include_patient else fetch_patient_summaries
+        patients_by_id = await fetch([job.patient_id for job in all_jobs])
         filtered_jobs: list[tuple[BatchJobs, dict[str, Any] | None]] = []
         for job in all_jobs:
             patient = patients_by_id[job.patient_id]
@@ -415,7 +429,8 @@ async def list_batch_jobs(
             limit=size,
             offset=start,
         )
-        patients_by_id = await fetch_patients([job.patient_id for job in selected_jobs])
+        fetch = fetch_patients if include_patient else fetch_patient_summaries
+        patients_by_id = await fetch([job.patient_id for job in selected_jobs])
         page_jobs = [(job, patients_by_id[job.patient_id]) for job in selected_jobs]
 
     responses_by_batch = await run_db(get_responses_for_batches, [job.batch_id for job, _ in page_jobs])

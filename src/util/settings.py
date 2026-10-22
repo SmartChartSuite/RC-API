@@ -138,6 +138,7 @@ class Settings(BaseSettings):
     batch_job_max_attempts: int = 3
     batch_job_retry_delay_seconds: int = 30
     batch_job_recovery_chunk_size: int = 100
+    batch_job_stream_poll_interval_seconds: float = 5.0
 
     # Langfuse (all three required together for prompt retrieval)
     langfuse_public_key: str | None = None
@@ -150,6 +151,9 @@ class Settings(BaseSettings):
 
     # Prompts folder (fallback when Langfuse is not configured) and database
     prompts_dir: str = "./prompts"
+    # Process-local Patient summary cache used by batch-list consumers.
+    patient_summary_cache_ttl_seconds: float = 900.0
+    patient_summary_cache_max_entries: int = 1000
     db_connection_string: str = "sqlite+pysqlite:///rcapi_jobs.sqlite"
     db_schema: str = "rcapi"
 
