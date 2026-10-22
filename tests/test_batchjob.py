@@ -560,6 +560,45 @@ async def test_list_batch_jobs_uses_one_bulk_response_load_for_page(monkeypatch)
         assert values["batchJobQuestionnaireResponse"].valueReference == {"reference": f"QuestionnaireResponse/response-{batch_id}"}
 
 
+async def test_list_batch_jobs_includes_progress_for_pending_running_and_partial(list_batch_jobs_setup, monkeypatch):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    jobs = [
+        batch_job(batch_id="running", patient_id="patient-running", status="running", created_at=created_at),
+        batch_job(batch_id="partial", patient_id="patient-partial", status="partial", created_at=created_at),
+        batch_job(batch_id="complete", patient_id="patient-complete", status="complete", created_at=created_at),
+        batch_job(batch_id="pending", patient_id="patient-pending", status="pending", created_at=created_at),
+    ]
+    monkeypatch.setattr(batch_job_service, "query_batch_jobs", lambda **kwargs: (jobs, len(jobs)))
+    monkeypatch.setattr(batch_job_service, "get_responses_for_batches", lambda batch_ids: {})
+    async def fetch_summaries(patient_ids):
+        return {patient_id: patient(patient_id=patient_id) for patient_id in patient_ids}
+
+    monkeypatch.setattr(batch_job_service, "fetch_patient_summaries", fetch_summaries)
+    monkeypatch.setattr(batch_job_service, "get_job_progress_for_batches", lambda batch_ids: {batch_id: 67 for batch_id in batch_ids})
+
+    result = await batch_job_service.list_batch_jobs(
+        include_patient=False,
+        page=0,
+        size=10,
+        questionnaire_response_status=None,
+        patient_name_filter=None,
+        patient_gender=None,
+        job_package_filter=None,
+        batch_job_status=None,
+        dob_start_date=None,
+        dob_end_date=None,
+        job_run_start_date=None,
+        job_run_end_date=None,
+    )
+
+    assert isinstance(result, dict)
+    progress_by_batch = {}
+    for entry in result["entry"]:
+        values = {param["name"]: param for param in entry["resource"]["parameter"]}
+        progress_by_batch[values["batchId"]["valueString"]] = values.get("batchJobProgress", {}).get("valueInteger")
+    assert progress_by_batch == {"running": 67, "partial": 67, "complete": None, "pending": 67}
+
+
 async def test_list_batch_jobs_applies_search_filters(list_batch_jobs_setup):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     captured_kwargs = list_batch_jobs_setup(
@@ -804,8 +843,9 @@ def test_hydration_preserves_legacy_inline_content_and_missing_rows():
 @pytest.mark.parametrize(
     ("batch_status", "child_statuses", "expected_progress"),
     [
-        ("running", ["complete", "running", "skipped"], "Batch job status: 67% (2/3)"),
-        ("partial", ["complete", "error"], "Batch job status: 100% (2/2)"),
+        ("running", ["complete", "running", "skipped"], "Batch job status: 33% (1/3)"),
+        ("partial", ["complete", "error"], "Batch job status: 50% (1/2)"),
+        ("partial", ["complete", "complete", "error"], "Batch job status: 67% (2/3)"),
     ],
 )
 async def test_get_batch_job_results_returns_stored_bundle_with_live_progress(monkeypatch, batch_status, child_statuses, expected_progress):

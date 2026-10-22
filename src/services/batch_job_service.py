@@ -40,7 +40,7 @@ from src.services.job_state.batch_records import (
     get_batch_job_summary,
     query_batch_jobs,
 )
-from src.services.job_state.child_jobs import get_jobs_for_batch
+from src.services.job_state.child_jobs import get_job_progress_for_batches, get_jobs_for_batch
 from src.services.job_state.models import BatchJobs, QuestionnaireResponses
 from src.services.job_state.responses import get_responses_for_batches
 from src.util.current_user import CurrentUser, build_questionnaire_response_author, user_from_claims
@@ -129,6 +129,7 @@ def to_batch_job_parameters(
     response: QuestionnaireResponses | None,
     patient: dict[str, Any] | None = None,
     include_patient_resource: bool = False,
+    progress: int | None = None,
 ) -> ParametersResponse:
     parameters = [
         ParametersParameter(name="batchId", valueString=job.batch_id),
@@ -138,6 +139,8 @@ def to_batch_job_parameters(
         ParametersParameter(name="batchJobStatus", valueString=cast(Any, job.status)),
         ParametersParameter(name="jobStartDateTime", valueDateTime=job.created_at.isoformat()),
     ]
+    if progress is not None and job.status in {"pending", "running", "partial"}:
+        parameters.append(ParametersParameter(name="batchJobProgress", valueInteger=progress))
     form_response_id, form_status, response_last_updated = questionnaire_response_info(response)
     if form_status:
         parameters.append(ParametersParameter(name="questionnaireResponseStatus", valueString=form_status))
@@ -433,7 +436,10 @@ async def list_batch_jobs(
         patients_by_id = await fetch([job.patient_id for job in selected_jobs])
         page_jobs = [(job, patients_by_id[job.patient_id]) for job in selected_jobs]
 
-    responses_by_batch = await run_db(get_responses_for_batches, [job.batch_id for job, _ in page_jobs])
+    page_batch_ids = [job.batch_id for job, _ in page_jobs]
+    responses_by_batch = await run_db(get_responses_for_batches, page_batch_ids)
+    progress_batch_ids = [job.batch_id for job, _ in page_jobs if job.status in {"pending", "running", "partial"}]
+    progress_by_batch = await run_db(get_job_progress_for_batches, progress_batch_ids)
     results = [
         {
             "resource": to_batch_job_parameters(
@@ -441,6 +447,7 @@ async def list_batch_jobs(
                 response=responses_by_batch.get(job.batch_id),
                 patient=patient,
                 include_patient_resource=include_patient,
+                progress=progress_by_batch.get(job.batch_id),
             ).model_dump(exclude_none=True)
         }
         for job, patient in page_jobs
@@ -459,13 +466,14 @@ async def list_batch_jobs(
 
 _TERMINAL_TASK_STATUSES = {"complete", "error", "skipped"}
 _TERMINAL_BATCH_STATUSES = {"complete", "partial", "error"}
+_SUCCESSFUL_TASK_STATUS = "complete"
 
 
 def with_batch_progress(result_bundle: dict, child_jobs: list[Any], batch_status: str) -> dict:
     """Return a Bundle copy whose status Observation text reflects live task progress."""
     bundle = deepcopy(result_bundle)
     total_jobs = len(child_jobs)
-    completed_jobs = sum(1 for child_job in child_jobs if getattr(child_job, "status", None) in _TERMINAL_TASK_STATUSES)
+    completed_jobs = sum(1 for child_job in child_jobs if getattr(child_job, "status", None) == _SUCCESSFUL_TASK_STATUS)
     percent_complete = round((completed_jobs / total_jobs) * 100) if total_jobs else (100 if batch_status in _TERMINAL_BATCH_STATUSES else 0)
     progress_text = f"Batch job status: {percent_complete}% ({completed_jobs}/{total_jobs})"
 
@@ -525,7 +533,10 @@ async def get_batch_job_status(batch_id: str, include_patient: bool) -> Paramete
         return BatchJobError(404, "not-found", f"Batch Job ID {batch_id} was not found.")
     patient = await _fetch_patient(job.patient_id)
     response = (await run_db(get_responses_for_batches, [batch_id])).get(batch_id)
-    return to_batch_job_parameters(job, response=response, patient=patient, include_patient_resource=include_patient)
+    progress = None
+    if job.status in {"pending", "running", "partial"}:
+        progress = (await run_db(get_job_progress_for_batches, [batch_id])).get(batch_id, 0)
+    return to_batch_job_parameters(job, response=response, patient=patient, include_patient_resource=include_patient, progress=progress)
 
 
 async def delete_batch_job(batch_id: str) -> JSONResponse:
