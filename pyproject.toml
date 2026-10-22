@@ -1,6 +1,6 @@
 [project]
 name = "rc-api"
-version = "1.0.0a1"
+version = "1.0.0a3"
 description = "SmartChart Suite Results Combining API"
 requires-python = ">=3.14,<3.15"
 dependencies = [
@@ -10,7 +10,7 @@ dependencies = [
     "httpx>=0.28.1,<1",
     "hypercorn>=0.18.0,<1",
     "langfuse>=4.17.0,<5",
-    "litellm>=1.104.0,<2",
+    "litellm==1.104.0",
     "loguru>=0.7.3,<1",
     "psycopg[binary,pool]>=3.3.6,<4",
     "pydantic>=2.13.5,<3",
