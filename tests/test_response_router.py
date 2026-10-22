@@ -217,3 +217,39 @@ async def test_update_response_record_preserves_stored_linkage(monkeypatch):
 
     assert captured["body"]["subject"] == {"reference": "Patient/patient-123"}
     assert captured["body"]["questionnaire"] == "SyphilisRegistry"
+
+
+_CANONICAL_URL = "http://example.org/Questionnaire/SyphilisRegistry"
+
+
+def _batch_created_record(response_id: str = "response-1") -> SimpleNamespace:
+    """A batch-created row: short job_package column, canonical URL in the stored resource."""
+    record = _make_record(response_id)
+    record.response = {**record.response, "questionnaire": _CANONICAL_URL, "subject": {"reference": "Patient/patient-123"}}
+    return record
+
+
+async def test_update_accepts_echoed_canonical_questionnaire_for_batch_created_response(monkeypatch):
+    captured: dict = {}
+    monkeypatch.setattr(response_router, "get_response", _batch_created_record)
+
+    def _fake_update(response_id, body, last_updated_by, updated_at):
+        captured["body"] = body
+        return True
+
+    monkeypatch.setattr(response_router, "update_response_body", _fake_update)
+
+    result = await response_router.update_response_record("response-1", _qr_body(questionnaire=_CANONICAL_URL), claims={})
+
+    assert isinstance(result, QuestionnaireResponseResource)
+    assert captured["body"]["questionnaire"] == _CANONICAL_URL
+
+
+async def test_update_rejects_different_questionnaire_for_batch_created_response(monkeypatch):
+    monkeypatch.setattr(response_router, "get_response", _batch_created_record)
+    monkeypatch.setattr(response_router, "update_response_body", lambda *args: (_ for _ in ()).throw(AssertionError("must not persist")))
+
+    result = await response_router.update_response_record("response-1", _qr_body(questionnaire="http://example.org/Questionnaire/Other"), claims={})
+
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 400

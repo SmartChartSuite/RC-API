@@ -189,14 +189,18 @@ async def update_response_record(
     if existing is None:
         return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
     new_patient_id = _extract_patient_id(body_json)
-    new_job_package = _derive_job_package(body_json)
-    if (new_patient_id is not None and new_patient_id != existing.patient_id) or (new_job_package is not None and new_job_package != existing.job_package):
+    new_questionnaire = _derive_job_package(body_json)
+    # Batch-created rows store the short job package name in ``job_package`` while the
+    # resource carries the canonical Questionnaire URL, so accept either and keep the stored value.
+    stored_questionnaire = _derive_job_package(existing.response) if isinstance(existing.response, dict) else None
+    allowed_questionnaires = {value for value in (stored_questionnaire, existing.job_package) if value}
+    if (new_patient_id is not None and new_patient_id != existing.patient_id) or (new_questionnaire is not None and new_questionnaire not in allowed_questionnaires):
         return operation_outcome_response(400, "invariant", "The subject and questionnaire of a stored QuestionnaireResponse cannot be changed.")
 
     now = datetime.now(UTC)
     normalized_response = _normalize_questionnaire_response(response_id, body_json)
     normalized_response["subject"] = {"reference": f"Patient/{existing.patient_id}"}
-    normalized_response["questionnaire"] = existing.job_package
+    normalized_response["questionnaire"] = stored_questionnaire or existing.job_package
     meta = normalized_response.get("meta")
     normalized_meta = dict(meta) if isinstance(meta, dict) else {}
     normalized_meta["lastUpdated"] = now.isoformat()

@@ -287,7 +287,7 @@ async def test_put_matching_or_absent_id_is_forwarded_or_persisted(
 
     def fake_get_response(response_id: str) -> SimpleNamespace:
         captured["response_id"] = response_id
-        return SimpleNamespace(patient_id="patient-1", job_package="Questionnaire/ExampleRegistry")
+        return SimpleNamespace(patient_id="patient-1", job_package="Questionnaire/ExampleRegistry", response={})
 
     def fake_update_response(*args: Any) -> bool:
         captured["persisted"] = args[1]
@@ -340,7 +340,7 @@ async def test_response_post_preserves_explicit_nulls_and_unknown_fields(monkeyp
 
 async def test_response_put_keeps_subject_questionnaire_immutability_and_unknown_fields(monkeypatch) -> None:
     captured: dict[str, Any] = {}
-    existing = SimpleNamespace(patient_id="patient-1", job_package="Questionnaire/ExampleRegistry")
+    existing = SimpleNamespace(patient_id="patient-1", job_package="Questionnaire/ExampleRegistry", response={})
     monkeypatch.setattr(response_router, "get_response", lambda response_id: existing)
 
     def fake_update_response(*args: Any) -> bool:
