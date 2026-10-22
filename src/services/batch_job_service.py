@@ -232,7 +232,9 @@ def prefill_questionnaire_response_items(questionnaire_items: list[dict[str, Any
 
 
 async def resolve_questionnaire(job_package: str, job_package_version: str | None) -> dict[str, Any] | BatchJobError:
-    params: dict[str, str] = {"name": job_package}
+    # FHIR string search on ``name`` is a case-insensitive prefix match, so ``name=Foo`` also returns
+    # ``FooLaboratory``. Use ``:exact`` so only the requested job package (and its versions) match.
+    params: dict[str, str] = {"name:exact": job_package}
     if job_package_version:
         params["version"] = job_package_version
 

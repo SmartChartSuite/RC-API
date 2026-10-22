@@ -188,6 +188,28 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
     assert response.headers["Location"].startswith("/batchjob/")
 
 
+async def test_resolve_questionnaire_uses_exact_name_and_still_rejects_real_versions(monkeypatch):
+    """``name`` is a prefix search in FHIR, so ``Foo`` must not also match ``FooLaboratory``."""
+    calls: list[dict | None] = []
+    bundles = [
+        {"resourceType": "Bundle", "entry": [{"resource": {"resourceType": "Questionnaire", "id": "q-1", "name": "SETNETSyphilisPregnantWoman"}}]},
+        {"resourceType": "Bundle", "entry": [{"resource": {"resourceType": "Questionnaire", "id": f"q-{n}", "version": v}} for n, v in ((1, "1"), (2, "2"))]},
+    ]
+
+    async def _fake_fhir_get(resource_type, params=None):
+        calls.append(params)
+        return bundles[len(calls) - 1]
+
+    monkeypatch.setattr(batch_job_service, "fhir_get", _fake_fhir_get)
+
+    resolved = await batch_job_service.resolve_questionnaire("SETNETSyphilisPregnantWoman", None)
+    ambiguous = await batch_job_service.resolve_questionnaire("SETNETSyphilisPregnantWoman", None)
+
+    assert calls[0] == {"name:exact": "SETNETSyphilisPregnantWoman"}
+    assert isinstance(resolved, dict) and resolved["id"] == "q-1"
+    assert isinstance(ambiguous, batch_job_service.BatchJobError) and ambiguous.status_code == 409
+
+
 async def test_post_batch_job_rejects_multiple_questionnaire_matches(monkeypatch):
     monkeypatch.setattr(settings, "config_errors", {})
 
