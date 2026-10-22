@@ -88,6 +88,7 @@ async def search_responses(
     "/response/{response_id}",
     summary="Get Response",
     response_model=QuestionnaireResponseResource,
+    response_model_exclude_unset=True,
     responses=operation_outcome_responses(404),
 )
 async def get_response_record(
@@ -105,6 +106,7 @@ async def get_response_record(
     "/response",
     summary="Create Response",
     response_model=QuestionnaireResponseResource,
+    response_model_exclude_unset=True,
     status_code=201,
     responses=operation_outcome_responses(400, 404, 500),
 )
@@ -167,7 +169,13 @@ async def create_response_record(
     return QuestionnaireResponseResource.model_validate(normalized_response)
 
 
-@router.put("/response/{response_id}", summary="Update Response", response_model=QuestionnaireResponseResource, responses=operation_outcome_responses(400, 404))
+@router.put(
+    "/response/{response_id}",
+    summary="Update Response",
+    response_model=QuestionnaireResponseResource,
+    response_model_exclude_unset=True,
+    responses=operation_outcome_responses(400, 404),
+)
 async def update_response_record(
     response_id: str,
     body: QuestionnaireResponseResource = Body(..., openapi_examples={"questionnaireResponse": {"summary": "FHIR QuestionnaireResponse", "value": _QUESTIONNAIRE_RESPONSE_EXAMPLE}}),

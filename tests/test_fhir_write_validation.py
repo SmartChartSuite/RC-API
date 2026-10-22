@@ -360,3 +360,21 @@ async def test_response_put_keeps_subject_questionnaire_immutability_and_unknown
     assert persisted["questionnaire"] == "Questionnaire/ExampleRegistry"
     assert persisted["item"] == _QUESTIONNAIRE_RESPONSE_BODY["item"]
     assert persisted["extension"] == _QUESTIONNAIRE_RESPONSE_BODY["extension"]
+
+
+def test_get_response_over_http_omits_unset_fields_but_keeps_explicit_nulls(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "oauth2_enabled", False)
+    monkeypatch.setattr(settings, "config_errors", {})
+    stored = {
+        "resourceType": "QuestionnaireResponse",
+        "status": "in-progress",
+        "author": {"display": "Ada", "identifier": {"system": "https://idp.example/", "value": "auth0|1"}},
+        "item": [{"linkId": "1", "answer": [{"valueString": None}]}],
+    }
+    monkeypatch.setattr(response_router, "get_response", lambda response_id: SimpleNamespace(response_id=response_id, response=stored))
+
+    payload = TestClient(app).get("/response/response-1").json()
+
+    assert payload["author"] == stored["author"]
+    assert "meta" not in payload and "authored" not in payload
+    assert payload["item"] == stored["item"]
