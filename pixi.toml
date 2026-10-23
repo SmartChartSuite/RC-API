@@ -1,0 +1,24 @@
+[workspace]
+name = "rc-api"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[dependencies]
+python = "3.14.*"
+uv = "0.13.*"
+
+[tasks]
+install = "uv sync --dev"
+migrate = "uv run alembic upgrade head"
+migration-current = "uv run alembic current"
+migration-history = "uv run alembic history"
+serve = "uv run hypercorn main:app --reload --config hypercorn_config.toml"
+serve-prod = "uv run hypercorn main:app --config hypercorn_config.toml"
+test = "uv run pytest"
+check = "uv run ruff check src tests alembic main.py && uv run ruff format --check src tests alembic main.py && uv run pyright && uv run pytest -q"
+lint = "uv run ruff check src tests alembic main.py"
+format = "uv run ruff format src tests alembic main.py"
+hooks = "uv run pre-commit install"
+build-image = "docker build --platform linux/amd64,linux/arm64 -t ghcr.io/smartchartsuite/rc-api:latest ."
+build-image-clean = "docker build --platform linux/amd64,linux/arm64 --no-cache --pull -t ghcr.io/smartchartsuite/rc-api:latest ."
+push-image = "docker push ghcr.io/smartchartsuite/rc-api:latest"

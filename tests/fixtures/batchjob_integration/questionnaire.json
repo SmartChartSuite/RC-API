@@ -1,0 +1,225 @@
+{
+  "resourceType": "Questionnaire",
+  "id": "626462",
+  "meta": {
+    "versionId": "5",
+    "lastUpdated": "2026-05-26T14:41:15.594+00:00",
+    "profile": [
+      "http://gtri.gatech.edu/fakeFormIg/smartchart-form"
+    ]
+  },
+  "extension": [
+    {
+      "url": "http://gtri.gatech.edu/fakeFormIg/structured-form-job-list",
+      "extension": [
+        {
+          "url": "form-job",
+          "valueString": "IfuSyphilisComplications"
+        }
+      ]
+    },
+    {
+      "url": "http://gtri.gatech.edu/fakeFormIg/unstructured-form-job-list",
+      "extension": [
+        {
+          "url": "form-job",
+          "valueString": "2025_08/syphilis/ig_exm_skin"
+        }
+      ]
+    }
+  ],
+  "url": "http://gtri.gatech.edu/fakeFormIg/Questionnaire/SETNETSyphilisInfantFollowUp",
+  "version": "2025.08",
+  "name": "SETNETSyphilisInfantFollowUp",
+  "title": "SETNET-Syphilis-InfantFollowUp",
+  "status": "draft",
+  "experimental": true,
+  "subjectType": [
+    "Patient"
+  ],
+  "publisher": "GTRI",
+  "description": "Pared-down copy of SETNETSyphilisInfantFollowUp (IfuSyphilisComplications + ig_exm_skin only) for RC-API integration testing.",
+  "useContext": [
+    {
+      "code": {
+        "system": "http://terminology.hl7.org/CodeSystem/usage-context-type",
+        "code": "workflow",
+        "display": "Workflow Setting"
+      },
+      "valueCodeableConcept": {
+        "coding": [
+          {
+            "system": "http://gtri.gatech.edu/fakeFormIg/CodeSystem/custom",
+            "code": "smartchartui",
+            "display": "SmartChart UI"
+          }
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "linkId": "Physical Exam Findings",
+      "text": "Physical Exam Findings",
+      "type": "group",
+      "item": [
+        {
+          "extension": [
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+              "valueString": "single"
+            },
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/unstructuredTask",
+              "valueString": "2025_08/syphilis/ig_exm_skin"
+            }
+          ],
+          "linkId": "ig_exm_skin",
+          "text": "Skin/integument",
+          "type": "choice",
+          "answerOption": [
+            {
+              "valueString": "Normal"
+            },
+            {
+              "valueString": "Abnormal"
+            },
+            {
+              "valueString": "Not Reported"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "linkId": "Infant Follow-up Complications",
+      "text": "Infant Follow-up Complications",
+      "type": "group",
+      "item": [
+        {
+          "extension": [
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+              "valueString": "single"
+            },
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/structuredTask",
+              "valueString": "IfuSyphilisComplications.is_lepto"
+            }
+          ],
+          "linkId": "is_lepto",
+          "text": "Was the infant/child diagnosed with leptomeningitis?",
+          "type": "choice",
+          "answerOption": [
+            {
+              "valueString": "Yes"
+            },
+            {
+              "valueString": "No"
+            },
+            {
+              "valueString": "Not Reported"
+            }
+          ]
+        },
+        {
+          "extension": [
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+              "valueString": "single"
+            },
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/structuredTask",
+              "valueString": "IfuSyphilisComplications.is_lepto_dt"
+            }
+          ],
+          "linkId": "is_lepto_dt",
+          "text": "If yes, date of diagnosis",
+          "type": "date"
+        },
+        {
+          "extension": [
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+              "valueString": "single"
+            },
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/structuredTask",
+              "valueString": "IfuSyphilisComplications.is_chmeng"
+            }
+          ],
+          "linkId": "is_chmeng",
+          "text": "Was the infant/child diagnosed with chronic meningovascular syphilis?",
+          "type": "choice",
+          "answerOption": [
+            {
+              "valueString": "Yes"
+            },
+            {
+              "valueString": "No"
+            },
+            {
+              "valueString": "Not Reported"
+            }
+          ]
+        },
+        {
+          "extension": [
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+              "valueString": "single"
+            },
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/structuredTask",
+              "valueString": "IfuSyphilisComplications.is_chmeng_dt"
+            }
+          ],
+          "linkId": "is_chmeng_dt",
+          "text": "If yes, date of diagnosis",
+          "type": "date"
+        },
+        {
+          "extension": [
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+              "valueString": "single"
+            },
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/structuredTask",
+              "valueString": "IfuSyphilisComplications.is_nephsyn"
+            }
+          ],
+          "linkId": "is_nephsyn",
+          "text": "Was the infant/child diagnosed with nephrotic syndrome?",
+          "type": "choice",
+          "answerOption": [
+            {
+              "valueString": "Yes"
+            },
+            {
+              "valueString": "No"
+            },
+            {
+              "valueString": "Not Reported"
+            }
+          ]
+        },
+        {
+          "extension": [
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/cardinality",
+              "valueString": "single"
+            },
+            {
+              "url": "http://gtri.gatech.edu/fakeFormIg/structuredTask",
+              "valueString": "IfuSyphilisComplications.is_nephsyn_dt"
+            }
+          ],
+          "linkId": "is_nephsyn_dt",
+          "text": "If yes, date of diagnosis",
+          "type": "date"
+        }
+      ]
+    }
+  ]
+}

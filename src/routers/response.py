@@ -1,0 +1,229 @@
+"""HTTP adapter for locally stored QuestionnaireResponse CRUD operations.
+
+This router binds canonical FHIR bodies and query/path parameters, selects auth,
+normalizes the linkage needed for response records, delegates persistence to the
+`src.services.job_state` package through `src.util.threading`, and maps results to
+FHIR resources or OperationOutcome responses. Its resource serializer preserves
+unknown fields and explicit values. It never proxies Patient-linked responses to
+HAPI FHIR; batch execution and broader domain workflows belong to `src.services`.
+"""
+
+import uuid
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Body, Query, Response, Security
+from fastapi.responses import JSONResponse
+
+from src.models.fhir import BundleResource, QuestionnaireResponseResource
+from src.services.errorhandler import operation_outcome_response, operation_outcome_responses
+from src.services.job_state.batch_records import get_batch_job
+from src.services.job_state.responses import create_response, delete_response_record, get_response, get_responses, update_response_body
+from src.util.auth import require_admin, validate_token
+from src.util.current_user import CurrentUser, build_questionnaire_response_author, get_current_user, user_from_claims
+from src.util.threading import run_db
+
+router = APIRouter(tags=["Responses"])
+
+_QUESTIONNAIRE_RESPONSE_EXAMPLE = {
+    "resourceType": "QuestionnaireResponse",
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "questionnaire": "Questionnaire/987e6543-e21b-12d3-a456-426614174999",
+    "status": "completed",
+    "subject": {"reference": "Patient/patient-123"},
+    "item": [{"linkId": "1.1", "answer": [{"valueString": "Yes"}]}],
+}
+
+
+def _normalize_questionnaire_response(response_id: str, resource: dict) -> dict:
+    normalized = dict(resource)
+    normalized["resourceType"] = "QuestionnaireResponse"
+    normalized["id"] = response_id
+    return normalized
+
+
+def _extract_patient_id(resource: dict) -> str | None:
+    subject = resource.get("subject")
+    if not isinstance(subject, dict):
+        return None
+    reference = subject.get("reference")
+    if not isinstance(reference, str) or not reference:
+        return None
+    if reference.startswith("Patient/"):
+        return reference.split("/", 1)[1] or None
+    return reference
+
+
+def _derive_job_package(resource: dict) -> str | None:
+    questionnaire = resource.get("questionnaire")
+    if not isinstance(questionnaire, str) or not questionnaire:
+        return None
+    return questionnaire
+
+
+def _to_response_bundle(records: list) -> BundleResource:
+    entries = []
+    for record in records:
+        resource = _normalize_questionnaire_response(record.response_id, record.response)
+        entries.append({"fullUrl": f"QuestionnaireResponse/{record.response_id}", "resource": resource})
+
+    return BundleResource(resourceType="Bundle", type="searchset", total=len(entries), entry=entries)
+
+
+@router.get("/response", summary="List Responses", response_model=BundleResource)
+async def search_responses(
+    batch_job_id: str | None = None,
+    job_package: str | None = None,
+    claims: dict = Security(validate_token),
+) -> BundleResource:
+    """List stored QuestionnaireResponses.
+
+    Results can be filtered by ``batch_job_id`` and/or ``job_package`` and are
+    returned from the local application database rather than proxied to HAPI FHIR.
+    """
+    records = await run_db(get_responses, batch_job_id=batch_job_id, job_package=job_package)
+    return _to_response_bundle(records)
+
+
+@router.get(
+    "/response/{response_id}",
+    summary="Get Response",
+    response_model=QuestionnaireResponseResource,
+    response_model_exclude_unset=True,
+    responses=operation_outcome_responses(404),
+)
+async def get_response_record(
+    response_id: str,
+    claims: dict = Security(validate_token),
+) -> QuestionnaireResponseResource | JSONResponse:
+    """Get a stored QuestionnaireResponse resource by local response ID."""
+    record = await run_db(get_response, response_id)
+    if not record:
+        return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
+    return QuestionnaireResponseResource.model_validate(_normalize_questionnaire_response(record.response_id, record.response))
+
+
+@router.post(
+    "/response",
+    summary="Create Response",
+    response_model=QuestionnaireResponseResource,
+    response_model_exclude_unset=True,
+    status_code=201,
+    responses=operation_outcome_responses(400, 404, 500),
+)
+async def create_response_record(
+    body: QuestionnaireResponseResource = Body(
+        ...,
+        openapi_examples={"questionnaireResponse": {"summary": "FHIR QuestionnaireResponse", "value": _QUESTIONNAIRE_RESPONSE_EXAMPLE}},
+    ),
+    batch_job_id: str = Query(..., description="Local batch job ID associated with this QuestionnaireResponse."),
+    response: Response = None,  # type: ignore[assignment]
+    claims: dict = Security(validate_token),
+    current_user: CurrentUser | None = Security(get_current_user),
+) -> QuestionnaireResponseResource | JSONResponse:
+    """Create a stored QuestionnaireResponse.
+
+    The request body is the FHIR ``QuestionnaireResponse`` resource to persist.
+    The related local ``batch_job_id`` is supplied as a query parameter.
+    ``patient_id`` is derived from ``subject.reference`` and ``job_package`` is
+    derived from ``questionnaire``.
+    """
+    resolved_user = current_user if isinstance(current_user, CurrentUser) else user_from_claims(claims)
+    last_updated_by = resolved_user.sub
+
+    response_resource = body.to_fhir_json()
+    response_resource["author"] = build_questionnaire_response_author(resolved_user)
+    patient_id = _extract_patient_id(response_resource)
+    job_package = _derive_job_package(response_resource)
+
+    missing = [n for n, v in [("batch_job_id", batch_job_id), ("questionnaire", job_package), ("subject.reference", patient_id)] if not v]
+    if missing or not job_package or not patient_id:
+        return operation_outcome_response(400, "required", f"Missing required parameter(s): {missing}")
+
+    batch = await run_db(get_batch_job, batch_job_id)
+    if batch is None:
+        return operation_outcome_response(404, "not-found", f"Batch job {batch_job_id} was not found.")
+    if batch.patient_id != patient_id:
+        return operation_outcome_response(400, "invariant", "QuestionnaireResponse subject does not match the patient of the referenced batch job.")
+
+    response_id = str(uuid.uuid4())
+    normalized_response = _normalize_questionnaire_response(response_id, response_resource)
+    now = datetime.now(UTC)
+    meta = normalized_response.get("meta")
+    normalized_meta = dict(meta) if isinstance(meta, dict) else {}
+    normalized_meta["lastUpdated"] = now.isoformat()
+    normalized_response["meta"] = normalized_meta
+    normalized_response["authored"] = now.isoformat()
+    created = await run_db(
+        create_response,
+        response_id,
+        batch_job_id,
+        job_package,
+        patient_id,
+        last_updated_by,
+        normalized_response,
+        now,
+    )
+    if not created:
+        return operation_outcome_response(500, "processing", "Failed to save response. See logs for details.")
+    response.headers["Location"] = f"/response/{response_id}"
+    return QuestionnaireResponseResource.model_validate(normalized_response)
+
+
+@router.put(
+    "/response/{response_id}",
+    summary="Update Response",
+    response_model=QuestionnaireResponseResource,
+    response_model_exclude_unset=True,
+    responses=operation_outcome_responses(400, 404),
+)
+async def update_response_record(
+    response_id: str,
+    body: QuestionnaireResponseResource = Body(..., openapi_examples={"questionnaireResponse": {"summary": "FHIR QuestionnaireResponse", "value": _QUESTIONNAIRE_RESPONSE_EXAMPLE}}),
+    claims: dict = Security(validate_token),
+    current_user: CurrentUser | None = Security(get_current_user),
+) -> QuestionnaireResponseResource | JSONResponse:
+    """Update an existing stored QuestionnaireResponse.
+
+    The request body should be the full FHIR ``QuestionnaireResponse`` resource
+    to persist for the given local ``response_id``. The ``subject`` and
+    ``questionnaire`` linkage of a stored response cannot be changed.
+    """
+    body_json = body.to_fhir_json()
+    resolved_user = current_user if isinstance(current_user, CurrentUser) else user_from_claims(claims)
+    body_json["author"] = build_questionnaire_response_author(resolved_user)
+    if "id" in body_json and body_json["id"] != response_id:
+        return operation_outcome_response(400, "invariant", f"QuestionnaireResponse body id {body_json['id']!r} does not match path id {response_id!r}.")
+    existing = await run_db(get_response, response_id)
+    if existing is None:
+        return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
+    new_patient_id = _extract_patient_id(body_json)
+    new_questionnaire = _derive_job_package(body_json)
+    # Batch-created rows store the short job package name in ``job_package`` while the
+    # resource carries the canonical Questionnaire URL, so accept either and keep the stored value.
+    stored_questionnaire = _derive_job_package(existing.response) if isinstance(existing.response, dict) else None
+    allowed_questionnaires = {value for value in (stored_questionnaire, existing.job_package) if value}
+    if (new_patient_id is not None and new_patient_id != existing.patient_id) or (new_questionnaire is not None and new_questionnaire not in allowed_questionnaires):
+        return operation_outcome_response(400, "invariant", "The subject and questionnaire of a stored QuestionnaireResponse cannot be changed.")
+
+    now = datetime.now(UTC)
+    normalized_response = _normalize_questionnaire_response(response_id, body_json)
+    normalized_response["subject"] = {"reference": f"Patient/{existing.patient_id}"}
+    normalized_response["questionnaire"] = stored_questionnaire or existing.job_package
+    meta = normalized_response.get("meta")
+    normalized_meta = dict(meta) if isinstance(meta, dict) else {}
+    normalized_meta["lastUpdated"] = now.isoformat()
+    normalized_response["meta"] = normalized_meta
+    normalized_response["authored"] = now.isoformat()
+    updated = await run_db(update_response_body, response_id, normalized_response, resolved_user.sub, now)
+    if not updated:
+        return operation_outcome_response(404, "not-found", f"Response {response_id} was not found.")
+    return QuestionnaireResponseResource.model_validate(normalized_response)
+
+
+@router.delete("/response/{response_id}", summary="Delete Response")
+async def delete_response(
+    response_id: str,
+    _: None = Security(require_admin),
+):
+    """Delete a questionnaire response. Requires 'admin' scope."""
+    return await run_db(delete_response_record, response_id)

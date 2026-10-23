@@ -1,62 +1,174 @@
-import os
+"""Provide OAuth 2 Bearer-token validation and scope-based authorization dependencies.
 
-import jwt
-from pydantic import BaseModel
+Authentication fails closed unless `AUTH_DISABLED=true` is explicitly set for local
+development. When enabled, missing `OAUTH2_JWKS_URL`, `OAUTH2_ISSUER`, or
+`OAUTH2_AUDIENCE` causes protected endpoints to return 503 rather than allowing
+anonymous access. This module validates JWTs against cached JWKS keys, enforces
+issuer, audience, and expiry, and exposes `validate_token` and `require_admin` for
+routers. It does not define endpoint policy or settings; route selection belongs to
+`src/routers`, configuration to `src.util.settings`, and outbound HTTP to
+`src.util.http_clients`.
+"""
 
+import asyncio
+import time
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+import httpx
+from fastapi import HTTPException, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
+from loguru import logger
 
+from src.services.errorhandler import make_operation_outcome
+from src.util.http_clients import get_http_client
+from src.util.settings import settings
 
-class TokenData(BaseModel):
-    username: str | None = None
-    scopes: list[str] = []
+bearer_scheme = HTTPBearer(auto_error=False)
 
+# Minimum seconds between forced refreshes triggered by an unknown key id, to stop
+# tokens with random `kid` values from hammering the identity provider.
+_JWKS_MIN_REFRESH_SECONDS = 60
 
-class VerifyToken:
-    def __init__(self, token):
-        self.token = token
-        self.config = {
-            "DOMAIN": os.getenv("DOMAIN", "your.domain.com"),
-            "API_AUDIENCE": os.getenv("API_AUDIENCE", "your.audience.com"),
-            "ISSUER": os.getenv("ISSUER", "https://your.domain.com/"),
-            "ALGORITHMS": os.getenv("ALGORITHMS", "RS256"),
-        }
-        # This gets the JWKS from a given URL and does processing so you can
-        # use any of the keys available
-        jwks_url = f"https://{self.config['DOMAIN']}/.well-known/jwks.json"
-        self.jwks_client = jwt.PyJWKClient(jwks_url)
-
-    def verify(self):
-        # This gets the 'kid' from the passed token
-        try:
-            self.signing_key = self.jwks_client.get_signing_key_from_jwt(self.token).key
-        except jwt.exceptions.PyJWKClientError as error:
-            return {"status": "error", "msg": error.__str__()}
-        except jwt.exceptions.DecodeError as error:
-            return {"status": "error", "msg": error.__str__()}
-
-        try:
-            payload = jwt.decode(
-                self.token,
-                self.signing_key,
-                algorithms=self.config["ALGORITHMS"],
-                audience=self.config["API_AUDIENCE"],
-                issuer=self.config["ISSUER"],
-            )
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
-
-        return payload
+_jwks_cache: dict | None = None
+_jwks_fetched_at: float = 0.0
+_jwks_lock = asyncio.Lock()
 
 
-def userHasScope(scope: str, token_result):
-    if "scope" not in token_result.keys():
-        return False
+class JWKSUnavailableError(Exception):
+    """The signing keys could not be retrieved or were malformed."""
 
-    scope_list = token_result["scope"].split(" ")
-    if scope in scope_list:
+
+def _reset_jwks_cache() -> None:
+    """Clear the cached JWKS (used by tests and key-rotation tooling)."""
+    global _jwks_cache, _jwks_fetched_at
+    _jwks_cache = None
+    _jwks_fetched_at = 0.0
+
+
+async def _fetch_jwks() -> dict:
+    if not settings.oauth2_jwks_url:
+        raise JWKSUnavailableError("OAUTH2_JWKS_URL is not configured")
+    client = get_http_client("jwks")
+    try:
+        resp = await client.get(settings.oauth2_jwks_url)
+        resp.raise_for_status()
+        data = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise JWKSUnavailableError(f"JWKS fetch failed: {exc}") from exc
+    if not isinstance(data, dict) or not isinstance(data.get("keys"), list) or not data["keys"]:
+        raise JWKSUnavailableError("JWKS response did not contain a non-empty 'keys' list")
+    logger.info(f"JWKS fetched from {settings.oauth2_jwks_url} ({len(data['keys'])} key(s))")
+    return data
+
+
+async def _get_jwks(*, force_refresh: bool = False) -> dict:
+    """Return cached signing keys, refreshing after the TTL or when forced."""
+    global _jwks_cache, _jwks_fetched_at
+    async with _jwks_lock:
+        now = time.monotonic()
+        age = now - _jwks_fetched_at
+        expired = _jwks_cache is None or age >= settings.oauth2_jwks_cache_seconds
+        refresh_allowed = force_refresh and age >= _JWKS_MIN_REFRESH_SECONDS
+        if expired or refresh_allowed:
+            try:
+                _jwks_cache = await _fetch_jwks()
+                _jwks_fetched_at = now
+            except JWKSUnavailableError:
+                if _jwks_cache is None:
+                    raise
+                # Keep serving the previous keys during a transient provider outage.
+                logger.warning("JWKS refresh failed; continuing with previously cached keys.", exc_info=True)
+        if _jwks_cache is None:
+            raise JWKSUnavailableError("JWKS is unavailable")
+        return _jwks_cache
+
+
+def _has_kid(jwks: dict, kid: str | None) -> bool:
+    if kid is None:
         return True
-    else:
-        return False
+    return any(isinstance(key, dict) and key.get("kid") == kid for key in jwks.get("keys", []))
+
+
+def _unauthorized(message: str) -> HTTPException:
+    return HTTPException(
+        status_code=401,
+        detail=make_operation_outcome("security", message),
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def validate_token(
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
+) -> dict:
+    """FastAPI dependency — validates the Bearer JWT and returns decoded claims.
+
+    Returns an empty dict only when authentication is explicitly disabled.
+    Raises 401 for a missing/invalid token and 503 when auth is misconfigured
+    or the identity provider's signing keys are unavailable.
+    """
+    if not settings.oauth2_enabled:
+        return {}
+
+    if credentials is None:
+        raise _unauthorized("Authorization header with Bearer token is required.")
+
+    if settings.oauth2_missing_config:
+        raise HTTPException(
+            status_code=503,
+            detail=make_operation_outcome("not-supported", "Authentication is not configured on this server. See the server logs for details."),
+        )
+
+    token = credentials.credentials
+    try:
+        header = jwt.get_unverified_header(token)
+        jwks = await _get_jwks()
+        if not _has_kid(jwks, header.get("kid")):
+            jwks = await _get_jwks(force_refresh=True)
+        claims = jwt.decode(
+            token,
+            jwks,
+            algorithms=["RS256"],
+            issuer=settings.oauth2_issuer,
+            audience=settings.oauth2_audience,
+            options={"verify_aud": True, "verify_iss": True, "require_exp": True, "require_iss": True, "require_aud": True},
+        )
+    except JWKSUnavailableError as exc:
+        logger.error(f"Cannot validate tokens: {exc}")
+        raise HTTPException(
+            status_code=503,
+            detail=make_operation_outcome("transient", "Token signing keys are temporarily unavailable. Please retry."),
+        ) from exc
+    except JWTError as exc:
+        logger.warning(f"JWT validation failed: {exc}")
+        raise _unauthorized("The bearer token is invalid or expired.") from exc
+
+    return claims
+
+
+def _scopes(claims: dict) -> set[str]:
+    """Read OAuth scopes from a space-delimited `scope` string or a list-valued `scp` claim."""
+    scope = claims.get("scope", claims.get("scp", ""))
+    if isinstance(scope, str):
+        return set(scope.split())
+    if isinstance(scope, list):
+        return {item for item in scope if isinstance(item, str)}
+    return set()
+
+
+async def require_admin(
+    claims: dict = Security(validate_token),
+) -> None:
+    """FastAPI dependency — asserts that the validated token has 'admin' scope.
+
+    Chains from validate_token. Raises HTTP 403 if 'admin' is not in the scope claim.
+    Use as `Security(require_admin)` on DELETE endpoints.
+    """
+    if not settings.oauth2_enabled:
+        return
+
+    scopes = _scopes(claims)
+    if "admin" not in scopes:
+        raise HTTPException(
+            status_code=403,
+            detail=make_operation_outcome("forbidden", "This operation requires 'admin' scope."),
+        )

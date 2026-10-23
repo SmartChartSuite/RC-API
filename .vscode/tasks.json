@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "pixiInstall",
+        "type": "shell",
+        "osx": {
+          "command": "pixi run install"
+        },
+        "windows": {
+          "command": "pixi run install"
+        },
+        "linux": {
+          "command": "pixi run install"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "pixiServe",
+        "type": "shell",
+        "command": "pixi run serve",
+        "problemMatcher": []
+      },
+      {
+        "label": "pixiTest",
+        "type": "shell",
+        "command": "pixi run test",
+        "problemMatcher": []
+      }
+    ]
+  }
