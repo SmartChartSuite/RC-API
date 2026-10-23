@@ -111,7 +111,7 @@ async def lifespan(app: FastAPI):
 
 
 # App
-app_version = "1.0.0a5"
+app_version = "1.0.0"
 app = FastAPI(title="RC-API", description="SmartChart Suite Results Combining API — v1.0", version=app_version, root_path=settings.root_path, lifespan=lifespan)
 
 # CORS — explicit allowlist from CORS_ALLOW_ORIGINS. Credentials are only allowed with concrete origins.

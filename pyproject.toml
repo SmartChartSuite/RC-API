@@ -1,6 +1,6 @@
 [project]
 name = "rc-api"
-version = "1.0.0a5"
+version = "1.0.0"
 description = "SmartChart Suite Results Combining API"
 requires-python = ">=3.14,<3.15"
 dependencies = [
