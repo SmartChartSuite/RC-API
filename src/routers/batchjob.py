@@ -1,4 +1,4 @@
-"""HTTP adapter for batch-job submission, listing, polling, results retrieval, and deletion.
+"""HTTP adapter for batch-job submission, listing, streaming, polling, results retrieval, and deletion.
 
 This router binds `/batchjob` parameters, selects `validate_token` or
 `require_admin`, delegates use cases to `src.services.batch_job_service`, and maps
@@ -8,10 +8,15 @@ belong to the service layer (`batch_job_service`, `batch_job_filters`, the `job_
 and `batch_worker`), not this router.
 """
 
-from typing import Annotated
+import asyncio
+import hashlib
+import json
+import time
+from typing import Annotated, Any, Protocol
 
-from fastapi import APIRouter, Query, Response, Security
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Query, Request, Response, Security
+from fastapi.responses import JSONResponse, StreamingResponse
+from loguru import logger
 
 from src.models.fhir import FHIRJSON, BundleResource, ParametersParameter, ParametersResponse
 from src.models.job_request import JobRequest
@@ -20,8 +25,13 @@ from src.services import batch_job_service
 from src.services.errorhandler import config_error_response, operation_outcome_response, operation_outcome_responses
 from src.util.auth import require_admin, validate_token
 from src.util.current_user import CurrentUser, get_current_user
+from src.util.settings import settings
 
 router = APIRouter(tags=["Batch Jobs"])
+
+
+class _DisconnectAwareRequest(Protocol):
+    async def is_disconnected(self) -> bool: ...
 
 
 def _service_error_response(error: batch_job_service.ServiceFailure) -> JSONResponse:
@@ -129,6 +139,116 @@ async def list_batch_jobs(
     if isinstance(result, batch_job_service.BatchJobError):
         return _service_error_response(result)
     return result
+
+
+def _sse_event(bundle: FHIRJSON) -> str:
+    payload = json.dumps(bundle, separators=(",", ":"), sort_keys=True)
+    event_id = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return f"event: form-list\nid: {event_id}\ndata: {payload}\n\n"
+
+
+def _token_expiry(claims: dict) -> float | None:
+    value = claims.get("exp")
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    return None
+
+
+def _sse_error(error: batch_job_service.ServiceFailure) -> str:
+    if isinstance(error, batch_job_service.MissingConfig):
+        outcome: dict[str, Any] = {"resourceType": "OperationOutcome", "issue": [{"severity": "error", "code": "required", "diagnostics": ", ".join(error.names)}]}
+    elif isinstance(error, batch_job_service.StoredErrorBundle):
+        outcome = error.bundle
+    else:
+        outcome = {"resourceType": "OperationOutcome", "issue": [{"severity": error.severity, "code": error.code, "diagnostics": error.diagnostics}]}
+    payload = json.dumps(outcome, separators=(",", ":"), sort_keys=True)
+    return f"event: error\ndata: {payload}\n\n"
+
+
+async def _stream_batch_jobs(
+    request: _DisconnectAwareRequest,
+    initial: FHIRJSON,
+    list_kwargs: dict[str, Any],
+    expires_at: float | None = None,
+):
+    previous = json.dumps(initial, separators=(",", ":"), sort_keys=True)
+    yield _sse_event(initial)
+    while not await request.is_disconnected():
+        if expires_at is not None and time.time() >= expires_at:
+            yield _sse_error(batch_job_service.BatchJobError(401, "expired", "The bearer token expired; reconnect with a fresh token."))
+            break
+        delay = settings.batch_job_stream_poll_interval_seconds
+        if expires_at is not None:
+            delay = min(delay, max(0.0, expires_at - time.time()))
+        await asyncio.sleep(delay)
+        if await request.is_disconnected():
+            break
+        if expires_at is not None and time.time() >= expires_at:
+            yield _sse_error(batch_job_service.BatchJobError(401, "expired", "The bearer token expired; reconnect with a fresh token."))
+            break
+        try:
+            result = await batch_job_service.list_batch_jobs(**list_kwargs)
+        except Exception:  # noqa: BLE001 - expose a safe SSE error before closing the stream
+            logger.exception("Batch-job SSE refresh failed")
+            yield _sse_error(batch_job_service.BatchJobError(500, "exception", "The form list could not be refreshed."))
+            break
+        if isinstance(result, batch_job_service.ServiceFailure):
+            yield _sse_error(result)
+            continue
+        serialized = json.dumps(result, separators=(",", ":"), sort_keys=True)
+        if serialized != previous:
+            previous = serialized
+            yield _sse_event(result)
+        else:
+            yield ": keepalive\n\n"
+
+
+@router.get(
+    "/batchjob/stream",
+    summary="Stream Batch Jobs",
+    response_model=None,
+    responses=operation_outcome_responses(400, 503),
+)
+async def stream_batch_jobs(
+    request: Request,
+    page: Annotated[int, Query(ge=0, description="Zero-based page number.")] = 0,
+    size: Annotated[int, Query(ge=1, le=100, description="Number of batch jobs per update (maximum 100).")] = 10,
+    questionnaire_response_status: Annotated[str | None, Query(alias="questionnaireResponseStatus")] = None,
+    patient_name: Annotated[str | None, Query(alias="patientName")] = None,
+    patient_gender: Annotated[str | None, Query(alias="patientGender")] = None,
+    job_package_filter: Annotated[str | None, Query(alias="jobPackage")] = None,
+    batch_job_status: Annotated[str | None, Query(alias="batchJobStatus")] = None,
+    dob_start_date: Annotated[str | None, Query(alias="dobStartDate")] = None,
+    dob_end_date: Annotated[str | None, Query(alias="dobEndDate")] = None,
+    job_run_start_date: Annotated[str | None, Query(alias="jobRunStartDate")] = None,
+    job_run_end_date: Annotated[str | None, Query(alias="jobRunEndDate")] = None,
+    claims: dict = Security(validate_token),
+) -> StreamingResponse | JSONResponse:
+    if request.query_params.get("include_patient", "").casefold() in {"1", "true", "yes", "on"}:
+        return operation_outcome_response(400, "not-supported", "The batch-job stream does not support include_patient=true.")
+
+    list_kwargs = {
+        "include_patient": False,
+        "page": page,
+        "size": size,
+        "questionnaire_response_status": questionnaire_response_status,
+        "patient_name_filter": patient_name,
+        "patient_gender": patient_gender,
+        "job_package_filter": job_package_filter,
+        "batch_job_status": batch_job_status,
+        "dob_start_date": dob_start_date,
+        "dob_end_date": dob_end_date,
+        "job_run_start_date": job_run_start_date,
+        "job_run_end_date": job_run_end_date,
+    }
+    result = await batch_job_service.list_batch_jobs(**list_kwargs)
+    if isinstance(result, batch_job_service.ServiceFailure):
+        return _service_error_response(result)
+    return StreamingResponse(
+        _stream_batch_jobs(request, result, list_kwargs, _token_expiry(claims)),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/batchjob/{batch_id}", summary="Get Batch Job Results", response_model=BundleResource, responses=operation_outcome_responses(202, 404, 500))

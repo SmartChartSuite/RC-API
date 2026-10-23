@@ -307,6 +307,14 @@ def test_get_responses_for_batches_returns_deterministic_mapping(db):
     assert response_records.get_responses_for_batches([]) == {}
 
 
+def test_get_job_progress_for_batches_counts_only_successful_children(db):
+    assert _create_batch_job("batch-progress", "patient-1", "Registry")
+    for index, status in enumerate(("complete", "complete", "error")):
+        assert _create_job(f"job-{index}", "batch-progress", "patient-1", "Registry", f"task-{index}", "structured", status=status)
+
+    assert child_jobs.get_job_progress_for_batches(["batch-progress", "missing"]) == {"batch-progress": 67, "missing": 0}
+
+
 def test_recover_expired_batch_job_leases_preserves_partial_and_terminal_results(db):
     db.monkeypatch.setattr(settings, "batch_job_recovery_chunk_size", 1)
     engine = db.engine

@@ -62,6 +62,7 @@ Batch jobs run **asynchronously** through a durable database-backed worker embed
 |--------|------|-------------|
 | `POST` | `/batchjob` | Submit a job package run for a patient |
 | `GET` | `/batchjob` | List all batch jobs as FHIR Parameters resources (`?include_patient=true`) |
+| `GET` | `/batchjob/stream` | Stream the form list as SSE using the same filters and Bundle shape as `/batchjob` |
 | `GET` | `/batchjob/{id}/status` | Poll status of a batch job as a FHIR Parameters resource |
 | `GET` | `/batchjob/{id}` | Retrieve the latest preliminary or final FHIR result Bundle |
 | `DELETE` | `/batchjob/{id}` | Delete a batch job *(requires `admin` scope)* |
@@ -94,7 +95,9 @@ On success, `POST /batchjob` returns a FHIR `Parameters` resource that now inclu
 ```
 
 That reference points to the initial local `QuestionnaireResponse` record created when the batch job starts. The stored resource is created with `status = in-progress` and is tied to the exact Questionnaire resolved for the job package and version.
-The batch job list and status endpoints include `startedBy`.
+The batch job list and status endpoints include `startedBy`. For `pending`, `running`, and `partial` batches, they also include `batchJobProgress` as a percentage of child tasks with status `complete`; errored and skipped tasks remain in the denominator but do not count toward the percentage. An initial pending batch reports `0`, while a pending batch waiting for retry can retain prior progress.
+
+`GET /batchjob/stream` is a non-breaking SSE alternative to the form-list endpoint. It emits an initial `form-list` event immediately, then emits another event only when the filtered Bundle changes. Unchanged polls send SSE keepalive comments. The stream is summary-only and does not support `include_patient=true`; use the regular endpoint when the full Patient resource is required. Because authenticated browser `EventSource` clients cannot normally set an `Authorization` header, clients using Bearer authentication should consume this endpoint with an authenticated streaming `fetch()` or an equivalent client.
 
 ### Job Packages (Questionnaires)
 
@@ -201,6 +204,8 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `CQL_MAX_CONCURRENCY` | `4` | Maximum concurrent in-flight CQL library evaluations across batch jobs |
 | `DOC_MAX_COUNT` | `500` | Maximum DocumentReferences processed per patient |
 | `DOC_MAX_BYTES` | `5000000` | Maximum bytes per document attachment (inline or fetched) |
+| `PATIENT_SUMMARY_CACHE_TTL_SECONDS` | `900.0` | Seconds projected Patient summaries remain fresh in the process-local cache; `0` disables caching |
+| `PATIENT_SUMMARY_CACHE_MAX_ENTRIES` | `1000` | Maximum projected Patient summaries retained per process |
 | `DB_CONNECTION_STRING` | `sqlite+pysqlite:///rcapi_jobs.sqlite` | SQLAlchemy connection string |
 | `DB_SCHEMA` | `rcapi` | DB schema name (ignored for SQLite) |
 | `BATCH_WORKER_ENABLED` | `true` | Run the durable batch consumer inside the API process |
@@ -212,6 +217,7 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `BATCH_JOB_MAX_ATTEMPTS` | `3` | Maximum claimed execution attempts before terminal error |
 | `BATCH_JOB_RETRY_DELAY_SECONDS` | `30` | Seconds before a failed or expired attempt is runnable again |
 | `BATCH_JOB_RECOVERY_CHUNK_SIZE` | `100` | Maximum expired batches processed per recovery transaction |
+| `BATCH_JOB_STREAM_POLL_INTERVAL_SECONDS` | `5.0` | Seconds between form-list SSE refresh checks |
 | `DEPLOY_URL` | `http://example.org/` | Base URL used in Observation identifiers as well as determining root_path |
 | `ROOT_PATH` | *(derived from `DEPLOY_URL` path, or empty)* | FastAPI `root_path` for deployments behind a URL prefix, e.g. `/rc-api` |
 | `PRIMARYIDENTIFIER_SYSTEM` | *(none)* | If set, enables `/config.primaryIdentifier.system` in the public config response |

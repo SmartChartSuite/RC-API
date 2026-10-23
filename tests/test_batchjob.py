@@ -52,6 +52,11 @@ def list_batch_jobs_setup(monkeypatch):
             "_fetch_patient",
             fake_fetch_patient(patient_resources, fetch_calls=fetch_calls),
         )
+        monkeypatch.setattr(
+            batch_job_service,
+            "_fetch_patient_summary",
+            fake_fetch_patient(patient_resources, fetch_calls=fetch_calls),
+        )
         return captured_kwargs
 
     return setup
@@ -325,6 +330,194 @@ async def test_list_batch_jobs_returns_fhir_parameters(list_batch_jobs_setup):
     assert fetch_calls == ["patient-123"]
 
 
+async def test_list_batch_jobs_uses_summary_fetch_without_full_patient_resource(monkeypatch):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    calls: list[str] = []
+    jobs = [batch_job(batch_id="batch-123", patient_id="patient-123", created_at=created_at)]
+    monkeypatch.setattr(batch_job_service, "query_batch_jobs", lambda **kwargs: (jobs, 1))
+    monkeypatch.setattr(batch_job_service, "get_responses_for_batches", lambda batch_ids: {})
+
+    async def fetch_summary(patient_ids):
+        calls.append("summary")
+        return {patient_id: patient(patient_id=patient_id) for patient_id in patient_ids}
+
+    async def fetch_full(patient_ids):
+        calls.append("full")
+        raise AssertionError("full Patient fetch should not be used")
+
+    monkeypatch.setattr(batch_job_service, "fetch_patient_summaries", fetch_summary)
+    monkeypatch.setattr(batch_job_service, "fetch_patients", fetch_full)
+
+    result = await batch_job_service.list_batch_jobs(
+        include_patient=False,
+        page=0,
+        size=10,
+        questionnaire_response_status=None,
+        patient_name_filter=None,
+        patient_gender=None,
+        job_package_filter=None,
+        batch_job_status=None,
+        dob_start_date=None,
+        dob_end_date=None,
+        job_run_start_date=None,
+        job_run_end_date=None,
+    )
+
+    assert isinstance(result, dict)
+    assert calls == ["summary"]
+
+
+async def test_list_batch_jobs_bypasses_summary_fetch_when_full_patient_requested(monkeypatch):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    calls: list[str] = []
+    jobs = [batch_job(batch_id="batch-123", patient_id="patient-123", created_at=created_at)]
+    monkeypatch.setattr(batch_job_service, "query_batch_jobs", lambda **kwargs: (jobs, 1))
+    monkeypatch.setattr(batch_job_service, "get_responses_for_batches", lambda batch_ids: {})
+
+    async def fetch_summary(patient_ids):
+        calls.append("summary")
+        raise AssertionError("summary fetch should not be used")
+
+    async def fetch_full(patient_ids):
+        calls.append("full")
+        return {patient_id: patient(patient_id=patient_id) for patient_id in patient_ids}
+
+    monkeypatch.setattr(batch_job_service, "fetch_patient_summaries", fetch_summary)
+    monkeypatch.setattr(batch_job_service, "fetch_patients", fetch_full)
+
+    result = await batch_job_service.list_batch_jobs(
+        include_patient=True,
+        page=0,
+        size=10,
+        questionnaire_response_status=None,
+        patient_name_filter=None,
+        patient_gender=None,
+        job_package_filter=None,
+        batch_job_status=None,
+        dob_start_date=None,
+        dob_end_date=None,
+        job_run_start_date=None,
+        job_run_end_date=None,
+    )
+
+    assert isinstance(result, dict)
+    assert calls == ["full"]
+
+
+async def test_stream_batch_jobs_emits_initial_bundle_without_waiting():
+    bundle = {"resourceType": "Bundle", "type": "searchset", "total": 0, "entry": []}
+
+    class Request:
+        async def is_disconnected(self):
+            return True
+
+    stream = batchjob._stream_batch_jobs(Request(), bundle, {})
+    first = await anext(stream)
+
+    assert first.startswith("event: form-list\n")
+    assert '"resourceType":"Bundle"' in first
+
+
+async def test_stream_batch_jobs_emits_keepalive_when_bundle_is_unchanged(monkeypatch):
+    bundle = {"resourceType": "Bundle", "type": "searchset", "total": 0, "entry": []}
+    monkeypatch.setattr(settings, "batch_job_stream_poll_interval_seconds", 0)
+
+    async def list_batches(**kwargs):
+        return bundle
+
+    monkeypatch.setattr(batch_job_service, "list_batch_jobs", list_batches)
+
+    class Request:
+        calls = 0
+
+        async def is_disconnected(self):
+            self.calls += 1
+            return self.calls > 2
+
+    stream = batchjob._stream_batch_jobs(Request(), bundle, {})
+
+    assert (await anext(stream)).startswith("event: form-list\n")
+    assert await anext(stream) == ": keepalive\n\n"
+
+
+async def test_stream_batch_jobs_emits_new_event_when_bundle_changes(monkeypatch):
+    first_bundle = {"resourceType": "Bundle", "type": "searchset", "total": 0, "entry": []}
+    second_bundle = {"resourceType": "Bundle", "type": "searchset", "total": 1, "entry": []}
+    monkeypatch.setattr(settings, "batch_job_stream_poll_interval_seconds", 0)
+    calls = 0
+
+    async def list_batches(**kwargs):
+        nonlocal calls
+        calls += 1
+        return second_bundle if calls == 1 else first_bundle
+
+    monkeypatch.setattr(batch_job_service, "list_batch_jobs", list_batches)
+
+    class Request:
+        calls = 0
+
+        async def is_disconnected(self):
+            self.calls += 1
+            return self.calls > 2
+
+    stream = batchjob._stream_batch_jobs(Request(), first_bundle, {})
+
+    assert (await anext(stream)).startswith("event: form-list\n")
+    changed = await anext(stream)
+    assert changed.startswith("event: form-list\n")
+    assert '"total":1' in changed
+
+
+async def test_stream_batch_jobs_closes_with_expired_token_error():
+    bundle = {"resourceType": "Bundle", "type": "searchset", "total": 0, "entry": []}
+
+    class Request:
+        async def is_disconnected(self):
+            return False
+
+    stream = batchjob._stream_batch_jobs(Request(), bundle, {}, expires_at=0)
+
+    assert (await anext(stream)).startswith("event: form-list\n")
+    expired = await anext(stream)
+    assert expired.startswith("event: error\n")
+    assert '"code":"expired"' in expired
+    with pytest.raises(StopAsyncIteration):
+        await anext(stream)
+
+
+async def test_stream_batch_jobs_emits_error_and_closes_on_refresh_exception(monkeypatch):
+    bundle = {"resourceType": "Bundle", "type": "searchset", "total": 0, "entry": []}
+    monkeypatch.setattr(settings, "batch_job_stream_poll_interval_seconds", 0)
+
+    async def list_batches(**kwargs):
+        raise RuntimeError("database connection failed")
+
+    monkeypatch.setattr(batch_job_service, "list_batch_jobs", list_batches)
+
+    class Request:
+        async def is_disconnected(self):
+            return False
+
+    stream = batchjob._stream_batch_jobs(Request(), bundle, {})
+
+    assert (await anext(stream)).startswith("event: form-list\n")
+    error = await anext(stream)
+    assert error.startswith("event: error\n")
+    assert '"code":"exception"' in error
+    assert "database connection failed" not in error
+    with pytest.raises(StopAsyncIteration):
+        await anext(stream)
+
+
+def test_stream_batch_jobs_rejects_full_patient_resource_request(monkeypatch):
+    monkeypatch.setattr(settings, "oauth2_enabled", False)
+    response = TestClient(app).get("/batchjob/stream?include_patient=true")
+
+    assert response.status_code == 400
+    assert response.json()["resourceType"] == "OperationOutcome"
+    assert response.json()["issue"][0]["code"] == "not-supported"
+
+
 async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
     created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
     fetch_calls: list[str] = []
@@ -351,6 +544,7 @@ async def test_list_batch_jobs_applies_page_and_size(monkeypatch):
     monkeypatch.setattr(batch_job_service, "get_responses_for_batches", lambda batch_ids: {})
 
     monkeypatch.setattr(batch_job_service, "_fetch_patient", fake_fetch_patient(fetch_calls=fetch_calls))
+    monkeypatch.setattr(batch_job_service, "_fetch_patient_summary", fake_fetch_patient(fetch_calls=fetch_calls))
 
     result = await batchjob.list_batch_jobs(page=1, size=2, claims={})
 
@@ -394,6 +588,7 @@ async def test_list_batch_jobs_uses_one_bulk_response_load_for_page(monkeypatch)
     monkeypatch.setattr(batch_job_service, "get_responses_for_batches", _fake_get_responses_for_batches)
 
     monkeypatch.setattr(batch_job_service, "_fetch_patient", fake_fetch_patient())
+    monkeypatch.setattr(batch_job_service, "_fetch_patient_summary", fake_fetch_patient())
 
     result = await batchjob.list_batch_jobs(size=3, claims={})
 
@@ -405,6 +600,46 @@ async def test_list_batch_jobs_uses_one_bulk_response_load_for_page(monkeypatch)
         values = {param.name: param for param in ParametersResponse.model_validate(entry.resource).parameter}
         assert values["questionnaireResponseStatus"].valueString == f"status-{batch_id}"
         assert values["batchJobQuestionnaireResponse"].valueReference == {"reference": f"QuestionnaireResponse/response-{batch_id}"}
+
+
+async def test_list_batch_jobs_includes_progress_for_pending_running_and_partial(list_batch_jobs_setup, monkeypatch):
+    created_at = datetime(2026, 5, 22, 12, 0, tzinfo=UTC)
+    jobs = [
+        batch_job(batch_id="running", patient_id="patient-running", status="running", created_at=created_at),
+        batch_job(batch_id="partial", patient_id="patient-partial", status="partial", created_at=created_at),
+        batch_job(batch_id="complete", patient_id="patient-complete", status="complete", created_at=created_at),
+        batch_job(batch_id="pending", patient_id="patient-pending", status="pending", created_at=created_at),
+    ]
+    monkeypatch.setattr(batch_job_service, "query_batch_jobs", lambda **kwargs: (jobs, len(jobs)))
+    monkeypatch.setattr(batch_job_service, "get_responses_for_batches", lambda batch_ids: {})
+
+    async def fetch_summaries(patient_ids):
+        return {patient_id: patient(patient_id=patient_id) for patient_id in patient_ids}
+
+    monkeypatch.setattr(batch_job_service, "fetch_patient_summaries", fetch_summaries)
+    monkeypatch.setattr(batch_job_service, "get_job_progress_for_batches", lambda batch_ids: {batch_id: 67 for batch_id in batch_ids})
+
+    result = await batch_job_service.list_batch_jobs(
+        include_patient=False,
+        page=0,
+        size=10,
+        questionnaire_response_status=None,
+        patient_name_filter=None,
+        patient_gender=None,
+        job_package_filter=None,
+        batch_job_status=None,
+        dob_start_date=None,
+        dob_end_date=None,
+        job_run_start_date=None,
+        job_run_end_date=None,
+    )
+
+    assert isinstance(result, dict)
+    progress_by_batch = {}
+    for entry in result["entry"]:
+        values = {param["name"]: param for param in entry["resource"]["parameter"]}
+        progress_by_batch[values["batchId"]["valueString"]] = values.get("batchJobProgress", {}).get("valueInteger")
+    assert progress_by_batch == {"running": 67, "partial": 67, "complete": None, "pending": 67}
 
 
 async def test_list_batch_jobs_applies_search_filters(list_batch_jobs_setup):
@@ -651,8 +886,9 @@ def test_hydration_preserves_legacy_inline_content_and_missing_rows():
 @pytest.mark.parametrize(
     ("batch_status", "child_statuses", "expected_progress"),
     [
-        ("running", ["complete", "running", "skipped"], "Batch job status: 67% (2/3)"),
-        ("partial", ["complete", "error"], "Batch job status: 100% (2/2)"),
+        ("running", ["complete", "running", "skipped"], "Batch job status: 33% (1/3)"),
+        ("partial", ["complete", "error"], "Batch job status: 50% (1/2)"),
+        ("partial", ["complete", "complete", "error"], "Batch job status: 67% (2/3)"),
     ],
 )
 async def test_get_batch_job_results_returns_stored_bundle_with_live_progress(monkeypatch, batch_status, child_statuses, expected_progress):

@@ -76,6 +76,23 @@ def get_jobs_for_batch(batch_id: str) -> list[Jobs]:
         return list(session.execute(select(Jobs).where(Jobs.batch_id == batch_id)).scalars().all())
 
 
+def get_job_progress_for_batches(batch_ids: list[str]) -> dict[str, int]:
+    """Return successful-child percentages for the requested batches."""
+    if not batch_ids:
+        return {}
+
+    with Session(database.db_engine) as session:
+        rows = session.execute(select(Jobs.batch_id, Jobs.status).where(Jobs.batch_id.in_(batch_ids))).all()
+
+    counts: dict[str, list[int]] = {batch_id: [0, 0] for batch_id in batch_ids}
+    for batch_id, status in rows:
+        counts[batch_id][1] += 1
+        if status == "complete":
+            counts[batch_id][0] += 1
+
+    return {batch_id: round(successful / total * 100) if total else 0 for batch_id, (successful, total) in counts.items()}
+
+
 def update_job_result(
     job_id: str,
     status: str,
