@@ -183,7 +183,7 @@ def test_post_batch_job_end_to_end_builds_expected_result_bundle(monkeypatch):
     }
 
     with respx.mock(assert_all_called=True) as mock:
-        mock.get(f"{HAPI_BASE}/Questionnaire", params={"name": JOB_PACKAGE}).mock(return_value=httpx.Response(200, json=questionnaire_search_bundle))
+        mock.get(f"{HAPI_BASE}/Questionnaire", params={"name:exact": JOB_PACKAGE}).mock(return_value=httpx.Response(200, json=questionnaire_search_bundle))
         mock.get(f"{HAPI_BASE}/Questionnaire/{questionnaire['id']}").mock(return_value=httpx.Response(200, json=questionnaire))
         mock.post(f"{HAPI_BASE}/Library/IfuSyphilisComplications/$evaluate").mock(return_value=httpx.Response(200, json=cql_response))
         mock.get(f"{EXTERNAL_BASE}/DocumentReference", params={"subject": f"Patient/{PATIENT_ID}", "_count": "100"}).mock(return_value=httpx.Response(200, json=document_references))
