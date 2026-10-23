@@ -11,10 +11,12 @@ and `batch_worker`), not this router.
 import asyncio
 import hashlib
 import json
+import time
 from typing import Annotated, Any, Protocol
 
 from fastapi import APIRouter, Query, Request, Response, Security
 from fastapi.responses import JSONResponse, StreamingResponse
+from loguru import logger
 
 from src.models.fhir import FHIRJSON, BundleResource, ParametersParameter, ParametersResponse
 from src.models.job_request import JobRequest
@@ -145,6 +147,13 @@ def _sse_event(bundle: FHIRJSON) -> str:
     return f"event: form-list\nid: {event_id}\ndata: {payload}\n\n"
 
 
+def _token_expiry(claims: dict) -> float | None:
+    value = claims.get("exp")
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    return None
+
+
 def _sse_error(error: batch_job_service.ServiceFailure) -> str:
     if isinstance(error, batch_job_service.MissingConfig):
         outcome: dict[str, Any] = {"resourceType": "OperationOutcome", "issue": [{"severity": "error", "code": "required", "diagnostics": ", ".join(error.names)}]}
@@ -160,14 +169,29 @@ async def _stream_batch_jobs(
     request: _DisconnectAwareRequest,
     initial: FHIRJSON,
     list_kwargs: dict[str, Any],
+    expires_at: float | None = None,
 ):
     previous = json.dumps(initial, separators=(",", ":"), sort_keys=True)
     yield _sse_event(initial)
     while not await request.is_disconnected():
-        await asyncio.sleep(settings.batch_job_stream_poll_interval_seconds)
+        if expires_at is not None and time.time() >= expires_at:
+            yield _sse_error(batch_job_service.BatchJobError(401, "expired", "The bearer token expired; reconnect with a fresh token."))
+            break
+        delay = settings.batch_job_stream_poll_interval_seconds
+        if expires_at is not None:
+            delay = min(delay, max(0.0, expires_at - time.time()))
+        await asyncio.sleep(delay)
         if await request.is_disconnected():
             break
-        result = await batch_job_service.list_batch_jobs(**list_kwargs)
+        if expires_at is not None and time.time() >= expires_at:
+            yield _sse_error(batch_job_service.BatchJobError(401, "expired", "The bearer token expired; reconnect with a fresh token."))
+            break
+        try:
+            result = await batch_job_service.list_batch_jobs(**list_kwargs)
+        except Exception:  # noqa: BLE001 - expose a safe SSE error before closing the stream
+            logger.exception("Batch-job SSE refresh failed")
+            yield _sse_error(batch_job_service.BatchJobError(500, "exception", "The form list could not be refreshed."))
+            break
         if isinstance(result, batch_job_service.ServiceFailure):
             yield _sse_error(result)
             continue
@@ -221,9 +245,9 @@ async def stream_batch_jobs(
     if isinstance(result, batch_job_service.ServiceFailure):
         return _service_error_response(result)
     return StreamingResponse(
-        _stream_batch_jobs(request, result, list_kwargs),
+        _stream_batch_jobs(request, result, list_kwargs, _token_expiry(claims)),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

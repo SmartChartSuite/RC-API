@@ -69,7 +69,7 @@ async def fetch_patient_summary(patient_id: str) -> dict[str, Any] | None:
             _patient_summary_in_flight[patient_id] = in_flight
 
     try:
-        patient = await in_flight
+        patient = await asyncio.shield(in_flight)
     finally:
         async with _patient_summary_cache_lock:
             if _patient_summary_in_flight.get(patient_id) is in_flight:

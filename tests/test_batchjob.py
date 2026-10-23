@@ -468,6 +468,47 @@ async def test_stream_batch_jobs_emits_new_event_when_bundle_changes(monkeypatch
     assert '"total":1' in changed
 
 
+async def test_stream_batch_jobs_closes_with_expired_token_error():
+    bundle = {"resourceType": "Bundle", "type": "searchset", "total": 0, "entry": []}
+
+    class Request:
+        async def is_disconnected(self):
+            return False
+
+    stream = batchjob._stream_batch_jobs(Request(), bundle, {}, expires_at=0)
+
+    assert (await anext(stream)).startswith("event: form-list\n")
+    expired = await anext(stream)
+    assert expired.startswith("event: error\n")
+    assert '"code":"expired"' in expired
+    with pytest.raises(StopAsyncIteration):
+        await anext(stream)
+
+
+async def test_stream_batch_jobs_emits_error_and_closes_on_refresh_exception(monkeypatch):
+    bundle = {"resourceType": "Bundle", "type": "searchset", "total": 0, "entry": []}
+    monkeypatch.setattr(settings, "batch_job_stream_poll_interval_seconds", 0)
+
+    async def list_batches(**kwargs):
+        raise RuntimeError("database connection failed")
+
+    monkeypatch.setattr(batch_job_service, "list_batch_jobs", list_batches)
+
+    class Request:
+        async def is_disconnected(self):
+            return False
+
+    stream = batchjob._stream_batch_jobs(Request(), bundle, {})
+
+    assert (await anext(stream)).startswith("event: form-list\n")
+    error = await anext(stream)
+    assert error.startswith("event: error\n")
+    assert '"code":"exception"' in error
+    assert "database connection failed" not in error
+    with pytest.raises(StopAsyncIteration):
+        await anext(stream)
+
+
 def test_stream_batch_jobs_rejects_full_patient_resource_request(monkeypatch):
     monkeypatch.setattr(settings, "oauth2_enabled", False)
     response = TestClient(app).get("/batchjob/stream?include_patient=true")
