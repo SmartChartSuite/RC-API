@@ -421,6 +421,7 @@ async def test_stream_batch_jobs_emits_initial_bundle_without_waiting():
 async def test_stream_batch_jobs_emits_keepalive_when_bundle_is_unchanged(monkeypatch):
     bundle = {"resourceType": "Bundle", "type": "searchset", "total": 0, "entry": []}
     monkeypatch.setattr(settings, "batch_job_stream_poll_interval_seconds", 0)
+
     async def list_batches(**kwargs):
         return bundle
 
@@ -570,6 +571,7 @@ async def test_list_batch_jobs_includes_progress_for_pending_running_and_partial
     ]
     monkeypatch.setattr(batch_job_service, "query_batch_jobs", lambda **kwargs: (jobs, len(jobs)))
     monkeypatch.setattr(batch_job_service, "get_responses_for_batches", lambda batch_ids: {})
+
     async def fetch_summaries(patient_ids):
         return {patient_id: patient(patient_id=patient_id) for patient_id in patient_ids}
 

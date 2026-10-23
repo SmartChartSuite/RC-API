@@ -11,7 +11,7 @@ and `batch_worker`), not this router.
 import asyncio
 import hashlib
 import json
-from typing import Annotated, Any
+from typing import Annotated, Any, Protocol
 
 from fastapi import APIRouter, Query, Request, Response, Security
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -26,6 +26,10 @@ from src.util.current_user import CurrentUser, get_current_user
 from src.util.settings import settings
 
 router = APIRouter(tags=["Batch Jobs"])
+
+
+class _DisconnectAwareRequest(Protocol):
+    async def is_disconnected(self) -> bool: ...
 
 
 def _service_error_response(error: batch_job_service.ServiceFailure) -> JSONResponse:
@@ -153,7 +157,7 @@ def _sse_error(error: batch_job_service.ServiceFailure) -> str:
 
 
 async def _stream_batch_jobs(
-    request: Request,
+    request: _DisconnectAwareRequest,
     initial: FHIRJSON,
     list_kwargs: dict[str, Any],
 ):
