@@ -140,6 +140,8 @@ def _parse_parameter_entry(param: dict, depth: int) -> tuple[dict | None, str | 
                 return None, error
             if part_entry is not None:
                 _append_parameter_entry(grouped_parts, part_name, part_entry)
+        if len(grouped_parts) == 1 and len(grouped_parts.get("element", [])) == 1:
+            return grouped_parts["element"][0], None
         return {"value": grouped_parts, "type": "part"}, None
 
     logger.debug(f"CQL parameter '{name}' has no value")

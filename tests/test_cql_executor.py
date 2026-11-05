@@ -106,6 +106,19 @@ def test_parse_parameters_response_extracts_generic_values_and_parts():
                         },
                     ],
                 },
+                {
+                    "name": "coding_part",
+                    "part": [
+                        {
+                            "name": "element",
+                            "valueCoding": {
+                                "system": "urn:example",
+                                "code": "white",
+                                "display": "White",
+                            },
+                        }
+                    ],
+                },
             ],
         },
     )
@@ -128,6 +141,7 @@ def test_parse_parameters_response_extracts_generic_values_and_parts():
             "type": "part",
         }
     ]
+    assert result.results["coding_part"] == [{"value": {"system": "urn:example", "code": "white", "display": "White"}, "type": "Coding"}]
 
 
 def test_parse_parameters_response_returns_error_for_nested_operation_outcome():
