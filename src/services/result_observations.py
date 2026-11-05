@@ -198,7 +198,6 @@ def build_cql_observations(
 
         cql_result = cql_by_lib.get(library_name)
         if not cql_result:
-            logger.debug(f"No CQL result for library '{library_name}', skipping {link_id}")
             continue
 
         result_entries = cql_result.results.get(task_name, [])
@@ -412,7 +411,6 @@ def build_llm_observations(
 
         llm_result = llm_by_path.get(prompt_path)
         if not llm_result:
-            logger.debug(f"No LLM result for prompt '{prompt_path}', skipping {link_id}")
             continue
 
         for doc_result in llm_result.document_results:
