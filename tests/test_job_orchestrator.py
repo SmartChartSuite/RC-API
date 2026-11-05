@@ -170,6 +170,31 @@ def test_build_llm_observations_deduplicates_same_document_and_text():
     assert entries[0]["resource"]["focus"] == [{"reference": "DocumentReference/doc-1"}]
 
 
+def test_build_llm_observations_does_not_log_expected_unmatched_prompt(monkeypatch):
+    questionnaire = {
+        "item": [
+            {
+                "linkId": "matched",
+                "text": "Matched question",
+                "extension": [{"url": job_package._UNSTRUCTURED_TASK_URL, "valueString": "prompts/a"}],
+            },
+            {
+                "linkId": "unmatched",
+                "text": "Unmatched question",
+                "extension": [{"url": job_package._UNSTRUCTURED_TASK_URL, "valueString": "prompts/b"}],
+            },
+        ]
+    }
+    llm_results = [LlmResult(prompt_path="prompts/a", document_results=[LlmDocumentResult(doc_id="doc-1", doc_type="Visit Note", doc_date="2026-05-22", response="answer")])]
+    debug_messages: list[str] = []
+    monkeypatch.setattr(result_observations.logger, "debug", debug_messages.append)
+
+    entries = result_observations.build_llm_observations(llm_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+
+    assert len(entries) == 1
+    assert not any("No LLM result" in message for message in debug_messages)
+
+
 def _component(code: str, display: str, value: str) -> dict:
     return {
         "code": {"coding": [{"system": "http://gtri.gatech.edu/fakeFormIg/unstructured-answer-type-label", "code": code, "display": display}]},
@@ -270,6 +295,31 @@ def test_build_cql_observations_uses_matching_structured_task():
 
     assert len(entries) == 1
     assert entries[0]["resource"]["valueString"] == "positive"
+
+
+def test_build_cql_observations_does_not_log_expected_unmatched_library(monkeypatch):
+    questionnaire = {
+        "item": [
+            {
+                "linkId": "matched",
+                "text": "Matched question",
+                "extension": [{"url": job_package._STRUCTURED_TASK_URL, "valueString": "LibOne.TaskA"}],
+            },
+            {
+                "linkId": "unmatched",
+                "text": "Unmatched question",
+                "extension": [{"url": job_package._STRUCTURED_TASK_URL, "valueString": "LibTwo.TaskB"}],
+            },
+        ]
+    }
+    cql_results = [CqlResult(library_name="LibOne", patient_id="patient-123", results={"TaskA": [{"value": "positive"}]})]
+    debug_messages: list[str] = []
+    monkeypatch.setattr(result_observations.logger, "debug", debug_messages.append)
+
+    entries = result_observations.build_cql_observations(cql_results, questionnaire, "RegistryForm", "patient-123", "batch-1")
+
+    assert len(entries) == 1
+    assert not any("No CQL result" in message for message in debug_messages)
 
 
 @pytest.mark.parametrize(
