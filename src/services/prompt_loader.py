@@ -8,6 +8,7 @@ result assembly; those belong in ``job_orchestrator`` and ``llm_executor``.
 """
 
 import asyncio
+import json
 import os
 import re
 import threading
@@ -32,12 +33,19 @@ _langfuse_client_lock = threading.Lock()
 _PROMPT_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
 _PROMPT_CACHE_MAX_ENTRIES = 256
 _LANGFUSE_PROMPT_LABEL = "latest"
+_LANGFUSE_EXPORT_GLOB = "langfuse-prompts*.json"
 
 
 @dataclass(frozen=True)
 class _LocalPromptCacheEntry:
     stat_signature: tuple[int, int]
     prompt: Prompt
+
+
+@dataclass(frozen=True)
+class _PromptExportCacheEntry:
+    stat_signature: tuple[int, int]
+    prompts: dict[str, Prompt]
 
 
 @dataclass(frozen=True)
@@ -48,6 +56,7 @@ class _LangfusePromptCacheEntry:
 
 _local_prompt_cache: OrderedDict[Path, _LocalPromptCacheEntry] = OrderedDict()
 _local_prompt_cache_lock = threading.Lock()
+_prompt_export_cache: dict[Path, _PromptExportCacheEntry] = {}
 _langfuse_prompt_cache: OrderedDict[tuple[str, str], _LangfusePromptCacheEntry] = OrderedDict()
 _langfuse_prompt_cache_lock = threading.Lock()
 
@@ -66,6 +75,7 @@ def clear_prompt_cache() -> None:
     """Clear all process-local prompt caches."""
     with _local_prompt_cache_lock:
         _local_prompt_cache.clear()
+        _prompt_export_cache.clear()
     with _langfuse_prompt_cache_lock:
         _langfuse_prompt_cache.clear()
 
@@ -152,6 +162,84 @@ def _resolve_prompt_file(path: str) -> Path | None:
     return candidate
 
 
+def _resolve_prompt_export_file() -> Path | None:
+    """Return the newest Langfuse prompt export in the configured prompts directory."""
+    root = Path(settings.prompts_dir).resolve()
+    try:
+        candidates = [candidate for candidate in root.glob(_LANGFUSE_EXPORT_GLOB) if candidate.is_file()]
+        return max(candidates, key=lambda candidate: (candidate.stat().st_mtime_ns, candidate.name), default=None)
+    except OSError:
+        return None
+
+
+def _load_prompt_from_export(path: str) -> Prompt | None:
+    """Load a prompt by path from the newest Langfuse JSON export, if present."""
+    export_file = _resolve_prompt_export_file()
+    if export_file is None:
+        return None
+
+    try:
+        stat_result = os.stat(export_file)
+    except OSError:
+        with _local_prompt_cache_lock:
+            _prompt_export_cache.pop(export_file, None)
+        return None
+
+    stat_signature = (stat_result.st_mtime_ns, stat_result.st_size)
+    with _local_prompt_cache_lock:
+        cached = _prompt_export_cache.get(export_file)
+        if cached is not None and cached.stat_signature == stat_signature:
+            prompt = cached.prompts.get(path)
+            return _copy_prompt(prompt) if prompt is not None else None
+
+    try:
+        raw_entries = json.loads(export_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError) as exc:
+        logger.error(f"Failed to parse Langfuse prompt export {export_file}: {exc}")
+        raw_entries = []
+
+    prompts_by_path: dict[str, tuple[tuple[int, int], Prompt]] = {}
+    if isinstance(raw_entries, list):
+        for entry in raw_entries:
+            if not isinstance(entry, dict) or entry.get("type", "text") != "text":
+                continue
+            prompt_path = entry.get("name")
+            content = entry.get("prompt")
+            if not isinstance(prompt_path, str) or not is_safe_prompt_path(prompt_path) or not isinstance(content, str):
+                continue
+
+            raw_version = entry.get("version")
+            try:
+                version_rank = int(raw_version) if raw_version is not None else -1
+            except TypeError, ValueError:
+                version_rank = -1
+            labels = entry.get("labels")
+            rank = (int(isinstance(labels, list) and _LANGFUSE_PROMPT_LABEL in labels), version_rank)
+            prompt = Prompt(
+                metadata=PromptMetadata(
+                    name=Path(prompt_path).name,
+                    path=prompt_path,
+                    version=None if raw_version is None else str(raw_version),
+                ),
+                content=content,
+            )
+            current = prompts_by_path.get(prompt_path)
+            if current is None or rank >= current[0]:
+                prompts_by_path[prompt_path] = (rank, prompt)
+    elif not isinstance(raw_entries, list):
+        logger.error(f"Langfuse prompt export must contain a JSON array: {export_file}")
+
+    parsed_prompts = {prompt_path: prompt_data[1] for prompt_path, prompt_data in prompts_by_path.items()}
+    with _local_prompt_cache_lock:
+        _prompt_export_cache[export_file] = _PromptExportCacheEntry(stat_signature, parsed_prompts)
+
+    prompt = parsed_prompts.get(path)
+    if prompt is not None:
+        logger.debug(f"Loaded prompt from Langfuse export: {path}")
+        return _copy_prompt(prompt)
+    return None
+
+
 def _load_prompt_from_folder(path: str) -> Prompt | None:
     """Load one prompt from the local prompt tree."""
     file_path = _resolve_prompt_file(path)
@@ -164,6 +252,9 @@ def _load_prompt_from_folder(path: str) -> Prompt | None:
     except FileNotFoundError:
         with _local_prompt_cache_lock:
             _local_prompt_cache.pop(file_path, None)
+        export_prompt = _load_prompt_from_export(path)
+        if export_prompt is not None:
+            return export_prompt
         logger.warning(f"Prompt file not found: {file_path}")
         return None
     except OSError as exc:
