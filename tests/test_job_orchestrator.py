@@ -5,6 +5,7 @@ checkpointing, retries, lease-safe child updates, and finalization; pure builder
 their dedicated service modules."""
 
 import json
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 
 import pytest
@@ -96,6 +97,79 @@ def run_harness(monkeypatch) -> _RunHarness:
 
 async def _run(batch_id: str = "batch-1", **kwargs) -> None:
     await job_orchestrator.run_batch_job(batch_id, "patient-1", "RegistryForm", "questionnaire-1", worker_id="worker-1", **{"attempt_count": 1, **kwargs})
+
+
+async def test_langfuse_batch_parent_completes_observation_and_records_input(monkeypatch):
+    class _Observation:
+        def __init__(self):
+            self.updates = []
+            self.exited = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.exited = True
+            return False
+
+        def update(self, **kwargs):
+            self.updates.append(kwargs)
+
+    class _Client:
+        def __init__(self, observation):
+            self.observation = observation
+            self.kwargs = None
+
+        def start_as_current_observation(self, **kwargs):
+            self.kwargs = kwargs
+            return self.observation
+
+    observation = _Observation()
+    client = _Client(observation)
+    monkeypatch.setattr(job_orchestrator.settings, "use_langfuse", True)
+    monkeypatch.setattr(job_orchestrator.prompt_loader, "get_langfuse_client", lambda: client)
+
+    async with job_orchestrator._langfuse_batch_parent("0123456789abcdef0123456789abcdef", "Registry", "questionnaire-1", None, ["LibOne"]) as parent_otel_span:
+        assert parent_otel_span is not None
+
+    assert observation.exited
+    assert client.kwargs is not None
+    assert client.kwargs["end_on_exit"] is True
+    assert client.kwargs["input"]["requested_jobs"] == ["LibOne"]
+    assert observation.updates == [{"output": {"status": "complete"}}]
+
+
+async def test_langfuse_batch_parent_records_errors(monkeypatch):
+    class _Observation:
+        def __init__(self):
+            self.updates = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def update(self, **kwargs):
+            self.updates.append(kwargs)
+
+    observation = _Observation()
+    monkeypatch.setattr(job_orchestrator.settings, "use_langfuse", True)
+    monkeypatch.setattr(job_orchestrator.prompt_loader, "get_langfuse_client", lambda: type("_Client", (), {"start_as_current_observation": lambda self, **kwargs: observation})())
+
+    with pytest.raises(RuntimeError, match="boom"):
+        async with job_orchestrator._langfuse_batch_parent("0123456789abcdef0123456789abcdef", "Registry", "questionnaire-1", None, []):
+            raise RuntimeError("boom")
+
+    assert observation.updates == [{"output": {"status": "error"}, "level": "ERROR", "status_message": "batch execution failed (RuntimeError)"}]
+
+
+async def test_langfuse_batch_parent_is_noop_when_disabled(monkeypatch):
+    monkeypatch.setattr(job_orchestrator.settings, "use_langfuse", False)
+    monkeypatch.setattr(job_orchestrator.prompt_loader, "get_langfuse_client", lambda: pytest.fail("Langfuse client should not initialize"))
+
+    async with job_orchestrator._langfuse_batch_parent("batch-1", "Registry", "questionnaire-1", None, ["LibOne"]) as parent_otel_span:
+        assert parent_otel_span is None
 
 
 def test_extract_job_lists_reads_both_extension_types():
@@ -529,6 +603,29 @@ def test_document_bundle_storage_strips_content_and_retry_order_is_deterministic
     assert [document["id"] for document in ordered] == ["doc-b", "doc-c", "doc-z", "doc-a"]
     assert document_entries[0]["resource"]["content"][0]["attachment"] == {"contentType": "text/plain", "data": "Qg=="}
     assert all("content" not in entry["resource"] for entry in stored_bundle["entry"])
+
+
+async def test_run_batch_job_passes_effective_jobs_to_langfuse_parent(run_harness, monkeypatch):
+    run_harness.questionnaire(
+        _questionnaire(
+            cql=["LibOne", "LibTwo"],
+            items=[_structured_item("one-question", "LibOne.TaskA"), _structured_item("two-question", "LibTwo.TaskA")],
+        )
+    )
+    run_harness.cql(lambda call, names, patient_id: [CqlResult(library_name=name, patient_id=patient_id, results={}) for name in names])
+    captured = {}
+
+    @asynccontextmanager
+    async def _fake_langfuse_parent(batch_id, job_package, questionnaire_id, job_package_version, requested_jobs):
+        captured["requested_jobs"] = requested_jobs
+        yield None
+
+    monkeypatch.setattr(job_orchestrator, "_langfuse_batch_parent", _fake_langfuse_parent)
+    monkeypatch.setattr(settings, "use_llm", False)
+
+    await _run("batch-effective-jobs")
+
+    assert captured["requested_jobs"] == ["LibOne", "LibTwo"]
 
 
 @pytest.mark.parametrize(
