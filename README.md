@@ -337,6 +337,18 @@ prompts/
         └── ig_bstfed.md     # Prompt content with optional YAML frontmatter
 ```
 
+The directory may also contain a Langfuse prompt export from **Prompts → Export**, using a filename such as `langfuse-prompts-latest-2026-11-06.json`:
+
+```text
+prompts/
+├── langfuse-prompts-latest-2026-11-06.json  # Optional flat Langfuse export
+└── 2025_08/
+    └── syphilis/
+        └── ig_bstfed.md
+```
+
+Export `name` values should match the Questionnaire `unstructuredTask` paths. When both sources contain a prompt, the nested `.md` file takes precedence; otherwise the export’s text prompt is used. Multiple export records for one name prefer the `latest` label and then the highest version.
+
 Each `.md` file supports YAML frontmatter:
 ```markdown
 ---

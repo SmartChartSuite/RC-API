@@ -3,6 +3,7 @@
 The module uses temporary prompt roots, respx routes, and patches to `prompt_loader`, `settings`, and the
 Langfuse seam; prompt execution belongs in `test_llm_executor.py`."""
 
+import json
 import threading
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,6 +19,13 @@ def _write_prompt(prompt_root: Path, path: str, content: str) -> Path:
     prompt_file.parent.mkdir(parents=True, exist_ok=True)
     prompt_file.write_text(content, encoding="utf-8")
     return prompt_file
+
+
+def _write_export(prompt_root: Path, entries: list[dict]) -> Path:
+    prompt_root.mkdir(parents=True, exist_ok=True)
+    export_file = prompt_root / "langfuse-prompts-latest-2026-11-06.json"
+    export_file.write_text(json.dumps(entries), encoding="utf-8")
+    return export_file
 
 
 class _FakeLangfuse:
@@ -54,6 +62,70 @@ def test_load_from_folder_parses_frontmatter(tmp_path, monkeypatch):
     assert prompts[0].metadata.name == "Prompt One"
     assert prompts[0].metadata.version == "2"
     assert prompts[0].content == "Prompt body"
+
+
+def test_load_from_folder_supports_langfuse_export(tmp_path, monkeypatch):
+    prompt_root = tmp_path / "prompts"
+    _write_export(
+        prompt_root,
+        [
+            {
+                "name": "2025_08/exported",
+                "version": 7,
+                "type": "text",
+                "prompt": "Exported prompt body",
+                "labels": ["latest"],
+            }
+        ],
+    )
+    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
+
+    prompts = prompt_loader._load_from_folder(["2025_08/exported"])
+
+    assert len(prompts) == 1
+    assert prompts[0].metadata.name == "exported"
+    assert prompts[0].metadata.path == "2025_08/exported"
+    assert prompts[0].metadata.version == "7"
+    assert prompts[0].content == "Exported prompt body"
+
+
+def test_local_prompt_precedes_export_and_export_selects_latest_version(tmp_path, monkeypatch):
+    prompt_root = tmp_path / "prompts"
+    _write_prompt(prompt_root, "package/local", "Local prompt body")
+    _write_export(
+        prompt_root,
+        [
+            {"name": "package/local", "version": 4, "type": "text", "prompt": "Export fallback", "labels": ["latest"]},
+            {"name": "package/exported", "version": 1, "type": "text", "prompt": "Old latest", "labels": ["latest"]},
+            {"name": "package/exported", "version": 9, "type": "text", "prompt": "Development copy", "labels": ["development"]},
+            {"name": "package/exported", "version": 3, "type": "text", "prompt": "Newest latest", "labels": ["latest"]},
+            {"name": "package/chat", "version": 1, "type": "chat", "prompt": "Ignored chat prompt"},
+            {"name": "../unsafe", "version": 1, "type": "text", "prompt": "Ignored unsafe prompt"},
+        ],
+    )
+    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
+
+    prompts = prompt_loader._load_from_folder(["package/local", "package/exported", "package/chat", "package/missing"])
+
+    assert [prompt.metadata.path for prompt in prompts] == ["package/local", "package/exported"]
+    assert prompts[0].content == "Local prompt body"
+    assert prompts[1].content == "Newest latest"
+    assert prompts[1].metadata.version == "3"
+
+
+def test_langfuse_export_cache_refreshes_when_file_changes(tmp_path, monkeypatch):
+    prompt_root = tmp_path / "prompts"
+    export_file = _write_export(prompt_root, [])
+    export_file.write_text(json.dumps([{"name": "package/exported", "version": 1, "type": "text", "prompt": "First body", "labels": ["latest"]}]), encoding="utf-8")
+    monkeypatch.setattr(settings, "prompts_dir", str(prompt_root))
+
+    assert prompt_loader._load_from_folder(["package/exported"])[0].content == "First body"
+    export_file.write_text(json.dumps([{"name": "package/exported", "version": 2, "type": "text", "prompt": "Second body is longer", "labels": ["latest"]}]), encoding="utf-8")
+
+    refreshed = prompt_loader._load_from_folder(["package/exported"])
+
+    assert refreshed[0].content == "Second body is longer"
+    assert refreshed[0].metadata.version == "2"
 
 
 def test_local_prompt_cache_lifecycle(tmp_path, monkeypatch):
