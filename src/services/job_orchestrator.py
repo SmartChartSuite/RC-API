@@ -65,7 +65,7 @@ async def _langfuse_batch_parent(
     job_package_version: str | None,
     requested_jobs: list[str] | None,
 ):
-    """Create a Langfuse root span for one batch and expose its OTel parent."""
+    """Create a Langfuse root observation for one batch and expose its OTel parent."""
     if not settings.use_langfuse:
         yield None
         return
@@ -93,6 +93,7 @@ async def _langfuse_batch_parent(
         trace_context={"trace_id": trace_id},
         name="process-patient-batch",
         as_type="span",
+        end_on_exit=True,
         input={
             "batch_id": batch_id,
             "job_package": job_package,
@@ -105,8 +106,25 @@ async def _langfuse_batch_parent(
             "job_package": job_package,
             "questionnaire_id": questionnaire_id,
         },
-    ):
-        yield otel_trace.get_current_span()
+    ) as batch_observation:
+        try:
+            yield otel_trace.get_current_span()
+        except asyncio.CancelledError:
+            batch_observation.update(
+                output={"status": "cancelled"},
+                level="ERROR",
+                status_message="batch execution cancelled",
+            )
+            raise
+        except Exception as exc:
+            batch_observation.update(
+                output={"status": "error"},
+                level="ERROR",
+                status_message=f"batch execution failed ({type(exc).__name__})",
+            )
+            raise
+        else:
+            batch_observation.update(output={"status": "complete"})
 
 
 class _BatchAttempt:
@@ -540,21 +558,22 @@ async def run_batch_job(
             checkpoint_interval_seconds,
             checkpoint_every_tasks,
         )
-        await attempt.prepare()
+        effective_requested_jobs = list(dict.fromkeys([*cql_names, *prompt_paths]))
 
-        # 3. Run remaining CQL and LLM tasks under one Langfuse parent span.
+        # 3. Run the full batch attempt under one Langfuse parent observation.
         async with _langfuse_batch_parent(
             batch_id,
             job_package,
             questionnaire_id,
             job_package_version,
-            requested_jobs,
+            effective_requested_jobs,
         ) as parent_otel_span:
+            await attempt.prepare()
             cql_results, llm_results = await attempt.run_concurrent_tasks(parent_otel_span)
-        await attempt.record_missing_results(cql_results, llm_results)
+            await attempt.record_missing_results(cql_results, llm_results)
 
-        # 4. Fetch the Patient, then retry or finalize the attempt.
-        await attempt.finalize()
+            # 4. Fetch the Patient, then retry or finalize the attempt.
+            await attempt.finalize()
 
     except asyncio.CancelledError:
         heartbeat_error = heartbeat_task.exception() if heartbeat_task is not None and heartbeat_task.done() and not heartbeat_task.cancelled() else None
