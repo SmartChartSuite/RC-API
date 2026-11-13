@@ -10,7 +10,7 @@ dependencies = [
     "httpx>=0.28.1,<1",
     "hypercorn>=0.18.0,<1",
     "langfuse>=5.0.4,<6",
-    "litellm[mcp]==1.108.0",
+    "litellm[mcp]==1.108.2",
     "loguru>=0.7.3,<1",
     "psycopg[binary,pool]>=3.3.6,<4",
     "pydantic>=2.14.2,<3",
