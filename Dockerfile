@@ -1,5 +1,5 @@
 # ---- Builder stage: resolve and install dependencies ----
-FROM python:3.14-slim AS builder
+FROM python:3.15-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
 
@@ -13,7 +13,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 # ---- Runtime stage: clean slim image with only the venv + app ----
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 LABEL org.opencontainers.image.source=https://github.com/SmartChartSuite/RC-API
 
