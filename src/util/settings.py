@@ -127,6 +127,9 @@ class Settings(BaseSettings):
     doc_max_count: int = 500
     doc_max_bytes: int = 5_000_000
     attachment_allowed_hosts: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # Optional deployment-level DocumentReference.type token filters (FHIR system|code syntax).
+    document_type_include: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    document_type_exclude: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     # Embedded durable batch worker
     batch_worker_enabled: bool = True
@@ -203,13 +206,26 @@ class Settings(BaseSettings):
             return _parse_nonnegative_float(value, env_name, field.default)
         return value
 
-    @field_validator("cors_allow_origins", "attachment_allowed_hosts", mode="before")
+    @field_validator("cors_allow_origins", "attachment_allowed_hosts", "document_type_include", "document_type_exclude", mode="before")
     @classmethod
     def _parse_csv(cls, value: Any) -> Any:
         """Read the comma-separated env format instead of JSON."""
         if isinstance(value, str):
             return [item.strip() for item in _normalize_env_value(value).split(",") if item.strip()]
         return value
+
+    @field_validator("document_type_include", "document_type_exclude")
+    @classmethod
+    def _validate_document_type_tokens(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            token = value.strip()
+            if not token:
+                continue
+            if token.count("|") > 1 or ("|" in token and not any(token.split("|", 1))):
+                raise ValueError("Document type filters must use FHIR token syntax: system|code, |code, or system|")
+            normalized.append(token)
+        return normalized
 
     @model_validator(mode="after")
     def _derive_values(self) -> Settings:

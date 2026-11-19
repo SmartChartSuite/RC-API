@@ -37,6 +37,49 @@ class DocumentFetchResult:
     excluded: list[dict]
 
 
+@dataclass(frozen=True)
+class _DocumentTypeRule:
+    """One exact FHIR token match for DocumentReference.type."""
+
+    raw: str
+    system: str | None
+    code: str | None
+
+    def matches(self, coding: object) -> bool:
+        if not isinstance(coding, dict):
+            return False
+        return (self.system is None or coding.get("system") == self.system) and (self.code is None or coding.get("code") == self.code)
+
+
+def _parse_document_type_rules(values: list[str], setting_name: str) -> list[_DocumentTypeRule]:
+    rules: list[_DocumentTypeRule] = []
+    for raw_value in values:
+        raw = raw_value.strip()
+        if not raw:
+            continue
+        if "|" in raw:
+            system, code = raw.split("|", 1)
+            system = system or None
+            code = code or None
+        else:
+            system, code = None, raw
+        if system is None and code is None:
+            raise DocumentFetchError(f"{setting_name} contains an empty FHIR token")
+        rules.append(_DocumentTypeRule(raw=raw, system=system, code=code))
+    return rules
+
+
+def _document_type_filter_reason(resource: dict, include_rules: list[_DocumentTypeRule], exclude_rules: list[_DocumentTypeRule]) -> str | None:
+    codings = resource.get("type", {}).get("coding", []) if isinstance(resource.get("type"), dict) else []
+    if not isinstance(codings, list):
+        codings = []
+    if any(rule.matches(coding) for rule in exclude_rules for coding in codings):
+        return "document_type_excluded"
+    if include_rules and not any(rule.matches(coding) for rule in include_rules for coding in codings):
+        return "document_type_not_included"
+    return None
+
+
 class _AttachmentTooLargeError(Exception):
     pass
 
@@ -93,7 +136,7 @@ async def _search_document_entries(
     document_start_date: date | None = None,
     document_end_date: date | None = None,
 ) -> tuple[list[dict], dict | None, list[dict]]:
-    """Collect in-range DocumentReference entries, following same-origin `next` links up to the document cap."""
+    """Collect policy-matching DocumentReference entries, following same-origin `next` links up to the document cap."""
     url: str | None = f"{base_url.rstrip('/')}/DocumentReference"
     params: list[tuple[str, str]] | None = [
         ("subject", f"Patient/{patient_id}"),
@@ -103,8 +146,14 @@ async def _search_document_entries(
         params.append(("date", f"ge{document_start_date.isoformat()}"))
     if document_end_date is not None:
         params.append(("date", f"le{document_end_date.isoformat()}"))
+    include_type_rules = _parse_document_type_rules(settings.document_type_include, "DOCUMENT_TYPE_INCLUDE")
+    exclude_type_rules = _parse_document_type_rules(settings.document_type_exclude, "DOCUMENT_TYPE_EXCLUDE")
+    for rule in include_type_rules:
+        params.append(("type", rule.raw))
+    for rule in exclude_type_rules:
+        params.append(("type:not", rule.raw))
     entries: list[dict] = []
-    range_exclusion_counts: dict[str, int] = {}
+    filter_exclusion_counts: dict[str, int] = {}
     while url and len(entries) < settings.doc_max_count:
         try:
             resp = await send_with_retry(
@@ -129,8 +178,10 @@ async def _search_document_entries(
         page_resources = get_bundle_resources(bundle)
         for resource in page_resources:
             reason = _document_date_filter_reason(resource, document_start_date, document_end_date)
+            if reason is None:
+                reason = _document_type_filter_reason(resource, include_type_rules, exclude_type_rules)
             if reason is not None:
-                range_exclusion_counts[reason] = range_exclusion_counts.get(reason, 0) + 1
+                filter_exclusion_counts[reason] = filter_exclusion_counts.get(reason, 0) + 1
                 continue
             entries.append({"resource": resource})
 
@@ -149,8 +200,8 @@ async def _search_document_entries(
         count_exclusion = {"reason": "exceeds_max_count"}
         if url is None and len(entries) > settings.doc_max_count:
             count_exclusion["count"] = len(entries) - settings.doc_max_count
-    date_exclusions = [{"reason": reason, "count": count} for reason, count in range_exclusion_counts.items()]
-    return entries[: settings.doc_max_count], count_exclusion, date_exclusions
+    filter_exclusions = [{"reason": reason, "count": count} for reason, count in filter_exclusion_counts.items()]
+    return entries[: settings.doc_max_count], count_exclusion, filter_exclusions
 
 
 async def fetch_patient_documents(
@@ -169,16 +220,15 @@ async def fetch_patient_documents(
         }
 
     Returns a result with no documents or exclusions if the patient has no documents or
-    none have text/plain attachments. When a date range is supplied, DocumentReference.date
-    is filtered inclusively before attachment fetching. Raises DocumentFetchError if the search
-    cannot be completed.
+    none have text/plain attachments. Configured DocumentReference.type and date policies are
+    applied before attachment fetching. Raises DocumentFetchError if the search cannot be completed.
     """
     base_url = require_setting(settings.external_fhir_server_url, "EXTERNAL_FHIR_SERVER_URL")
 
     documents: list[dict] = []
     semaphore = asyncio.Semaphore(settings.doc_fetch_max_concurrency)
     client = get_http_client("attachments")
-    entries, count_exclusion, date_exclusions = await _search_document_entries(
+    entries, count_exclusion, filter_exclusions = await _search_document_entries(
         client,
         base_url,
         patient_id,
@@ -187,7 +237,7 @@ async def fetch_patient_documents(
     )
     if not entries:
         logger.info(f"No DocumentReferences found for Patient/{patient_id}")
-        excluded = [*date_exclusions, *([count_exclusion] if count_exclusion else [])]
+        excluded = [*filter_exclusions, *([count_exclusion] if count_exclusion else [])]
         return DocumentFetchResult(documents=[], excluded=excluded)
 
     async def _process_entry(entry: dict) -> tuple[dict | None, dict | None]:
@@ -278,6 +328,6 @@ async def fetch_patient_documents(
     documents = [doc for doc, _ in results if doc is not None]
     excluded = [exclusion for _, exclusion in results if exclusion is not None]
 
-    excluded_documents = [*date_exclusions, *([count_exclusion] if count_exclusion else []), *excluded]
+    excluded_documents = [*filter_exclusions, *([count_exclusion] if count_exclusion else []), *excluded]
     logger.info(f"Fetched {len(documents)} text/plain DocumentReference(s) for Patient/{patient_id}")
     return DocumentFetchResult(documents=documents, excluded=excluded_documents)

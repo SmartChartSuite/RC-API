@@ -84,6 +84,7 @@ Batch jobs run **asynchronously** through a durable database-backed worker embed
 ```
 
 `documentStartDate` and `documentEndDate` are optional inclusive bounds on `DocumentReference.date`. They are persisted with the asynchronous batch job, echoed in accepted/status `Parameters`, applied to the external FHIR search before attachment and LLM work, and recorded in the result Bundle metadata. If omitted, the existing full-history behavior remains unchanged.
+DocumentReference type policy is deployment-level: `DOCUMENT_TYPE_INCLUDE` and `DOCUMENT_TYPE_EXCLUDE` use comma-separated FHIR token values such as `http://loinc.org|1234-5`, `|1234-5`, or `http://loinc.org|`. Include rules limit processing to matching codings; exclude rules take precedence. The policy is sent upstream as `type`/`type:not` search parameters and enforced locally before attachment retrieval.
 
 Use one or more repeated `job` parameters to run only the named CQL library or prompt entries from the job package. Prompt matching accepts either the full prompt path or a unique prompt file name.
 
@@ -205,6 +206,8 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | `AUTH_DISABLED` | `false` | Local development only: disables authentication entirely |
 | `CORS_ALLOW_ORIGINS` | *(none)* | Comma-separated browser origins permitted by CORS; unset sends no CORS headers |
 | `ATTACHMENT_ALLOWED_HOSTS` | *(none)* | Extra hosts (beyond the external FHIR origin) from which attachment URLs may be fetched; `.example.org` includes subdomains |
+| `DOCUMENT_TYPE_INCLUDE` | *(none)* | Comma-separated FHIR token filters (`system|code`, `|code`, or `system|`); only matching DocumentReference types are processed |
+| `DOCUMENT_TYPE_EXCLUDE` | *(none)* | Comma-separated FHIR token filters; matching DocumentReference types are excluded, taking precedence over include rules |
 | `CQL_MAX_CONCURRENCY` | `4` | Maximum concurrent in-flight CQL library evaluations across batch jobs |
 | `DOC_MAX_COUNT` | `500` | Maximum DocumentReferences processed per patient |
 | `DOC_MAX_BYTES` | `5000000` | Maximum bytes per document attachment (inline or fetched) |
