@@ -30,6 +30,8 @@ def _claimed_batch_snapshot(job: BatchJobs, worker_id: str) -> ClaimedBatchJob:
         attempt_count=job.attempt_count,
         result_bundle=job.result_bundle,
         max_attempts=job.max_attempts,
+        document_start_date=job.document_start_date,
+        document_end_date=job.document_end_date,
     )
 
 

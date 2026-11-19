@@ -112,6 +112,8 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         job_package_version,
         requested_jobs,
         response_timestamp,
+        document_start_date=None,
+        document_end_date=None,
     ):
         captured["batch_id"] = batch_id
         captured["patient_id"] = patient_id
@@ -124,6 +126,8 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         captured["job_package_version"] = job_package_version
         captured["requested_jobs"] = requested_jobs
         captured["response_timestamp"] = response_timestamp
+        captured["document_start_date"] = document_start_date
+        captured["document_end_date"] = document_end_date
         return True
 
     monkeypatch.setattr(batch_job_service, "resolve_questionnaire", _fake_resolve_questionnaire)
@@ -135,6 +139,8 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
             JobRequestParameter(name="jobPackage", valueString="SyphilisRegistry"),
             JobRequestParameter(name="job", valueString="SyphilisHistory"),
             JobRequestParameter(name="job", valueString="ig_hc"),
+            JobRequestParameter(name="documentStartDate", valueDate="2024-01-01"),
+            JobRequestParameter(name="documentEndDate", valueDate="2024-12-31"),
         ]
     )
     response = Response()
@@ -151,6 +157,8 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
     values = {param.name: param for param in result.parameter}
     questionnaire_response_reference = values["batchJobQuestionnaireResponse"].valueReference
     assert values["batchJobStatus"].valueString == "pending"
+    assert values["documentStartDate"].valueDate == "2024-01-01"
+    assert values["documentEndDate"].valueDate == "2024-12-31"
     assert questionnaire_response_reference is not None
     assert questionnaire_response_reference["reference"].startswith("QuestionnaireResponse/")
     assert captured["response_body"] == {
@@ -161,6 +169,12 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
         "subject": {"reference": "Patient/patient-123"},
         "author": expected_author("Named User", "user-123"),
         "meta": {"lastUpdated": captured["response_timestamp"].isoformat()},
+        "extension": [
+            {
+                "url": "https://smartchartsuite.org/fhir/StructureDefinition/rc-api-document-date-range",
+                "valuePeriod": {"start": "2024-01-01", "end": "2024-12-31"},
+            }
+        ],
         "authored": captured["response_timestamp"].isoformat(),
         "item": [
             {
@@ -183,9 +197,30 @@ async def test_post_batch_job_schedules_requested_jobs(monkeypatch):
     assert captured["questionnaire_title"] == "Syphilis Registry"
     assert captured["job_package_version"] is None
     assert captured["requested_jobs"] == ["SyphilisHistory", "ig_hc"]
+    assert captured["document_start_date"].isoformat() == "2024-01-01"
+    assert captured["document_end_date"].isoformat() == "2024-12-31"
     assert captured["response_timestamp"].isoformat() == captured["response_body"]["meta"]["lastUpdated"]
     assert captured["response_timestamp"].isoformat() == captured["response_body"]["authored"]
     assert response.headers["Location"].startswith("/batchjob/")
+
+
+async def test_post_batch_job_rejects_reversed_document_date_range(monkeypatch):
+    monkeypatch.setattr(settings, "config_errors", {})
+
+    body = JobRequest(
+        parameter=[
+            JobRequestParameter(name="patientId", valueString="patient-123"),
+            JobRequestParameter(name="jobPackage", valueString="SyphilisRegistry"),
+            JobRequestParameter(name="documentStartDate", valueDate="2024-12-31"),
+            JobRequestParameter(name="documentEndDate", valueDate="2024-01-01"),
+        ]
+    )
+
+    result = await batchjob.post_batch_job(body, Response(), claims={})
+
+    assert isinstance(result, JSONResponse)
+    assert result.status_code == 400
+    assert "documentStartDate" in bytes(result.body).decode()
 
 
 async def test_resolve_questionnaire_uses_exact_name_and_still_rejects_real_versions(monkeypatch):
@@ -1015,6 +1050,8 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
             result_bundle=None,
             created_at=created_at,
             completed_at=completed_at,
+            document_start_date=datetime(2024, 1, 1, tzinfo=UTC).date(),
+            document_end_date=datetime(2024, 12, 31, tzinfo=UTC).date(),
         ),
     )
     monkeypatch.setattr(
@@ -1046,6 +1083,8 @@ async def test_get_batch_job_status_returns_fhir_parameters(monkeypatch):
     assert values["jobPackage"].valueString == "SyphilisRegistry"
     assert values["startedBy"].valueString == "user-123"
     assert values["batchJobStatus"].valueString == "complete"
+    assert values["documentStartDate"].valueDate == "2024-01-01"
+    assert values["documentEndDate"].valueDate == "2024-12-31"
     assert values["questionnaireResponseStatus"].valueString == "completed"
     assert values["batchJobQuestionnaireResponse"].valueReference == {"reference": "QuestionnaireResponse/response-123"}
     assert values["patientName"].valueString == "Doe, Jane"

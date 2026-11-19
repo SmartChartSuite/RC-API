@@ -13,7 +13,7 @@ import asyncio
 import uuid
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any, cast
 
 from fastapi.responses import JSONResponse
@@ -43,6 +43,7 @@ from src.services.job_state.batch_records import (
 from src.services.job_state.child_jobs import get_job_progress_for_batches, get_jobs_for_batch
 from src.services.job_state.models import BatchJobs, QuestionnaireResponses
 from src.services.job_state.responses import get_responses_for_batches
+from src.util.batch_metadata import document_date_range_extension
 from src.util.current_user import CurrentUser, build_questionnaire_response_author, user_from_claims
 from src.util.documents import add_document_text_content
 from src.util.fhir_bundle import get_bundle_resources
@@ -87,6 +88,8 @@ class BatchJobSubmission:
     start_time: str
     patient_id: str
     job_package: str
+    document_start_date: date | None = None
+    document_end_date: date | None = None
 
 
 def patient_name(patient: dict[str, Any] | None) -> str | None:
@@ -139,6 +142,10 @@ def to_batch_job_parameters(
         ParametersParameter(name="batchJobStatus", valueString=cast(Any, job.status)),
         ParametersParameter(name="jobStartDateTime", valueDateTime=job.created_at.isoformat()),
     ]
+    if job.document_start_date is not None:
+        parameters.append(ParametersParameter(name="documentStartDate", valueDate=job.document_start_date.isoformat()))
+    if job.document_end_date is not None:
+        parameters.append(ParametersParameter(name="documentEndDate", valueDate=job.document_end_date.isoformat()))
     if progress is not None and job.status in {"pending", "running", "partial"}:
         parameters.append(ParametersParameter(name="batchJobProgress", valueInteger=progress))
     form_response_id, form_status, response_last_updated = questionnaire_response_info(response)
@@ -291,6 +298,15 @@ async def submit_batch_job(
     if not is_valid_fhir_id(patient_id):
         return BatchJobError(400, "invalid", "Invalid patientId. FHIR ids must be 1-64 characters of [A-Za-z0-9-.].")
 
+    document_start_date, date_error = parse_iso_date_filter(body.get_param("documentStartDate"), "documentStartDate")
+    if date_error:
+        return _invalid_date_filter_error(date_error)
+    document_end_date, date_error = parse_iso_date_filter(body.get_param("documentEndDate"), "documentEndDate")
+    if date_error:
+        return _invalid_date_filter_error(date_error)
+    if document_start_date is not None and document_end_date is not None and document_start_date > document_end_date:
+        return BatchJobError(400, "value", "'documentStartDate' must be on or before 'documentEndDate'.")
+
     questionnaire = await resolve_questionnaire(job_package, job_package_version)
     if isinstance(questionnaire, BatchJobError):
         return questionnaire
@@ -327,7 +343,15 @@ async def submit_batch_job(
         "authored": response_timestamp.isoformat(),
         "item": prefill_questionnaire_response_items(questionnaire.get("item")),
     }
+    date_range_extension = document_date_range_extension(document_start_date, document_end_date)
+    if date_range_extension is not None:
+        response_resource["extension"] = [date_range_extension]
 
+    persistence_kwargs: dict[str, date] = {}
+    if document_start_date is not None:
+        persistence_kwargs["document_start_date"] = document_start_date
+    if document_end_date is not None:
+        persistence_kwargs["document_end_date"] = document_end_date
     created = await run_db(
         create_batch_job_with_response,
         batch_id,
@@ -341,6 +365,7 @@ async def submit_batch_job(
         job_package_version,
         job_names or None,
         response_timestamp,
+        **persistence_kwargs,
     )
     if not created:
         return BatchJobError(
@@ -349,7 +374,15 @@ async def submit_batch_job(
             "The batch job and QuestionnaireResponse could not be saved to the database. See logs for details.",
         )
 
-    return BatchJobSubmission(batch_id, response_id, start_time, patient_id, job_package)
+    return BatchJobSubmission(
+        batch_id,
+        response_id,
+        start_time,
+        patient_id,
+        job_package,
+        document_start_date,
+        document_end_date,
+    )
 
 
 def _invalid_date_filter_error(error: InvalidDateFilter) -> BatchJobError:

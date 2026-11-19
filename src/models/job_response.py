@@ -30,6 +30,8 @@ class BatchJobAcceptedResponse(ParametersResponse):
                         {"name": "jobStartDateTime", "valueDateTime": "2026-07-20T14:03:11Z"},
                         {"name": "patientId", "valueString": "patient-123"},
                         {"name": "jobPackage", "valueString": "ExampleRegistry"},
+                        {"name": "documentStartDate", "valueDate": "2024-01-01"},
+                        {"name": "documentEndDate", "valueDate": "2024-12-31"},
                         {
                             "name": "batchJobQuestionnaireResponse",
                             "valueReference": {"reference": "QuestionnaireResponse/123e4567-e89b-12d3-a456-426614174000"},

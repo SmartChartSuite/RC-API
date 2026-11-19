@@ -7,6 +7,7 @@ their dedicated service modules."""
 import json
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from datetime import date
 
 import pytest
 
@@ -129,13 +130,25 @@ async def test_langfuse_batch_parent_completes_observation_and_records_input(mon
     monkeypatch.setattr(job_orchestrator.settings, "use_langfuse", True)
     monkeypatch.setattr(job_orchestrator.prompt_loader, "get_langfuse_client", lambda: client)
 
-    async with job_orchestrator._langfuse_batch_parent("0123456789abcdef0123456789abcdef", "Registry", "questionnaire-1", None, ["LibOne"]) as parent_otel_span:
+    async with job_orchestrator._langfuse_batch_parent(
+        "0123456789abcdef0123456789abcdef",
+        "Registry",
+        "questionnaire-1",
+        None,
+        ["LibOne"],
+        date(2024, 1, 1),
+        date(2024, 12, 31),
+    ) as parent_otel_span:
         assert parent_otel_span is not None
 
     assert observation.exited
     assert client.kwargs is not None
     assert client.kwargs["end_on_exit"] is True
     assert client.kwargs["input"]["requested_jobs"] == ["LibOne"]
+    assert client.kwargs["input"]["document_start_date"] == "2024-01-01"
+    assert client.kwargs["input"]["document_end_date"] == "2024-12-31"
+    assert client.kwargs["metadata"]["document_start_date"] == "2024-01-01"
+    assert client.kwargs["metadata"]["document_end_date"] == "2024-12-31"
     assert observation.updates == [{"output": {"status": "complete"}}]
 
 
@@ -577,11 +590,14 @@ def test_build_result_bundle_includes_status_and_patient():
         [{"fullUrl": "Observation/2", "resource": {"resourceType": "Observation", "id": "2"}}],
         "complete",
         batch_id="batch-1",
+        document_start_date=date(2024, 1, 1),
+        document_end_date=date(2024, 12, 31),
     )
 
     assert bundle["resourceType"] == "Bundle"
     assert bundle["id"] == result_observations.stable_id("batch-1", "bundle")
     assert bundle["total"] == 4
+    assert bundle["meta"]["extension"][0]["valuePeriod"] == {"start": "2024-01-01", "end": "2024-12-31"}
     assert bundle["entry"][0]["resource"]["id"] == "status-observation"
 
 
@@ -616,16 +632,19 @@ async def test_run_batch_job_passes_effective_jobs_to_langfuse_parent(run_harnes
     captured = {}
 
     @asynccontextmanager
-    async def _fake_langfuse_parent(batch_id, job_package, questionnaire_id, job_package_version, requested_jobs):
+    async def _fake_langfuse_parent(batch_id, job_package, questionnaire_id, job_package_version, requested_jobs, **kwargs):
         captured["requested_jobs"] = requested_jobs
+        captured.update(kwargs)
         yield None
 
     monkeypatch.setattr(job_orchestrator, "_langfuse_batch_parent", _fake_langfuse_parent)
     monkeypatch.setattr(settings, "use_llm", False)
 
-    await _run("batch-effective-jobs")
+    await _run("batch-effective-jobs", document_start_date=date(2024, 1, 1), document_end_date=date(2024, 12, 31))
 
     assert captured["requested_jobs"] == ["LibOne", "LibTwo"]
+    assert captured["document_start_date"] == date(2024, 1, 1)
+    assert captured["document_end_date"] == date(2024, 12, 31)
 
 
 @pytest.mark.parametrize(

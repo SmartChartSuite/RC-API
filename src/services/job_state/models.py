@@ -7,10 +7,10 @@ lease fencing, HTTP responses, and upstream transport do not belong here.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import ClassVar
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Index, MetaData, String, Text, false
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Index, MetaData, String, Text, false
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from src.util.settings import settings
@@ -68,6 +68,8 @@ class BatchJobs(Base):
     questionnaire_title: Mapped[str | None]
     job_package_version: Mapped[str | None]
     requested_jobs: Mapped[list[str] | None] = mapped_column(JSON)
+    document_start_date: Mapped[date | None] = mapped_column(Date)
+    document_end_date: Mapped[date | None] = mapped_column(Date)
     attempt_count: Mapped[int] = mapped_column(server_default="0")
     heartbeat_at: Mapped[datetime | None]
     updated_at: Mapped[datetime | None] = mapped_column(default=_utc_now, onupdate=_utc_now)
@@ -107,6 +109,8 @@ class ClaimedBatchJob:
     attempt_count: int
     result_bundle: dict | None
     max_attempts: int = settings.batch_job_max_attempts
+    document_start_date: date | None = None
+    document_end_date: date | None = None
 
 
 @dataclass(frozen=True)

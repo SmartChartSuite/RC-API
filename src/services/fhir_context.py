@@ -12,7 +12,7 @@ import asyncio
 import base64
 import binascii
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import httpx
 from loguru import logger
@@ -61,11 +61,50 @@ async def _read_capped_text(client: httpx.AsyncClient, url: str) -> str | None:
     return b"".join(chunks).decode(resp.encoding or "utf-8", errors="replace")
 
 
-async def _search_document_entries(client: httpx.AsyncClient, base_url: str, patient_id: str) -> tuple[list[dict], dict | None]:
-    """Collect DocumentReference Bundle entries, following same-origin `next` links up to settings.doc_max_count."""
+def _parse_document_date(value: object) -> date | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value).date()
+    except ValueError:
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            return None
+
+
+def _document_date_filter_reason(resource: dict, start_date: date | None, end_date: date | None) -> str | None:
+    if start_date is None and end_date is None:
+        return None
+    document_date = _parse_document_date(resource.get("date"))
+    if document_date is None:
+        return "missing_document_date"
+    if start_date is not None and document_date < start_date:
+        return "outside_document_date_range"
+    if end_date is not None and document_date > end_date:
+        return "outside_document_date_range"
+    return None
+
+
+async def _search_document_entries(
+    client: httpx.AsyncClient,
+    base_url: str,
+    patient_id: str,
+    document_start_date: date | None = None,
+    document_end_date: date | None = None,
+) -> tuple[list[dict], dict | None, list[dict]]:
+    """Collect in-range DocumentReference entries, following same-origin `next` links up to the document cap."""
     url: str | None = f"{base_url.rstrip('/')}/DocumentReference"
-    params: dict[str, str] | None = {"subject": f"Patient/{patient_id}", "_count": str(min(_PAGE_SIZE, settings.doc_max_count))}
+    params: list[tuple[str, str]] | None = [
+        ("subject", f"Patient/{patient_id}"),
+        ("_count", str(min(_PAGE_SIZE, settings.doc_max_count))),
+    ]
+    if document_start_date is not None:
+        params.append(("date", f"ge{document_start_date.isoformat()}"))
+    if document_end_date is not None:
+        params.append(("date", f"le{document_end_date.isoformat()}"))
     entries: list[dict] = []
+    range_exclusion_counts: dict[str, int] = {}
     while url and len(entries) < settings.doc_max_count:
         try:
             resp = await send_with_retry(
@@ -88,7 +127,12 @@ async def _search_document_entries(client: httpx.AsyncClient, base_url: str, pat
             raise DocumentFetchError("DocumentReference search did not return a Bundle")
 
         page_resources = get_bundle_resources(bundle)
-        entries.extend({"resource": resource} for resource in page_resources)
+        for resource in page_resources:
+            reason = _document_date_filter_reason(resource, document_start_date, document_end_date)
+            if reason is not None:
+                range_exclusion_counts[reason] = range_exclusion_counts.get(reason, 0) + 1
+                continue
+            entries.append({"resource": resource})
 
         next_url = get_bundle_next_link(bundle)
         url, params = None, None
@@ -105,10 +149,15 @@ async def _search_document_entries(client: httpx.AsyncClient, base_url: str, pat
         count_exclusion = {"reason": "exceeds_max_count"}
         if url is None and len(entries) > settings.doc_max_count:
             count_exclusion["count"] = len(entries) - settings.doc_max_count
-    return entries[: settings.doc_max_count], count_exclusion
+    date_exclusions = [{"reason": reason, "count": count} for reason, count in range_exclusion_counts.items()]
+    return entries[: settings.doc_max_count], count_exclusion, date_exclusions
 
 
-async def fetch_patient_documents(patient_id: str) -> DocumentFetchResult:
+async def fetch_patient_documents(
+    patient_id: str,
+    document_start_date: date | None = None,
+    document_end_date: date | None = None,
+) -> DocumentFetchResult:
     """Fetch all text/plain DocumentReferences for a patient.
 
     Each returned document dict has the shape:
@@ -120,18 +169,26 @@ async def fetch_patient_documents(patient_id: str) -> DocumentFetchResult:
         }
 
     Returns a result with no documents or exclusions if the patient has no documents or
-    none have text/plain attachments. Raises DocumentFetchError if the search cannot be
-    completed.
+    none have text/plain attachments. When a date range is supplied, DocumentReference.date
+    is filtered inclusively before attachment fetching. Raises DocumentFetchError if the search
+    cannot be completed.
     """
     base_url = require_setting(settings.external_fhir_server_url, "EXTERNAL_FHIR_SERVER_URL")
 
     documents: list[dict] = []
     semaphore = asyncio.Semaphore(settings.doc_fetch_max_concurrency)
     client = get_http_client("attachments")
-    entries, count_exclusion = await _search_document_entries(client, base_url, patient_id)
+    entries, count_exclusion, date_exclusions = await _search_document_entries(
+        client,
+        base_url,
+        patient_id,
+        document_start_date,
+        document_end_date,
+    )
     if not entries:
         logger.info(f"No DocumentReferences found for Patient/{patient_id}")
-        return DocumentFetchResult(documents=[], excluded=[count_exclusion] if count_exclusion else [])
+        excluded = [*date_exclusions, *([count_exclusion] if count_exclusion else [])]
+        return DocumentFetchResult(documents=[], excluded=excluded)
 
     async def _process_entry(entry: dict) -> tuple[dict | None, dict | None]:
         doc_ref = entry.get("resource", {})
@@ -221,6 +278,6 @@ async def fetch_patient_documents(patient_id: str) -> DocumentFetchResult:
     documents = [doc for doc, _ in results if doc is not None]
     excluded = [exclusion for _, exclusion in results if exclusion is not None]
 
-    excluded_documents = ([count_exclusion] if count_exclusion else []) + excluded
+    excluded_documents = [*date_exclusions, *([count_exclusion] if count_exclusion else []), *excluded]
     logger.info(f"Fetched {len(documents)} text/plain DocumentReference(s) for Patient/{patient_id}")
     return DocumentFetchResult(documents=documents, excluded=excluded_documents)

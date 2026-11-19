@@ -16,6 +16,7 @@ import time
 import uuid
 from collections.abc import Coroutine
 from contextlib import asynccontextmanager, suppress
+from datetime import date
 from functools import partial
 from typing import Any, cast
 
@@ -64,6 +65,8 @@ async def _langfuse_batch_parent(
     questionnaire_id: str,
     job_package_version: str | None,
     requested_jobs: list[str] | None,
+    document_start_date: date | None = None,
+    document_end_date: date | None = None,
 ):
     """Create a Langfuse root observation for one batch and expose its OTel parent."""
     if not settings.use_langfuse:
@@ -100,11 +103,15 @@ async def _langfuse_batch_parent(
             "questionnaire_id": questionnaire_id,
             "job_package_version": job_package_version,
             "requested_jobs": requested_jobs or [],
+            "document_start_date": document_start_date.isoformat() if document_start_date is not None else None,
+            "document_end_date": document_end_date.isoformat() if document_end_date is not None else None,
         },
         metadata={
             "batch_id": batch_id,
             "job_package": job_package,
             "questionnaire_id": questionnaire_id,
+            "document_start_date": document_start_date.isoformat() if document_start_date is not None else None,
+            "document_end_date": document_end_date.isoformat() if document_end_date is not None else None,
         },
     ) as batch_observation:
         try:
@@ -143,6 +150,8 @@ class _BatchAttempt:
         cql_names: list[str],
         prompt_paths: list[str],
         prior_bundle: dict | None,
+        document_start_date: date | None,
+        document_end_date: date | None,
         checkpoint_interval_seconds: float,
         checkpoint_every_tasks: int,
     ) -> None:
@@ -157,6 +166,8 @@ class _BatchAttempt:
         self.cql_names = cql_names
         self.prompt_paths = prompt_paths
         self.prior_bundle = prior_bundle
+        self.document_start_date = document_start_date
+        self.document_end_date = document_end_date
 
         self.task_results: list[dict] = []
         self.job_ids_by_task: dict[tuple[str, str], str] = {}
@@ -247,9 +258,14 @@ class _BatchAttempt:
         # A failed DocumentReference search raises DocumentFetchError, failing this attempt so the
         # worker retries it — only a successful, empty search marks prompts as skipped.
         if self.prompt_paths_to_run:
+            document_fetch_kwargs: dict[str, date] = {}
+            if self.document_start_date is not None:
+                document_fetch_kwargs["document_start_date"] = self.document_start_date
+            if self.document_end_date is not None:
+                document_fetch_kwargs["document_end_date"] = self.document_end_date
             self.prompts, document_fetch_result = await _gather_supervised(
                 load_prompts(self.prompt_paths_to_run),
-                fetch_patient_documents(self.patient_id),
+                fetch_patient_documents(self.patient_id, **document_fetch_kwargs),
             )
             self.documents = document_fetch_result.documents
             self.excluded_documents = document_fetch_result.excluded
@@ -322,6 +338,8 @@ class _BatchAttempt:
             "preliminary",
             self.bundle_id,
             batch_id=self.batch_id,
+            document_start_date=self.document_start_date,
+            document_end_date=self.document_end_date,
         )
         updated = await _run_state_call(
             update_batch_job_result,
@@ -433,6 +451,8 @@ class _BatchAttempt:
             overall_status,
             self.bundle_id,
             batch_id=self.batch_id,
+            document_start_date=self.document_start_date,
+            document_end_date=self.document_end_date,
         )
 
         if all_errors and self.attempt_count < self.max_attempts:
@@ -510,6 +530,8 @@ async def run_batch_job(
     job_package_version: str | None = None,
     requested_jobs: list[str] | None = None,
     *,
+    document_start_date: date | None = None,
+    document_end_date: date | None = None,
     worker_id: str,
     attempt_count: int,
     max_attempts: int | None = None,
@@ -555,10 +577,17 @@ async def run_batch_job(
             cql_names,
             prompt_paths,
             prior_bundle,
+            document_start_date,
+            document_end_date,
             checkpoint_interval_seconds,
             checkpoint_every_tasks,
         )
         effective_requested_jobs = list(dict.fromkeys([*cql_names, *prompt_paths]))
+        langfuse_kwargs: dict[str, date] = {}
+        if document_start_date is not None:
+            langfuse_kwargs["document_start_date"] = document_start_date
+        if document_end_date is not None:
+            langfuse_kwargs["document_end_date"] = document_end_date
 
         # 3. Run the full batch attempt under one Langfuse parent observation.
         async with _langfuse_batch_parent(
@@ -567,6 +596,7 @@ async def run_batch_job(
             questionnaire_id,
             job_package_version,
             effective_requested_jobs,
+            **langfuse_kwargs,
         ) as parent_otel_span:
             await attempt.prepare()
             cql_results, llm_results = await attempt.run_concurrent_tasks(parent_otel_span)

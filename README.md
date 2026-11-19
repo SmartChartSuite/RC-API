@@ -76,10 +76,14 @@ Batch jobs run **asynchronously** through a durable database-backed worker embed
     { "name": "jobPackage",       "valueString": "ExampleRegistry" },
     { "name": "jobPackageVersion","valueString": "1.0.0" },
     { "name": "job",              "valueString": "ExampleStructuredTask" },
-    { "name": "job",              "valueString": "2026_01/example/example-unstructured-task" }
+    { "name": "job",              "valueString": "2026_01/example/example-unstructured-task" },
+    { "name": "documentStartDate", "valueDate": "2024-01-01" },
+    { "name": "documentEndDate",   "valueDate": "2024-12-31" }
   ]
 }
 ```
+
+`documentStartDate` and `documentEndDate` are optional inclusive bounds on `DocumentReference.date`. They are persisted with the asynchronous batch job, echoed in accepted/status `Parameters`, applied to the external FHIR search before attachment and LLM work, and recorded in the result Bundle metadata. If omitted, the existing full-history behavior remains unchanged.
 
 Use one or more repeated `job` parameters to run only the named CQL library or prompt entries from the job package. Prompt matching accepts either the full prompt path or a unique prompt file name.
 
@@ -94,7 +98,7 @@ On success, `POST /batchjob` returns a FHIR `Parameters` resource that now inclu
 }
 ```
 
-That reference points to the initial local `QuestionnaireResponse` record created when the batch job starts. The stored resource is created with `status = in-progress` and is tied to the exact Questionnaire resolved for the job package and version.
+That reference points to the initial local `QuestionnaireResponse` record created when the batch job starts. The stored resource is created with `status = in-progress`, is tied to the exact Questionnaire resolved for the job package and version, and carries the same inclusive date range as a `valuePeriod` extension when bounds were supplied.
 The batch job list and status endpoints include `startedBy`. For `pending`, `running`, and `partial` batches, they also include `batchJobProgress` as a percentage of child tasks with status `complete`; errored and skipped tasks remain in the denominator but do not count toward the percentage. An initial pending batch reports `0`, while a pending batch waiting for retry can retain prior progress.
 
 `GET /batchjob/stream` is a non-breaking SSE alternative to the form-list endpoint. It emits an initial `form-list` event immediately, then emits another event only when the filtered Bundle changes. Unchanged polls send SSE keepalive comments. The stream is summary-only and does not support `include_patient=true`; use the regular endpoint when the full Patient resource is required. Because authenticated browser `EventSource` clients cannot normally set an `Authorization` header, clients using Bearer authentication should consume this endpoint with an authenticated streaming `fetch()` or an equivalent client.

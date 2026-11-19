@@ -95,6 +95,8 @@ def create_batch_job_with_response(
     job_package_version: str | None = None,
     requested_jobs: list[str] | None = None,
     response_timestamp: datetime | None = None,
+    document_start_date: date | None = None,
+    document_end_date: date | None = None,
 ) -> bool:
     try:
         now = response_timestamp or datetime.now(UTC)
@@ -110,6 +112,8 @@ def create_batch_job_with_response(
                     questionnaire_title=questionnaire_title,
                     job_package_version=job_package_version,
                     requested_jobs=requested_jobs or None,
+                    document_start_date=document_start_date,
+                    document_end_date=document_end_date,
                     attempt_count=0,
                     max_attempts=settings.batch_job_max_attempts,
                     updated_at=now,

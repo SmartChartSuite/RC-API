@@ -1,7 +1,7 @@
 """Small shared builders for batch-job tests."""
 
 from collections.abc import Awaitable, Callable, Mapping
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from src.services.job_state.models import BatchJobs, QuestionnaireResponses
@@ -31,6 +31,8 @@ def batch_job(
     questionnaire_title: str | None = None,
     job_package_version: str | None = None,
     requested_jobs: list[str] | None = None,
+    document_start_date: date | None = None,
+    document_end_date: date | None = None,
     attempt_count: int = 0,
     heartbeat_at: datetime | None = None,
     updated_at: datetime | None = None,
@@ -54,6 +56,8 @@ def batch_job(
         questionnaire_title=questionnaire_title,
         job_package_version=job_package_version,
         requested_jobs=requested_jobs,
+        document_start_date=document_start_date,
+        document_end_date=document_end_date,
         attempt_count=attempt_count,
         heartbeat_at=heartbeat_at,
         updated_at=updated_at,

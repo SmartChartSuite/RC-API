@@ -78,6 +78,8 @@ async def post_batch_job(
         parameter=[
             ParametersParameter(name="batchId", valueString=submission.batch_id),
             ParametersParameter(name="jobStartDateTime", valueDateTime=submission.start_time),
+            *([ParametersParameter(name="documentStartDate", valueDate=submission.document_start_date.isoformat())] if submission.document_start_date is not None else []),
+            *([ParametersParameter(name="documentEndDate", valueDate=submission.document_end_date.isoformat())] if submission.document_end_date is not None else []),
             ParametersParameter(name="patientId", valueString=submission.patient_id),
             ParametersParameter(name="jobPackage", valueString=submission.job_package),
             ParametersParameter(

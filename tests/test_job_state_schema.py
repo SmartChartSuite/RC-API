@@ -5,7 +5,7 @@ module covers persistence rather than router or orchestration logic."""
 
 import importlib
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 import sqlalchemy
@@ -20,7 +20,14 @@ from src.services.job_state import responses as response_records
 from src.util.settings import settings
 
 
-def _create_batch_job(batch_id: str, patient_id: str, job_package: str, started_by: str = "test-user") -> bool:
+def _create_batch_job(
+    batch_id: str,
+    patient_id: str,
+    job_package: str,
+    started_by: str = "test-user",
+    document_start_date: date | None = None,
+    document_end_date: date | None = None,
+) -> bool:
     response_id = f"{batch_id}-response"
     return batch_records.create_batch_job_with_response(
         batch_id,
@@ -30,6 +37,8 @@ def _create_batch_job(batch_id: str, patient_id: str, job_package: str, started_
         response_id,
         {"resourceType": "QuestionnaireResponse", "id": response_id},
         "questionnaire-1",
+        document_start_date=document_start_date,
+        document_end_date=document_end_date,
     )
 
 
@@ -178,6 +187,22 @@ def test_orm_timestamp_defaults_are_evaluated_per_insert(db):
     second_created_at = second.created_at.replace(tzinfo=UTC) if second.created_at.tzinfo is None else second.created_at
     assert first_created_at == first_timestamp
     assert second_created_at == second_timestamp
+
+
+def test_batch_job_persists_and_claims_document_date_range(db):
+    start_date = date(2024, 1, 1)
+    end_date = date(2024, 12, 31)
+    assert _create_batch_job("batch-range", "patient-1", "Registry", document_start_date=start_date, document_end_date=end_date)
+
+    stored = batch_records.get_batch_job("batch-range")
+    assert stored is not None
+    assert stored.document_start_date == start_date
+    assert stored.document_end_date == end_date
+
+    claim = batch_queue.claim_next_batch_job("worker-1", 60)
+    assert claim is not None
+    assert claim.document_start_date == start_date
+    assert claim.document_end_date == end_date
 
 
 def test_query_batch_jobs_paginates_and_defers_result_bundle(db):

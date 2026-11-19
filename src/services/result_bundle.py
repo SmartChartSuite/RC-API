@@ -6,9 +6,12 @@ persistence; those responsibilities belong to ``job_orchestrator``, ``fhir_conte
 executors, and the ``job_state`` package. Document text encoding remains delegated to ``src.util.documents``.
 """
 
+from datetime import date
+
 from loguru import logger
 
 from src.services.result_observations import stable_id
+from src.util.batch_metadata import document_date_range_extension
 from src.util.documents import add_document_text_content
 
 
@@ -114,6 +117,8 @@ def build_result_bundle(
     bundle_id: str | None = None,
     *,
     batch_id: str = "",
+    document_start_date: date | None = None,
+    document_end_date: date | None = None,
 ) -> dict:
     """Assemble a partial or final result FHIR Bundle."""
     status_obs = _create_status_observation(overall_status)
@@ -125,10 +130,14 @@ def build_result_bundle(
     all_entries.extend(without_document_content(entry) for entry in cql_entries)
     all_entries.extend(without_document_content(entry) for entry in llm_entries)
 
-    return {
+    bundle = {
         "resourceType": "Bundle",
         "id": bundle_id or stable_id(batch_id, "bundle"),
         "type": "collection",
         "total": len(all_entries),
         "entry": all_entries,
     }
+    date_range_extension = document_date_range_extension(document_start_date, document_end_date)
+    if date_range_extension is not None:
+        bundle["meta"] = {"extension": [date_range_extension]}
+    return bundle

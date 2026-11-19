@@ -4,6 +4,7 @@ The tests use respx routes for FHIR and attachment HTTP traffic, patch DNS resol
 leave LLM execution and batch orchestration to other modules."""
 
 import base64
+from datetime import date
 
 import httpx
 import pytest
@@ -95,6 +96,57 @@ async def test_fetch_patient_documents_returns_inline_and_external_text(monkeypa
     assert str(attachment_request.url) == "http://docs.example/doc-2.txt"
     assert dict(attachment_request.url.params) == {}
     assert {"accept": attachment_request.headers["accept"]} == {"accept": "application/fhir+json"}
+
+
+async def test_fetch_patient_documents_applies_inclusive_date_range_before_attachments(monkeypatch, respx_mock):
+    search_route = respx_mock.get("http://external.example/fhir/DocumentReference").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "resourceType": "Bundle",
+                "entry": [
+                    {
+                        "resource": {
+                            "resourceType": "DocumentReference",
+                            "id": "doc-before",
+                            "date": "2026-05-21T23:59:59Z",
+                            "content": [{"attachment": {"contentType": "text/plain", "data": base64.b64encode(b"before").decode("utf-8")}}],
+                        }
+                    },
+                    {
+                        "resource": {
+                            "resourceType": "DocumentReference",
+                            "id": "doc-in-range",
+                            "date": "2026-05-22T12:00:00Z",
+                            "content": [{"attachment": {"contentType": "text/plain", "data": base64.b64encode(b"in range").decode("utf-8")}}],
+                        }
+                    },
+                    {
+                        "resource": {
+                            "resourceType": "DocumentReference",
+                            "id": "doc-after",
+                            "date": "2026-05-23T00:00:00Z",
+                            "content": [{"attachment": {"contentType": "text/plain", "data": base64.b64encode(b"after").decode("utf-8")}}],
+                        }
+                    },
+                ],
+            },
+        )
+    )
+    monkeypatch.setattr(settings, "external_fhir_server_url", "http://external.example/fhir")
+
+    result = await fhir_context.fetch_patient_documents(
+        "patient-123",
+        document_start_date=date(2026, 5, 22),
+        document_end_date=date(2026, 5, 22),
+    )
+
+    assert [document["id"] for document in result.documents] == ["doc-in-range"]
+    assert result.excluded == [{"reason": "outside_document_date_range", "count": 2}]
+    params = list(search_route.calls[0].request.url.params.multi_items())
+    assert ("subject", "Patient/patient-123") in params
+    assert ("date", "ge2026-05-22") in params
+    assert ("date", "le2026-05-22") in params
 
 
 async def test_fetch_patient_documents_raises_on_search_error(monkeypatch):

@@ -11,6 +11,7 @@ import os
 import socket
 import uuid
 from contextlib import suppress
+from typing import Any
 
 from loguru import logger
 
@@ -70,6 +71,16 @@ class EmbeddedBatchWorker:
     async def _execute(self, claim: ClaimedBatchJob) -> None:
         if not claim.questionnaire_id:
             raise RuntimeError("Persisted batch job is missing questionnaire_id")
+        execution_kwargs: dict[str, Any] = {
+            "worker_id": claim.worker_id,
+            "attempt_count": claim.attempt_count,
+            "max_attempts": claim.max_attempts,
+            "prior_bundle": claim.result_bundle,
+        }
+        if claim.document_start_date is not None:
+            execution_kwargs["document_start_date"] = claim.document_start_date
+        if claim.document_end_date is not None:
+            execution_kwargs["document_end_date"] = claim.document_end_date
         await run_batch_job(
             claim.batch_id,
             claim.patient_id,
@@ -77,10 +88,7 @@ class EmbeddedBatchWorker:
             claim.questionnaire_id,
             claim.job_package_version,
             claim.requested_jobs,
-            worker_id=claim.worker_id,
-            attempt_count=claim.attempt_count,
-            max_attempts=claim.max_attempts,
-            prior_bundle=claim.result_bundle,
+            **execution_kwargs,
         )
 
     async def _run(self) -> None:
