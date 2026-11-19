@@ -101,16 +101,33 @@ async def run_prompt_on_document(
 
     try:
         model = require_setting(settings.litellm_model, "LITELLM_MODEL")
+        is_bedrock_model = model.lower().startswith("bedrock/")
         request_kwargs: dict[str, Any] = {
             "model": model,
-            "api_base": settings.litellm_api_base,
             "api_key": secret_value(settings.litellm_api_key),
-            "input": document["text"],
-            "instructions": prompt.content,
             "caching": False,
             "metadata": _langfuse_metadata(trace_id, trace_metadata, parent_otel_span),
         }
-        if settings.litellm_prompt_cache_enabled:
+        if settings.litellm_api_base:
+            request_kwargs["api_base"] = settings.litellm_api_base
+        if is_bedrock_model and settings.litellm_prompt_cache_enabled:
+            request_kwargs["input"] = [
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": prompt.content,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                },
+                {"role": "user", "content": [{"type": "input_text", "text": document["text"]}]},
+            ]
+        else:
+            request_kwargs["input"] = document["text"]
+            request_kwargs["instructions"] = prompt.content
+        if settings.litellm_prompt_cache_enabled and not is_bedrock_model:
             request_kwargs["extra_body"] = {"prompt_cache_key": _prompt_cache_key(model, prompt)}
             request_kwargs["allowed_openai_params"] = ["prompt_cache_key"]
         if settings.litellm_model_reasoning_effort:

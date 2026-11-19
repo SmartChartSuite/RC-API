@@ -178,11 +178,11 @@ Copy `.env.example` to `.env` and fill in values. The API starts in **degraded m
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EXTERNAL_FHIR_SERVER_AUTH` | *(none)* | Full `Authorization` header value for the external FHIR server (e.g. `Bearer <token>`) |
-| `LITELLM_MODEL` | *(none)* | LiteLLM model string (e.g. `openai/gpt-4o`). All three `LITELLM_*` vars required together |
-| `LITELLM_API_BASE` | *(none)* | LiteLLM proxy base URL |
-| `LITELLM_API_KEY` | *(none)* | LiteLLM API key |
+| `LITELLM_MODEL` | *(none)* | LiteLLM model string (e.g. `openai/gpt-4o` or `bedrock/<application-inference-profile-or-arn>`) |
+| `LITELLM_API_BASE` | *(none)* | LiteLLM proxy base URL; required for proxy/non-Bedrock providers, optional for direct Bedrock API-key authentication |
+| `LITELLM_API_KEY` | *(none)* | LiteLLM/provider API key; required for LLM execution |
 | `LITELLM_MODEL_REASONING_EFFORT` | *(none)* | Optional reasoning effort forwarded to models that support it (e.g. `low`, `medium`, `high`) |
-| `LITELLM_PROMPT_CACHE_ENABLED` | `true` | Forward a stable provider-side `prompt_cache_key` for supported models; one key is shared across documents for the same model/prompt template |
+| `LITELLM_PROMPT_CACHE_ENABLED` | `true` | Enable prompt caching: forwards `prompt_cache_key` for supported non-Bedrock models and marks the static prompt for Bedrock cache-point translation |
 | `LANGFUSE_PUBLIC_KEY` | *(none)* | Langfuse public key. All three `LANGFUSE_*` vars required together |
 | `LANGFUSE_SECRET_KEY` | *(none)* | Langfuse secret key |
 | `LANGFUSE_HOST` | *(none)* | Langfuse host URL for prompt retrieval and, by default, OTEL ingestion |

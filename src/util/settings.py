@@ -111,7 +111,7 @@ class Settings(BaseSettings):
     # Max concurrent in-flight CQL library evaluations across batch jobs.
     cql_max_concurrency: int = 4
 
-    # LiteLLM (all three required together for LLM operations)
+    # LiteLLM (API base is optional for direct Bedrock API-key authentication)
     litellm_model: str | None = None
     litellm_api_base: str | None = None
     litellm_api_key: SecretStr | None = None
@@ -232,9 +232,15 @@ class Settings(BaseSettings):
             logger.error(message)
             self.config_errors[env_name] = message
 
-        self.use_llm = bool(self.litellm_model and self.litellm_api_base and self.litellm_api_key)
+        if self.litellm_api_base == "":
+            self.litellm_api_base = None
+        is_bedrock_model = bool(self.litellm_model and self.litellm_model.lower().startswith("bedrock/"))
+        self.use_llm = bool(self.litellm_model and self.litellm_api_key and (self.litellm_api_base or is_bedrock_model))
         if any([self.litellm_model, self.litellm_api_base, self.litellm_api_key]) and not self.use_llm:
-            logger.warning("Partial LiteLLM config — set LITELLM_MODEL, LITELLM_API_BASE, and LITELLM_API_KEY together.")
+            if is_bedrock_model:
+                logger.warning("Partial LiteLLM Bedrock config — set LITELLM_MODEL and LITELLM_API_KEY; LITELLM_API_BASE is optional.")
+            else:
+                logger.warning("Partial LiteLLM config — set LITELLM_MODEL, LITELLM_API_BASE, and LITELLM_API_KEY together.")
 
         if self.batch_worker_lease_seconds <= self.batch_job_heartbeat_interval_seconds * 2:
             safe_lease = self.batch_job_heartbeat_interval_seconds * 3

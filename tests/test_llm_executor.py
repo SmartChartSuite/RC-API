@@ -27,6 +27,7 @@ async def test_run_prompt_on_document_returns_config_error_when_llm_disabled(mon
 async def test_run_prompt_on_document_calls_litellm_responses(monkeypatch):
     monkeypatch.setattr(settings, "use_llm", True)
     monkeypatch.setattr(settings, "litellm_model", "gpt-test")
+    monkeypatch.setattr(settings, "litellm_api_base", "")
     monkeypatch.setattr(settings, "litellm_model_reasoning_effort", None)
     monkeypatch.setattr(settings, "litellm_prompt_cache_enabled", True)
     captured: dict = {}
@@ -46,6 +47,7 @@ async def test_run_prompt_on_document_calls_litellm_responses(monkeypatch):
 
     assert result.response == "answer text"
     assert captured["model"] == "gpt-test"
+    assert "api_base" not in captured
     assert captured["instructions"] == "system instructions"
     assert captured["input"] == "patient text"
     assert captured["caching"] is False
@@ -61,6 +63,34 @@ async def test_run_prompt_on_document_calls_litellm_responses(monkeypatch):
     assert "patient text" not in str(captured["metadata"])
     assert "messages" not in captured
     assert "reasoning_effort" not in captured
+
+
+async def test_run_prompt_on_document_uses_bedrock_prompt_cache_marker(monkeypatch):
+    monkeypatch.setattr(settings, "use_llm", True)
+    monkeypatch.setattr(settings, "litellm_model", "bedrock/arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/test")
+    monkeypatch.setattr(settings, "litellm_api_base", None)
+    monkeypatch.setattr(settings, "litellm_prompt_cache_enabled", True)
+    captured: dict = {}
+
+    async def _fake_aresponses(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(output_text="answer text")
+
+    monkeypatch.setattr(llm_executor.litellm, "aresponses", _fake_aresponses)
+
+    result = await llm_executor.run_prompt_on_document(_prompt(), {"id": "doc-1", "type": "Visit Note", "date": "2026-05-22", "text": "patient text"})
+
+    assert result.response == "answer text"
+    assert "instructions" not in captured
+    assert captured["input"] == [
+        {
+            "role": "system",
+            "content": [{"type": "input_text", "text": "system instructions", "cache_control": {"type": "ephemeral"}}],
+        },
+        {"role": "user", "content": [{"type": "input_text", "text": "patient text"}]},
+    ]
+    assert "extra_body" not in captured
+    assert "allowed_openai_params" not in captured
 
 
 async def test_run_prompt_on_document_passes_configured_reasoning_effort(monkeypatch):

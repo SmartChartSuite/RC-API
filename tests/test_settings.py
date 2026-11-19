@@ -21,6 +21,25 @@ def test_root_path_falls_back_to_deploy_url_path(monkeypatch):
     assert Settings().root_path == "/api/v1"
 
 
+def test_bedrock_api_key_auth_does_not_require_api_base(monkeypatch):
+    monkeypatch.setenv("LITELLM_MODEL", "bedrock/arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/test")
+    monkeypatch.setenv("LITELLM_API_BASE", "")
+    monkeypatch.setenv("LITELLM_API_KEY", "bedrock-api-key")
+
+    configured = Settings()
+
+    assert configured.use_llm is True
+    assert configured.litellm_api_base is None
+
+
+def test_non_bedrock_still_requires_api_base(monkeypatch):
+    monkeypatch.setenv("LITELLM_MODEL", "openai/gpt-4o")
+    monkeypatch.delenv("LITELLM_API_BASE", raising=False)
+    monkeypatch.setenv("LITELLM_API_KEY", "proxy-key")
+
+    assert Settings().use_llm is False
+
+
 def test_worker_lease_outlasts_heartbeat_interval():
     configured = Settings()
     assert configured.batch_worker_lease_seconds > configured.batch_job_heartbeat_interval_seconds
