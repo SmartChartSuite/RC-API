@@ -179,6 +179,25 @@ def build_cql_observations(
     """Walk Questionnaire items, match structuredTask to CQL results, build Observations."""
     entries: list[dict] = []
     seen_urls: set[str] = set()
+    seen_unfocused_values: set[tuple[str, str, str]] = set()
+
+    def append_observation(obs: dict, link_id: str) -> bool:
+        """Append an answer Observation, collapsing exact duplicate unfocused values per question."""
+        if "focus" not in obs:
+            value_fields = [key for key in obs if key.startswith("value")]
+            if len(value_fields) == 1:
+                value_field = value_fields[0]
+                value_key = (link_id, value_field, json.dumps(obs[value_field], separators=(",", ":"), sort_keys=True))
+                if value_key in seen_unfocused_values:
+                    return False
+                seen_unfocused_values.add(value_key)
+
+        obs_url = f"Observation/{obs['id']}"
+        if obs_url in seen_urls:
+            return False
+        entries.append({"fullUrl": obs_url, "resource": obs})
+        seen_urls.add(obs_url)
+        return True
 
     # Index CQL results by library name for O(1) lookup
     cql_by_lib: dict[str, CqlResult] = {r.library_name: r for r in cql_results if not r.error}
@@ -234,11 +253,7 @@ def build_cql_observations(
                     batch_id,
                     answer_key=answer_key,
                 )
-                obs_url = f"Observation/{obs['id']}"
-                if obs_url not in seen_urls:
-                    entries.append({"fullUrl": obs_url, "resource": obs})
-                    seen_urls.add(obs_url)
-                if supporting:
+                if append_observation(obs, link_id) and supporting:
                     sup_url = f"{supporting['resourceType']}/{supporting['id']}"
                     if sup_url not in seen_urls:
                         entries.append({"fullUrl": sup_url, "resource": supporting})
@@ -247,10 +262,7 @@ def build_cql_observations(
                 # Simple scalar valueString observation
                 obs = _obs_base(batch_id, answer_key + ("observation",), link_id, question_text, patient_id, form_name)
                 obs["valueString"] = raw_value
-                obs_url = f"Observation/{obs['id']}"
-                if obs_url not in seen_urls:
-                    entries.append({"fullUrl": obs_url, "resource": obs})
-                    seen_urls.add(obs_url)
+                append_observation(obs, link_id)
             elif res_entry.get("resourceType"):
                 # FHIR resource result — reference it via focus
                 res_type = str(res_entry["resourceType"])
@@ -263,10 +275,7 @@ def build_cql_observations(
                     supporting_resource = {**res_entry, "id": res_id}
                 obs = _obs_base(batch_id, answer_key + ("observation",), link_id, question_text, patient_id, form_name)
                 obs["focus"] = [{"reference": f"{res_type}/{res_id}"}]
-                obs_url = f"Observation/{obs['id']}"
-                if obs_url not in seen_urls:
-                    entries.append({"fullUrl": obs_url, "resource": obs})
-                    seen_urls.add(obs_url)
+                append_observation(obs, link_id)
                 sup_url = f"{res_type}/{res_id}"
                 if sup_url not in seen_urls:
                     entries.append({"fullUrl": sup_url, "resource": supporting_resource})
@@ -274,10 +283,7 @@ def build_cql_observations(
             else:
                 obs = _obs_base(batch_id, answer_key + ("observation",), link_id, question_text, patient_id, form_name)
                 _set_cql_observation_value(obs, raw_value, value_type, task_name)
-                obs_url = f"Observation/{obs['id']}"
-                if obs_url not in seen_urls:
-                    entries.append({"fullUrl": obs_url, "resource": obs})
-                    seen_urls.add(obs_url)
+                append_observation(obs, link_id)
 
     return entries
 
