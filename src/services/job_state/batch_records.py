@@ -7,6 +7,8 @@ the engine. Lease claiming, child-task state, QuestionnaireResponse CRUD, HTTP m
 do not belong here.
 """
 
+import uuid
+from copy import deepcopy
 from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi.responses import JSONResponse
@@ -135,6 +137,126 @@ def create_batch_job_with_response(
     except SQLAlchemyError as exc:
         logger.error(f"Failed to create batch job {batch_id} with questionnaire response {response_id}: {exc}")
         return False
+
+
+def create_batch_review_copies(
+    source_batch_id: str,
+    reviewers: list[tuple[str, str]],
+    created_by: str,
+    original_reviewer_key: str | None = None,
+) -> list[tuple[BatchJobs, bool]]:
+    """Create idempotent terminal review copies that reuse one completed batch result."""
+    now = datetime.now(UTC)
+    with Session(database.db_engine, expire_on_commit=False) as session:
+        source = session.get(BatchJobs, source_batch_id)
+        if source is None:
+            raise LookupError(f"Batch job {source_batch_id} was not found")
+        if source.source_batch_id is not None:
+            raise ValueError("Review copies can only be created from an original batch job")
+        if source.status not in {"complete", "partial"} or not isinstance(source.result_bundle, dict) or source.result_bundle.get("resourceType") != "Bundle":
+            raise ValueError("Review copies require a complete or partial batch job with a result Bundle")
+
+        reviewer_by_key = dict(reviewers)
+        original_reviewer_label: str | None = None
+        if source.reviewer_key is not None:
+            if source.reviewer_key not in reviewer_by_key:
+                raise ValueError(f"The reviewers list must include the batch's existing reviewer key {source.reviewer_key!r}")
+            if original_reviewer_key is not None and original_reviewer_key != source.reviewer_key:
+                raise ValueError(f"Batch job {source_batch_id} is already assigned to reviewer {source.reviewer_key!r}")
+            original_reviewer_key = source.reviewer_key
+            original_reviewer_label = source.reviewer_label
+        if original_reviewer_key is not None:
+            if original_reviewer_key not in reviewer_by_key:
+                raise ValueError(f"Reviewer key {original_reviewer_key!r} must be included in the reviewers list")
+            requested_label = reviewer_by_key[original_reviewer_key]
+            if original_reviewer_label is None:
+                original_reviewer_label = requested_label
+            if source.reviewer_key is not None and source.reviewer_label != requested_label:
+                raise ValueError(f"Reviewer key {original_reviewer_key!r} is already assigned a different label")
+
+        source_response = session.scalar(select(QuestionnaireResponses).where(QuestionnaireResponses.batch_job_id == source_batch_id).order_by(QuestionnaireResponses.response_id).limit(1))
+        if source_response is None:
+            raise ValueError("The source batch job has no QuestionnaireResponse to copy")
+
+        copies: list[tuple[BatchJobs, bool]] = []
+        base_title = source.questionnaire_title or source.job_package
+        if source.reviewer_label:
+            suffix = f" - {source.reviewer_label}"
+            base_title = base_title.removesuffix(suffix)
+
+        if original_reviewer_key is not None:
+            if source.reviewer_key is None:
+                source.reviewer_key = original_reviewer_key
+                source.reviewer_label = original_reviewer_label
+                source.questionnaire_title = f"{base_title} - {original_reviewer_label}"
+                source.updated_at = now
+                session.flush()
+            copies.append((source, False))
+
+        for reviewer_key, reviewer_label in reviewers:
+            if reviewer_key == original_reviewer_key:
+                continue
+            existing = session.scalar(select(BatchJobs).where(BatchJobs.source_batch_id == source_batch_id, BatchJobs.reviewer_key == reviewer_key).limit(1))
+            if existing is not None:
+                if existing.reviewer_label != reviewer_label:
+                    raise ValueError(f"Reviewer key {reviewer_key!r} already exists with a different label")
+                copies.append((existing, False))
+                continue
+
+            batch_id = str(uuid.uuid4())
+            response_id = str(uuid.uuid4())
+            response_body = deepcopy(source_response.response)
+            response_body["id"] = response_id
+            existing_meta = response_body.get("meta")
+            response_body["meta"] = (
+                {
+                    **existing_meta,
+                    "lastUpdated": now.isoformat(),
+                }
+                if isinstance(existing_meta, dict)
+                else {"lastUpdated": now.isoformat()}
+            )
+
+            copy = BatchJobs(
+                batch_id=batch_id,
+                patient_id=source.patient_id,
+                job_package=source.job_package,
+                started_by=created_by,
+                status=source.status,
+                result_bundle=None,
+                created_at=now,
+                completed_at=now,
+                questionnaire_id=source.questionnaire_id,
+                questionnaire_title=f"{base_title} - {reviewer_label}",
+                job_package_version=source.job_package_version,
+                requested_jobs=deepcopy(source.requested_jobs),
+                document_start_date=source.document_start_date,
+                document_end_date=source.document_end_date,
+                source_batch_id=source_batch_id,
+                reviewer_key=reviewer_key,
+                reviewer_label=reviewer_label,
+                attempt_count=0,
+                updated_at=now,
+                max_attempts=source.max_attempts,
+            )
+            session.add(copy)
+            session.add(
+                QuestionnaireResponses(
+                    response_id=response_id,
+                    batch_job_id=batch_id,
+                    job_package=source_response.job_package,
+                    patient_id=source_response.patient_id,
+                    last_updated_by=created_by,
+                    response=response_body,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+            session.flush()
+            copies.append((copy, True))
+
+        session.commit()
+        return copies
 
 
 def update_batch_job_status(
@@ -272,6 +394,9 @@ def delete_batch_job_record(batch_id: str) -> JSONResponse:
     if not existing:
         return JSONResponse(make_operation_outcome("not-found", f"Batch Job ID {batch_id} was not found."), 404)
     with Session(database.db_engine) as session:
+        has_review_copies = session.scalar(select(BatchJobs.batch_id).where(BatchJobs.source_batch_id == batch_id).limit(1)) is not None
+        if has_review_copies:
+            return JSONResponse(make_operation_outcome("conflict", f"Batch job {batch_id} has reviewer copies and cannot be deleted first."), 409)
         session.execute(delete(Jobs).where(Jobs.batch_id == batch_id))
         session.execute(delete(QuestionnaireResponses).where(QuestionnaireResponses.batch_job_id == batch_id))
         session.execute(delete(BatchJobDocuments).where(BatchJobDocuments.batch_id == batch_id))

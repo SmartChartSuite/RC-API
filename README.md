@@ -61,6 +61,7 @@ Batch jobs run **asynchronously** through a durable database-backed worker embed
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/batchjob` | Submit a job package run for a patient |
+| `POST` | `/batchjob/{id}/review-copies` | Create admin-only reviewer copies of a complete or partial batch without rerunning it |
 | `GET` | `/batchjob` | List all batch jobs as FHIR Parameters resources (`?include_patient=true`) |
 | `GET` | `/batchjob/stream` | Stream the form list as SSE using the same filters and Bundle shape as `/batchjob` |
 | `GET` | `/batchjob/{id}/status` | Poll status of a batch job as a FHIR Parameters resource |
@@ -100,6 +101,32 @@ On success, `POST /batchjob` returns a FHIR `Parameters` resource that now inclu
 ```
 
 That reference points to the initial local `QuestionnaireResponse` record created when the batch job starts. The stored resource is created with `status = in-progress`, is tied to the exact Questionnaire resolved for the job package and version, and carries the same inclusive date range as a `valuePeriod` extension when bounds were supplied.
+`POST /batchjob/{id}/review-copies` requires the `admin` scope and accepts a FHIR `Parameters` resource:
+
+```json
+{
+  "resourceType": "Parameters",
+  "parameter": [
+    {
+      "name": "reviewer",
+      "part": [
+        { "name": "key", "valueString": "reviewer-1" },
+        { "name": "label", "valueString": "Name1" }
+      ]
+    },
+    {
+      "name": "reviewer",
+      "part": [
+        { "name": "key", "valueString": "reviewer-2" },
+        { "name": "label", "valueString": "Name2" }
+      ]
+    },
+    { "name": "assignOriginalTo", "valueString": "reviewer-1" }
+  ]
+}
+```
+
+When `assignOriginalTo` is supplied, that reviewer uses the original batch and only the remaining reviewers receive new copies, so the number of forms equals the number of reviewers. It creates idempotent terminal copies with fresh QuestionnaireResponse IDs, reviewer-specific titles, and the source batch’s result Bundle and document store; it never queues worker work. Repeating the same reviewer key returns the existing copy. Source batches with reviewer copies cannot be deleted until those copies are removed.
 The batch job list and status endpoints include `startedBy`. For `pending`, `running`, and `partial` batches, they also include `batchJobProgress` as a percentage of child tasks with status `complete`; errored and skipped tasks remain in the denominator but do not count toward the percentage. An initial pending batch reports `0`, while a pending batch waiting for retry can retain prior progress.
 
 `GET /batchjob/stream` is a non-breaking SSE alternative to the form-list endpoint. It emits an initial `form-list` event immediately, then emits another event only when the filtered Bundle changes. Unchanged polls send SSE keepalive comments. The stream is summary-only and does not support `include_patient=true`; use the regular endpoint when the full Patient resource is required. Because authenticated browser `EventSource` clients cannot normally set an `Authorization` header, clients using Bearer authentication should consume this endpoint with an authenticated streaming `fetch()` or an equivalent client.

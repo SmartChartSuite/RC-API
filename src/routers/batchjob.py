@@ -18,6 +18,7 @@ from fastapi import APIRouter, Query, Request, Response, Security
 from fastapi.responses import JSONResponse, StreamingResponse
 from loguru import logger
 
+from src.models.batch_review import BatchReviewCopiesRequest, BatchReviewCopiesResponse
 from src.models.fhir import FHIRJSON, BundleResource, ParametersParameter, ParametersResponse
 from src.models.job_request import JobRequest
 from src.models.job_response import BatchJobAcceptedResponse
@@ -287,6 +288,28 @@ async def get_batch_job_status(
     partial or final Bundle.
     """
     result = await batch_job_service.get_batch_job_status(batch_id, include_patient)
+    if isinstance(result, batch_job_service.BatchJobError):
+        return _service_error_response(result)
+    return result
+
+
+@router.post(
+    "/batchjob/{batch_id}/review-copies",
+    summary="Create Batch Review Copies",
+    response_model=BatchReviewCopiesResponse,
+    status_code=201,
+    responses=operation_outcome_responses(400, 404, 409, 500),
+)
+async def create_batch_review_copies(
+    batch_id: str,
+    body: BatchReviewCopiesRequest,
+    claims: dict = Security(validate_token),
+    _: None = Security(require_admin),
+) -> BatchReviewCopiesResponse | JSONResponse:
+    """Create terminal reviewer copies of a completed batch without re-executing it."""
+    raw_created_by = claims.get("sub")
+    created_by = raw_created_by if isinstance(raw_created_by, str) and raw_created_by else "admin"
+    result = await batch_job_service.create_batch_review_copies_for_admin(batch_id, body, created_by)
     if isinstance(result, batch_job_service.BatchJobError):
         return _service_error_response(result)
     return result

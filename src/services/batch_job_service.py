@@ -18,6 +18,7 @@ from typing import Any, cast
 
 from fastapi.responses import JSONResponse
 
+from src.models.batch_review import BatchReviewCopiesRequest, BatchReviewCopiesResponse, BatchReviewCopyResponse
 from src.models.fhir import FHIRJSON, ParametersParameter, ParametersResponse
 from src.models.job_request import JobRequest
 from src.services.batch_job_filters import (
@@ -34,6 +35,7 @@ from src.services.external_fhir import fetch_patient_summary as _fetch_patient_s
 from src.services.fhir_proxy import fhir_get
 from src.services.job_state.batch_records import (
     create_batch_job_with_response,
+    create_batch_review_copies,
     delete_batch_job_record,
     get_batch_job,
     get_batch_job_document_texts,
@@ -162,6 +164,12 @@ def to_batch_job_parameters(
         )
     if job.questionnaire_title:
         parameters.append(ParametersParameter(name="jobPackageTitle", valueString=job.questionnaire_title))
+    if job.source_batch_id:
+        parameters.append(ParametersParameter(name="sourceBatchId", valueString=job.source_batch_id))
+    if job.reviewer_key:
+        parameters.append(ParametersParameter(name="reviewerKey", valueString=job.reviewer_key))
+    if job.reviewer_label:
+        parameters.append(ParametersParameter(name="reviewerLabel", valueString=job.reviewer_label))
     derived_patient_name = patient_name(patient)
     if derived_patient_name:
         parameters.append(ParametersParameter(name="patientName", valueString=derived_patient_name))
@@ -541,10 +549,18 @@ async def get_batch_job_results(batch_id: str) -> FHIRJSON | BatchJobError | Sto
     job = await run_db(get_batch_job, batch_id)
     if not job:
         return BatchJobError(404, "not-found", f"Batch Job ID {batch_id} was not found.")
-    if job.result_bundle and job.result_bundle.get("resourceType") == "Bundle":
-        child_jobs = await run_db(get_jobs_for_batch, batch_id)
-        bundle = with_batch_progress(job.result_bundle, child_jobs, job.status)
-        document_texts = await run_db(get_batch_job_document_texts, batch_id)
+
+    result_batch_id = job.source_batch_id or batch_id
+    result_job = job
+    if job.source_batch_id:
+        result_job = await run_db(get_batch_job, job.source_batch_id)
+        if not result_job:
+            return BatchJobError(500, "transient", f"Source batch job {job.source_batch_id} for {batch_id} was not found.")
+
+    if result_job.result_bundle and result_job.result_bundle.get("resourceType") == "Bundle":
+        child_jobs = await run_db(get_jobs_for_batch, result_batch_id)
+        bundle = with_batch_progress(result_job.result_bundle, child_jobs, result_job.status)
+        document_texts = await run_db(get_batch_job_document_texts, result_batch_id)
         return dict(hydrate_document_entries(bundle, document_texts))
     if job.status in ("pending", "running"):
         return BatchJobError(
@@ -553,13 +569,58 @@ async def get_batch_job_results(batch_id: str) -> FHIRJSON | BatchJobError | Sto
             f"Batch job {batch_id} is still {job.status} and no partial result Bundle is available yet.",
             severity="information",
         )
-    if not job.result_bundle:
+    if not result_job.result_bundle:
         return BatchJobError(
             500,
             "transient",
-            f"Batch job {batch_id} has no result bundle. The job may have encountered an error - check job status.",
+            f"Batch job {batch_id} has no result bundle. The job may have encountered an error - check the source batch job.",
         )
-    return StoredErrorBundle(job.result_bundle)
+    return StoredErrorBundle(result_job.result_bundle)
+
+
+async def create_batch_review_copies_for_admin(
+    source_batch_id: str,
+    body: BatchReviewCopiesRequest,
+    created_by: str,
+) -> BatchReviewCopiesResponse | BatchJobError:
+    """Create idempotent terminal review copies for one complete or partial source batch."""
+    reviewer_pairs = body.reviewer_pairs()
+    reviewer_keys = {key for key, _ in reviewer_pairs}
+    if len(reviewer_keys) != len(reviewer_pairs):
+        return BatchJobError(400, "value", "Reviewer keys must be unique within one request.")
+    original_reviewer_key = body.original_reviewer_key()
+    if original_reviewer_key is not None and original_reviewer_key not in reviewer_keys:
+        return BatchJobError(400, "value", "assignOriginalTo must match one reviewer key in the request.")
+
+    try:
+        copies = await run_db(
+            create_batch_review_copies,
+            source_batch_id,
+            reviewer_pairs,
+            created_by,
+            original_reviewer_key=original_reviewer_key,
+        )
+    except LookupError as exc:
+        return BatchJobError(404, "not-found", str(exc))
+    except ValueError as exc:
+        return BatchJobError(409, "conflict", str(exc))
+
+    return BatchReviewCopiesResponse(
+        sourceBatchId=source_batch_id,
+        copies=[
+            BatchReviewCopyResponse(
+                batchId=job.batch_id,
+                sourceBatchId=job.source_batch_id or source_batch_id,
+                reviewerKey=job.reviewer_key or "",
+                reviewerLabel=job.reviewer_label or "",
+                questionnaireTitle=job.questionnaire_title or job.job_package,
+                status=job.status,
+                created=created,
+                isOriginal=job.batch_id == source_batch_id,
+            )
+            for job, created in copies
+        ],
+    )
 
 
 async def get_batch_job_status(batch_id: str, include_patient: bool) -> ParametersResponse | BatchJobError:
@@ -570,7 +631,8 @@ async def get_batch_job_status(batch_id: str, include_patient: bool) -> Paramete
     response = (await run_db(get_responses_for_batches, [batch_id])).get(batch_id)
     progress = None
     if job.status in {"pending", "running", "partial"}:
-        progress = (await run_db(get_job_progress_for_batches, [batch_id])).get(batch_id, 0)
+        progress_batch_id = job.source_batch_id or batch_id
+        progress = (await run_db(get_job_progress_for_batches, [progress_batch_id])).get(progress_batch_id, 0)
     return to_batch_job_parameters(job, response=response, patient=patient, include_patient_resource=include_patient, progress=progress)
 
 

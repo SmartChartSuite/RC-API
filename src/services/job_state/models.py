@@ -54,6 +54,7 @@ class BatchJobs(Base):
     __table_args__ = (
         Index("ix_batch_jobs_v1_worker_queue", "status", "next_attempt_at", "created_at"),
         Index("ix_batch_jobs_v1_worker_lease", "status", "lease_expires_at"),
+        Index("ux_batch_jobs_v1_review_copy", "source_batch_id", "reviewer_key", unique=True),
     )
 
     batch_id: Mapped[str] = mapped_column(primary_key=True)
@@ -70,6 +71,9 @@ class BatchJobs(Base):
     requested_jobs: Mapped[list[str] | None] = mapped_column(JSON)
     document_start_date: Mapped[date | None] = mapped_column(Date)
     document_end_date: Mapped[date | None] = mapped_column(Date)
+    source_batch_id: Mapped[str | None] = mapped_column(String(64))
+    reviewer_key: Mapped[str | None] = mapped_column(String(64))
+    reviewer_label: Mapped[str | None] = mapped_column(String(128))
     attempt_count: Mapped[int] = mapped_column(server_default="0")
     heartbeat_at: Mapped[datetime | None]
     updated_at: Mapped[datetime | None] = mapped_column(default=_utc_now, onupdate=_utc_now)
